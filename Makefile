@@ -1,4 +1,4 @@
-.PHONY: help extract load dbt-debug dbt-run dbt-test dbt-docs check-setup
+.PHONY: help extract load diff test dbt-debug dbt-run dbt-test dbt-docs check-setup
 
 # Load .env into the make process so subcommands inherit the vars.
 ifneq (,$(wildcard .env))
@@ -13,6 +13,8 @@ help:
 	@echo "  check-setup   verify Neon + R2 connectivity"
 	@echo "  extract       fetch pscomppars and upload to R2"
 	@echo "  load          load latest snapshot from R2 into Postgres"
+	@echo "  diff          compute discovery_changes between latest two snapshots"
+	@echo "  test          run pytest unit tests"
 	@echo "  dbt-debug     verify dbt connects to Neon"
 	@echo "  dbt-run       run all dbt models"
 	@echo "  dbt-test      run all dbt tests"
@@ -26,6 +28,12 @@ extract:
 
 load:
 	python -m etl.load
+
+diff:
+	python -m etl.diff
+
+test:
+	pytest -v
 
 dbt-debug:
 	cd $(DBT_DIR) && DBT_PROFILES_DIR=. dbt debug

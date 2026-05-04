@@ -234,11 +234,11 @@ def main() -> int:
     body = r2.download_object(client, manifest["r2_key"])
     actual_checksum = hashlib.sha256(body).hexdigest()
     if not args.skip_checksum and actual_checksum != manifest["checksum_sha256"]:
-        print(f"  ✗ checksum mismatch", file=sys.stderr)
+        print("  ✗ checksum mismatch", file=sys.stderr)
         print(f"    manifest: {manifest['checksum_sha256']}", file=sys.stderr)
         print(f"    actual:   {actual_checksum}", file=sys.stderr)
         return 1
-    print(f"  ✓ checksum verified")
+    print("  ✓ checksum verified")
 
     df = pd.read_csv(io.BytesIO(body), low_memory=False, comment="#")
     print(f"  parsed: {len(df):,} rows × {len(df.columns)} cols")

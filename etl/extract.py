@@ -12,7 +12,7 @@ import argparse
 import json
 import os
 import sys
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -81,7 +81,7 @@ def main() -> int:
     snapshot_date = (
         date.fromisoformat(args.snapshot_date)
         if args.snapshot_date
-        else datetime.now(timezone.utc).date()
+        else datetime.now(UTC).date()
     )
 
     if manifest_has_date(snapshot_date) and not args.force and not args.dry_run:
@@ -112,7 +112,7 @@ def main() -> int:
         "row_count": response.row_count,
         "checksum_sha256": response.checksum_sha256,
         "source_url": response.source_url,
-        "source_retrieved_at": datetime.now(timezone.utc).isoformat(),
+        "source_retrieved_at": datetime.now(UTC).isoformat(),
         "extraction_version": EXTRACTION_VERSION,
     }
     append_manifest(entry)

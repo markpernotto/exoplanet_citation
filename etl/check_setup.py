@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import boto3
 import psycopg
@@ -92,7 +92,7 @@ def check_r2() -> bool:
         _fail(f"head_bucket failed: {e}")
         return False
 
-    test_key = f"_setup_check/{datetime.now(timezone.utc).isoformat()}.txt"
+    test_key = f"_setup_check/{datetime.now(UTC).isoformat()}.txt"
     payload = b"connectivity-check"
 
     try:

@@ -97,7 +97,7 @@ def main() -> int:
     print(f"\n{'=' * 70}")
     print(f"  Total planets in current snapshot: {total:,}")
     print(f"  Total columns per row: {len(raw)}")
-    print(f"  Currently typed in planets_snapshots: 15")
+    print("  Currently typed in planets_snapshots: 15")
     print(f"  Sitting in raw_row JSONB only: {len(raw) - 15}")
     print(f"{'=' * 70}\n")
     return 0

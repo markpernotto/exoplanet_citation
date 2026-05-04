@@ -29,10 +29,20 @@ def make_row(pl_name: str = "Kepler-22 b", **overrides):
         "disc_instrument": "Kepler CCD Array",
         "disc_refname": "Borucki et al. 2011",
         "pl_orbper": 289.86,
+        "pl_orbsmax": 0.85,
+        "pl_orbeccen": 0.0,
         "pl_rade": 2.4,
         "pl_bmasse": 9.0,
+        "pl_dens": 3.5,
         "pl_eqt": 262.0,
+        "pl_insol": 1.1,
+        "st_teff": 5518.0,
+        "st_rad": 0.98,
+        "st_mass": 0.97,
+        "st_lum": -0.085,
+        "st_spectype": "G5V",
         "st_dist": 190.0,
+        "sy_dist": 190.0,
     }
     base.update(overrides)
     return base
@@ -294,10 +304,29 @@ def test_all_field_tiers_valid():
         ("pl_bmasse", "A"),
         ("sy_snum", "B"),
         ("sy_pnum", "B"),
+        ("pl_orbsmax", "B"),
+        ("pl_orbeccen", "B"),
+        ("pl_dens", "B"),
         ("pl_eqt", "B"),
+        ("pl_insol", "B"),
+        ("st_teff", "B"),
+        ("st_rad", "B"),
+        ("st_mass", "B"),
+        ("st_lum", "B"),
+        ("st_spectype", "B"),
         ("st_dist", "B"),
+        ("sy_dist", "B"),
     ],
 )
 def test_field_tier_assignments(field_name, expected_tier):
     field = next(f for f in ALL_FIELDS if f.name == field_name)
     assert field.tier == expected_tier
+
+
+def test_ra_dec_gaia_id_excluded_from_diffing():
+    """ra, dec, gaia_dr3_id are typed columns but intentionally excluded
+    from ALL_FIELDS — they're identity-stable / change too slowly to matter."""
+    field_names = {f.name for f in ALL_FIELDS}
+    assert "ra" not in field_names
+    assert "dec" not in field_names
+    assert "gaia_dr3_id" not in field_names

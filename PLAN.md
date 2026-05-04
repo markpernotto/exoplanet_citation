@@ -20,7 +20,7 @@ A public data warehouse that ingests the NASA Exoplanet Archive, joins each conf
 | Phase | Scope | Ship target |
 |---|---|---|
 | **Phase 1** | New-exoplanet diff watcher: nightly ingest → diff → RSS + JSON API + minimal UI | End of Week 2 |
-| **Phase 2** | Citation warehouse: resolve discovery publications, build dim/fact marts via dbt, expose citation graph in API + UI | End of Week 4 |
+| **Phase 2** | Citation warehouse + Gaia enrichment: resolve discovery publications, build dim/fact marts via dbt, query Gaia DR3 for host star astrometry/photometry, expose citation graph + procedural rendering data in API + UI | End of Week 4 |
 | **Phase 3** *(post-v1.0)* | Follow-up paper graph: query ADS for papers that cite each discovery and mention the planet, surface the discovery → follow-up edges in the UI | Decided post-v1.0 based on Phase 2 outcomes |
 
 Phase 1 is independently shippable and useful. Phase 3 is gated on Phase 2's resolution rate being good enough to make a follow-up graph meaningful.
@@ -51,14 +51,16 @@ Phase 1 is independently shippable and useful. Phase 3 is gated on Phase 2's res
 - [ ] Each confirmed planet linked to ≥1 discovery publication via DOI or arXiv ID, where resolvable
 - [ ] Resolution confidence per link (high / medium / low) with human-readable reason
 - [ ] Crossref + arXiv + NASA ADS metadata cached in `publications` table
+- [ ] **Gaia DR3 host-star enrichment**: every host star with a `gaia_dr3_id` queried against the Gaia TAP service; BP-RP photometry, parallax, proper motion, Gaia-derived stellar parameters cached in `host_stars_gaia` table
 - [ ] dbt marts: `dim_planet`, `dim_publication`, `fact_discovery`, `fact_parameter_revision`
-- [ ] Public endpoints: `/api/planets/{name}`, `/api/planets/{name}/publications`, `/api/publications/{doi}`, `/api/publications/{doi}/planets`
-- [ ] Browsable React UI: planet detail page shows discovery paper; publication detail page shows all planets it discusses
+- [ ] Public endpoints: `/api/planets/{name}`, `/api/planets/{name}/publications`, `/api/publications/{doi}`, `/api/publications/{doi}/planets`, `/api/planets/{name}/host_star` (Gaia-enriched)
+- [ ] Browsable React UI: planet detail page shows discovery paper, the planet rendered procedurally from typed columns, the host star colored from Gaia BP-RP; publication detail page shows all planets it discusses
 - [ ] dbt tests pass in CI; `dbt docs` published to GitHub Pages or Vercel
-- [ ] `docs/DATA_CATALOG.md` extended with publication sources (Crossref, arXiv, ADS)
+- [ ] `docs/DATA_CATALOG.md` extended with publication sources (Crossref, arXiv, ADS) and Gaia DR3
 - [ ] `docs/CITATION_RESOLUTION.md` documents tier strategy + current resolution rate as a KPI
-- [ ] Backfill of all ~5,500 existing planets completed via resumable batch script
-- [ ] README v2 leads with the citation-graph contribution
+- [ ] `docs/PROCEDURAL_RENDERING.md` documents the temperature/density/insolation → visual mapping
+- [ ] Backfill of all ~6,300 existing planets completed via resumable batch script (citation + Gaia, runnable independently)
+- [ ] README v2 leads with the citation-graph contribution and the procedural-visualization differentiator
 
 ### Phase 3 (post-v1.0, decision after Phase 2 ships)
 - [ ] For each discovery publication, query ADS for citing papers that mention the planet name in their abstract
@@ -93,6 +95,7 @@ All public. Attribute the agency in README and in-app. Use a `User-Agent` identi
 | Crossref REST API | https://api.crossref.org/works/{doi} | JSON | On demand | 2 | Resolve DOI → publication metadata. Free, polite-pool with email |
 | arXiv API | http://export.arxiv.org/api/query | Atom | On demand | 2 | Resolve arXiv ID → preprint metadata |
 | NASA ADS API | https://api.adsabs.harvard.edu/v1 | JSON | On demand | 2 | Best-in-class astronomy citation database. Free with API key. |
+| Gaia DR3 (ESA) | https://gea.esac.esa.int/tap-server/tap | TAP / VOTable | On demand | 2 | Per-host-star astrometry, photometry (BP-RP color → derived surface temp), parallax, proper motion. Cross-referenced via `gaia_dr3_id` already in pscomppars. Free, no API key. **Not duplicative of pscomppars** — pscomppars carries only the source ID and one magnitude; Gaia direct gives multi-band photometry, full-precision parallax, and Gaia-derived stellar parameters. |
 | ROR (Research Org Registry) | https://api.ror.org/organizations | JSON | On demand | 2 (optional) | Normalize discovery facility names to ROR IDs |
 
 ### TAP query specifics
@@ -226,6 +229,28 @@ extracted_at           TIMESTAMPTZ NOT NULL
 PRIMARY KEY (pl_name, publication_id, relationship)
 ```
 
+### `host_stars_gaia` (Phase 2 — Gaia DR3 enrichment)
+
+```sql
+gaia_dr3_id            TEXT PRIMARY KEY        -- matches planets_snapshots.gaia_dr3_id
+hostname               TEXT NOT NULL           -- denormalized for convenience
+parallax_mas           DOUBLE PRECISION        -- milliarcseconds; derive distance via 1000 / parallax = pc
+parallax_error         DOUBLE PRECISION
+pmra_mas_yr            DOUBLE PRECISION        -- proper motion in RA, mas/year
+pmdec_mas_yr           DOUBLE PRECISION        -- proper motion in Dec, mas/year
+radial_velocity_km_s   DOUBLE PRECISION        -- line-of-sight velocity, km/s
+phot_g_mean_mag        DOUBLE PRECISION        -- Gaia G-band mean apparent magnitude
+phot_bp_mean_mag       DOUBLE PRECISION        -- Gaia BP-band (blue) magnitude
+phot_rp_mean_mag       DOUBLE PRECISION        -- Gaia RP-band (red) magnitude
+bp_rp                  DOUBLE PRECISION        -- BP - RP color index → drives star color in UI
+teff_gspphot           DOUBLE PRECISION        -- Gaia-derived effective temperature, K
+logg_gspphot           DOUBLE PRECISION        -- Gaia-derived log surface gravity
+mh_gspphot             DOUBLE PRECISION        -- Gaia-derived metallicity [M/H]
+distance_gspphot_pc    DOUBLE PRECISION        -- Gaia-derived distance, parsecs
+source_record          JSONB NOT NULL          -- raw Gaia TAP response
+retrieved_at           TIMESTAMPTZ NOT NULL
+```
+
 ### `backfill_state` (Phase 2 — for resumable backfill)
 
 ```sql
@@ -277,14 +302,21 @@ discovery_changes (where change_type = NEW)
         ▼
   resolve_citation.py    → Tier 1 (DOI direct) → Tier 3 (Crossref) → Tier 2 (ADS) → Tier 4 (queue)
         │                  → write to publications + planet_publications
+        │
+        │  (parallel branch)
+        ▼
+  enrich_gaia.py         → for each new host with gaia_dr3_id, query Gaia DR3 TAP
+        │                  → write to host_stars_gaia
         ▼
   dbt run                → marts: dim_planet, dim_publication, fact_discovery, fact_parameter_revision
         │
         ▼
-  publish.py             → regenerate citation-graph endpoints
+  publish.py             → regenerate citation-graph + procedural-rendering endpoints
 ```
 
 Note tier ordering: Tier 2 (ADS) runs after Tier 3 (Crossref) intentionally because the ADS API key may not arrive by the time we start coding the resolver. Tier 2 reprocesses anything Tiers 1 and 3 left as low-confidence or unresolved.
+
+Gaia enrichment runs as a parallel branch — it has no dependency on citation resolution. The two backfill jobs can run independently and concurrently (Gaia: ~6,300 hosts, batched lookups, ~hour of clock time; citations: ~6,300 planets across 3 APIs, several hours).
 
 ---
 
@@ -345,7 +377,8 @@ exoplanet_citation/
 │   │   ├── exoplanet_archive.py
 │   │   ├── crossref.py
 │   │   ├── arxiv.py
-│   │   └── ads.py
+│   │   ├── ads.py
+│   │   └── gaia.py               # Phase 2
 │   ├── transform/                # dbt project root (used from Day 2)
 │   │   ├── dbt_project.yml
 │   │   ├── models/
@@ -356,7 +389,9 @@ exoplanet_citation/
 │   ├── load.py
 │   ├── diff.py
 │   ├── resolve_citation.py       # Phase 2
+│   ├── enrich_gaia.py            # Phase 2
 │   ├── backfill_citations.py     # Phase 2
+│   ├── backfill_gaia.py          # Phase 2
 │   ├── publish.py
 │   └── schema.sql
 ├── vocabularies/
@@ -485,9 +520,13 @@ Daily breakdown is a guide. Slip is acceptable; ship-quality is not. Phase 1 mus
 - `tests/test_resolve_citation.py` — ≥10 cases per tier, plus edge-case reference strings
 
 **Day 19 (Fri)**
-- Verify backfill completed; check resolution rate
+- Verify citation backfill completed; check resolution rate
+- Write `etl/sources/gaia.py` — TAP query helper for Gaia DR3 (same TAP/ADQL pattern as `exoplanet_archive.py`)
+- Schema migration for `host_stars_gaia`
+- Write `etl/enrich_gaia.py` — for each host with `gaia_dr3_id`, look up Gaia DR3 record; write to `host_stars_gaia`
+- Write `etl/backfill_gaia.py` — resumable batched backfill across ~6,300 hosts; kick off to run unattended overnight
 - `docs/CITATION_RESOLUTION.md` — methodology doc with decision tree, confidence rubric, current resolution rate
-- Hook nightly resolver into the pipeline (only on `NEW` changes)
+- Hook nightly resolver + nightly Gaia enrichment into the pipeline (only on `NEW` changes)
 
 ### Week 4 — dbt marts + UI surfacing + ship Phase 2
 
@@ -504,8 +543,10 @@ Daily breakdown is a guide. Slip is acceptable; ship-quality is not. Phase 1 mus
 - Cache `dim_planet` reads aggressively
 
 **Day 23 (Thu)**
-- React: planet detail page shows discovery paper; publication detail page lists all planets
+- React: planet detail page shows discovery paper, **the planet rendered procedurally** from typed columns (temperature → atmosphere color, density → rocky/gas-giant body type, radius → size), **the host star colored** from Gaia BP-RP photometry
+- Publication detail page lists all planets
 - Add "citation graph health" panel to UI showing resolution rate over time
+- `docs/PROCEDURAL_RENDERING.md` finalized — temperature/density/insolation → visual mapping, with honesty caveats about what's measured vs. derived
 
 **Day 24 (Fri)**
 - README v2 — lead with the citation-graph contribution, include resolution-rate KPI
@@ -527,7 +568,8 @@ Daily breakdown is a guide. Slip is acceptable; ship-quality is not. Phase 1 mus
 | First-day snapshot has nothing to diff against | First run emits zero changes, not errors. Documented in README. |
 | Schema drift in source data | `raw_row JSONB` preserves source row; transforms log unknown enum values rather than failing |
 | Neon free tier pauses after inactivity | ~2s cold start, acceptable for nightly batch |
-| Backfill takes longer than expected | Resumable + batched; can pause and resume across nights |
+| Backfill takes longer than expected | Resumable + batched; can pause and resume across nights. Citation and Gaia backfills run independently — slow citation resolution doesn't block Gaia enrichment. |
+| Gaia DR3 has no record for some host stars | Some recently-discovered or faint hosts won't have a `gaia_dr3_id` in pscomppars at all, and some that have an ID may not have Gaia-derived stellar parameters (`*_gspphot` columns are populated for ~470M of Gaia's 1.8B sources). UI falls back to pscomppars values for missing hosts; coverage rate tracked alongside citation resolution rate. |
 | Scope creep into "build a NASA front-end" | UI scope locked: discoveries feed, planet detail, publication detail, resolution-rate panel. Nothing else in v1.0. |
 | Timeline slips | Acceptable. Phase 1 ships on its own merits; Phase 2 ships when ready; Phase 3 is post-v1.0 by design. |
 

@@ -49,14 +49,24 @@ TIER_A_FIELDS: list[FieldSpec] = [
 
 # Tier B — logged to discovery_changes but NOT surfaced.
 # Sub-tolerance float changes are suppressed (vs. Tier A, which demotes to B).
-# Additional Tier B fields from PLAN.md (pl_orbsmax, pl_orbeccen, pl_insol,
-# st_teff, st_rad, st_mass) require schema expansion in planets_snapshots first
-# — tracked as Phase-1.x: extend typed columns.
+# ra / dec / gaia_dr3_id are typed columns but intentionally excluded from
+# diffing: ra/dec change too slowly (proper motion is parts-per-million per
+# year), gaia_dr3_id is an identity reference that should not change.
 TIER_B_FIELDS: list[FieldSpec] = [
     FieldSpec("sy_snum", tier="B"),
     FieldSpec("sy_pnum", tier="B"),
+    FieldSpec("pl_orbsmax", tier="B", rel_tolerance=0.01),
+    FieldSpec("pl_orbeccen", tier="B", rel_tolerance=0.01),
+    FieldSpec("pl_dens", tier="B", rel_tolerance=0.01),
     FieldSpec("pl_eqt", tier="B", rel_tolerance=0.01),
+    FieldSpec("pl_insol", tier="B", rel_tolerance=0.01),
+    FieldSpec("st_teff", tier="B", rel_tolerance=0.01),
+    FieldSpec("st_rad", tier="B", rel_tolerance=0.01),
+    FieldSpec("st_mass", tier="B", rel_tolerance=0.01),
+    FieldSpec("st_lum", tier="B", rel_tolerance=0.01),
+    FieldSpec("st_spectype", tier="B"),
     FieldSpec("st_dist", tier="B", rel_tolerance=0.01),
+    FieldSpec("sy_dist", tier="B", rel_tolerance=0.01),
 ]
 
 ALL_FIELDS: list[FieldSpec] = TIER_A_FIELDS + TIER_B_FIELDS
@@ -198,7 +208,11 @@ def to_db_record(rec: dict[str, Any]) -> dict[str, Any]:
 _FETCH_COLS = [
     "pl_name", "hostname", "sy_snum", "sy_pnum", "discoverymethod",
     "disc_year", "disc_facility", "disc_telescope", "disc_instrument",
-    "disc_refname", "pl_orbper", "pl_rade", "pl_bmasse", "pl_eqt", "st_dist",
+    "disc_refname",
+    "pl_orbper", "pl_orbsmax", "pl_orbeccen",
+    "pl_rade", "pl_bmasse", "pl_dens", "pl_eqt", "pl_insol",
+    "st_teff", "st_rad", "st_mass", "st_lum", "st_spectype", "st_dist",
+    "sy_dist",
 ]
 
 

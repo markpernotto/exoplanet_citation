@@ -32,7 +32,13 @@ MANIFEST_PATH = Path("data/MANIFEST.jsonl")
 
 # Typed columns extracted from each CSV row into planets_snapshots.
 TYPED_INT_COLS = ["sy_snum", "sy_pnum", "disc_year"]
-TYPED_FLOAT_COLS = ["pl_orbper", "pl_rade", "pl_bmasse", "pl_eqt", "st_dist"]
+TYPED_FLOAT_COLS = [
+    "pl_orbper", "pl_orbsmax", "pl_orbeccen",
+    "pl_rade", "pl_bmasse", "pl_dens", "pl_eqt", "pl_insol",
+    "st_teff", "st_rad", "st_mass", "st_lum",
+    "st_dist", "sy_dist",
+    "ra", "dec",
+]
 TYPED_TEXT_COLS = [
     "pl_name",
     "hostname",
@@ -41,6 +47,8 @@ TYPED_TEXT_COLS = [
     "disc_telescope",
     "disc_instrument",
     "disc_refname",
+    "st_spectype",
+    "gaia_dr3_id",
 ]
 ALL_TYPED_COLS = TYPED_TEXT_COLS + TYPED_INT_COLS + TYPED_FLOAT_COLS
 
@@ -49,13 +57,19 @@ INSERT INTO planets_snapshots (
     snapshot_date, pl_name, hostname,
     sy_snum, sy_pnum,
     discoverymethod, disc_year, disc_facility, disc_telescope, disc_instrument, disc_refname,
-    pl_orbper, pl_rade, pl_bmasse, pl_eqt, st_dist,
+    pl_orbper, pl_orbsmax, pl_orbeccen,
+    pl_rade, pl_bmasse, pl_dens, pl_eqt, pl_insol,
+    st_teff, st_rad, st_mass, st_lum, st_spectype, st_dist,
+    sy_dist, ra, dec, gaia_dr3_id,
     raw_row, source_url, source_retrieved_at, source_checksum, extraction_version
 ) VALUES (
     %(snapshot_date)s, %(pl_name)s, %(hostname)s,
     %(sy_snum)s, %(sy_pnum)s,
     %(discoverymethod)s, %(disc_year)s, %(disc_facility)s, %(disc_telescope)s, %(disc_instrument)s, %(disc_refname)s,
-    %(pl_orbper)s, %(pl_rade)s, %(pl_bmasse)s, %(pl_eqt)s, %(st_dist)s,
+    %(pl_orbper)s, %(pl_orbsmax)s, %(pl_orbeccen)s,
+    %(pl_rade)s, %(pl_bmasse)s, %(pl_dens)s, %(pl_eqt)s, %(pl_insol)s,
+    %(st_teff)s, %(st_rad)s, %(st_mass)s, %(st_lum)s, %(st_spectype)s, %(st_dist)s,
+    %(sy_dist)s, %(ra)s, %(dec)s, %(gaia_dr3_id)s,
     %(raw_row)s, %(source_url)s, %(source_retrieved_at)s, %(source_checksum)s, %(extraction_version)s
 )
 ON CONFLICT (snapshot_date, pl_name) DO UPDATE SET
@@ -69,10 +83,23 @@ ON CONFLICT (snapshot_date, pl_name) DO UPDATE SET
     disc_instrument = EXCLUDED.disc_instrument,
     disc_refname = EXCLUDED.disc_refname,
     pl_orbper = EXCLUDED.pl_orbper,
+    pl_orbsmax = EXCLUDED.pl_orbsmax,
+    pl_orbeccen = EXCLUDED.pl_orbeccen,
     pl_rade = EXCLUDED.pl_rade,
     pl_bmasse = EXCLUDED.pl_bmasse,
+    pl_dens = EXCLUDED.pl_dens,
     pl_eqt = EXCLUDED.pl_eqt,
+    pl_insol = EXCLUDED.pl_insol,
+    st_teff = EXCLUDED.st_teff,
+    st_rad = EXCLUDED.st_rad,
+    st_mass = EXCLUDED.st_mass,
+    st_lum = EXCLUDED.st_lum,
+    st_spectype = EXCLUDED.st_spectype,
     st_dist = EXCLUDED.st_dist,
+    sy_dist = EXCLUDED.sy_dist,
+    ra = EXCLUDED.ra,
+    dec = EXCLUDED.dec,
+    gaia_dr3_id = EXCLUDED.gaia_dr3_id,
     raw_row = EXCLUDED.raw_row,
     source_url = EXCLUDED.source_url,
     source_retrieved_at = EXCLUDED.source_retrieved_at,
@@ -158,10 +185,23 @@ def build_row(csv_row: dict, manifest: dict) -> dict:
         "disc_instrument": _coerce_text(csv_row.get("disc_instrument")),
         "disc_refname": _coerce_text(csv_row.get("disc_refname")),
         "pl_orbper": _coerce_float(csv_row.get("pl_orbper")),
+        "pl_orbsmax": _coerce_float(csv_row.get("pl_orbsmax")),
+        "pl_orbeccen": _coerce_float(csv_row.get("pl_orbeccen")),
         "pl_rade": _coerce_float(csv_row.get("pl_rade")),
         "pl_bmasse": _coerce_float(csv_row.get("pl_bmasse")),
+        "pl_dens": _coerce_float(csv_row.get("pl_dens")),
         "pl_eqt": _coerce_float(csv_row.get("pl_eqt")),
+        "pl_insol": _coerce_float(csv_row.get("pl_insol")),
+        "st_teff": _coerce_float(csv_row.get("st_teff")),
+        "st_rad": _coerce_float(csv_row.get("st_rad")),
+        "st_mass": _coerce_float(csv_row.get("st_mass")),
+        "st_lum": _coerce_float(csv_row.get("st_lum")),
+        "st_spectype": _coerce_text(csv_row.get("st_spectype")),
         "st_dist": _coerce_float(csv_row.get("st_dist")),
+        "sy_dist": _coerce_float(csv_row.get("sy_dist")),
+        "ra": _coerce_float(csv_row.get("ra")),
+        "dec": _coerce_float(csv_row.get("dec")),
+        "gaia_dr3_id": _coerce_text(csv_row.get("gaia_dr3_id")),
         "raw_row": Jsonb(raw_row_clean),
         "source_url": manifest["source_url"],
         "source_retrieved_at": manifest["source_retrieved_at"],

@@ -1,0 +1,22 @@
+# Controlled vocabulary: NASA Exoplanet Archive discovery facilities
+# Source authority: https://exoplanetarchive.ipac.caltech.edu/docs/API_PS_columns.html (disc_facility)
+# Stub list — populate by extracting unique values from the first snapshot during Day 1.
+# Unknown values are logged, not rejected.
+
+terms:
+  - term: Kepler
+    label: Kepler Space Telescope
+  - term: K2
+    label: K2 Mission (Kepler extended)
+  - term: Transiting Exoplanet Survey Satellite (TESS)
+    label: TESS
+  - term: HATNet
+    label: Hungarian Automated Telescope Network
+  - term: WASP
+    label: Wide Angle Search for Planets
+  - term: La Silla Observatory
+    label: La Silla (HARPS)
+  - term: W. M. Keck Observatory
+    label: Keck Observatory
+  - term: CoRoT
+    label: CoRoT (Convection Rotation and planetary Transits)

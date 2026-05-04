@@ -1,0 +1,38 @@
+# Controlled vocabulary: NASA Exoplanet Archive discovery methods
+# Source authority: https://exoplanetarchive.ipac.caltech.edu/docs/API_PS_columns.html (discoverymethod)
+# Transforms read this; unknown values are logged but not rejected.
+
+terms:
+  - term: Transit
+    label: Transit
+    definition: Periodic dimming of host star light as the planet passes in front
+  - term: Radial Velocity
+    label: Radial Velocity
+    definition: Doppler shift of host star spectrum from gravitational tug of planet
+  - term: Imaging
+    label: Direct Imaging
+    definition: Direct photographic observation of the planet
+  - term: Microlensing
+    label: Microlensing
+    definition: Gravitational lensing event from foreground star + planet system
+  - term: Pulsar Timing
+    label: Pulsar Timing
+    definition: Anomalies in pulsar pulse timing caused by planetary companions
+  - term: Pulsation Timing Variations
+    label: Pulsation Timing Variations
+    definition: Variations in stellar oscillation timing
+  - term: Transit Timing Variations
+    label: Transit Timing Variations
+    definition: Deviations from strict periodicity of transits, indicating additional bodies
+  - term: Eclipse Timing Variations
+    label: Eclipse Timing Variations
+    definition: Variations in eclipsing binary timing
+  - term: Orbital Brightness Modulation
+    label: Orbital Brightness Modulation
+    definition: Phase-curve variations in host star brightness
+  - term: Astrometry
+    label: Astrometry
+    definition: Precise measurement of host star position changes
+  - term: Disk Kinematics
+    label: Disk Kinematics
+    definition: Kinematic signatures in protoplanetary disks

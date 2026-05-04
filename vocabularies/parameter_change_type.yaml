@@ -1,0 +1,13 @@
+# Controlled vocabulary: parameter change types emitted by diff.py
+# These are project-internal classifications, not from the source archive.
+
+terms:
+  - term: NEW
+    label: Newly added planet
+    definition: A pl_name appears in today's snapshot that was not in yesterday's
+  - term: REMOVED
+    label: Planet removed
+    definition: A pl_name was in yesterday's snapshot but not today's (rare; usually retraction or rename)
+  - term: PARAMETER_CHANGE
+    label: Parameter value changed
+    definition: A tracked field (Tier A or B) changed value beyond the configured tolerance threshold

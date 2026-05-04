@@ -1,0 +1,30 @@
+version: 2
+
+models:
+  - name: stg_pscomppars
+    description: |
+      Most recent pscomppars snapshot, exposing only the typed columns we
+      track explicitly. The raw_row JSONB is dropped here; downstream marts
+      that need additional fields should read from raw.planets_snapshots.
+    columns:
+      - name: pl_name
+        description: "Canonical planet name"
+        tests:
+          - unique
+          - not_null
+      - name: hostname
+        description: "Host star name"
+        tests:
+          - not_null
+      - name: snapshot_date
+        description: "UTC date the snapshot was retrieved"
+        tests:
+          - not_null
+      - name: discoverymethod
+        description: "Discovery method (Transit, Radial Velocity, etc.)"
+      - name: disc_year
+        description: "Year of discovery as published by the Exoplanet Archive"
+      - name: source_checksum
+        description: "sha256 of the source CSV"
+        tests:
+          - not_null

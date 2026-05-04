@@ -1,0 +1,35 @@
+version: 2
+
+sources:
+  - name: raw
+    description: "Raw landing tables populated by etl/load.py"
+    schema: public
+    tables:
+      - name: planets_snapshots
+        description: "Nightly snapshots of NASA Exoplanet Archive pscomppars"
+        columns:
+          - name: snapshot_date
+            description: "UTC date the snapshot was retrieved"
+            tests:
+              - not_null
+          - name: pl_name
+            description: "Canonical planet name from the Exoplanet Archive"
+            tests:
+              - not_null
+          - name: source_checksum
+            description: "sha256 of the source CSV that produced this row"
+            tests:
+              - not_null
+      - name: discovery_changes
+        description: "Diff events between consecutive snapshots"
+        columns:
+          - name: change_id
+            tests:
+              - unique
+              - not_null
+          - name: change_type
+            tests:
+              - not_null
+              - accepted_values:
+                  arguments:
+                    values: ['NEW', 'REMOVED', 'PARAMETER_CHANGE']

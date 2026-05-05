@@ -66,11 +66,21 @@ export default function PlanetCard({ planet }: Props) {
   const M = (2 * Math.PI * t) / animSec;
   const E = solveKeplerEquation(M, eccentricity);
 
-  // Sizing
-  const starRadius = 20;
-  const planetRadius = planet.pl_rade != null
-    ? Math.max(10, Math.min(20, 10 + Math.log2(Math.max(0.5, planet.pl_rade)) * 4))
-    : 14;
+  // Sizing — uses real radius data so planet/star ratio reflects reality.
+  // 1 solar radius ≈ 109 Earth radii, so a Jupiter (12 R⊕) around a Sun-like
+  // star is ~9× smaller than its host. Naïve scaling rendered them at 1:1.
+  // Fix: derive starRadius from st_rad (compressed via power 0.4 so giants
+  // don't blot out the canvas), then size the planet as a fraction of the
+  // star using the actual planet/star radius ratio, sqrt-compressed so tiny
+  // planets stay visible and large ratios don't get clipped.
+  const SOLAR_TO_EARTH_RADII = 109.2;
+  const stRad = planet.st_rad ?? 1.0;
+  const starRadius = Math.max(8, Math.min(40, 26 * Math.pow(Math.max(0.05, stRad), 0.4)));
+  const planetRadius = (() => {
+    if (planet.pl_rade == null) return Math.max(5, starRadius * 0.3);
+    const ratio = planet.pl_rade / (stRad * SOLAR_TO_EARTH_RADII);
+    return Math.max(5, Math.min(22, starRadius * Math.sqrt(Math.max(0, ratio)) * 1.2));
+  })();
 
   // Orbit sizing: scale up so periapsis always clears the star, no upper cap
   // on the orbit size. ViewBox grows to fit the full orbit. For very-eccentric
@@ -114,7 +124,7 @@ export default function PlanetCard({ planet }: Props) {
 
   return (
     <div className="card">
-      <svg viewBox="0 0 320 340" width="100%" style={{ display: 'block' }} role="img"
+      <svg viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`} width="100%" style={{ display: 'block' }} role="img"
            aria-label={`Animated visualization of ${planet.pl_name} orbiting host star ${planet.hostname}`}>
         <defs>
           {/* Star: hot bright nucleus → full color → soft outer */}
@@ -222,12 +232,12 @@ export default function PlanetCard({ planet }: Props) {
         {/* Orbit metadata in the corner — period and eccentricity */}
         {period != null && (
           <g>
-            <text x="312" y="20" textAnchor="end" fill="#9099aa" fontSize="10"
+            <text x={viewBoxWidth - 8} y="20" textAnchor="end" fill="#9099aa" fontSize="10"
                   fontFamily="-apple-system, sans-serif" opacity="0.85">
               P = {formatPeriod(period)}
             </text>
             {eccentricity > 0.05 && (
-              <text x="312" y="34" textAnchor="end" fill="#9099aa" fontSize="10"
+              <text x={viewBoxWidth - 8} y="34" textAnchor="end" fill="#9099aa" fontSize="10"
                     fontFamily="-apple-system, sans-serif" opacity="0.85">
                 e = {eccentricity.toFixed(2)}
               </text>

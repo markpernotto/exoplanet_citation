@@ -1,4 +1,4 @@
-.PHONY: help extract load diff publish pipeline test dbt-debug dbt-run dbt-test dbt-docs check-setup smoke-gaia
+.PHONY: help extract load diff publish pipeline test api dbt-debug dbt-run dbt-test dbt-docs check-setup smoke-gaia
 
 # Load .env into the make process so subcommands inherit the vars.
 ifneq (,$(wildcard .env))
@@ -16,6 +16,7 @@ help:
 	@echo "  diff          compute discovery_changes between latest two snapshots"
 	@echo "  publish       generate public/{rss.xml,discoveries.json,health.json}"
 	@echo "  pipeline      run extract → load → dbt → diff → publish"
+	@echo "  api           run FastAPI locally on :8000 with auto-reload"
 	@echo "  smoke-gaia    one-shot test of Gaia DR3 client against a host"
 	@echo "  test          run pytest unit tests"
 	@echo "  dbt-debug     verify dbt connects to Neon"
@@ -39,6 +40,9 @@ publish:
 	python -m etl.publish
 
 pipeline: extract load dbt-run diff publish
+
+api:
+	uvicorn api.index:app --reload --port 8000
 
 smoke-gaia:
 	python -m etl.smoke_gaia

@@ -1,0 +1,398 @@
+"""FastAPI app for exoplanet_citation.
+
+All endpoints under /api/. Read-only over the Postgres warehouse.
+Deploys as Python serverless functions on Vercel; runnable locally with
+`make api` (uvicorn on port 8000).
+
+Endpoints:
+  GET /api/health                                 — pipeline health + freshness
+  GET /api/stats                                  — top-level counts + breakdowns
+  GET /api/discoveries/latest?days=30             — recent surfaced changes
+  GET /api/discoveries/by-month/{yyyy-mm}         — historical month
+  GET /api/planets?limit=50&offset=0&q=...        — paginated list
+  GET /api/planets/{pl_name}                      — single planet detail
+  GET /api/planets/{pl_name}/history              — all change events for a planet
+
+OpenAPI / interactive docs:
+  /docs      — Swagger UI
+  /redoc     — ReDoc
+  /openapi.json
+"""
+
+from __future__ import annotations
+
+import os
+from datetime import UTC, date, datetime, timedelta
+
+import psycopg
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Path, Query
+from fastapi.middleware.cors import CORSMiddleware
+from psycopg.rows import dict_row
+
+from api.models import (
+    ChangeRecord,
+    DiscoveriesResponse,
+    FreshnessInfo,
+    HealthResponse,
+    PlanetDetail,
+    PlanetHistoryResponse,
+    PlanetSummary,
+    PlanetsListResponse,
+    StatsResponse,
+)
+
+load_dotenv()
+
+SLO_FRESHNESS_HOURS = 26
+
+app = FastAPI(
+    title="exoplanet_citation",
+    description=(
+        "Public read-only API over the exoplanet_citation data warehouse. "
+        "Daily-refreshed catalog of confirmed exoplanets from the NASA Exoplanet "
+        "Archive, with field-tier-classified change events. Phase 2 will add "
+        "the citation graph and Gaia DR3 host-star enrichment."
+    ),
+    version="0.1.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
+
+
+def _connect() -> psycopg.Connection:
+    return psycopg.connect(os.environ["DATABASE_URL"], connect_timeout=10)
+
+
+def _to_change_record(row: dict) -> ChangeRecord:
+    return ChangeRecord(
+        change_id=row["change_id"],
+        observed_at=row["observed_at"],
+        pl_name=row["pl_name"],
+        change_type=row["change_type"],
+        field_name=row["field_name"],
+        field_tier=row["field_tier"],
+        prev_value=row["prev_value"],
+        new_value=row["new_value"],
+        diff_summary=row["diff_summary"],
+        source_snapshot_date=row["source_snapshot_date"],
+    )
+
+
+# ---------- Health ----------
+
+@app.get("/api/health", response_model=HealthResponse, tags=["health"])
+def health() -> HealthResponse:
+    """Pipeline health and freshness measurement against the SLO."""
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                "SELECT source_retrieved_at, snapshot_date FROM planets_snapshots "
+                "ORDER BY snapshot_date DESC LIMIT 1"
+            )
+            snap = cur.fetchone()
+
+            cutoff = datetime.now(UTC) - timedelta(days=30)
+            cur.execute(
+                "SELECT COUNT(*) AS c FROM discovery_changes "
+                "WHERE observed_at >= %s "
+                "AND (change_type IN ('NEW', 'REMOVED') OR field_tier = 'A')",
+                (cutoff,),
+            )
+            recent_count = cur.fetchone()["c"]
+
+    freshness: FreshnessInfo | None = None
+    if snap:
+        retrieved = snap["source_retrieved_at"]
+        if retrieved.tzinfo is None:
+            retrieved = retrieved.replace(tzinfo=UTC)
+        age = round((datetime.now(UTC) - retrieved).total_seconds() / 3600, 2)
+        freshness = FreshnessInfo(
+            snapshot_date=snap["snapshot_date"],
+            source_retrieved_at=retrieved,
+            freshness_hours=age,
+            slo_freshness_hours=SLO_FRESHNESS_HOURS,
+            status="ok" if age <= SLO_FRESHNESS_HOURS else "stale",
+            clock="A (time since last extract)",
+            note="Clock A approximation. Phase-1.x work upgrades to Clock B (upstream last_modified).",
+        )
+
+    return HealthResponse(
+        status=(freshness.status if freshness else "no_data"),
+        checked_at=datetime.now(UTC),
+        freshness=freshness,
+        recent_change_count=recent_count,
+    )
+
+
+# ---------- Stats ----------
+
+@app.get("/api/stats", response_model=StatsResponse, tags=["stats"])
+def stats() -> StatsResponse:
+    """Top-level counts and aggregations: snapshot range, totals, breakdowns
+    by year and discovery method (uses the most recent snapshot)."""
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT
+                    (SELECT COUNT(*) FROM planets_current) AS total_planets,
+                    (SELECT COUNT(DISTINCT snapshot_date) FROM planets_snapshots) AS total_snapshots,
+                    (SELECT COUNT(*) FROM discovery_changes) AS total_change_events,
+                    (SELECT MIN(snapshot_date) FROM planets_snapshots) AS earliest,
+                    (SELECT MAX(snapshot_date) FROM planets_snapshots) AS latest
+                """
+            )
+            head = cur.fetchone()
+
+            cur.execute(
+                "SELECT disc_year, COUNT(*) AS c FROM planets_current "
+                "WHERE disc_year IS NOT NULL GROUP BY disc_year ORDER BY disc_year"
+            )
+            by_year = {row["disc_year"]: row["c"] for row in cur.fetchall()}
+
+            cur.execute(
+                "SELECT discoverymethod, COUNT(*) AS c FROM planets_current "
+                "WHERE discoverymethod IS NOT NULL GROUP BY discoverymethod "
+                "ORDER BY c DESC"
+            )
+            by_method = {row["discoverymethod"]: row["c"] for row in cur.fetchall()}
+
+    return StatsResponse(
+        total_planets=head["total_planets"],
+        total_snapshots=head["total_snapshots"],
+        total_change_events=head["total_change_events"],
+        earliest_snapshot=head["earliest"],
+        latest_snapshot=head["latest"],
+        discoveries_by_year=by_year,
+        discoveries_by_method=by_method,
+    )
+
+
+# ---------- Discoveries (change events) ----------
+
+@app.get("/api/discoveries/latest", response_model=DiscoveriesResponse, tags=["discoveries"])
+def discoveries_latest(
+    days: int = Query(30, ge=1, le=365, description="Days of history (1–365)"),
+    limit: int = Query(500, ge=1, le=1000),
+) -> DiscoveriesResponse:
+    """Recent surfaced changes: NEW / REMOVED / Tier-A PARAMETER_CHANGE
+    from the last `days` days, newest first."""
+    cutoff = datetime.now(UTC) - timedelta(days=days)
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT change_id, observed_at, pl_name, change_type, field_name,
+                       field_tier, prev_value, new_value, diff_summary, source_snapshot_date
+                FROM discovery_changes
+                WHERE observed_at >= %s
+                  AND (change_type IN ('NEW', 'REMOVED') OR field_tier = 'A')
+                ORDER BY observed_at DESC
+                LIMIT %s
+                """,
+                (cutoff, limit),
+            )
+            rows = cur.fetchall()
+
+    return DiscoveriesResponse(
+        generated_at=datetime.now(UTC),
+        window_days=days,
+        change_count=len(rows),
+        changes=[_to_change_record(r) for r in rows],
+    )
+
+
+@app.get(
+    "/api/discoveries/by-month/{yyyy_mm}",
+    response_model=DiscoveriesResponse,
+    tags=["discoveries"],
+)
+def discoveries_by_month(
+    yyyy_mm: str = Path(pattern=r"^\d{4}-\d{2}$", description="Format: YYYY-MM"),
+) -> DiscoveriesResponse:
+    """All surfaced changes within a calendar month."""
+    try:
+        year, month = (int(p) for p in yyyy_mm.split("-"))
+        if not (1 <= month <= 12):
+            raise ValueError("month out of range")
+        start = datetime(year, month, 1, tzinfo=UTC)
+        end = datetime(year + (month == 12), (month % 12) + 1, 1, tzinfo=UTC)
+    except (ValueError, TypeError) as e:
+        raise HTTPException(status_code=400, detail=f"Invalid month {yyyy_mm}: {e}")
+
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT change_id, observed_at, pl_name, change_type, field_name,
+                       field_tier, prev_value, new_value, diff_summary, source_snapshot_date
+                FROM discovery_changes
+                WHERE observed_at >= %s AND observed_at < %s
+                  AND (change_type IN ('NEW', 'REMOVED') OR field_tier = 'A')
+                ORDER BY observed_at DESC
+                """,
+                (start, end),
+            )
+            rows = cur.fetchall()
+
+    return DiscoveriesResponse(
+        generated_at=datetime.now(UTC),
+        window_days=(end - start).days,
+        change_count=len(rows),
+        changes=[_to_change_record(r) for r in rows],
+    )
+
+
+# ---------- Planets ----------
+
+_PLANET_SUMMARY_COLS = """
+    pl_name, hostname, discoverymethod, disc_year, disc_facility,
+    pl_orbper, pl_rade, pl_bmasse, pl_eqt, sy_dist
+"""
+
+_PLANET_DETAIL_COLS = """
+    pl_name, hostname, sy_snum, sy_pnum,
+    discoverymethod, disc_year, disc_facility, disc_telescope, disc_instrument, disc_refname,
+    pl_orbper, pl_orbsmax, pl_orbeccen,
+    pl_rade, pl_bmasse, pl_dens, pl_eqt, pl_insol,
+    st_teff, st_rad, st_mass, st_lum, st_spectype, st_dist,
+    sy_dist, ra, dec, gaia_dr3_id,
+    snapshot_date, source_url, source_retrieved_at
+"""
+
+
+@app.get("/api/planets", response_model=PlanetsListResponse, tags=["planets"])
+def planets_list(
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    q: str | None = Query(None, description="Search planet name or host name (ILIKE)"),
+    discovery_method: str | None = Query(None, description="Filter by discoverymethod"),
+    year: int | None = Query(None, description="Filter by disc_year"),
+) -> PlanetsListResponse:
+    """Paginated list of planets from the latest snapshot."""
+    where = ["snapshot_date = (SELECT MAX(snapshot_date) FROM planets_snapshots)"]
+    params: list = []
+    if q:
+        where.append("(pl_name ILIKE %s OR hostname ILIKE %s)")
+        like = f"%{q}%"
+        params.extend([like, like])
+    if discovery_method:
+        where.append("discoverymethod = %s")
+        params.append(discovery_method)
+    if year is not None:
+        where.append("disc_year = %s")
+        params.append(year)
+    where_clause = " AND ".join(where)
+
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                f"SELECT COUNT(*) AS c FROM planets_snapshots WHERE {where_clause}",
+                params,
+            )
+            total = cur.fetchone()["c"]
+
+            cur.execute(
+                f"""
+                SELECT {_PLANET_SUMMARY_COLS}
+                FROM planets_snapshots
+                WHERE {where_clause}
+                ORDER BY pl_name
+                LIMIT %s OFFSET %s
+                """,
+                [*params, limit, offset],
+            )
+            rows = cur.fetchall()
+
+    return PlanetsListResponse(
+        total=total,
+        limit=limit,
+        offset=offset,
+        results=[PlanetSummary(**r) for r in rows],
+    )
+
+
+@app.get("/api/planets/{pl_name}", response_model=PlanetDetail, tags=["planets"])
+def planet_detail(pl_name: str) -> PlanetDetail:
+    """Single planet from the latest snapshot, with all 28 typed columns."""
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                f"""
+                SELECT {_PLANET_DETAIL_COLS}
+                FROM planets_snapshots
+                WHERE pl_name = %s
+                ORDER BY snapshot_date DESC
+                LIMIT 1
+                """,
+                (pl_name,),
+            )
+            row = cur.fetchone()
+
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"No planet named {pl_name!r}")
+    return PlanetDetail(**row)
+
+
+@app.get(
+    "/api/planets/{pl_name}/history",
+    response_model=PlanetHistoryResponse,
+    tags=["planets"],
+)
+def planet_history(pl_name: str) -> PlanetHistoryResponse:
+    """Every change event for this planet, newest first."""
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            # Validate the planet exists at all (in any snapshot)
+            cur.execute(
+                "SELECT 1 FROM planets_snapshots WHERE pl_name = %s LIMIT 1",
+                (pl_name,),
+            )
+            if cur.fetchone() is None:
+                raise HTTPException(status_code=404, detail=f"No planet named {pl_name!r}")
+
+            cur.execute(
+                """
+                SELECT change_id, observed_at, pl_name, change_type, field_name,
+                       field_tier, prev_value, new_value, diff_summary, source_snapshot_date
+                FROM discovery_changes
+                WHERE pl_name = %s
+                ORDER BY observed_at DESC
+                """,
+                (pl_name,),
+            )
+            rows = cur.fetchall()
+
+    return PlanetHistoryResponse(
+        pl_name=pl_name,
+        change_count=len(rows),
+        changes=[_to_change_record(r) for r in rows],
+    )
+
+
+# ---------- Root ----------
+
+@app.get("/", tags=["meta"])
+def root() -> dict:
+    """Service banner. Points at the OpenAPI docs."""
+    return {
+        "service": "exoplanet_citation",
+        "version": "0.1.0",
+        "docs": "/docs",
+        "openapi": "/openapi.json",
+        "endpoints": [
+            "/api/health",
+            "/api/stats",
+            "/api/discoveries/latest",
+            "/api/discoveries/by-month/{yyyy-mm}",
+            "/api/planets",
+            "/api/planets/{pl_name}",
+            "/api/planets/{pl_name}/history",
+        ],
+    }

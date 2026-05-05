@@ -63,7 +63,9 @@ export default function PlanetCard({ planet }: Props) {
   const animSec = orbitAnimationSeconds(period);
 
   // Mean anomaly progresses linearly with time; eccentric anomaly does not.
-  const M = (2 * Math.PI * t) / animSec;
+  // If we have no period data, pin the planet at periapsis (M=0) instead of
+  // animating — animating a planet without an orbit path looks broken.
+  const M = period != null ? (2 * Math.PI * t) / animSec : 0;
   const E = solveKeplerEquation(M, eccentricity);
 
   // Sizing — uses real radius data so planet/star ratio reflects reality.
@@ -181,19 +183,25 @@ export default function PlanetCard({ planet }: Props) {
           </clipPath>
         </defs>
 
-        {/* The orbit ellipse — Kepler's first law: ellipse with star at one focus */}
-        {period != null && (
-          <ellipse
-            cx={ellipseCx}
-            cy={ellipseCy}
-            rx={orbitSemiMajor}
-            ry={orbitSemiMinor}
-            fill="none"
-            stroke={star}
-            strokeOpacity="0.28"
-            strokeWidth="1"
-            strokeDasharray="2,4"
-          />
+        {/* The orbit ellipse — Kepler's first law: ellipse with star at one focus.
+            Always shown so every planet has a visible orbital path, even if we
+            don't have period/animation data for it. */}
+        <ellipse
+          cx={ellipseCx}
+          cy={ellipseCy}
+          rx={orbitSemiMajor}
+          ry={orbitSemiMinor}
+          fill="none"
+          stroke={star}
+          strokeOpacity="0.28"
+          strokeWidth="1"
+          strokeDasharray="2,4"
+        />
+        {period == null && (
+          <text x={focusX} y={focusY - orbitSemiMinor - 18} textAnchor="middle"
+                fill="#9099aa" fontSize="11" fontFamily="-apple-system, sans-serif" opacity="0.6">
+            no orbital data — orbit shape is symbolic
+          </text>
         )}
 
         {/* Host star at the focus, with corona */}
@@ -229,35 +237,49 @@ export default function PlanetCard({ planet }: Props) {
           {planet.hostname}
         </text>
 
-        {/* Orbit metadata in the corner — period and eccentricity */}
-        {period != null && (
-          <g>
-            <text x={viewBoxWidth - 8} y="20" textAnchor="end" fill="#9099aa" fontSize="10"
-                  fontFamily="-apple-system, sans-serif" opacity="0.85">
-              P = {formatPeriod(period)}
-            </text>
-            {eccentricity > 0.05 && (
-              <text x={viewBoxWidth - 8} y="34" textAnchor="end" fill="#9099aa" fontSize="10"
-                    fontFamily="-apple-system, sans-serif" opacity="0.85">
-                e = {eccentricity.toFixed(2)}
-              </text>
-            )}
-          </g>
-        )}
       </svg>
 
       <p style={{ margin: '0.75rem 0 0', fontSize: '0.9rem', color: 'var(--fg)', lineHeight: 1.5 }}>
         {visual.description}
       </p>
-      <p style={{ margin: '0.6rem 0 0', fontSize: '0.75rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
-        The planet's path obeys <strong>Kepler's laws</strong>: an elliptical orbit with the star
-        {' '}at one focus, sweeping equal areas in equal time so the planet moves
-        {' '}<strong>faster near periapsis</strong> (closest approach to the star) and slower at apoapsis.
-        {' '}Animation pace is logarithmic in real period — a hot Jupiter zips around in seconds; a
-        {' '}multi-year orbit takes proportionally longer. Sizes are not to scale.
-        {' '}Computed from <code>pl_orbper</code>, <code>pl_orbeccen</code>, <code>pl_eqt</code>,
-        {' '}<code>pl_dens</code>, <code>pl_rade</code>, and host <code>st_teff</code>.
+
+      <dl className="orbit-legend">
+        <dt>Period</dt>
+        <dd>
+          <strong>{period != null ? formatPeriod(period) : 'unknown'}</strong>
+          <span className="explain">how long it takes the planet to complete one orbit around its star</span>
+        </dd>
+
+        <dt>Distance</dt>
+        <dd>
+          <strong>
+            {planet.pl_orbsmax != null
+              ? `${planet.pl_orbsmax.toFixed(3)} AU`
+              : 'unknown'}
+          </strong>
+          <span className="explain">average distance from the host star (1 AU = Earth–Sun distance, about 93 million miles)</span>
+        </dd>
+
+        <dt>Eccentricity</dt>
+        <dd>
+          <strong>{eccentricity.toFixed(2)}</strong> — {describeEccentricity(eccentricity)}
+          <span className="explain">how stretched the orbit is. 0 = perfect circle, closer to 1 = more extreme ellipse. Highly eccentric orbits make the planet swing close to the star then slingshot far away</span>
+        </dd>
+      </dl>
+
+      <p style={{ margin: '0.75rem 0 0', fontSize: '0.75rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+        The planet's motion follows <strong>Kepler's laws</strong>: faster near periapsis (closest approach), slower near apoapsis (farthest).
+        {' '}Animation pace is logarithmic in real period — a 1-day orbit takes ~6 seconds, a multi-year orbit takes ~25.
+        {' '}Sizes are not to scale; real stars are ~9–100× larger than their planets.
       </p>
     </div>
   );
+}
+
+function describeEccentricity(e: number): string {
+  if (e < 0.05) return 'nearly circular';
+  if (e < 0.2) return 'slightly elliptical';
+  if (e < 0.5) return 'moderately elliptical';
+  if (e < 0.8) return 'highly elliptical';
+  return 'extremely elliptical';
 }

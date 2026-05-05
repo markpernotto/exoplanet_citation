@@ -176,3 +176,33 @@ footer.site {
   border-radius: 6px;
 }
 .loading { color: var(--fg-muted); font-style: italic; padding: 1rem 0; }
+
+.orbit-legend {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 0.4rem 1rem;
+  margin: 1rem 0 0;
+  padding: 0.85rem 0 0;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+.orbit-legend dt {
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  padding-top: 0.15rem;
+}
+.orbit-legend dd {
+  margin: 0;
+  color: var(--fg);
+  line-height: 1.4;
+}
+.orbit-legend dd .explain {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--fg-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+.orbit-legend strong { font-weight: 600; }

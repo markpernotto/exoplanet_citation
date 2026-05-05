@@ -1,55 +1,120 @@
+import { useEffect, useRef, useState } from 'react';
 import type { PlanetDetail } from '../api';
 import { planetVisual, starColor } from '../procedural';
 
 type Props = { planet: PlanetDetail };
 
+// Wall-clock seconds since component mount. Updates every animation frame.
+// Respects prefers-reduced-motion: returns 0 forever (planet pinned at periapsis).
+function useAnimationTime(): number {
+  const [t, setT] = useState(0);
+  const rafRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const start = performance.now();
+    const tick = (now: number) => {
+      setT((now - start) / 1000);
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
+  return t;
+}
+
+// Solve Kepler's equation M = E - e·sin(E) for E by Newton-Raphson iteration.
+// Converges to ~1e-15 in 5-8 iterations for any e < ~0.95. We clamp eccentricity
+// upstream so this is always well-behaved.
+function solveKeplerEquation(meanAnomaly: number, eccentricity: number): number {
+  let E = meanAnomaly;
+  for (let i = 0; i < 8; i++) {
+    const f = E - eccentricity * Math.sin(E) - meanAnomaly;
+    const fp = 1 - eccentricity * Math.cos(E);
+    E -= f / fp;
+  }
+  return E;
+}
+
+// Map real orbital period (in days) → wall-clock animation duration (seconds).
+// Logarithmic so all orbits feel watchable: 0.1d→5s, 1d→7s, 10d→11s,
+// 100d→15s, 1000d→19s, 10000d→23s. Capped at 5..30 seconds.
+function orbitAnimationSeconds(periodDays: number | null): number {
+  if (periodDays == null || periodDays <= 0) return 12;
+  return Math.max(5, Math.min(30, Math.log10(Math.max(0.1, periodDays)) * 4 + 7));
+}
+
+function formatPeriod(days: number): string {
+  if (days < 1) return `${(days * 24).toFixed(1)} hr`;
+  if (days < 365) return `${days.toFixed(1)} days`;
+  return `${(days / 365.25).toFixed(2)} yr`;
+}
+
 export default function PlanetCard({ planet }: Props) {
+  const t = useAnimationTime();
   const visual = planetVisual(planet.pl_eqt, planet.pl_dens, planet.pl_rade);
   const star = starColor(null, planet.st_teff);
 
-  // Sizing. We keep this symbolic, not true-scale: a real star is typically
-  // ~100,000× larger than its planet, which would make the planet a single
-  // pixel. We pick visually-pleasing radii and disclose the scale below.
+  // Orbit parameters from the data, with safe defaults.
+  const period = planet.pl_orbper;
+  const eccentricity = Math.max(0, Math.min(0.95, planet.pl_orbeccen ?? 0));
+  const animSec = orbitAnimationSeconds(period);
+
+  // Mean anomaly progresses linearly with time; eccentric anomaly does not.
+  const M = (2 * Math.PI * t) / animSec;
+  const E = solveKeplerEquation(M, eccentricity);
+
+  // Orbit geometry on screen (symbolic — actual a in AU isn't to scale).
+  const orbitSemiMajor = 80; // pixels
+  const sqrtOneMinusE2 = Math.sqrt(1 - eccentricity * eccentricity);
+  const orbitSemiMinor = orbitSemiMajor * sqrtOneMinusE2;
+  const focusX = 160;
+  const focusY = 175;
+  // Star sits at the right focus; ellipse center is offset to the left by a·e.
+  const ellipseCx = focusX - orbitSemiMajor * eccentricity;
+  const ellipseCy = focusY;
+
+  // Planet position relative to the star (Kepler's parameterization).
+  // At E=0 the planet is at periapsis (right side, closest to star).
+  // At E=π it's at apoapsis (left side, farthest).
+  const planetX = focusX + orbitSemiMajor * (Math.cos(E) - eccentricity);
+  const planetY = focusY + orbitSemiMinor * Math.sin(E);
+
+  // Sizing
+  const starRadius = 24;
   const planetRadius = planet.pl_rade != null
-    ? Math.max(38, Math.min(85, 40 + Math.log2(Math.max(0.5, planet.pl_rade)) * 12))
-    : 55;
-  const starRadius = 26;
+    ? Math.max(11, Math.min(22, 11 + Math.log2(Math.max(0.5, planet.pl_rade)) * 4))
+    : 15;
 
-  // Per-instance gradient IDs so multiple cards on a page don't collide.
+  // Dayside lighting always faces the star (physically correct).
+  const dx = focusX - planetX;
+  const dy = focusY - planetY;
+  const dist = Math.hypot(dx, dy) || 1;
+  const litX = 50 + (dx / dist) * 30;
+  const litY = 50 + (dy / dist) * 30;
+
   const id = planet.pl_name.replace(/[^a-zA-Z0-9]/g, '_');
-
-  // Star "lit center" position
-  const starCx = 56;
-  const starCy = 64;
-  // Planet center
-  const planetCx = 140;
-  const planetCy = 180;
-
-  // Light source for the planet: lit hemisphere faces the star
-  const lightAngle = Math.atan2(starCy - planetCy, starCx - planetCx);
-  const litX = 50 + 30 * Math.cos(lightAngle);
-  const litY = 50 + 30 * Math.sin(lightAngle);
 
   return (
     <div className="card">
-      <svg viewBox="0 0 280 320" width="100%" style={{ display: 'block' }} role="img" aria-label={`Procedural visualization of ${planet.pl_name} and host star ${planet.hostname}`}>
+      <svg viewBox="0 0 320 340" width="100%" style={{ display: 'block' }} role="img"
+           aria-label={`Animated visualization of ${planet.pl_name} orbiting host star ${planet.hostname}`}>
         <defs>
-          {/* Star: hot bright core → full surface color → soft edge */}
+          {/* Star: hot bright nucleus → full color → soft outer */}
           <radialGradient id={`star-${id}`} cx="38%" cy="38%">
             <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
             <stop offset="35%" stopColor={star} stopOpacity="1" />
             <stop offset="100%" stopColor={star} stopOpacity="0.9" />
           </radialGradient>
-
-          {/* Stellar corona: extends well beyond the disc, fades to nothing */}
           <radialGradient id={`corona-${id}`} cx="50%" cy="50%">
-            <stop offset="0%" stopColor={star} stopOpacity="0.55" />
-            <stop offset="35%" stopColor={star} stopOpacity="0.22" />
+            <stop offset="0%" stopColor={star} stopOpacity="0.5" />
+            <stop offset="35%" stopColor={star} stopOpacity="0.2" />
             <stop offset="100%" stopColor={star} stopOpacity="0" />
           </radialGradient>
 
-          {/* Planet shading: lit hemisphere on the side facing the host star,
-              limb darkening on the opposite edge. Position computed above. */}
+          {/* Planet: dayside facing the star, nightside opposite */}
           <radialGradient id={`planet-${id}`} cx={`${litX}%`} cy={`${litY}%`}>
             <stop offset="0%" stopColor="rgba(255,255,255,0.35)" />
             <stop offset="25%" stopColor={visual.fillColor} stopOpacity="1" />
@@ -57,7 +122,6 @@ export default function PlanetCard({ planet }: Props) {
             <stop offset="100%" stopColor="rgba(0,0,0,0.55)" />
           </radialGradient>
 
-          {/* Atmospheric haze on the limb (only for non-uncertain planets) */}
           {visual.bodyType !== 'uncertain' && (
             <radialGradient id={`haze-${id}`} cx="50%" cy="50%">
               <stop offset="85%" stopColor={visual.fillColor} stopOpacity="0" />
@@ -66,7 +130,6 @@ export default function PlanetCard({ planet }: Props) {
             </radialGradient>
           )}
 
-          {/* Gas-giant cloud banding: horizontal stripes via linear gradient */}
           {visual.bodyType === 'gas_giant' && (
             <linearGradient id={`bands-${id}`} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%"   stopColor="rgba(255,255,255,0.00)" />
@@ -80,54 +143,51 @@ export default function PlanetCard({ planet }: Props) {
             </linearGradient>
           )}
 
-          {/* Hot-planet thermal glow halo */}
           {visual.glow && (
             <radialGradient id={`glow-${id}`} cx="50%" cy="50%">
-              <stop offset="0%"   stopColor={visual.fillColor} stopOpacity="0.55" />
-              <stop offset="60%"  stopColor={visual.fillColor} stopOpacity="0.18" />
+              <stop offset="0%" stopColor={visual.fillColor} stopOpacity="0.55" />
+              <stop offset="60%" stopColor={visual.fillColor} stopOpacity="0.18" />
               <stop offset="100%" stopColor={visual.fillColor} stopOpacity="0" />
             </radialGradient>
           )}
 
-          {/* Clip the cloud bands to a circle so they only render on the planet */}
           <clipPath id={`planet-clip-${id}`}>
-            <circle cx={planetCx} cy={planetCy} r={planetRadius} />
+            <circle cx={planetX} cy={planetY} r={planetRadius} />
           </clipPath>
         </defs>
 
-        {/* Faint orbital arc connecting star to planet, for spatial context */}
-        <path
-          d={`M ${starCx + starRadius - 4},${starCy + 6} Q ${(starCx + planetCx) / 2 - 20},${planetCy - 30} ${planetCx - planetRadius + 4},${planetCy - 4}`}
-          fill="none"
-          stroke={star}
-          strokeOpacity="0.18"
-          strokeWidth="1"
-          strokeDasharray="3,5"
-        />
+        {/* The orbit ellipse — Kepler's first law: ellipse with star at one focus */}
+        {period != null && (
+          <ellipse
+            cx={ellipseCx}
+            cy={ellipseCy}
+            rx={orbitSemiMajor}
+            ry={orbitSemiMinor}
+            fill="none"
+            stroke={star}
+            strokeOpacity="0.28"
+            strokeWidth="1"
+            strokeDasharray="2,4"
+          />
+        )}
 
-        {/* HOST STAR */}
-        <circle cx={starCx} cy={starCy} r={starRadius * 2.6} fill={`url(#corona-${id})`} />
-        <circle cx={starCx} cy={starCy} r={starRadius} fill={`url(#star-${id})`}>
+        {/* Host star at the focus, with corona */}
+        <circle cx={focusX} cy={focusY} r={starRadius * 2.6} fill={`url(#corona-${id})`} />
+        <circle cx={focusX} cy={focusY} r={starRadius} fill={`url(#star-${id})`}>
           <title>Host star: {planet.hostname} ({planet.st_spectype ?? 'spectral type unknown'})</title>
         </circle>
-        <text x={starCx} y={starCy + starRadius + 22} textAnchor="middle" fill="#9099aa" fontSize="11" fontFamily="-apple-system, sans-serif">
-          {planet.hostname}
-        </text>
-        <text x={starCx} y={starCy + starRadius + 35} textAnchor="middle" fill="#9099aa" fontSize="9" fontFamily="-apple-system, sans-serif" opacity="0.7">
-          host star
-        </text>
 
-        {/* PLANET — order matters: glow → body → bands → atmospheric haze */}
+        {/* Planet — order: glow halo → body → bands → atmospheric haze */}
         {visual.glow && (
-          <circle cx={planetCx} cy={planetCy} r={planetRadius + 16} fill={`url(#glow-${id})`} />
+          <circle cx={planetX} cy={planetY} r={planetRadius + 8} fill={`url(#glow-${id})`} />
         )}
-        <circle cx={planetCx} cy={planetCy} r={planetRadius} fill={`url(#planet-${id})`}>
+        <circle cx={planetX} cy={planetY} r={planetRadius} fill={`url(#planet-${id})`}>
           <title>{visual.description}</title>
         </circle>
         {visual.bodyType === 'gas_giant' && (
           <rect
-            x={planetCx - planetRadius}
-            y={planetCy - planetRadius}
+            x={planetX - planetRadius}
+            y={planetY - planetRadius}
             width={planetRadius * 2}
             height={planetRadius * 2}
             fill={`url(#bands-${id})`}
@@ -135,24 +195,43 @@ export default function PlanetCard({ planet }: Props) {
           />
         )}
         {visual.bodyType !== 'uncertain' && (
-          <circle cx={planetCx} cy={planetCy} r={planetRadius + 1} fill={`url(#haze-${id})`} />
+          <circle cx={planetX} cy={planetY} r={planetRadius + 1} fill={`url(#haze-${id})`} />
         )}
-        <text x={planetCx} y={planetCy + planetRadius + 22} textAnchor="middle" fill="#e8eaf0" fontSize="13" fontFamily="-apple-system, sans-serif" fontWeight="600">
-          {planet.pl_name}
+
+        {/* Star name label, fixed at focus */}
+        <text x={focusX} y={focusY + starRadius + 22} textAnchor="middle"
+              fill="#9099aa" fontSize="11" fontFamily="-apple-system, sans-serif">
+          {planet.hostname}
         </text>
-        <text x={planetCx} y={planetCy + planetRadius + 36} textAnchor="middle" fill="#9099aa" fontSize="10" fontFamily="-apple-system, sans-serif" opacity="0.7">
-          planet
-        </text>
+
+        {/* Orbit metadata in the corner — period and eccentricity */}
+        {period != null && (
+          <g>
+            <text x="312" y="20" textAnchor="end" fill="#9099aa" fontSize="10"
+                  fontFamily="-apple-system, sans-serif" opacity="0.85">
+              P = {formatPeriod(period)}
+            </text>
+            {eccentricity > 0.05 && (
+              <text x="312" y="34" textAnchor="end" fill="#9099aa" fontSize="10"
+                    fontFamily="-apple-system, sans-serif" opacity="0.85">
+                e = {eccentricity.toFixed(2)}
+              </text>
+            )}
+          </g>
+        )}
       </svg>
 
       <p style={{ margin: '0.75rem 0 0', fontSize: '0.9rem', color: 'var(--fg)', lineHeight: 1.5 }}>
         {visual.description}
       </p>
       <p style={{ margin: '0.6rem 0 0', fontSize: '0.75rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
-        <strong>Sizes are not to scale</strong> — real stars are roughly 100,000× larger than their planets.
-        {' '}This is a stylized rendering of the relationship.
-        {' '}Color and shading are computed from <code>pl_eqt</code>, <code>pl_dens</code>, <code>pl_rade</code>, and host <code>st_teff</code>.
-        {' '}Not a photograph.
+        The planet's path obeys <strong>Kepler's laws</strong>: an elliptical orbit with the star
+        {' '}at one focus, sweeping equal areas in equal time so the planet moves
+        {' '}<strong>faster near periapsis</strong> (closest approach to the star) and slower at apoapsis.
+        {' '}Animation pace is logarithmic in real period — a hot Jupiter zips around in seconds; a
+        {' '}multi-year orbit takes proportionally longer. Sizes are not to scale.
+        {' '}Computed from <code>pl_orbper</code>, <code>pl_orbeccen</code>, <code>pl_eqt</code>,
+        {' '}<code>pl_dens</code>, <code>pl_rade</code>, and host <code>st_teff</code>.
       </p>
     </div>
   );

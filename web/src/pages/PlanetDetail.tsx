@@ -110,11 +110,19 @@ export default function PlanetDetail() {
               {planet.disc_facility && <p style={{ margin: '0 0 0.5rem' }}><strong>Facility:</strong> {planet.disc_facility}</p>}
               {planet.disc_telescope && <p style={{ margin: '0 0 0.5rem' }}><strong>Telescope:</strong> {planet.disc_telescope}</p>}
               {planet.disc_instrument && <p style={{ margin: '0 0 0.5rem' }}><strong>Instrument:</strong> {planet.disc_instrument}</p>}
-              {planet.disc_refname && (
-                <p style={{ margin: 0, fontSize: '0.9rem' }}>
-                  <strong>Reference:</strong> <span style={{ color: 'var(--fg-muted)' }}>{planet.disc_refname}</span>
-                </p>
-              )}
+              {planet.disc_refname && (() => {
+                const ref = parseDiscRefname(planet.disc_refname);
+                return (
+                  <p style={{ margin: 0, fontSize: '0.9rem' }}>
+                    <strong>Reference:</strong>{' '}
+                    {ref.url ? (
+                      <a href={ref.url} target="_blank" rel="noopener noreferrer">{ref.text}</a>
+                    ) : (
+                      <span style={{ color: 'var(--fg-muted)' }}>{ref.text}</span>
+                    )}
+                  </p>
+                );
+              })()}
               <p style={{ margin: '0.75rem 0 0', fontSize: '0.85rem', color: 'var(--fg-muted)' }}>
                 Citation graph (DOI / arXiv resolution) coming in Phase 2.
               </p>
@@ -156,6 +164,17 @@ export default function PlanetDetail() {
       </section>
     </>
   );
+}
+
+// pscomppars's disc_refname embeds anchor markup like:
+//   `<a refstr=NAEF_ET_AL__2001 href=https://ui.adsabs.harvard.edu/abs/... target=ref> Naef et al. 2001 </a>`
+// Parse out the URL and visible text. Return plain text + null URL if it
+// doesn't match the expected pattern.
+function parseDiscRefname(raw: string): { text: string; url: string | null } {
+  if (!raw) return { text: '', url: null };
+  const match = raw.match(/href=([^\s>]+)[^>]*>\s*([^<]+?)\s*<\/a>/i);
+  if (!match) return { text: raw.replace(/<[^>]+>/g, '').trim(), url: null };
+  return { text: match[2].trim(), url: match[1] };
 }
 
 function fmtRow(label: string, value: number | null, unit: string, suffix = '') {

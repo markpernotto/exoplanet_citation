@@ -66,27 +66,42 @@ export default function PlanetCard({ planet }: Props) {
   const M = (2 * Math.PI * t) / animSec;
   const E = solveKeplerEquation(M, eccentricity);
 
-  // Orbit geometry on screen (symbolic — actual a in AU isn't to scale).
-  const orbitSemiMajor = 80; // pixels
+  // Sizing
+  const starRadius = 20;
+  const planetRadius = planet.pl_rade != null
+    ? Math.max(10, Math.min(20, 10 + Math.log2(Math.max(0.5, planet.pl_rade)) * 4))
+    : 14;
+
+  // Orbit sizing: scale up so periapsis always clears the star, no upper cap
+  // on the orbit size. ViewBox grows to fit the full orbit. For very-eccentric
+  // orbits (HD 80606 b's e=0.93 produces an orbit ~12× wider than a circular
+  // one of the same star), the SVG itself becomes wider — capturing the full
+  // dramatic range of the planet's path.
+  const minPeriapsisClearance = starRadius + planetRadius + 8;
+  const naturalA = 100;
+  const xPadding = 35;
+  const orbitSemiMajor = Math.max(
+    naturalA,
+    minPeriapsisClearance / Math.max(0.05, 1 - eccentricity),
+  );
+
   const sqrtOneMinusE2 = Math.sqrt(1 - eccentricity * eccentricity);
   const orbitSemiMinor = orbitSemiMajor * sqrtOneMinusE2;
-  const focusX = 160;
-  const focusY = 175;
-  // Star sits at the right focus; ellipse center is offset to the left by a·e.
+  const apoapsisDistance = orbitSemiMajor * (1 + eccentricity);
+  const periapsisDistance = orbitSemiMajor * (1 - eccentricity);
+
+  // ViewBox: focus on right-of-center, apoapsis fits to its left, periapsis
+  // to its right, equal padding both sides.
+  const viewBoxWidth = Math.max(320, apoapsisDistance + periapsisDistance + 2 * xPadding);
+  const viewBoxHeight = Math.max(340, 2 * orbitSemiMinor + 100);
+  const focusX = apoapsisDistance + xPadding;
+  const focusY = viewBoxHeight / 2 - 5;
   const ellipseCx = focusX - orbitSemiMajor * eccentricity;
   const ellipseCy = focusY;
 
-  // Planet position relative to the star (Kepler's parameterization).
-  // At E=0 the planet is at periapsis (right side, closest to star).
-  // At E=π it's at apoapsis (left side, farthest).
+  // Planet position. E=0 = periapsis (right, closest); E=π = apoapsis (left, farthest).
   const planetX = focusX + orbitSemiMajor * (Math.cos(E) - eccentricity);
   const planetY = focusY + orbitSemiMinor * Math.sin(E);
-
-  // Sizing
-  const starRadius = 24;
-  const planetRadius = planet.pl_rade != null
-    ? Math.max(11, Math.min(22, 11 + Math.log2(Math.max(0.5, planet.pl_rade)) * 4))
-    : 15;
 
   // Dayside lighting always faces the star (physically correct).
   const dx = focusX - planetX;

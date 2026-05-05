@@ -22,7 +22,7 @@ OpenAPI / interactive docs:
 from __future__ import annotations
 
 import os
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import psycopg
 from dotenv import load_dotenv
@@ -37,8 +37,8 @@ from api.models import (
     HealthResponse,
     PlanetDetail,
     PlanetHistoryResponse,
-    PlanetSummary,
     PlanetsListResponse,
+    PlanetSummary,
     StatsResponse,
 )
 
@@ -224,7 +224,7 @@ def discoveries_by_month(
         start = datetime(year, month, 1, tzinfo=UTC)
         end = datetime(year + (month == 12), (month % 12) + 1, 1, tzinfo=UTC)
     except (ValueError, TypeError) as e:
-        raise HTTPException(status_code=400, detail=f"Invalid month {yyyy_mm}: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid month {yyyy_mm}: {e}") from e
 
     with _connect() as conn:
         with conn.cursor(row_factory=dict_row) as cur:

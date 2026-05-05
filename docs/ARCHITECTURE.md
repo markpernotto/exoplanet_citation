@@ -152,8 +152,10 @@ classification.
 | `etl/inspect.py` | Local-dev tool for browsing raw_row by planet | dev |
 | `etl/check_setup.py` | Connectivity smoke test (Neon + R2) | dev |
 | `etl/smoke_gaia.py` | One-shot Gaia DR3 client smoke test | dev |
-| `api/` | FastAPI app (Vercel serverless) | 1 (Day 8) |
-| `web/` | Vite + React + TypeScript app | 1 (Day 9) |
+| `api/index.py` | FastAPI app (7 endpoints + OpenAPI/Swagger) deployed as Vercel Python serverless | 1 |
+| `api/models.py` | Pydantic response models | 1 |
+| `web/` | Vite + React + TypeScript SPA — search, discoveries feed, procedural planet detail | 1 |
+| `web/src/procedural.ts` | Body-type/temperature → color mapping (see `docs/PROCEDURAL_RENDERING.md`) | 1 |
 | `vocabularies/` | Controlled vocabularies (SKOS-lite YAML) | 1 |
 
 ---

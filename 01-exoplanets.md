@@ -1,7 +1,7 @@
 # Project 1 — Exoplanet Discovery & Citation Warehouse
 
 **Owner:** Mark Pernotto (mark@pernotto.com)
-**Status:** Phase 1 in progress — Days 1–7 of 14 complete as of 2026-05-04. Daily ingest pipeline running on GitHub Actions cron; ~6,300 confirmed planets loaded; Gaia DR3 client scaffolded for Phase 2; documentation up to date. Days 8–14 (FastAPI + React + Phase 1 ship) remaining.
+**Status:** Phase 1 nearly complete as of 2026-05-05. ETL pipeline live on GitHub Actions cron; FastAPI + React frontend deployed to Vercel (live at exoplanet-citation.vercel.app); ~6,300 confirmed planets loaded; Gaia DR3 client scaffolded for Phase 2. Remaining Phase 1 work is the formal ship bar (5 consecutive green nights) and polish; Phase 2 is the next major milestone.
 **Target effort:** ~4 weeks part-time (target, not deadline)
 **Repo:** https://github.com/markpernotto/exoplanet_citation
 **Implementation source-of-truth:** [PLAN.md](PLAN.md) — that file is authoritative for build details. This document is the portfolio-level framing.
@@ -313,113 +313,25 @@ exoplanet-warehouse/
 
 ---
 
-## Four-Week Timeline
+## Phases
 
-### Week 1 — ETL core + first working diff (Phase 1)
+This document is the **portfolio framing**. For the implementation status,
+remaining-work breakdown, and component-level detail, see [PLAN.md](PLAN.md).
 
-**Day 1 (Mon)**
-- Initialize repo, `pyproject.toml`, dependencies (`httpx`, `pandas`, `psycopg[binary]`, `pyyaml`, `pytest`, `python-dotenv`, `astroquery` *optional but well-supported for TAP queries*)
-- Provision Neon Postgres free-tier DB
-- Write `schema.sql` (Phase 1 tables) and commit
-- **Manually pull a one-time snapshot** from the Exoplanet Archive Planetary Systems table via the web interface; commit as `data/snapshots/seed.csv`
-- Stub vocabulary YAMLs
+- **Phase 1 — done (formal ship pending 5 green nightly runs):** ETL pipeline,
+  field-tier-aware diff, RSS+JSON+health feeds, FastAPI with 7 endpoints,
+  React frontend with procedural planet rendering, all deployed to Vercel.
+  64 unit tests + 13 dbt tests green.
+- **Phase 2 — next:** citation resolution (Crossref + arXiv + ADS), Gaia DR3
+  host-star enrichment, dbt marts (`dim_planet`, `dim_publication`, etc.),
+  publication detail page, citation-graph health panel.
+- **Phase 3 — post-v1.0:** follow-up paper graph via NASA ADS citation queries;
+  galactic positioning view; optional PHL Habitable Exoplanets Catalog
+  integration.
 
-**Day 2 (Tue)**
-- Write `transform.py` against the seed CSV — normalize columns, coerce types, validate against vocabularies (log unknowns, don't fail)
-- Write `load.py` — UPSERT keyed on `(snapshot_date, pl_name)`
-- Write `tests/test_transform.py` with fixture CSV
-
-**Day 3 (Wed)**
-- Write `diff.py`. Handle `NEW`, `REMOVED`, `PARAMETER_CHANGE`. Idempotent.
-- `tests/test_diff.py` — ≥ 8 cases covering every `change_type` plus idempotency
-
-**Day 4 (Thu)**
-- Write `extract.py` using the TAP endpoint. Test with real network call once, then mock for CI.
-- End-to-end test: seed yesterday's snapshot, inject modified today's, verify expected changes.
-- Add `--dry-run` flag, clean up logging
-
-**Day 5 (Fri)**
-- Draft `DATA_CATALOG.md` entry for the Planetary Systems table
-- Start `docs/ARCHITECTURE.md` with Phase 1 diagram
-
-**Weekend buffer.**
-
-### Week 2 — Publishing, UI, polish (Phase 1 ships)
-
-**Day 6 (Mon)**
-- `publish.py` — regenerate `public/rss.xml` and `public/discoveries.json`
-- Implement snapshot retention (30 days loose + monthly tarball)
-
-**Day 7 (Tue)**
-- `.github/workflows/nightly.yml` — cron `0 6 * * *`
-- DB URL in repo secret
-- Run manually a few times, verify green
-- Auto-issue-on-failure
-
-**Day 8 (Wed)**
-- FastAPI: `/api/discoveries/latest`, `/api/discoveries/by-month/{yyyy-mm}`, `/api/planets`, `/api/planets/{pl_name}/history`
-- Deploy to Vercel as Python serverless functions (single Vercel project hosts both API and frontend)
-
-**Day 9 (Thu)**
-- React frontend: discoveries feed (last 30 days), filter by discovery method + year, per-planet history page
-- Deploy to Vercel
-
-**Day 10 (Fri)**
-- README v1 — architecture diagram, sources, how it works, how to run, freshness SLO
-- Populate `DATA_CATALOG.md`, `PRIVACY.md`, `LICENSE`, `LICENSE-DATA`
-
-**Days 11–14 (buffer):** Real bug-fixing. Don't call Phase 1 shipped until nightly has been green 5 consecutive nights. **At end of Week 2: Phase 1 is publicly shipped.**
-
-### Week 3 — Citation resolution core (Phase 2)
-
-**Day 15 (Mon)**
-- Write `etl/sources/crossref.py` — DOI → metadata, with rate-limit and polite-pool handling
-- Write `etl/sources/arxiv.py` — arXiv ID → metadata
-- Write `etl/sources/ads.py` — bibcode → metadata (requires NASA ADS API key, free)
-- `publications` and `planet_publications` schema migration
-
-**Day 16 (Tue)**
-- Write `resolve_citation.py` Tier 1 + Tier 2 (DOI present + ADS bibcode lookup)
-- Run against existing snapshot; measure resolution rate
-- Persist results to `publications` and `planet_publications`
-
-**Day 17 (Wed)**
-- Tier 3 (Crossref title/author/year search)
-- Tier 4 (queue unresolved for manual review — write a `docs/UNRESOLVED.md` autogenerated report)
-
-**Day 18 (Thu)**
-- `tests/test_resolve_citation.py` — at least 10 cases covering each tier and known-edge-case reference strings
-- `docs/CITATION_RESOLUTION.md` — methodology doc, including decision tree, confidence rubric, current resolution rate
-
-**Day 19 (Fri)**
-- Hook resolver into the nightly pipeline (only run on `NEW` changes — no need to re-resolve everything every night)
-- Add a separate weekly Action that retries `confidence='low'` and unresolved entries
-
-### Week 4 — dbt marts + UI surfacing + ship Phase 2
-
-**Day 20 (Mon)**
-- Initialize dbt project under `etl/transform/`
-- `dbt_project.yml` configured for Neon
-- `staging` models for `planets_snapshots` and `publications`
-
-**Day 21 (Tue)**
-- `marts` models: `dim_planet`, `dim_publication`, `fact_discovery`, `fact_parameter_revision`
-- dbt tests: not_null, unique, relationships, plus custom test "every planet has at least one discovery publication or is in the unresolved queue"
-
-**Day 22 (Wed)**
-- Extend FastAPI: `/api/planets/{pl_name}/publications`, `/api/publications/{doi}`, `/api/publications/{doi}/planets`
-- Cache `dim_planet` reads aggressively — these endpoints will be the most-hit
-
-**Day 23 (Thu)**
-- React: planet detail page shows discovery + follow-up papers; publication detail page lists all planets
-- Add a "citation graph health" panel to the UI showing resolution rate over time
-
-**Day 24 (Fri)**
-- README v2 — lead with the citation-graph contribution. Include resolution-rate KPI prominently.
-- Deploy `dbt docs` to GitHub Pages
-- Final polish; cut a v1.0 release tag
-
-**Days 25–28 (buffer):** Bug fixes, documentation polish, screenshot for portfolio meta-repo. **At end of Week 4: Phase 2 is publicly shipped.**
+The "5 consecutive green nightly runs before Phase 1 ships" bar is intentional:
+the project's distinguishing technical claim is reliability + provenance, so
+the ship criterion is reliability-shaped, not feature-shaped.
 
 ---
 

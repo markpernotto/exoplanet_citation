@@ -1,0 +1,178 @@
+:root {
+  --bg: #0b0d12;
+  --bg-elev: #131722;
+  --fg: #e8eaf0;
+  --fg-muted: #9099aa;
+  --accent: #6db4ff;
+  --border: #232838;
+  --tier-a: #6db4ff;
+  --tier-b: #c0a3ff;
+  --new: #5cd99a;
+  --removed: #e87878;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.layout {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 4rem;
+}
+
+header.site {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+header.site h1 { margin: 0; font-size: 1.4rem; font-weight: 600; letter-spacing: -0.01em; }
+header.site h1 a { color: var(--fg); }
+header.site .tagline { color: var(--fg-muted); font-size: 0.9rem; }
+
+.search-bar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+.search-bar input {
+  flex: 1;
+  padding: 0.6rem 0.8rem;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--fg);
+  font-size: 1rem;
+}
+.search-bar input:focus { outline: none; border-color: var(--accent); }
+.search-bar button {
+  padding: 0.6rem 1.2rem;
+  background: var(--accent);
+  color: #0b0d12;
+  border: 0;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+section { margin-bottom: 2.5rem; }
+section h2 { font-size: 1.1rem; font-weight: 600; margin: 0 0 0.75rem; color: var(--fg-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+.card {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.discoveries-list {
+  display: grid;
+  gap: 0.5rem;
+}
+.discovery-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  align-items: center;
+}
+.discovery-item .badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+  letter-spacing: 0.05em;
+}
+.badge.NEW { background: var(--new); color: #0b0d12; }
+.badge.REMOVED { background: var(--removed); color: #0b0d12; }
+.badge.PARAMETER_CHANGE { background: var(--tier-a); color: #0b0d12; }
+
+.discovery-item .summary { color: var(--fg); }
+.discovery-item .when { color: var(--fg-muted); font-size: 0.85rem; }
+.discovery-item .pl-name { font-weight: 600; }
+
+.empty {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--fg-muted);
+  background: var(--bg-elev);
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+}
+
+.planet-detail {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 2rem;
+  margin-top: 1rem;
+}
+@media (max-width: 700px) {
+  .planet-detail { grid-template-columns: 1fr; }
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem 1.5rem;
+}
+.stat-grid dt { color: var(--fg-muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.1rem; }
+.stat-grid dd { margin: 0 0 0.6rem; font-size: 1rem; }
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+.history-table th, .history-table td {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+.history-table th { color: var(--fg-muted); font-weight: 500; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
+
+.tier-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+}
+.tier-A { background: var(--tier-a); color: #0b0d12; }
+.tier-B { background: var(--tier-b); color: #0b0d12; }
+
+footer.site {
+  margin-top: 4rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  color: var(--fg-muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.error {
+  padding: 1rem;
+  background: #3a1d1d;
+  border: 1px solid #6a3030;
+  color: #ffb0b0;
+  border-radius: 6px;
+}
+.loading { color: var(--fg-muted); font-style: italic; padding: 1rem 0; }

@@ -2,9 +2,9 @@
 
 **Owner:** Mark Pernotto (mark@pernotto.com)
 **Repo:** https://github.com/markpernotto/exoplanet_citation
-**Status:** Phase 1 in progress — Days 1–7 complete (full ETL pipeline live on nightly GitHub Actions cron, Phase-1.x schema expansion done, Gaia DR3 client scaffolded, 64 unit tests + 13 dbt tests green). Days 8–14 remaining for Phase 1 ship.
+**Status:** Phase 1 nearly complete. ETL pipeline live on nightly GitHub Actions cron; FastAPI deployed to Vercel with 7 endpoints and Swagger docs; React frontend deployed alongside with search, discoveries feed, and a procedurally-rendered planet detail page; Gaia DR3 client scaffolded for Phase 2; 64 unit tests + 13 dbt tests green. Remaining Phase 1 work is the formal ship bar (5 consecutive green nightly runs) and polish; Phase 2 (citation graph + Gaia enrichment) is the next major milestone.
 **Plan finalized:** 2026-05-03
-**Last updated:** 2026-05-04
+**Last updated:** 2026-05-05
 **Target effort:** ~4 weeks part-time (target, not a deadline; daily breakdown is a guide)
 **Portfolio context:** Project 1 of three. See [/Users/gmarqu3/Code/oc_data/PLAN.md](../oc_data/PLAN.md) for the broader portfolio strategy. (The portfolio meta-doc lives in `oc_data/` for now; this repo is the actual implementation.)
 
@@ -436,125 +436,105 @@ exoplanet_citation/
 
 ---
 
-## Four-Week Timeline
+## Phase status
 
-Daily breakdown is a guide. Slip is acceptable; ship-quality is not. Phase 1 must be green for 5 consecutive nights before being declared shipped, regardless of calendar date.
+Work is sequenced by phase, not by calendar day. Slip is acceptable;
+ship-quality is not. Phase 1 must produce **5 consecutive green nightly
+runs** before being declared shipped, regardless of calendar date.
 
-### Week 1 — ETL core + first working diff (Phase 1)
+### Phase 1 — done
 
-**Day 1 (Mon)**
-- `python3.12 -m venv .venv && source .venv/bin/activate`
-- `pyproject.toml` with deps: `httpx`, `pandas`, `psycopg[binary]`, `pyyaml`, `pytest`, `python-dotenv`, `dbt-postgres`, `boto3` (R2)
-- Provision Neon Postgres + Cloudflare R2 (if not done in Day 0)
-- Write `schema.sql` (Phase 1 tables) and commit
-- Pull a one-time snapshot from `pscomppars` via the TAP URL; upload to R2; commit MANIFEST entry
-- Stub vocabulary YAMLs
+- ETL pipeline: `extract.py` (Exoplanet Archive TAP → R2 + manifest),
+  `load.py` (R2 → Postgres UPSERT), dbt staging (`stg_pscomppars`),
+  `diff.py` (field-tier-aware NEW/REMOVED/PARAMETER_CHANGE),
+  `publish.py` (RSS + JSON + health snapshot)
+- Schema with 28 typed columns + JSONB raw row preservation, 13 dbt tests
+- Cloudflare R2 raw landing zone with sha256 manifest in git
+- Field tier rules: 6 Tier A (RSS-surfaced), 13 Tier B (logged-only),
+  rest Tier C (preserved but not diffed); 1% relative tolerance for
+  floats with Tier A demotion / Tier B suppression of sub-tolerance changes
+- Nightly GitHub Actions cron at 06:00 UTC; auto-issue-on-failure;
+  results auto-committed back to `main` with `[skip ci]`
+- FastAPI: 7 endpoints + automatic OpenAPI/Swagger docs
+- React frontend (Vite + TypeScript): search, recent-discoveries feed,
+  planet detail page with **procedural rendering** from typed columns
+- Vercel deployment serving both API (Python serverless) and React static
+  build under one project at `exoplanet-citation.vercel.app`
+- 64 unit tests + 13 dbt tests, all green; CI workflow with ruff lint
+- Provenance per row: `source_url`, `source_retrieved_at`,
+  `source_checksum`, `extraction_version`, `raw_row` JSONB
+- Documentation: ARCHITECTURE.md, DATA_CATALOG.md (column families
+  decoded), PROCEDURAL_RENDERING.md (visual mapping rationale),
+  controlled-vocabulary YAMLs
+- Phase 2 scaffold: Gaia DR3 client + smoke test verified end-to-end
 
-**Day 2 (Tue)**
-- Initialize dbt project under `etl/transform/`
-- Write first staging model `stg_pscomppars` against the seed snapshot
-- Write `load.py` — UPSERT into `planets_snapshots`
-- `tests/test_load.py` with fixture data
+### Phase 1 — remaining before "shipped"
 
-**Day 3 (Wed)**
-- Write `diff.py` using the field allowlist. Handle `NEW`, `REMOVED`, `PARAMETER_CHANGE` (Tier A + B only). Idempotent. Tier A floats use 1% relative tolerance.
-- `tests/test_diff.py` — ≥10 cases covering every `change_type`, tier handling, idempotency, float-tolerance edge cases
+- 5 consecutive green nightly cron runs (the formal Phase 1 ship bar)
+- README v1 polish + ARCHITECTURE.md polish + diagrams under `docs/diagrams/`
+- Real-data validation: at least one nightly cycle producing actual
+  change events (gated on upstream NASA Exoplanet Archive cadence,
+  which is approximately weekly)
+- Optional: PRIVACY.md polish, `freshness-check.yml` weekly external
+  uptime check
 
-**Day 4 (Thu)**
-- Write `extract.py` using the TAP endpoint + R2 upload + manifest update
-- Test with real network call once, then mock for CI
-- End-to-end test: seed yesterday's snapshot, inject modified today's, verify expected changes
+### Phase 2 — next major milestone
 
-**Day 5 (Fri)**
-- Draft `docs/DATA_CATALOG.md` entry for `pscomppars` with full column list and tier assignments
-- Start `docs/ARCHITECTURE.md` with Phase 1 diagram
+The library-science differentiator. Two parallel workstreams:
 
-**Weekend buffer.**
-
-### Week 2 — Publishing, UI, polish (Phase 1 ships)
-
-**Day 6 (Mon)**
-- `publish.py` — regenerate `public/rss.xml` (Tier A only) and `public/discoveries.json`
-- Implement freshness measurement (Clock B) and `/api/health` endpoint
-
-**Day 7 (Tue)**
-- `.github/workflows/nightly.yml` — cron `0 6 * * *`
-- DB URL + R2 keys in repo secrets
-- Run manually a few times, verify green
-- Auto-issue-on-failure
-- `freshness-check.yml` weekly job
-
-**Day 8 (Wed)**
-- FastAPI: `/api/discoveries/latest`, `/api/discoveries/by-month/{yyyy-mm}`, `/api/planets`, `/api/planets/{pl_name}/history`, `/api/health`
-- Deploy to Vercel Python serverless functions
-
-**Day 9 (Thu)**
-- React frontend: discoveries feed (last 30 days), filter by discovery method + year, per-planet history page
-- Deploy to Vercel
-
-**Day 10 (Fri)**
-- README v1 — architecture diagram, sources, how it works, how to run, freshness SLO
-- Populate `LICENSE`, `LICENSE-DATA`, `PRIVACY.md`
-
-**Days 11–14 (buffer):** real bug-fixing. **At end of Week 2: Phase 1 is publicly shipped.**
-
-### Week 3 — Citation resolution core (Phase 2)
-
-**Day 15 (Mon)**
-- Write `etl/sources/crossref.py` — DOI → metadata, polite-pool with email
-- Write `etl/sources/arxiv.py` — arXiv ID → metadata
+**Citation resolution:**
+- `etl/sources/crossref.py`, `etl/sources/arxiv.py`, `etl/sources/ads.py`
+  source clients (polite-pool with email, retry handling)
 - `publications`, `planet_publications`, `backfill_state` schema migration
+- `etl/resolve_citation.py` — 4-tier strategy:
+  Tier 1 (direct DOI in `disc_refname`)
+  → Tier 3 (Crossref title/author/year search)
+  → Tier 2 (ADS bibcode lookup; built last because the API key is the
+     long pole; runs across queue + low-confidence rows to upgrade them)
+  → Tier 4 (manual queue at `data/unresolved.csv`)
+- `etl/backfill_citations.py` — resumable batched backfill across all
+  ~6,300 planets, runs overnight unattended
+- `tests/test_resolve_citation.py` — ≥10 cases per tier including
+  edge-case reference strings (in-press, conference proceedings,
+  concatenated multi-references)
+- `docs/CITATION_RESOLUTION.md` — methodology, decision tree, confidence
+  rubric, current resolution rate KPI
 
-**Day 16 (Tue)**
-- Write `resolve_citation.py` Tier 1 (direct DOI) + Tier 3 (Crossref title/author/year)
-- Run against current snapshot for ~50 known planets, measure resolution rate
-- Persist results to `publications` + `planet_publications`
+**Gaia DR3 enrichment** (parallel branch, no dependency on citation work):
+- `etl/sources/gaia.py` — already scaffolded
+- `host_stars_gaia` schema migration
+- `etl/enrich_gaia.py` — for each host with `gaia_dr3_id`, look up Gaia
+  record, write to `host_stars_gaia`
+- `etl/backfill_gaia.py` — resumable batched backfill across ~6,300 hosts,
+  ~hour of clock time at default batch size
 
-**Day 17 (Wed)**
-- Write `etl/sources/ads.py` — bibcode → metadata (uses ADS key)
-- Add Tier 2 (ADS) to resolver; runs after Tier 3 to upgrade low-confidence + retry queued
-- Add Tier 4 (queue → `data/unresolved.csv`)
+**dbt marts:**
+- `dim_planet`, `dim_publication`, `fact_discovery`,
+  `fact_parameter_revision` (the last requires a one-time ingest of the
+  full `ps` table)
+- dbt tests: not_null, unique, relationships, plus custom tests like
+  "every planet has at least one discovery publication or is in the
+  unresolved queue"
 
-**Day 18 (Thu)**
-- Write `backfill_citations.py` (resumable, batched)
-- Kick off backfill against all ~5,500 planets — runs unattended overnight
-- `tests/test_resolve_citation.py` — ≥10 cases per tier, plus edge-case reference strings
+**API + UI extensions:**
+- New endpoints: `/api/planets/{name}/publications`,
+  `/api/publications/{doi}`, `/api/publications/{doi}/planets`,
+  `/api/planets/{name}/host_star`
+- Frontend: planet detail page surfaces discovery paper(s) with confidence
+  badge; publication detail page lists all planets discussed; host star
+  rendered using Gaia BP-RP color (replaces the current `st_teff`
+  fallback in `web/src/procedural.ts`); citation-graph-health panel
+  showing resolution rate over time
 
-**Day 19 (Fri)**
-- Verify citation backfill completed; check resolution rate
-- Write `etl/sources/gaia.py` — TAP query helper for Gaia DR3 (same TAP/ADQL pattern as `exoplanet_archive.py`)
-- Schema migration for `host_stars_gaia`
-- Write `etl/enrich_gaia.py` — for each host with `gaia_dr3_id`, look up Gaia DR3 record; write to `host_stars_gaia`
-- Write `etl/backfill_gaia.py` — resumable batched backfill across ~6,300 hosts; kick off to run unattended overnight
-- `docs/CITATION_RESOLUTION.md` — methodology doc with decision tree, confidence rubric, current resolution rate
-- Hook nightly resolver + nightly Gaia enrichment into the pipeline (only on `NEW` changes)
+### Phase 3 — post-v1.0
 
-### Week 4 — dbt marts + UI surfacing + ship Phase 2
-
-**Day 20 (Mon)**
-- dbt staging models for `publications` and `planet_publications`
-- `marts` models: `dim_publication`, `fact_discovery`
-
-**Day 21 (Tue)**
-- `dim_planet` and `fact_parameter_revision` marts (the latter uses the full `ps` table — schedule a one-time `ps` ingest)
-- dbt tests: not_null, unique, relationships, plus custom test "every planet has at least one discovery publication or is in the unresolved queue"
-
-**Day 22 (Wed)**
-- Extend FastAPI: `/api/planets/{pl_name}/publications`, `/api/publications/{doi}`, `/api/publications/{doi}/planets`
-- Cache `dim_planet` reads aggressively
-
-**Day 23 (Thu)**
-- React: planet detail page shows discovery paper, **the planet rendered procedurally** from typed columns (temperature → atmosphere color, density → rocky/gas-giant body type, radius → size), **the host star colored** from Gaia BP-RP photometry
-- Publication detail page lists all planets
-- Add "citation graph health" panel to UI showing resolution rate over time
-- `docs/PROCEDURAL_RENDERING.md` finalized — temperature/density/insolation → visual mapping, with honesty caveats about what's measured vs. derived
-
-**Day 24 (Fri)**
-- README v2 — lead with the citation-graph contribution, include resolution-rate KPI
-- Deploy `dbt docs` to GitHub Pages
-- Final polish; cut a v1.0 release tag
-
-**Days 25–28 (buffer).** **At end of Week 4: Phase 2 is publicly shipped.**
+- Follow-up paper graph via NASA ADS citation queries (the most novel
+  but also most open-ended piece — gated on Phase 2's resolution rate
+  being good enough to make it meaningful)
+- Galactic positioning view: "Here we are / Here this planet is" — 2D
+  Milky Way map using `ra`, `dec`, `sy_dist` plus Gaia astrometry
+- Optional: PHL Habitable Exoplanets Catalog integration for
+  Earth-Similarity Index per planet
 
 ---
 

@@ -1,7 +1,7 @@
 # Project 1 — Exoplanet Discovery & Citation Warehouse
 
 **Owner:** Mark Pernotto (mark@pernotto.com)
-**Status:** Planning finalized 2026-05-03 — implementation underway in this repo
+**Status:** Phase 1 in progress — Days 1–7 of 14 complete as of 2026-05-04. Daily ingest pipeline running on GitHub Actions cron; ~6,300 confirmed planets loaded; Gaia DR3 client scaffolded for Phase 2; documentation up to date. Days 8–14 (FastAPI + React + Phase 1 ship) remaining.
 **Target effort:** ~4 weeks part-time (target, not deadline)
 **Repo:** https://github.com/markpernotto/exoplanet_citation
 **Implementation source-of-truth:** [PLAN.md](PLAN.md) — that file is authoritative for build details. This document is the portfolio-level framing.

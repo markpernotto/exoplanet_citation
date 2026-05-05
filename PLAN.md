@@ -2,8 +2,9 @@
 
 **Owner:** Mark Pernotto (mark@pernotto.com)
 **Repo:** https://github.com/markpernotto/exoplanet_citation
-**Status:** Planning finalized — ready to start
+**Status:** Phase 1 in progress — Days 1–7 complete (full ETL pipeline live on nightly GitHub Actions cron, Phase-1.x schema expansion done, Gaia DR3 client scaffolded, 64 unit tests + 13 dbt tests green). Days 8–14 remaining for Phase 1 ship.
 **Plan finalized:** 2026-05-03
+**Last updated:** 2026-05-04
 **Target effort:** ~4 weeks part-time (target, not a deadline; daily breakdown is a guide)
 **Portfolio context:** Project 1 of three. See [/Users/gmarqu3/Code/oc_data/PLAN.md](../oc_data/PLAN.md) for the broader portfolio strategy. (The portfolio meta-doc lives in `oc_data/` for now; this repo is the actual implementation.)
 

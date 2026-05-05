@@ -17,11 +17,29 @@ export default function PlanetDetail() {
   }, [plName]);
 
   if (error) {
+    const isNotFound = error.startsWith('404');
     return (
-      <div className="error">
-        <p style={{ margin: 0 }}>{error}</p>
-        <p style={{ margin: '0.5rem 0 0' }}><Link to="/">← back to home</Link></p>
-      </div>
+      <>
+        <p style={{ margin: '0 0 1rem' }}>
+          <Link to="/">← back</Link>
+        </p>
+        {isNotFound ? (
+          <>
+            <h1 style={{ margin: '0 0 0.5rem' }}>Planet not found</h1>
+            <div className="empty">
+              <p>No planet named <code>{plName}</code> in the catalog.</p>
+              <p style={{ marginTop: '0.5rem' }}>
+                The catalog uses canonical names from the NASA Exoplanet Archive, like
+                {' '}<code>Kepler-22 b</code>, <code>TRAPPIST-1 e</code>, or <code>Proxima Cen b</code>
+                {' '}— with the trailing lowercase letter. Try the search bar from
+                {' '}<Link to="/">the home page</Link> for partial matches.
+              </p>
+            </div>
+          </>
+        ) : (
+          <div className="error">{error}</div>
+        )}
+      </>
     );
   }
 

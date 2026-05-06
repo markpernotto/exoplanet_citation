@@ -27,11 +27,15 @@ export default function SearchBar() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const q = query.trim();
+    const next = new URLSearchParams(location.search);
     if (!q) {
-      navigate('/');
+      next.delete('q');
+      const qs = next.toString();
+      navigate(qs ? `/?${qs}` : '/');
       return;
     }
-    navigate(`/?q=${encodeURIComponent(q)}`);
+    next.set('q', q);
+    navigate(`/?${next.toString()}`);
   }
 
   return (

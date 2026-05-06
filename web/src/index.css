@@ -1,3 +1,34 @@
+@font-face {
+  font-family: 'VT323';
+  src: url('/fonts/VT323-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('/fonts/IBMPlexMono-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('/fonts/IBMPlexMono-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Silkscreen';
+  src: url('/fonts/Silkscreen-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Silkscreen';
+  src: url('/fonts/Silkscreen-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+
 :root {
   --bg: #0b0d12;
   --bg-elev: #131722;
@@ -54,9 +85,12 @@ header.site {
   z-index: 10;
   /* Solid background, no backdrop-filter — that combination breaks sticky on iOS Safari */
   background: var(--bg);
-  margin: 0 -1rem 1.5rem;
-  padding: 0.75rem 1rem 0.85rem;
   border-bottom: 1px solid var(--border);
+}
+.site-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0.75rem 1rem 0.85rem;
 }
 header.site .site-header-row {
   display: flex;
@@ -275,22 +309,19 @@ footer.site .footer-line { line-height: 1.4; }
 }
 .metric-row {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.2rem;
 }
 .metric-label {
   color: var(--fg-muted);
   text-transform: uppercase;
   font-size: 0.7rem;
   letter-spacing: 0.06em;
-  flex-shrink: 0;
 }
 .metric-value {
   color: var(--fg);
-  font-size: 1rem;
+  font-size: 1.1rem;
   font-weight: 600;
-  text-align: right;
 }
 .metric-explain {
   margin: 0.45rem 0 0;
@@ -352,7 +383,7 @@ footer.site .footer-line { line-height: 1.4; }
 
 .modal-zoom-hint {
   position: absolute;
-  top: 0.6rem;
+  top: 3rem;
   left: 0.6rem;
   z-index: 2;
   display: inline-flex;
@@ -384,8 +415,7 @@ footer.site .footer-line { line-height: 1.4; }
 .real-size-btn {
   position: absolute;
   top: 0.6rem;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0.6rem;
   z-index: 2;
   background: rgba(19, 23, 34, 0.7);
   border: 1px solid var(--border);
@@ -466,3 +496,342 @@ footer.site .footer-line { line-height: 1.4; }
 .featured-systems li { font-size: 0.9rem; line-height: 1.45; }
 .featured-systems a { color: var(--accent); }
 .featured-systems .muted { color: var(--fg-muted); font-size: 0.85rem; }
+
+/* ============================================================
+   THEME SWITCHER
+   Four tiny CRT-screen-shaped buttons in the header top-right.
+   ============================================================ */
+
+.theme-switcher {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.theme-btn {
+  width: 18px;
+  height: 13px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.1s;
+  background: transparent;
+}
+.theme-btn:hover { transform: scale(1.2); }
+.theme-btn.active { outline: 2px solid var(--fg); outline-offset: 2px; }
+
+.theme-btn--phosphor-green { background: #33ff33; }
+.theme-btn--amber          { background: #ffb000; }
+.theme-btn--cga            { background: #0000aa; border-color: #ffff55; }
+.theme-btn--ega            { background: #55ffff; border-color: #005555; }
+.theme-btn--hgc            { background: #f0f0f0; border-color: #666666; }
+.theme-btn--plasma         { background: #ff6600; }
+
+/* ============================================================
+   RETRO CRT / COMPUTER THEMES
+   Activated via html[data-theme="X"] set from ?theme= URL param.
+   ============================================================ */
+
+/* ── P1 Phosphor: green phosphor CRT terminal ────────────────────────────── */
+html[data-theme="phosphor-green"] {
+  --bg:       #0a120a;
+  --bg-elev:  #0d1a0d;
+  --fg:       #33ff33;
+  --fg-muted: #1fa81f;
+  --accent:   #66ff66;
+  --border:   #1a3a1a;
+  --tier-a:   #66ff66;
+  --tier-b:   #00cc44;
+  --new:      #00ff88;
+  --removed:  #ff3333;
+  font-size: 20px;
+  line-height: 1.4;
+}
+
+html[data-theme="phosphor-green"] body,
+html[data-theme="phosphor-green"] h1,
+html[data-theme="phosphor-green"] h2,
+html[data-theme="phosphor-green"] p,
+html[data-theme="phosphor-green"] span,
+html[data-theme="phosphor-green"] a,
+html[data-theme="phosphor-green"] button,
+html[data-theme="phosphor-green"] input,
+html[data-theme="phosphor-green"] td,
+html[data-theme="phosphor-green"] th {
+  font-family: 'VT323', monospace;
+  text-shadow: 0 0 4px rgba(51, 255, 51, 0.7),
+               0 0 12px rgba(51, 255, 51, 0.35),
+               0 0 24px rgba(51, 255, 51, 0.12);
+}
+
+html[data-theme="phosphor-green"] .search-bar button {
+  text-shadow: none;
+  color: #0a120a;
+}
+
+html[data-theme="phosphor-green"] body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px, transparent 3px,
+    rgba(0, 0, 0, 0.18) 3px, rgba(0, 0, 0, 0.18) 4px
+  );
+}
+
+html[data-theme="phosphor-green"] .card,
+html[data-theme="phosphor-green"] .discovery-item,
+html[data-theme="phosphor-green"] .search-bar input,
+html[data-theme="phosphor-green"] .search-bar button,
+html[data-theme="phosphor-green"] .tier-badge,
+html[data-theme="phosphor-green"] .badge {
+  border-radius: 0;
+}
+
+/* ── P3 Phosphor: amber phosphor CRT terminal ────────────────────────────── */
+html[data-theme="amber"] {
+  --bg:       #110900;
+  --bg-elev:  #1a0f00;
+  --fg:       #ffb000;
+  --fg-muted: #b87800;
+  --accent:   #ffd700;
+  --border:   #3d2200;
+  --tier-a:   #ffd700;
+  --tier-b:   #ff8c00;
+  --new:      #ffdd44;
+  --removed:  #ff4400;
+  font-size: 20px;
+  line-height: 1.4;
+}
+
+html[data-theme="amber"] body,
+html[data-theme="amber"] h1,
+html[data-theme="amber"] h2,
+html[data-theme="amber"] p,
+html[data-theme="amber"] span,
+html[data-theme="amber"] a,
+html[data-theme="amber"] button,
+html[data-theme="amber"] input,
+html[data-theme="amber"] td,
+html[data-theme="amber"] th {
+  font-family: 'VT323', monospace;
+  text-shadow: 0 0 4px rgba(255, 176, 0, 0.7),
+               0 0 12px rgba(255, 176, 0, 0.35),
+               0 0 24px rgba(255, 176, 0, 0.12);
+}
+
+html[data-theme="amber"] .search-bar button {
+  text-shadow: none;
+  color: #110900;
+}
+
+html[data-theme="amber"] body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px, transparent 3px,
+    rgba(0, 0, 0, 0.18) 3px, rgba(0, 0, 0, 0.18) 4px
+  );
+}
+
+html[data-theme="amber"] .card,
+html[data-theme="amber"] .discovery-item,
+html[data-theme="amber"] .search-bar input,
+html[data-theme="amber"] .search-bar button,
+html[data-theme="amber"] .tier-badge,
+html[data-theme="amber"] .badge {
+  border-radius: 0;
+}
+
+/* ── CGA: Color Graphics Adapter / DOS ───────────────────────────────────── */
+html[data-theme="cga"] {
+  --bg:       #0000aa;
+  --bg-elev:  #0000aa;
+  --fg:       #ffffff;
+  --fg-muted: #aaaaaa;
+  --accent:   #ffff55;
+  --border:   #ffffff;
+  --tier-a:   #ffff55;
+  --tier-b:   #55ffff;
+  --new:      #55ff55;
+  --removed:  #ff5555;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+html[data-theme="cga"] body {
+  font-family: 'Silkscreen', monospace;
+}
+
+/* DOS dialog-box style: thick white border + double-line outline */
+html[data-theme="cga"] .card,
+html[data-theme="cga"] .discovery-item {
+  border-radius: 0;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 4px #0000aa, 0 0 0 5px #ffffff;
+}
+
+html[data-theme="cga"] .search-bar input,
+html[data-theme="cga"] .search-bar button,
+html[data-theme="cga"] .tier-badge,
+html[data-theme="cga"] .badge {
+  border-radius: 0;
+}
+
+/* ── EGA: Enhanced Graphics Adapter (1984–1990) ──────────────────────────── */
+html[data-theme="ega"] {
+  --bg:       #000000;
+  --bg-elev:  #001a1a;
+  --fg:       #55ffff;
+  --fg-muted: #00aaaa;
+  --accent:   #ffff55;
+  --border:   #005555;
+  --tier-a:   #55ffff;
+  --tier-b:   #ff55ff;
+  --new:      #55ff55;
+  --removed:  #ff5555;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+html[data-theme="ega"] body {
+  font-family: 'Silkscreen', monospace;
+}
+
+/* Double-line box border in EGA cyan — same trick as CGA */
+html[data-theme="ega"] .card,
+html[data-theme="ega"] .discovery-item {
+  border-radius: 0;
+  border: 2px solid #55ffff;
+  box-shadow: 0 0 0 4px #000000, 0 0 0 5px #55ffff;
+}
+
+html[data-theme="ega"] .search-bar input,
+html[data-theme="ega"] .search-bar button,
+html[data-theme="ega"] .tier-badge,
+html[data-theme="ega"] .badge {
+  border-radius: 0;
+}
+
+/* ── HGC: Hercules Graphics Card / MDA monochrome (1982–1990) ───────────── */
+html[data-theme="hgc"] {
+  --bg:       #000000;
+  --bg-elev:  #0d0d0d;
+  --fg:       #f0f0f0;
+  --fg-muted: #888888;
+  --accent:   #ffffff;
+  --border:   #444444;
+  --tier-a:   #ffffff;
+  --tier-b:   #aaaaaa;
+  --new:      #cccccc;
+  --removed:  #666666;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+html[data-theme="hgc"] body {
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+html[data-theme="hgc"] .card,
+html[data-theme="hgc"] .discovery-item {
+  border-radius: 0;
+  border: 1px solid #444444;
+}
+
+html[data-theme="hgc"] .search-bar input,
+html[data-theme="hgc"] .search-bar button,
+html[data-theme="hgc"] .tier-badge,
+html[data-theme="hgc"] .badge {
+  border-radius: 0;
+}
+
+/* ── Plasma: gas plasma display — Compaq Portable / GRiD Compass (1982–1988) */
+html[data-theme="plasma"] {
+  --bg:       #0d0400;
+  --bg-elev:  #1a0800;
+  --fg:       #ff6600;
+  --fg-muted: #cc4400;
+  --accent:   #ff8800;
+  --border:   #441100;
+  --tier-a:   #ff8800;
+  --tier-b:   #ff4400;
+  --new:      #ff9900;
+  --removed:  #cc2200;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+html[data-theme="plasma"] body {
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+html[data-theme="plasma"] body,
+html[data-theme="plasma"] h1,
+html[data-theme="plasma"] h2,
+html[data-theme="plasma"] p,
+html[data-theme="plasma"] span,
+html[data-theme="plasma"] a,
+html[data-theme="plasma"] button,
+html[data-theme="plasma"] input,
+html[data-theme="plasma"] td,
+html[data-theme="plasma"] th {
+  text-shadow: 0 0 3px rgba(255, 102, 0, 0.6),
+               0 0 10px rgba(255, 102, 0, 0.2);
+}
+
+html[data-theme="plasma"] .search-bar button {
+  text-shadow: none;
+  color: #0d0400;
+}
+
+html[data-theme="plasma"] .card,
+html[data-theme="plasma"] .discovery-item,
+html[data-theme="plasma"] .search-bar input,
+html[data-theme="plasma"] .search-bar button,
+html[data-theme="plasma"] .tier-badge,
+html[data-theme="plasma"] .badge {
+  border-radius: 0;
+}
+
+/* ── Loading bar ─────────────────────────────────────────────────────────── */
+.loading-bar {
+  margin: 1.5rem 0;
+  opacity: 1;
+  transition: opacity 0.5s ease-out 0.3s;
+}
+
+.loading-bar--done {
+  opacity: 0;
+}
+
+.loading-bar__track {
+  width: 100%;
+  height: 1.1em;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  overflow: hidden;
+}
+
+.loading-bar__fill {
+  height: 100%;
+  background: var(--accent);
+}
+
+.loading-bar__pct {
+  display: block;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--fg-muted);
+  margin-top: 0.3em;
+}

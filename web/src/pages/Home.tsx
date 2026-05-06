@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { api, type PlanetSummary, type PlanetsListResponse, type StatsResponse } from '../api';
+import LoadingBar from '../components/LoadingBar';
 
 const PAGE_SIZE = 100;
 
@@ -149,7 +150,7 @@ export default function Home() {
         {items.length > 0 && <PlanetGrid results={items} />}
 
         {error && <div className="error">Error: {error}</div>}
-        {loading && <div className="loading">Loading more…</div>}
+        <LoadingBar loading={loading} />
         {!hasMore && !loading && items.length > 0 && (
           <p style={{ color: 'var(--fg-muted)', fontSize: '0.85rem', textAlign: 'center', margin: '1.5rem 0 0' }}>
             That's all {items.length.toLocaleString()} planets in the catalog.
@@ -198,6 +199,8 @@ const FEATURED_SYSTEMS: { name: string; representative: string; tagline: string 
 function FeaturedSystems() {
   const location = useLocation();
   const from = location.pathname + location.search;
+  const themeParam = new URLSearchParams(location.search).get('theme');
+  const themeQuery = themeParam ? `?theme=${themeParam}` : '';
   return (
     <section>
       <h2>Featured systems</h2>
@@ -210,7 +213,7 @@ function FeaturedSystems() {
         <ul className="featured-systems">
           {FEATURED_SYSTEMS.map((s) => (
             <li key={s.name}>
-              <Link to={`/planets/${encodeURIComponent(s.representative)}`} state={{ from }}>
+              <Link to={`/planets/${encodeURIComponent(s.representative)}${themeQuery}`} state={{ from }}>
                 <strong>{s.name}</strong>
               </Link>
               <span className="muted"> — {s.tagline}</span>
@@ -225,13 +228,15 @@ function FeaturedSystems() {
 function PlanetGrid({ results }: { results: PlanetSummary[] }) {
   const location = useLocation();
   const from = location.pathname + location.search;
+  const themeParam = new URLSearchParams(location.search).get('theme');
+  const themeQuery = themeParam ? `?theme=${themeParam}` : '';
   return (
     <div className="discoveries-list">
       {results.map((p) => (
         <Link
           key={p.pl_name}
           className="discovery-item"
-          to={`/planets/${encodeURIComponent(p.pl_name)}`}
+          to={`/planets/${encodeURIComponent(p.pl_name)}${themeQuery}`}
           state={{ from }}
         >
           <span className="badge PARAMETER_CHANGE">{p.disc_year ?? '—'}</span>

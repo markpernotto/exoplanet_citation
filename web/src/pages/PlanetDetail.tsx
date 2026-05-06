@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api, type HostStarGaia, type PlanetDetail as PlanetDetailType, type PlanetHistoryResponse, type PlanetsListResponse } from '../api';
 import GalaxyMap from '../components/GalaxyMap';
+import LoadingBar from '../components/LoadingBar';
 import PlanetCard from '../components/PlanetCard';
 import { collectFacts } from '../lib/derived';
 
@@ -12,6 +13,8 @@ export default function PlanetDetail() {
   // The `from` state is set by links on Home.tsx when navigating in-app, so
   // we know exactly where to return on "back" (preserving any search query).
   const from = (location.state as { from?: string } | null)?.from;
+  const themeParam = new URLSearchParams(location.search).get('theme');
+  const themeQuery = themeParam ? `?theme=${themeParam}` : '';
 
   const [planet, setPlanet] = useState<PlanetDetailType | null>(null);
   const [hostStar, setHostStar] = useState<HostStarGaia | null>(null);
@@ -51,7 +54,7 @@ export default function PlanetDetail() {
     return (
       <>
         <p style={{ margin: '0 0 1rem' }}>
-          <Link to="/">← back</Link>
+          <Link to={from ?? `/${themeQuery}`}>← back</Link>
         </p>
         {isNotFound ? (
           <>
@@ -62,7 +65,7 @@ export default function PlanetDetail() {
                 The catalog uses canonical names from the NASA Exoplanet Archive, like
                 {' '}<code>Kepler-22 b</code>, <code>TRAPPIST-1 e</code>, or <code>Proxima Cen b</code>
                 {' '}— with the trailing lowercase letter. Try the search bar from
-                {' '}<Link to="/">the home page</Link> for partial matches.
+                {' '}<Link to={`/${themeQuery}`}>the home page</Link> for partial matches.
               </p>
             </div>
           </>
@@ -73,7 +76,7 @@ export default function PlanetDetail() {
     );
   }
 
-  if (!planet) return <div className="loading">Loading {plName}…</div>;
+  if (!planet) return <LoadingBar loading={true} />;
 
   return (
     <>
@@ -187,7 +190,7 @@ export default function PlanetDetail() {
 
       <section style={{ marginTop: '2rem' }}>
         <h2>Change history</h2>
-        {!history && <div className="loading">Loading history…</div>}
+        <LoadingBar loading={!history} />
         {history && history.change_count === 0 && (
           <div className="empty">No change events recorded yet for this planet.</div>
         )}
@@ -303,9 +306,12 @@ function BeyondBasicsCard({ planet }: { planet: PlanetDetailType }) {
 }
 
 function SystemSiblingsSection({ planet, siblings }: { planet: PlanetDetailType; siblings: PlanetsListResponse | null }) {
+  const location = useLocation();
   if (!siblings) return null;
   const others = siblings.results.filter((p) => p.pl_name !== planet.pl_name);
   if (others.length === 0) return null;
+  const themeParam = new URLSearchParams(location.search).get('theme');
+  const themeQuery = themeParam ? `?theme=${themeParam}` : '';
   return (
     <section>
       <h2>System ({siblings.total} planet{siblings.total === 1 ? '' : 's'} around {planet.hostname})</h2>
@@ -316,7 +322,7 @@ function SystemSiblingsSection({ planet, siblings }: { planet: PlanetDetailType;
         <ul className="siblings-list">
           {others.map((s) => (
             <li key={s.pl_name}>
-              <Link to={`/planets/${encodeURIComponent(s.pl_name)}`}>{s.pl_name}</Link>
+              <Link to={`/planets/${encodeURIComponent(s.pl_name)}${themeQuery}`}>{s.pl_name}</Link>
               <span className="muted">
                 {s.discoverymethod && <> · {s.discoverymethod}</>}
                 {s.disc_year != null && <> · {s.disc_year}</>}

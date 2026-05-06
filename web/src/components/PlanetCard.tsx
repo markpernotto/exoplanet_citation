@@ -636,11 +636,11 @@ export default function PlanetCard({ planet, siblings, bp_rp }: Props) {
             >
               ✕
             </button>
-            <div className="modal-zoom-hint" aria-live="polite">
-              {zoomPan.isZoomed
-                ? <>{zoomPan.zoomLevel.toFixed(1)}× · drag to pan · <button type="button" className="zoom-reset-link" onClick={zoomPan.reset}>reset</button></>
-                : <>scroll to zoom · double-click to reset</>}
-            </div>
+            {zoomPan.isZoomed && (
+              <div className="modal-zoom-hint" aria-live="polite">
+                {zoomPan.zoomLevel.toFixed(1)}× · drag to pan · <button type="button" className="zoom-reset-link" onClick={zoomPan.reset}>reset</button>
+              </div>
+            )}
             {(canRealSize || multiOrbit) && (
               <button
                 type="button"

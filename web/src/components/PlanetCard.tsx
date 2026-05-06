@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import type { PlanetDetail } from '../api';
+import type { PlanetDetail, PlanetSummary } from '../api';
 import { planetVisual, starColor } from '../procedural';
+import { useSvgZoomPan, type ViewBox } from '../lib/useSvgZoomPan';
 
-type Props = { planet: PlanetDetail };
+type Props = { planet: PlanetDetail; siblings?: PlanetSummary[] | null };
 
 // Animation time in seconds, pausable. When `running` is false, t freezes at
 // its current value; when running resumes, t picks up from where it left off
@@ -58,7 +59,7 @@ function formatPeriod(days: number): string {
   return `${(days / 365.25).toFixed(2)} yr`;
 }
 
-export default function PlanetCard({ planet }: Props) {
+export default function PlanetCard({ planet, siblings }: Props) {
   const [paused, setPaused] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const t = useAnimationTime(!paused);
@@ -146,9 +147,10 @@ export default function PlanetCard({ planet }: Props) {
 
   const id = planet.pl_name.replace(/[^a-zA-Z0-9]/g, '_');
 
-  const orbitSvg = (
-      <svg viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`} width="100%" style={{ display: 'block' }} role="img"
-           aria-label={`Animated visualization of ${planet.pl_name} orbiting host star ${planet.hostname}`}>
+  const singleNaturalVB: ViewBox = { x: 0, y: 0, w: viewBoxWidth, h: viewBoxHeight };
+
+  const singleOrbitContent = (
+      <>
         <defs>
           {/* Star: hot bright nucleus → full color → soft outer */}
           <radialGradient id={`star-${id}`} cx="38%" cy="38%">
@@ -217,6 +219,7 @@ export default function PlanetCard({ planet }: Props) {
           strokeOpacity="0.28"
           strokeWidth="1"
           strokeDasharray="2,4"
+          vectorEffect="non-scaling-stroke"
         />
         {period == null && (
           <text x={focusX} y={focusY - orbitSemiMinor - 18} textAnchor="middle"
@@ -257,8 +260,211 @@ export default function PlanetCard({ planet }: Props) {
               fill="#9099aa" fontSize="11" fontFamily="-apple-system, sans-serif">
           {planet.hostname}
         </text>
+      </>
+  );
 
-      </svg>
+  const orbitSvg = (
+    <svg viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`} width="100%" style={{ display: 'block' }} role="img"
+         aria-label={`Animated visualization of ${planet.pl_name} orbiting host star ${planet.hostname}`}>
+      {singleOrbitContent}
+    </svg>
+  );
+
+  // Multi-planet system view: data + content for use inside the modal, only
+  // when we have at least one sibling with a known semi-major axis. Orbits are
+  // scaled to true AU — astronomically faithful, so a hot Jupiter at 0.05 AU
+  // really does become a dot next to a cold Jupiter at 5 AU. The user can
+  // scroll to zoom in on the inner system in the modal.
+  const multiOrbit = (() => {
+    const sibsWithOrbits = (siblings ?? []).filter((s) => s.pl_orbsmax != null);
+    if (sibsWithOrbits.length === 0) return null;
+    if (planet.pl_orbsmax == null) return null;
+
+    type Orbiter = {
+      key: string;
+      name: string;
+      isPrimary: boolean;
+      a: number;
+      e: number;
+      period: number | null;
+      eqt: number | null;
+      dens: number | null;
+      rade: number | null;
+    };
+
+    const orbiters: Orbiter[] = [
+      {
+        key: id,
+        name: planet.pl_name,
+        isPrimary: true,
+        a: planet.pl_orbsmax,
+        e: Math.max(0, Math.min(0.95, planet.pl_orbeccen ?? 0)),
+        period: planet.pl_orbper,
+        eqt: planet.pl_eqt,
+        dens: planet.pl_dens,
+        rade: planet.pl_rade,
+      },
+      ...sibsWithOrbits.map((s) => ({
+        key: s.pl_name.replace(/[^a-zA-Z0-9]/g, '_'),
+        name: s.pl_name,
+        isPrimary: false,
+        a: s.pl_orbsmax as number,
+        e: Math.max(0, Math.min(0.95, s.pl_orbeccen ?? 0)),
+        period: s.pl_orbper,
+        eqt: s.pl_eqt,
+        dens: null as number | null,
+        rade: s.pl_rade,
+      })),
+    ];
+
+    // Canvas extents in AU: leftward extent = max apoapsis, rightward extent = max periapsis.
+    // (All orbits oriented with periapsis on the +x side; we don't have
+    // argument-of-periapsis data to do anything more honest about orientation.)
+    const maxApoAU = Math.max(...orbiters.map((o) => o.a * (1 + o.e)));
+    const maxPeriAU = Math.max(...orbiters.map((o) => o.a * (1 - o.e)));
+    const maxMinorAU = Math.max(...orbiters.map((o) => o.a * Math.sqrt(1 - o.e * o.e)));
+
+    const targetWidth = 1400;
+    const xPad = 60;
+    const yPad = 60;
+    const pxPerAU = (targetWidth - 2 * xPad) / (maxApoAU + maxPeriAU);
+    const focusX = xPad + maxApoAU * pxPerAU;
+    const viewBoxHeight = Math.max(420, 2 * maxMinorAU * pxPerAU + 2 * yPad);
+    const focusY = viewBoxHeight / 2;
+
+    // Pre-compute per-orbiter geometry + visuals.
+    const drawn = orbiters.map((o) => {
+      const animSec = orbitAnimationSeconds(o.period);
+      const M = o.period != null ? (2 * Math.PI * t) / animSec : 0;
+      const E = solveKeplerEquation(M, o.e);
+      const orbitA = o.a * pxPerAU;
+      const orbitB = orbitA * Math.sqrt(1 - o.e * o.e);
+      const ellipseCx = focusX - orbitA * o.e;
+      const planetX = focusX + orbitA * (Math.cos(E) - o.e);
+      const planetY = focusY + orbitB * Math.sin(E);
+      // Planet pixel size: same sqrt-compressed ratio used by single-planet view.
+      const radPx = (() => {
+        if (o.rade == null) return Math.max(4, starRadius * 0.25);
+        const ratio = o.rade / (stRad * SOLAR_TO_EARTH_RADII);
+        return Math.max(4, Math.min(20, starRadius * Math.sqrt(Math.max(0, ratio)) * 1.2));
+      })();
+      const vis = planetVisual(o.eqt, o.dens, o.rade);
+      const dx = focusX - planetX;
+      const dy = focusY - planetY;
+      const dist = Math.hypot(dx, dy) || 1;
+      const litX = 50 + (dx / dist) * 30;
+      const litY = 50 + (dy / dist) * 30;
+      return { o, ellipseCx, orbitA, orbitB, planetX, planetY, radPx, vis, litX, litY };
+    });
+
+    const naturalVB: ViewBox = { x: 0, y: 0, w: targetWidth, h: viewBoxHeight };
+    const content = (
+      <>
+        <defs>
+          <radialGradient id={`star-multi-${id}`} cx="38%" cy="38%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
+            <stop offset="35%" stopColor={star} stopOpacity="1" />
+            <stop offset="100%" stopColor={star} stopOpacity="0.9" />
+          </radialGradient>
+          <radialGradient id={`corona-multi-${id}`} cx="50%" cy="50%">
+            <stop offset="0%" stopColor={star} stopOpacity="0.5" />
+            <stop offset="35%" stopColor={star} stopOpacity="0.2" />
+            <stop offset="100%" stopColor={star} stopOpacity="0" />
+          </radialGradient>
+          {drawn.map((d) => (
+            <radialGradient key={`pg-${d.o.key}`} id={`planet-multi-${d.o.key}`} cx={`${d.litX}%`} cy={`${d.litY}%`}>
+              <stop offset="0%" stopColor="rgba(255,255,255,0.35)" />
+              <stop offset="25%" stopColor={d.vis.fillColor} stopOpacity="1" />
+              <stop offset="75%" stopColor={d.vis.fillColor} stopOpacity="0.95" />
+              <stop offset="100%" stopColor="rgba(0,0,0,0.55)" />
+            </radialGradient>
+          ))}
+        </defs>
+
+        {/* Orbits — primary brighter, siblings dimmer.
+            Non-scaling stroke so they stay crisp at high zoom. */}
+        {drawn.map((d) => (
+          <ellipse
+            key={`orb-${d.o.key}`}
+            cx={d.ellipseCx}
+            cy={focusY}
+            rx={d.orbitA}
+            ry={d.orbitB}
+            fill="none"
+            stroke={star}
+            strokeOpacity={d.o.isPrimary ? 0.45 : 0.18}
+            strokeWidth={d.o.isPrimary ? 1.25 : 1}
+            strokeDasharray={d.o.isPrimary ? '3,4' : '2,5'}
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
+
+        {/* Star at the shared focus */}
+        <circle cx={focusX} cy={focusY} r={starRadius * 2.6} fill={`url(#corona-multi-${id})`} />
+        <circle cx={focusX} cy={focusY} r={starRadius} fill={`url(#star-multi-${id})`}>
+          <title>Host star: {planet.hostname} ({planet.st_spectype ?? 'spectral type unknown'})</title>
+        </circle>
+
+        {/* Planets */}
+        {drawn.map((d) => (
+          <g key={`pl-${d.o.key}`}>
+            {d.o.isPrimary && (
+              <circle cx={d.planetX} cy={d.planetY} r={d.radPx + 5} fill="none"
+                      stroke="var(--accent, #6cf)" strokeOpacity="0.7" strokeWidth="1"
+                      vectorEffect="non-scaling-stroke" />
+            )}
+            <circle cx={d.planetX} cy={d.planetY} r={d.radPx} fill={`url(#planet-multi-${d.o.key})`}>
+              <title>{d.o.name} — {d.vis.description}</title>
+            </circle>
+            <text
+              x={d.planetX}
+              y={d.planetY + d.radPx + 13}
+              textAnchor="middle"
+              fill={d.o.isPrimary ? '#cfd6e4' : '#7d8595'}
+              fontSize="10"
+              fontFamily="-apple-system, sans-serif"
+              opacity={d.o.isPrimary ? 0.95 : 0.7}
+            >
+              {d.o.name}
+            </text>
+          </g>
+        ))}
+
+        <text x={focusX} y={focusY + starRadius + 22} textAnchor="middle"
+              fill="#9099aa" fontSize="11" fontFamily="-apple-system, sans-serif">
+          {planet.hostname}
+        </text>
+      </>
+    );
+    return { naturalVB, content, count: orbiters.length };
+  })();
+
+  // Modal SVG: identical content as the inline card (or the multi-system view
+  // when siblings have orbits), wrapped with viewBox-driven zoom + drag pan.
+  // Hook is always called (rules-of-hooks); it self-disables when !expanded.
+  const modalSvgRef = useRef<SVGSVGElement>(null);
+  const modalNaturalVB = multiOrbit?.naturalVB ?? singleNaturalVB;
+  const modalContent = multiOrbit?.content ?? singleOrbitContent;
+  const zoomPan = useSvgZoomPan(modalSvgRef, modalNaturalVB, expanded);
+  const modalSvg = (
+    <svg
+      ref={modalSvgRef}
+      viewBox={zoomPan.viewBox}
+      width="100%"
+      style={{
+        display: 'block',
+        cursor: zoomPan.isZoomed ? 'grab' : 'default',
+        userSelect: 'none',
+        touchAction: 'none',
+      }}
+      role="img"
+      aria-label={multiOrbit
+        ? `Animated visualization of the ${planet.hostname} system: ${multiOrbit.count} planets, scroll to zoom and drag to pan`
+        : `Animated visualization of ${planet.pl_name} orbiting host star ${planet.hostname}`}
+      {...zoomPan.handlers}
+    >
+      {modalContent}
+    </svg>
   );
 
   const cardContent = (
@@ -327,7 +533,7 @@ export default function PlanetCard({ planet }: Props) {
       {expanded && (
         <div className="planet-card-modal" role="dialog" aria-modal="true" aria-label={`${planet.pl_name} expanded view`}>
           <div className="planet-card-modal-backdrop" onClick={() => setExpanded(false)} />
-          <div className="planet-card-modal-inner">
+          <div className={`planet-card-modal-inner${multiOrbit ? ' multi' : ''}`}>
             <button
               type="button"
               className="modal-close-btn"
@@ -337,7 +543,20 @@ export default function PlanetCard({ planet }: Props) {
             >
               ✕
             </button>
-            {orbitSvg}
+            <div className="modal-zoom-hint" aria-live="polite">
+              {zoomPan.isZoomed
+                ? <>{zoomPan.zoomLevel.toFixed(1)}× · drag to pan · <button type="button" className="zoom-reset-link" onClick={zoomPan.reset}>reset</button></>
+                : <>scroll to zoom · double-click to reset</>}
+            </div>
+            {modalSvg}
+            {multiOrbit && (
+              <p style={{ margin: '0.75rem 1rem 0', fontSize: '0.8rem', color: 'var(--fg-muted)', lineHeight: 1.5, textAlign: 'center' }}>
+                The full <strong>{planet.hostname}</strong> system, orbits drawn to true scale in AU.
+                {' '}<span style={{ color: 'var(--accent, #6cf)' }}>◯</span> marks <strong>{planet.pl_name}</strong>.
+                {' '}Inner planets really are this much smaller and closer than the outer ones —
+                scroll-zoom into the inner system to see them clearly.
+              </p>
+            )}
           </div>
         </div>
       )}

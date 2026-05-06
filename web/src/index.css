@@ -186,19 +186,43 @@ section h2 { font-size: 1.1rem; font-weight: 600; margin: 0 0 0.75rem; color: va
 .tier-B { background: var(--tier-b); color: #0b0d12; }
 
 footer.site {
-  /* No position:fixed — flexbox layout (#root) puts this at viewport bottom
-     when content is short, and at end-of-content when long. Works on iOS. */
-  margin: 4rem -1rem 0;
+  /* Hover-to-peek: a 4px hairline sits at the bottom of the viewport at all
+     times; mousing into a 36px invisible zone just above it (the ::before)
+     slides the full footer up. Plain position:fixed is safe on iOS — it was
+     the fixed + backdrop-filter combination on the header that broke before. */
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
   padding: 0.6rem 1rem;
   background: var(--bg);
   border-top: 1px solid var(--border);
   color: var(--fg-muted);
   font-size: 0.78rem;
   text-align: center;
+  transform: translateY(calc(100% - 4px));
+  transition: transform 0.18s ease-out;
+}
+footer.site::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: 36px;
+}
+footer.site:hover,
+footer.site:focus-within {
+  transform: translateY(0);
 }
 footer.site .footer-line { line-height: 1.4; }
 @media (max-width: 600px) {
   footer.site .footer-line { white-space: normal; }
+}
+/* Touch devices have no hover — keep the footer permanently revealed there. */
+@media (hover: none) {
+  footer.site { transform: translateY(0); }
 }
 
 .error {
@@ -307,11 +331,43 @@ footer.site .footer-line { line-height: 1.4; }
 .planet-card-modal-inner {
   position: relative;
   z-index: 1;
-  width: 100%;
-  max-width: 1100px;
-  max-height: 95vh;
+  width: 50%;
+  max-width: 700px;
+  max-height: 80vh;
   overflow-y: auto;
 }
+
+.modal-zoom-hint {
+  position: absolute;
+  top: 0.6rem;
+  left: 0.6rem;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  background: rgba(19, 23, 34, 0.7);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--fg-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+  user-select: none;
+}
+.modal-zoom-hint .zoom-reset-link {
+  pointer-events: auto;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.modal-zoom-hint .zoom-reset-link:hover { color: var(--fg); }
+
 .modal-close-btn {
   position: absolute;
   top: 0.6rem;
@@ -349,3 +405,15 @@ footer.site .footer-line { line-height: 1.4; }
 .siblings-list li { font-size: 0.9rem; }
 .siblings-list a { font-weight: 600; }
 .siblings-list .muted { color: var(--fg-muted); font-size: 0.82rem; margin-left: 0.25rem; }
+
+.featured-systems {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+.featured-systems li { font-size: 0.9rem; line-height: 1.45; }
+.featured-systems a { color: var(--accent); }
+.featured-systems .muted { color: var(--fg-muted); font-size: 0.85rem; }

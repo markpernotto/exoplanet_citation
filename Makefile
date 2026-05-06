@@ -17,7 +17,7 @@ help:
 	@echo "  publish       generate public/{rss.xml,discoveries.json,health.json}"
 	@echo "  pipeline      run extract → load → dbt → diff → publish"
 	@echo "  api           run FastAPI locally on :8000 with auto-reload"
-	@echo "  web           run Vite dev server on :5173 (proxies /api → :8000)"
+	@echo "  web           run Vite dev server on :5550 (proxies /api → :8000)"
 	@echo "  dev           run api + web together (you'll need two terminals)"
 	@echo "  web-install   install npm deps under web/"
 	@echo "  web-build     production build of the React app"

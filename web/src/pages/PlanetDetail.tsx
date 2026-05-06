@@ -86,8 +86,8 @@ export default function PlanetDetail() {
 
       <div className="planet-detail">
         <div className="planet-detail-left">
-          <PlanetCard planet={planet} />
-          <BeyondBasicsCard planet={planet} />
+          <PlanetCard planet={planet} siblings={siblings?.results.filter((s) => s.pl_name !== planet.pl_name) ?? null} />
+          <HostStarCard planet={planet} />
         </div>
 
         <div>
@@ -116,6 +116,8 @@ export default function PlanetDetail() {
               </dl>
             </div>
           </section>
+
+          <BeyondBasicsCard planet={planet} />
 
           <SystemSiblingsSection planet={planet} siblings={siblings} />
 
@@ -197,6 +199,65 @@ export default function PlanetDetail() {
   );
 }
 
+function HostStarCard({ planet }: { planet: PlanetDetailType }) {
+  const facts = collectStarFacts(planet);
+  const spectralInfo = describeSpectralClass(planet.st_spectype);
+  // st_lum is log10(L/L☉) per NASA Exoplanet Archive convention.
+  const linearLum = planet.st_lum != null ? Math.pow(10, planet.st_lum) : null;
+  const hzInner = linearLum != null ? Math.sqrt(linearLum) : null;
+  const hzOuter = hzInner != null ? hzInner * 1.4 : null;
+  if (facts.length === 0 && !spectralInfo && hzInner == null) return null;
+  return (
+    <section style={{ marginTop: '1rem' }}>
+      <h2>Host star — {planet.hostname}</h2>
+      <div className="card">
+        {spectralInfo && (
+          <p style={{ margin: '0 0 0.85rem', color: 'var(--fg)', lineHeight: 1.5 }}>
+            <strong>{spectralInfo.label}</strong> — {spectralInfo.summary}
+          </p>
+        )}
+        {(facts.length > 0 || hzInner != null) && (
+          <div className="beyond-basics">
+            {facts.map((f) => (
+              <div key={f.label} className="metric-item">
+                <div className="metric-row">
+                  <span className="metric-label">{f.label}</span>
+                  <span className="metric-value">{f.value}</span>
+                </div>
+                {f.explain && <p className="metric-explain">{f.explain}</p>}
+              </div>
+            ))}
+            {hzInner != null && hzOuter != null && (
+              <div className="metric-item">
+                <div className="metric-row">
+                  <span className="metric-label">Habitable zone (estimated)</span>
+                  <span className="metric-value">{hzInner.toFixed(2)}–{hzOuter.toFixed(2)} AU</span>
+                </div>
+                <p className="metric-explain">
+                  Distance range where an Earth-like planet could host liquid water on its surface.
+                  Computed from luminosity (HZ_inner ≈ √(L/L☉) AU). Brighter stars push the zone outward.
+                  {planet.pl_orbsmax != null && (() => {
+                    const where =
+                      planet.pl_orbsmax < hzInner ? 'inside' :
+                      planet.pl_orbsmax > hzOuter ? 'beyond' : 'within';
+                    return <> {planet.pl_name} orbits at {planet.pl_orbsmax.toFixed(3)} AU — {where} the zone.</>;
+                  })()}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+        <p style={{ margin: '0.85rem 0 0', fontSize: '0.78rem', color: 'var(--fg-muted)', lineHeight: 1.55 }}>
+          <strong>Composition</strong> — like nearly all main-sequence stars, {planet.hostname} is mostly hydrogen
+          (~73% by mass) and helium (~25%), with the remaining ~2% being heavier elements (collectively called
+          "metals" in astronomy, even when they're carbon, oxygen, or neon). What really distinguishes one star
+          from another is its mass and temperature, which set its color, brightness, and lifespan.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 function BeyondBasicsCard({ planet }: { planet: PlanetDetailType }) {
   const facts = collectFacts(planet);
   if (facts.length === 0) return null;
@@ -247,6 +308,78 @@ function SystemSiblingsSection({ planet, siblings }: { planet: PlanetDetailType;
       </div>
     </section>
   );
+}
+
+// Spectral class is the leading letter of the MK type string ("G2 V", "M5.5 V", etc).
+// Cover OBAFGKM main-sequence + the L/T/Y brown-dwarf classes since the catalog
+// includes some directly imaged sub-stellar companions.
+function describeSpectralClass(spectype: string | null): { label: string; summary: string } | null {
+  if (!spectype) return null;
+  const cleaned = spectype.trim();
+  const ch = cleaned.charAt(0).toUpperCase();
+  const summaries: Record<string, string> = {
+    O: 'extremely hot blue giant — rare, massive, and short-lived (only millions of years).',
+    B: 'hot blue-white star — massive and luminous, like Rigel or Spica.',
+    A: 'hot white star — examples include Sirius and Vega.',
+    F: 'yellow-white star, somewhat hotter and brighter than the Sun.',
+    G: 'yellow main-sequence star — the same class as our Sun.',
+    K: 'orange dwarf — smaller and cooler than the Sun, but very long-lived (tens of billions of years).',
+    M: 'red dwarf — by far the most common type of star in the galaxy. Small, dim, and capable of burning for trillions of years.',
+    L: 'very cool sub-stellar object on the brown-dwarf borderline.',
+    T: 'brown dwarf — never massive enough to ignite hydrogen fusion; cools slowly over its lifetime.',
+    Y: 'ultra-cool brown dwarf, with surface temperatures approaching room temperature.',
+  };
+  const summary = summaries[ch];
+  if (!summary) return { label: cleaned, summary: 'spectral class outside the standard MK system.' };
+  return { label: `${ch}-type (${cleaned})`, summary };
+}
+
+function collectStarFacts(p: PlanetDetailType): { label: string; value: string; explain?: string }[] {
+  const facts: { label: string; value: string; explain?: string }[] = [];
+  if (p.st_teff != null) {
+    const ratio = p.st_teff / 5778;
+    facts.push({
+      label: 'Effective temperature',
+      value: `${p.st_teff.toFixed(0)} K`,
+      explain: `${ratio < 0.95 ? 'Cooler than' : ratio > 1.05 ? 'Hotter than' : 'Comparable to'} the Sun (5,778 K) — about ${Math.round(ratio * 100)}% of solar.`,
+    });
+  }
+  if (p.st_rad != null) {
+    facts.push({
+      label: 'Radius',
+      value: `${p.st_rad.toPrecision(3)} R☉`,
+      explain: `${p.st_rad < 0.95 ? 'Smaller than' : p.st_rad > 1.05 ? 'Larger than' : 'About the size of'} the Sun (1 R☉ ≈ 696,000 km).`,
+    });
+  }
+  if (p.st_mass != null) {
+    facts.push({
+      label: 'Mass',
+      value: `${p.st_mass.toPrecision(3)} M☉`,
+      explain: `${p.st_mass < 0.95 ? 'Less massive than' : p.st_mass > 1.05 ? 'More massive than' : 'Roughly the mass of'} the Sun. Mass sets fusion rate — heavier stars burn hot and die young.`,
+    });
+  }
+  if (p.st_lum != null) {
+    const linear = Math.pow(10, p.st_lum);
+    const valueStr =
+      linear < 0.001 ? `${(linear * 1000).toPrecision(3)} mL☉` :
+      linear < 100 ? `${linear.toPrecision(3)} L☉` :
+      `${linear.toExponential(2)} L☉`;
+    facts.push({
+      label: 'Luminosity',
+      value: valueStr,
+      explain: `Total power output relative to the Sun. ${linear < 0.5 ? 'Far dimmer than' : linear < 1.5 ? 'Comparable to' : 'Brighter than'} the Sun.`,
+    });
+  }
+  const dist = p.sy_dist ?? p.st_dist;
+  if (dist != null) {
+    const ly = dist * 3.26;
+    facts.push({
+      label: 'Distance from Earth',
+      value: `${ly.toFixed(1)} ly`,
+      explain: `(${dist.toFixed(2)} parsecs) — light from this star takes about ${ly.toFixed(0)} years to reach us.`,
+    });
+  }
+  return facts;
 }
 
 // pscomppars's disc_refname embeds anchor markup like:

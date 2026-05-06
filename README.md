@@ -105,7 +105,7 @@ make api         # http://localhost:8000/docs
 
 # Run the React frontend locally (in a separate terminal)
 make web-install # one-time
-make web         # http://localhost:5173 (proxies /api to :8000)
+make web         # http://localhost:5550 (proxies /api to :8000)
 
 # Other targets
 make test        # pytest, 64 tests

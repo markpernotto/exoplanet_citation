@@ -136,6 +136,8 @@ export default function Home() {
         </section>
       )}
 
+      <FeaturedSystems />
+
       <section>
         <h2>
           Most recently confirmed
@@ -158,6 +160,65 @@ export default function Home() {
         {hasMore && <div ref={sentinelRef} aria-hidden style={{ height: 1 }} />}
       </section>
     </>
+  );
+}
+
+// Curated multi-planet systems where the modal "system view" feature really
+// shines. Each entry links to one canonical planet — opening that planet's
+// detail page and clicking ⛶ reveals the whole system, drawn to true AU scale,
+// with scroll-to-zoom + drag-to-pan.
+const FEATURED_SYSTEMS: { name: string; representative: string; tagline: string }[] = [
+  {
+    name: 'TRAPPIST-1',
+    representative: 'TRAPPIST-1 e',
+    tagline: '7 small rocky planets all packed inside Mercury\'s orbit, around a cool red dwarf. Zoom way in.',
+  },
+  {
+    name: 'Kepler-90',
+    representative: 'Kepler-90 i',
+    tagline: '8 planets, the same count as our solar system. Hot terrestrials inside, gas giants outside.',
+  },
+  {
+    name: 'Kepler-11',
+    representative: 'Kepler-11 g',
+    tagline: '6 sub-Neptunes pressed into a region tighter than Venus\' orbit — densest known system.',
+  },
+  {
+    name: '55 Cancri',
+    representative: '55 Cnc e',
+    tagline: '5 planets spanning a lava-world super-Earth (18-hour year) to a cold gas giant (15-year year).',
+  },
+  {
+    name: 'HR 8799',
+    representative: 'HR 8799 b',
+    tagline: '4 directly imaged super-Jupiters at 15–70 AU. Extreme outer scale — pan the canvas.',
+  },
+];
+
+function FeaturedSystems() {
+  const location = useLocation();
+  const from = location.pathname + location.search;
+  return (
+    <section>
+      <h2>Featured systems</h2>
+      <div className="card" style={{ padding: '0.85rem 1rem 1rem' }}>
+        <p style={{ margin: '0 0 0.85rem', fontSize: '0.85rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+          Open one of these planets and click the <span aria-label="expand">⛶</span> icon
+          on its visualization to see the whole system rendered to true AU scale.
+          Scroll inside the modal to zoom; drag to pan.
+        </p>
+        <ul className="featured-systems">
+          {FEATURED_SYSTEMS.map((s) => (
+            <li key={s.name}>
+              <Link to={`/planets/${encodeURIComponent(s.representative)}`} state={{ from }}>
+                <strong>{s.name}</strong>
+              </Link>
+              <span className="muted"> — {s.tagline}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
   );
 }
 

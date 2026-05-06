@@ -57,6 +57,8 @@ class PlanetSummary(BaseModel):
     disc_year: int | None
     disc_facility: str | None
     pl_orbper: float | None
+    pl_orbsmax: float | None
+    pl_orbeccen: float | None
     pl_rade: float | None
     pl_bmasse: float | None
     pl_eqt: float | None

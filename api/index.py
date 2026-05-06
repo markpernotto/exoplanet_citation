@@ -253,7 +253,7 @@ def discoveries_by_month(
 
 _PLANET_SUMMARY_COLS = """
     pl_name, hostname, discoverymethod, disc_year, disc_facility,
-    pl_orbper, pl_rade, pl_bmasse, pl_eqt, sy_dist
+    pl_orbper, pl_orbsmax, pl_orbeccen, pl_rade, pl_bmasse, pl_eqt, sy_dist
 """
 
 _PLANET_DETAIL_COLS = """

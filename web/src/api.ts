@@ -44,6 +44,8 @@ export type PlanetSummary = {
   disc_year: number | null;
   disc_facility: string | null;
   pl_orbper: number | null;
+  pl_orbsmax: number | null;
+  pl_orbeccen: number | null;
   pl_rade: number | null;
   pl_bmasse: number | null;
   pl_eqt: number | null;

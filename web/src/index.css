@@ -210,35 +210,57 @@ footer.site .footer-line { line-height: 1.4; }
 }
 .loading { color: var(--fg-muted); font-style: italic; padding: 1rem 0; }
 
-.orbit-legend {
-  display: grid;
-  grid-template-columns: 110px 1fr;
-  gap: 0.4rem 1rem;
-  margin: 1rem 0 0;
-  padding: 0.85rem 0 0;
-  border-top: 1px solid var(--border);
-  font-size: 0.85rem;
+/* Shared metric-list layout. Used by orbit-legend (in the planet card) and
+   beyond-basics (in the planet detail page). Each item shows label + value
+   on one row, with the description spanning full width below them. */
+.orbit-legend, .beyond-basics {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
 }
-.orbit-legend dt {
+.orbit-legend {
+  /* Lives below the planet description in the card; needs a separator. */
+  margin: 1rem 0 0;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--border);
+}
+.beyond-basics {
+  /* Only thing in its card; no separator needed. */
+  margin: 0;
+}
+.metric-item {
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--border);
+}
+.metric-item:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.metric-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.metric-label {
   color: var(--fg-muted);
   text-transform: uppercase;
   font-size: 0.7rem;
   letter-spacing: 0.06em;
-  padding-top: 0.15rem;
+  flex-shrink: 0;
 }
-.orbit-legend dd {
-  margin: 0;
+.metric-value {
   color: var(--fg);
-  line-height: 1.4;
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: right;
 }
-.orbit-legend dd .explain {
-  display: block;
-  margin-top: 0.15rem;
+.metric-explain {
+  margin: 0.45rem 0 0;
   color: var(--fg-muted);
-  font-size: 0.78rem;
-  line-height: 1.4;
+  font-size: 0.85rem;
+  line-height: 1.5;
 }
-.orbit-legend strong { font-weight: 600; }
 
 /* SVG wrapper — hover-to-pause + corner expand button */
 .planet-svg-wrapper {
@@ -266,20 +288,6 @@ footer.site .footer-line { line-height: 1.4; }
 }
 .planet-svg-wrapper:hover .expand-btn-corner { opacity: 1; }
 .expand-btn-corner:hover { color: var(--fg); border-color: var(--accent); }
-
-.paused-badge {
-  position: absolute;
-  bottom: 0.5rem;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(11, 13, 18, 0.85);
-  color: var(--fg-muted);
-  font-size: 0.7rem;
-  padding: 0.2rem 0.6rem;
-  border-radius: 3px;
-  pointer-events: none;
-  letter-spacing: 0.03em;
-}
 
 /* Modal: width of content area, vertically centered */
 .planet-card-modal {
@@ -329,31 +337,6 @@ footer.site .footer-line { line-height: 1.4; }
   flex-direction: column;
   gap: 1rem;
 }
-
-.beyond-basics {
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-}
-.beyond-basics .bb-row {
-  display: grid;
-  grid-template-columns: 130px 1fr;
-  gap: 0.4rem 0.85rem;
-  padding-bottom: 0.55rem;
-  border-bottom: 1px solid var(--border);
-}
-.beyond-basics .bb-row:last-child { border-bottom: 0; padding-bottom: 0; }
-.beyond-basics dt {
-  color: var(--fg-muted);
-  text-transform: uppercase;
-  font-size: 0.7rem;
-  letter-spacing: 0.06em;
-  padding-top: 0.15rem;
-}
-.beyond-basics dd { margin: 0; }
-.beyond-basics .bb-value { color: var(--fg); font-size: 0.92rem; font-weight: 500; }
-.beyond-basics .bb-explain { color: var(--fg-muted); font-size: 0.78rem; line-height: 1.45; margin-top: 0.2rem; }
 
 .siblings-list {
   list-style: none;

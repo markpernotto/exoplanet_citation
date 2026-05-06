@@ -146,13 +146,7 @@ export default function PlanetCard({ planet }: Props) {
 
   const id = planet.pl_name.replace(/[^a-zA-Z0-9]/g, '_');
 
-  const cardContent = (
-    <>
-      <div
-        className="planet-svg-wrapper"
-        onPointerEnter={() => setPaused(true)}
-        onPointerLeave={() => setPaused(false)}
-      >
+  const orbitSvg = (
       <svg viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`} width="100%" style={{ display: 'block' }} role="img"
            aria-label={`Animated visualization of ${planet.pl_name} orbiting host star ${planet.hostname}`}>
         <defs>
@@ -265,8 +259,16 @@ export default function PlanetCard({ planet }: Props) {
         </text>
 
       </svg>
-      {paused && <div className="paused-badge">paused — move cursor away to resume</div>}
-      {!expanded && (
+  );
+
+  const cardContent = (
+    <>
+      <div
+        className="planet-svg-wrapper"
+        onPointerEnter={() => setPaused(true)}
+        onPointerLeave={() => setPaused(false)}
+      >
+        {orbitSvg}
         <button
           type="button"
           className="expand-btn-corner"
@@ -276,36 +278,39 @@ export default function PlanetCard({ planet }: Props) {
         >
           ⛶
         </button>
-      )}
       </div>
 
       <p style={{ margin: '0.75rem 0 0', fontSize: '0.9rem', color: 'var(--fg)', lineHeight: 1.5 }}>
         {visual.description}
       </p>
 
-      <dl className="orbit-legend">
-        <dt>Period</dt>
-        <dd>
-          <strong>{period != null ? formatPeriod(period) : 'unknown'}</strong>
-          <span className="explain">how long it takes the planet to complete one orbit around its star</span>
-        </dd>
+      <div className="orbit-legend">
+        <div className="metric-item">
+          <div className="metric-row">
+            <span className="metric-label">Period</span>
+            <span className="metric-value">{period != null ? formatPeriod(period) : 'unknown'}</span>
+          </div>
+          <p className="metric-explain">how long it takes the planet to complete one orbit around its star</p>
+        </div>
 
-        <dt>Distance</dt>
-        <dd>
-          <strong>
-            {planet.pl_orbsmax != null
-              ? `${planet.pl_orbsmax.toFixed(3)} AU`
-              : 'unknown'}
-          </strong>
-          <span className="explain">average distance from the host star (1 AU = Earth–Sun distance, about 93 million miles)</span>
-        </dd>
+        <div className="metric-item">
+          <div className="metric-row">
+            <span className="metric-label">Distance</span>
+            <span className="metric-value">
+              {planet.pl_orbsmax != null ? `${planet.pl_orbsmax.toFixed(3)} AU` : 'unknown'}
+            </span>
+          </div>
+          <p className="metric-explain">average distance from the host star (1 AU = Earth–Sun distance, about 93 million miles)</p>
+        </div>
 
-        <dt>Eccentricity</dt>
-        <dd>
-          <strong>{eccentricity.toFixed(2)}</strong> — {describeEccentricity(eccentricity)}
-          <span className="explain">how stretched the orbit is. 0 = perfect circle, closer to 1 = more extreme ellipse. Highly eccentric orbits make the planet swing close to the star then slingshot far away</span>
-        </dd>
-      </dl>
+        <div className="metric-item">
+          <div className="metric-row">
+            <span className="metric-label">Eccentricity</span>
+            <span className="metric-value">{eccentricity.toFixed(2)} — {describeEccentricity(eccentricity)}</span>
+          </div>
+          <p className="metric-explain">how stretched the orbit is. 0 = perfect circle, closer to 1 = more extreme ellipse. Highly eccentric orbits make the planet swing close to the star then slingshot far away</p>
+        </div>
+      </div>
 
       <p style={{ margin: '0.75rem 0 0', fontSize: '0.75rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
         The planet's motion follows <strong>Kepler's laws</strong>: faster near periapsis (closest approach), slower near apoapsis (farthest).
@@ -315,15 +320,14 @@ export default function PlanetCard({ planet }: Props) {
     </>
   );
 
-  if (expanded) {
-    return (
-      <>
-        {/* Inline card stays in place under the modal so layout doesn't jump */}
-        <div className="card">{cardContent}</div>
+  return (
+    <>
+      <div className="card">{cardContent}</div>
 
+      {expanded && (
         <div className="planet-card-modal" role="dialog" aria-modal="true" aria-label={`${planet.pl_name} expanded view`}>
           <div className="planet-card-modal-backdrop" onClick={() => setExpanded(false)} />
-          <div className="planet-card-modal-inner card">
+          <div className="planet-card-modal-inner">
             <button
               type="button"
               className="modal-close-btn"
@@ -333,19 +337,12 @@ export default function PlanetCard({ planet }: Props) {
             >
               ✕
             </button>
-            <h2 style={{ margin: '0 0 0.25rem' }}>{planet.pl_name}</h2>
-            <p style={{ margin: '0 0 1rem', color: 'var(--fg-muted)' }}>
-              Orbiting <strong>{planet.hostname}</strong>
-              {planet.st_spectype && <> ({planet.st_spectype})</>}
-            </p>
-            {cardContent}
+            {orbitSvg}
           </div>
         </div>
-      </>
-    );
-  }
-
-  return <div className="card">{cardContent}</div>;
+      )}
+    </>
+  );
 }
 
 function describeEccentricity(e: number): string {

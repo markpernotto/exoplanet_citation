@@ -204,17 +204,17 @@ function BeyondBasicsCard({ planet }: { planet: PlanetDetailType }) {
     <section style={{ marginTop: '1rem' }}>
       <h2>Beyond the basics</h2>
       <div className="card">
-        <dl className="beyond-basics">
+        <div className="beyond-basics">
           {facts.map((f) => (
-            <div key={f.label} className="bb-row">
-              <dt>{f.label}</dt>
-              <dd>
-                <div className="bb-value">{f.value}</div>
-                {f.explain && <div className="bb-explain">{f.explain}</div>}
-              </dd>
+            <div key={f.label} className="metric-item">
+              <div className="metric-row">
+                <span className="metric-label">{f.label}</span>
+                <span className="metric-value">{f.value}</span>
+              </div>
+              {f.explain && <p className="metric-explain">{f.explain}</p>}
             </div>
           ))}
-        </dl>
+        </div>
       </div>
     </section>
   );

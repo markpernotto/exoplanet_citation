@@ -136,6 +136,10 @@ export const api = {
     const query = qs.toString();
     return get<PlanetsListResponse>(`/api/planets${query ? '?' + query : ''}`);
   },
+  planetsRecent: (limit = 100, offset = 0) =>
+    get<PlanetsListResponse>(`/api/planets/recent?limit=${limit}&offset=${offset}`),
+  systemPlanets: (hostname: string) =>
+    get<PlanetsListResponse>(`/api/systems/${encodeURIComponent(hostname)}/planets`),
   planetDetail: (plName: string) =>
     get<PlanetDetail>(`/api/planets/${encodeURIComponent(plName)}`),
   planetHistory: (plName: string) =>

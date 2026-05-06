@@ -1,20 +1,29 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { api, type PlanetDetail as PlanetDetailType, type PlanetHistoryResponse } from '../api';
+import { api, type PlanetDetail as PlanetDetailType, type PlanetHistoryResponse, type PlanetsListResponse } from '../api';
 import PlanetCard from '../components/PlanetCard';
+import { collectFacts } from '../lib/derived';
 
 export default function PlanetDetail() {
   const { plName = '' } = useParams<{ plName: string }>();
   const [planet, setPlanet] = useState<PlanetDetailType | null>(null);
   const [history, setHistory] = useState<PlanetHistoryResponse | null>(null);
+  const [siblings, setSiblings] = useState<PlanetsListResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setPlanet(null);
+    setSiblings(null);
     setError(null);
     api.planetDetail(plName).then(setPlanet).catch((e) => setError(e.message));
     api.planetHistory(plName).then(setHistory).catch(() => {});
   }, [plName]);
+
+  // Once we have the planet, fetch siblings (other planets with same hostname)
+  useEffect(() => {
+    if (!planet) return;
+    api.systemPlanets(planet.hostname).then(setSiblings).catch(() => {});
+  }, [planet]);
 
   if (error) {
     const isNotFound = error.startsWith('404');
@@ -59,7 +68,10 @@ export default function PlanetDetail() {
       </p>
 
       <div className="planet-detail">
-        <PlanetCard planet={planet} />
+        <div className="planet-detail-left">
+          <PlanetCard planet={planet} />
+          <BeyondBasicsCard planet={planet} />
+        </div>
 
         <div>
           <section>
@@ -87,6 +99,8 @@ export default function PlanetDetail() {
               </dl>
             </div>
           </section>
+
+          <SystemSiblingsSection planet={planet} siblings={siblings} />
 
           <section>
             <h2>Sky position</h2>
@@ -163,6 +177,58 @@ export default function PlanetDetail() {
         )}
       </section>
     </>
+  );
+}
+
+function BeyondBasicsCard({ planet }: { planet: PlanetDetailType }) {
+  const facts = collectFacts(planet);
+  if (facts.length === 0) return null;
+  return (
+    <section style={{ marginTop: '1rem' }}>
+      <h2>Beyond the basics</h2>
+      <div className="card">
+        <dl className="beyond-basics">
+          {facts.map((f) => (
+            <div key={f.label} className="bb-row">
+              <dt>{f.label}</dt>
+              <dd>
+                <div className="bb-value">{f.value}</div>
+                {f.explain && <div className="bb-explain">{f.explain}</div>}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </section>
+  );
+}
+
+function SystemSiblingsSection({ planet, siblings }: { planet: PlanetDetailType; siblings: PlanetsListResponse | null }) {
+  if (!siblings) return null;
+  const others = siblings.results.filter((p) => p.pl_name !== planet.pl_name);
+  if (others.length === 0) return null;
+  return (
+    <section>
+      <h2>System ({siblings.total} planet{siblings.total === 1 ? '' : 's'} around {planet.hostname})</h2>
+      <div className="card">
+        <p style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', color: 'var(--fg-muted)' }}>
+          Other planets confirmed orbiting <strong>{planet.hostname}</strong>:
+        </p>
+        <ul className="siblings-list">
+          {others.map((s) => (
+            <li key={s.pl_name}>
+              <Link to={`/planets/${encodeURIComponent(s.pl_name)}`}>{s.pl_name}</Link>
+              <span className="muted">
+                {s.discoverymethod && <> · {s.discoverymethod}</>}
+                {s.disc_year != null && <> · {s.disc_year}</>}
+                {s.pl_rade != null && <> · {s.pl_rade.toPrecision(3)} R⊕</>}
+                {s.pl_orbper != null && <> · {s.pl_orbper.toFixed(1)} day orbit</>}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
   );
 }
 

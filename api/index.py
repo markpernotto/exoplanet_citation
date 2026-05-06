@@ -340,6 +340,61 @@ def planet_detail(pl_name: str) -> PlanetDetail:
     return PlanetDetail(**row)
 
 
+@app.get("/api/planets/recent", response_model=PlanetsListResponse, tags=["planets"])
+def planets_recent(limit: int = Query(100, ge=1, le=500), offset: int = Query(0, ge=0)) -> PlanetsListResponse:
+    """Most recently confirmed planets, ordered by discovery year (newest first)."""
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                "SELECT COUNT(*) AS c FROM planets_snapshots "
+                "WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM planets_snapshots)"
+            )
+            total = cur.fetchone()["c"]
+
+            cur.execute(
+                f"""
+                SELECT {_PLANET_SUMMARY_COLS}
+                FROM planets_snapshots
+                WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM planets_snapshots)
+                ORDER BY disc_year DESC NULLS LAST, pl_name
+                LIMIT %s OFFSET %s
+                """,
+                (limit, offset),
+            )
+            rows = cur.fetchall()
+
+    return PlanetsListResponse(
+        total=total,
+        limit=limit,
+        offset=offset,
+        results=[PlanetSummary(**r) for r in rows],
+    )
+
+
+@app.get("/api/systems/{hostname}/planets", response_model=PlanetsListResponse, tags=["planets"])
+def system_planets(hostname: str) -> PlanetsListResponse:
+    """All planets orbiting a given host star (exact-match on hostname)."""
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                f"""
+                SELECT {_PLANET_SUMMARY_COLS}
+                FROM planets_snapshots
+                WHERE hostname = %s
+                  AND snapshot_date = (SELECT MAX(snapshot_date) FROM planets_snapshots)
+                ORDER BY pl_name
+                """,
+                (hostname,),
+            )
+            rows = cur.fetchall()
+    return PlanetsListResponse(
+        total=len(rows),
+        limit=len(rows),
+        offset=0,
+        results=[PlanetSummary(**r) for r in rows],
+    )
+
+
 @app.get(
     "/api/planets/{pl_name}/history",
     response_model=PlanetHistoryResponse,

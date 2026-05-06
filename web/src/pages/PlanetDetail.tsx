@@ -95,7 +95,6 @@ export default function PlanetDetail() {
             <h2>Stat card</h2>
             <div className="card">
               <dl className="stat-grid">
-                {fmtRow('Distance from Earth', planet.sy_dist, 'parsec', planet.sy_dist != null ? `(${(planet.sy_dist * 3.26).toFixed(1)} ly)` : '')}
                 {fmtRow('Distance from host star', planet.pl_orbsmax, 'AU')}
                 {fmtRow('Orbital period', planet.pl_orbper, 'days')}
                 {fmtRow('Eccentricity', planet.pl_orbeccen, '')}
@@ -104,9 +103,6 @@ export default function PlanetDetail() {
                 {fmtRow('Density', planet.pl_dens, 'g/cc')}
                 {fmtRow('Equilibrium temperature', planet.pl_eqt, 'K')}
                 {fmtRow('Insolation flux', planet.pl_insol, '× Earth')}
-                {fmtRow('Star Teff', planet.st_teff, 'K')}
-                {fmtRow('Star radius', planet.st_rad, 'solar radii')}
-                {fmtRow('Star mass', planet.st_mass, 'solar masses')}
                 {planet.gaia_dr3_id && (
                   <>
                     <dt>Gaia DR3</dt>

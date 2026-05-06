@@ -32,6 +32,9 @@ a:hover { text-decoration: underline; }
   margin: 0 auto;
   padding: 1.5rem 1rem 4rem;
 }
+/* Footer is position:fixed at viewport bottom, so content needs bottom padding
+   to avoid being hidden behind it on the last screenful. */
+body { padding-bottom: 2.5rem; }
 
 header.site {
   position: sticky;
@@ -171,17 +174,26 @@ section h2 { font-size: 1.1rem; font-weight: 600; margin: 0 0 0.75rem; color: va
 .tier-B { background: var(--tier-b); color: #0b0d12; }
 
 footer.site {
-  margin: 4rem -1rem 0;
-  padding: 0.6rem 1rem;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 0.5rem 1rem;
+  background: rgba(11, 13, 18, 0.92);
+  backdrop-filter: blur(6px);
   border-top: 1px solid var(--border);
   color: var(--fg-muted);
   font-size: 0.78rem;
   text-align: center;
+  z-index: 5;
+}
+footer.site .footer-line {
+  line-height: 1.4;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-footer.site .footer-line { line-height: 1.4; }
 
 .error {
   padding: 1rem;

@@ -12,6 +12,7 @@ Endpoints:
   GET /api/planets?limit=50&offset=0&q=...        — paginated list
   GET /api/planets/{pl_name}                      — single planet detail
   GET /api/planets/{pl_name}/history              — all change events for a planet
+  GET /api/planets/{pl_name}/host_star            — Gaia DR3 record for the host star
 
 OpenAPI / interactive docs:
   /docs      — Swagger UI
@@ -35,6 +36,7 @@ from api.models import (
     DiscoveriesResponse,
     FreshnessInfo,
     HealthResponse,
+    HostStarGaia,
     PlanetDetail,
     PlanetHistoryResponse,
     PlanetsListResponse,
@@ -433,6 +435,40 @@ def planet_history(pl_name: str) -> PlanetHistoryResponse:
     )
 
 
+@app.get(
+    "/api/planets/{pl_name}/host_star",
+    response_model=HostStarGaia,
+    tags=["planets"],
+)
+def planet_host_star(pl_name: str) -> HostStarGaia:
+    """Gaia DR3 record for the host star of the given planet."""
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT h.gaia_dr3_id, h.hostname,
+                       h.parallax_mas, h.parallax_error,
+                       h.pmra_mas_yr, h.pmdec_mas_yr, h.radial_velocity_km_s,
+                       h.phot_g_mean_mag, h.phot_bp_mean_mag, h.phot_rp_mean_mag, h.bp_rp,
+                       h.teff_gspphot, h.logg_gspphot, h.mh_gspphot, h.distance_gspphot_pc,
+                       h.retrieved_at
+                FROM planets_current p
+                JOIN host_stars_gaia h ON h.hostname = p.hostname
+                WHERE p.pl_name = %s
+                LIMIT 1
+                """,
+                (pl_name,),
+            )
+            row = cur.fetchone()
+
+    if row is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No Gaia host-star record for planet {pl_name!r}",
+        )
+    return HostStarGaia(**row)
+
+
 # ---------- Root ----------
 
 @app.get("/", tags=["meta"])
@@ -451,5 +487,6 @@ def root() -> dict:
             "/api/planets",
             "/api/planets/{pl_name}",
             "/api/planets/{pl_name}/history",
+            "/api/planets/{pl_name}/host_star",
         ],
     }

@@ -103,6 +103,19 @@ export function useSvgZoomPan(
 
   const zoomLevel = natural.w / vb.w;
 
+  // Programmatic zoom-to-level — zooms from the current viewBox center so
+  // panning position is preserved. Used by the zoom slider.
+  const zoomToLevel = useCallback((level: number) => {
+    const clamped = Math.max(minZoom, Math.min(maxZoom, level));
+    setVb((cur) => {
+      const newW = natural.w / clamped;
+      const newH = natural.h / clamped;
+      const cx = cur.x + cur.w / 2;
+      const cy = cur.y + cur.h / 2;
+      return { x: cx - newW / 2, y: cy - newH / 2, w: newW, h: newH };
+    });
+  }, [natural.w, natural.h, minZoom, maxZoom]);
+
   return {
     viewBox: `${vb.x} ${vb.y} ${vb.w} ${vb.h}`,
     zoomLevel,
@@ -115,6 +128,7 @@ export function useSvgZoomPan(
       onDoubleClick,
     },
     reset,
+    zoomToLevel,
     isPanning: () => dragRef.current !== null,
   };
 }

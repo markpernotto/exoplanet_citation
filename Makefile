@@ -1,4 +1,4 @@
-.PHONY: help extract load diff publish pipeline test api web dev web-install web-build dbt-debug dbt-run dbt-test dbt-docs check-setup smoke-gaia
+.PHONY: help extract load diff publish pipeline test api web dev web-install web-build dbt-debug dbt-run dbt-test dbt-docs check-setup smoke-gaia enrich-gaia enrich-gaia-refresh-all enrich-gaia-dry-run
 
 # Load .env into the make process so subcommands inherit the vars.
 ifneq (,$(wildcard .env))
@@ -22,6 +22,9 @@ help:
 	@echo "  web-install   install npm deps under web/"
 	@echo "  web-build     production build of the React app"
 	@echo "  smoke-gaia    one-shot test of Gaia DR3 client against a host"
+	@echo "  enrich-gaia              backfill host_stars_gaia for hosts not yet enriched"
+	@echo "  enrich-gaia-refresh-all  re-enrich every host (DR4 day, schema change)"
+	@echo "  enrich-gaia-dry-run      show enrichment plan without writing or hitting Gaia"
 	@echo "  test          run pytest unit tests"
 	@echo "  dbt-debug     verify dbt connects to Neon"
 	@echo "  dbt-run       run all dbt models"
@@ -62,6 +65,15 @@ dev:
 
 smoke-gaia:
 	python -m etl.smoke_gaia
+
+enrich-gaia:
+	python -m etl.enrich_gaia
+
+enrich-gaia-refresh-all:
+	python -m etl.enrich_gaia --refresh-all
+
+enrich-gaia-dry-run:
+	python -m etl.enrich_gaia --dry-run
 
 test:
 	pytest -v

@@ -3,7 +3,12 @@ import type { PlanetDetail, PlanetSummary } from '../api';
 import { planetVisual, starColor } from '../procedural';
 import { useSvgZoomPan, type ViewBox } from '../lib/useSvgZoomPan';
 
-type Props = { planet: PlanetDetail; siblings?: PlanetSummary[] | null };
+type Props = { planet: PlanetDetail; siblings?: PlanetSummary[] | null; bp_rp?: number | null };
+
+// AU conversions for real-size mode (1 solar radius = 0.00465 AU;
+// 1 Earth radius = 4.259×10⁻⁵ AU).
+const SOLAR_RADII_IN_AU = 0.00465;
+const EARTH_RADII_IN_AU = 4.259e-5;
 
 // Animation time in seconds, pausable. When `running` is false, t freezes at
 // its current value; when running resumes, t picks up from where it left off
@@ -59,12 +64,13 @@ function formatPeriod(days: number): string {
   return `${(days / 365.25).toFixed(2)} yr`;
 }
 
-export default function PlanetCard({ planet, siblings }: Props) {
+export default function PlanetCard({ planet, siblings, bp_rp }: Props) {
   const [paused, setPaused] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [realSize, setRealSize] = useState(false);
   const t = useAnimationTime(!paused);
   const visual = planetVisual(planet.pl_eqt, planet.pl_dens, planet.pl_rade);
-  const star = starColor(null, planet.st_teff);
+  const star = starColor(bp_rp ?? null, planet.st_teff);
 
   // ESC key closes the expanded view; lock body scroll while open.
   useEffect(() => {
@@ -119,6 +125,17 @@ export default function PlanetCard({ planet, siblings }: Props) {
     naturalA,
     minPeriapsisClearance / Math.max(0.05, 1 - eccentricity),
   );
+
+  // Real-size display radii — only meaningful in expanded modal.
+  // Orbit stays the same; just the visual star/planet circles scale to truth.
+  const canRealSize = planet.pl_orbsmax != null && planet.pl_orbsmax > 0;
+  const singlePxPerAU = canRealSize ? orbitSemiMajor / planet.pl_orbsmax! : null;
+  const displayStarRadius = (realSize && singlePxPerAU != null)
+    ? Math.max(1, stRad * SOLAR_RADII_IN_AU * singlePxPerAU)
+    : starRadius;
+  const displayPlanetRadius = (realSize && singlePxPerAU != null && planet.pl_rade != null)
+    ? Math.max(2, planet.pl_rade * EARTH_RADII_IN_AU * singlePxPerAU)
+    : planetRadius;
 
   const sqrtOneMinusE2 = Math.sqrt(1 - eccentricity * eccentricity);
   const orbitSemiMinor = orbitSemiMajor * sqrtOneMinusE2;
@@ -202,7 +219,7 @@ export default function PlanetCard({ planet, siblings }: Props) {
           )}
 
           <clipPath id={`planet-clip-${id}`}>
-            <circle cx={planetX} cy={planetY} r={planetRadius} />
+            <circle cx={planetX} cy={planetY} r={displayPlanetRadius} />
           </clipPath>
         </defs>
 
@@ -229,34 +246,34 @@ export default function PlanetCard({ planet, siblings }: Props) {
         )}
 
         {/* Host star at the focus, with corona */}
-        <circle cx={focusX} cy={focusY} r={starRadius * 2.6} fill={`url(#corona-${id})`} />
-        <circle cx={focusX} cy={focusY} r={starRadius} fill={`url(#star-${id})`}>
+        <circle cx={focusX} cy={focusY} r={displayStarRadius * 2.6} fill={`url(#corona-${id})`} />
+        <circle cx={focusX} cy={focusY} r={displayStarRadius} fill={`url(#star-${id})`}>
           <title>Host star: {planet.hostname} ({planet.st_spectype ?? 'spectral type unknown'})</title>
         </circle>
 
         {/* Planet — order: glow halo → body → bands → atmospheric haze */}
         {visual.glow && (
-          <circle cx={planetX} cy={planetY} r={planetRadius + 8} fill={`url(#glow-${id})`} />
+          <circle cx={planetX} cy={planetY} r={displayPlanetRadius + 8} fill={`url(#glow-${id})`} />
         )}
-        <circle cx={planetX} cy={planetY} r={planetRadius} fill={`url(#planet-${id})`}>
+        <circle cx={planetX} cy={planetY} r={displayPlanetRadius} fill={`url(#planet-${id})`}>
           <title>{visual.description}</title>
         </circle>
         {visual.bodyType === 'gas_giant' && (
           <rect
-            x={planetX - planetRadius}
-            y={planetY - planetRadius}
-            width={planetRadius * 2}
-            height={planetRadius * 2}
+            x={planetX - displayPlanetRadius}
+            y={planetY - displayPlanetRadius}
+            width={displayPlanetRadius * 2}
+            height={displayPlanetRadius * 2}
             fill={`url(#bands-${id})`}
             clipPath={`url(#planet-clip-${id})`}
           />
         )}
         {visual.bodyType !== 'uncertain' && (
-          <circle cx={planetX} cy={planetY} r={planetRadius + 1} fill={`url(#haze-${id})`} />
+          <circle cx={planetX} cy={planetY} r={displayPlanetRadius + 1} fill={`url(#haze-${id})`} />
         )}
 
         {/* Star name label, fixed at focus */}
-        <text x={focusX} y={focusY + starRadius + 22} textAnchor="middle"
+        <text x={focusX} y={focusY + displayStarRadius + 22} textAnchor="middle"
               fill="#9099aa" fontSize="11" fontFamily="-apple-system, sans-serif">
           {planet.hostname}
         </text>
@@ -332,6 +349,11 @@ export default function PlanetCard({ planet, siblings }: Props) {
     const viewBoxHeight = Math.max(420, 2 * maxMinorAU * pxPerAU + 2 * yPad);
     const focusY = viewBoxHeight / 2;
 
+    // Star radius for this view — real AU scale when realSize is on.
+    const multiStarRadius = realSize
+      ? Math.max(1, stRad * SOLAR_RADII_IN_AU * pxPerAU)
+      : starRadius;
+
     // Pre-compute per-orbiter geometry + visuals.
     const drawn = orbiters.map((o) => {
       const animSec = orbitAnimationSeconds(o.period);
@@ -342,8 +364,8 @@ export default function PlanetCard({ planet, siblings }: Props) {
       const ellipseCx = focusX - orbitA * o.e;
       const planetX = focusX + orbitA * (Math.cos(E) - o.e);
       const planetY = focusY + orbitB * Math.sin(E);
-      // Planet pixel size: same sqrt-compressed ratio used by single-planet view.
       const radPx = (() => {
+        if (realSize && o.rade != null) return Math.max(2, o.rade * EARTH_RADII_IN_AU * pxPerAU);
         if (o.rade == null) return Math.max(4, starRadius * 0.25);
         const ratio = o.rade / (stRad * SOLAR_TO_EARTH_RADII);
         return Math.max(4, Math.min(20, starRadius * Math.sqrt(Math.max(0, ratio)) * 1.2));
@@ -400,8 +422,8 @@ export default function PlanetCard({ planet, siblings }: Props) {
         ))}
 
         {/* Star at the shared focus */}
-        <circle cx={focusX} cy={focusY} r={starRadius * 2.6} fill={`url(#corona-multi-${id})`} />
-        <circle cx={focusX} cy={focusY} r={starRadius} fill={`url(#star-multi-${id})`}>
+        <circle cx={focusX} cy={focusY} r={multiStarRadius * 2.6} fill={`url(#corona-multi-${id})`} />
+        <circle cx={focusX} cy={focusY} r={multiStarRadius} fill={`url(#star-multi-${id})`}>
           <title>Host star: {planet.hostname} ({planet.st_spectype ?? 'spectral type unknown'})</title>
         </circle>
 
@@ -430,7 +452,7 @@ export default function PlanetCard({ planet, siblings }: Props) {
           </g>
         ))}
 
-        <text x={focusX} y={focusY + starRadius + 22} textAnchor="middle"
+        <text x={focusX} y={focusY + multiStarRadius + 22} textAnchor="middle"
               fill="#9099aa" fontSize="11" fontFamily="-apple-system, sans-serif">
           {planet.hostname}
         </text>
@@ -521,7 +543,7 @@ export default function PlanetCard({ planet, siblings }: Props) {
       <p style={{ margin: '0.75rem 0 0', fontSize: '0.75rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
         The planet's motion follows <strong>Kepler's laws</strong>: faster near periapsis (closest approach), slower near apoapsis (farthest).
         {' '}Animation pace is logarithmic in real period — a 1-day orbit takes ~6 seconds, a multi-year orbit takes ~25.
-        {' '}Sizes are not to scale; real stars are ~9–100× larger than their planets.
+        {' '}Expand for zoom, drag-to-pan, and an <em>actual size</em> mode showing true star and planet proportions.
       </p>
     </>
   );
@@ -548,13 +570,38 @@ export default function PlanetCard({ planet, siblings }: Props) {
                 ? <>{zoomPan.zoomLevel.toFixed(1)}× · drag to pan · <button type="button" className="zoom-reset-link" onClick={zoomPan.reset}>reset</button></>
                 : <>scroll to zoom · double-click to reset</>}
             </div>
+            {(canRealSize || multiOrbit) && (
+              <button
+                type="button"
+                className={`real-size-btn${realSize ? ' active' : ''}`}
+                onClick={() => setRealSize((v) => !v)}
+                title="Toggle actual star and planet sizes at true AU scale"
+              >
+                {realSize ? '★ actual size ON' : '☆ actual size'}
+              </button>
+            )}
             {modalSvg}
+            <div className="modal-zoom-slider">
+              <span>−</span>
+              <input
+                type="range"
+                min={0} max={100}
+                value={Math.round((Math.log(zoomPan.zoomLevel) - Math.log(0.33)) / Math.log(20 / 0.33) * 100)}
+                onChange={(e) => {
+                  const t = Number(e.target.value) / 100;
+                  zoomPan.zoomToLevel(Math.exp(t * Math.log(20 / 0.33) + Math.log(0.33)));
+                }}
+                aria-label="Zoom level"
+              />
+              <span>+</span>
+            </div>
             {multiOrbit && (
-              <p style={{ margin: '0.75rem 1rem 0', fontSize: '0.8rem', color: 'var(--fg-muted)', lineHeight: 1.5, textAlign: 'center' }}>
+              <p style={{ margin: '0.5rem 1rem 0', fontSize: '0.8rem', color: 'var(--fg-muted)', lineHeight: 1.5, textAlign: 'center' }}>
                 The full <strong>{planet.hostname}</strong> system, orbits drawn to true scale in AU.
                 {' '}<span style={{ color: 'var(--accent, #6cf)' }}>◯</span> marks <strong>{planet.pl_name}</strong>.
-                {' '}Inner planets really are this much smaller and closer than the outer ones —
-                scroll-zoom into the inner system to see them clearly.
+                {' '}{realSize
+                  ? 'Star and planet sizes are now at true AU scale — planets are genuinely that small.'
+                  : 'Inner planets really are this much smaller and closer — scroll-zoom or use the slider to see them clearly.'}
               </p>
             )}
           </div>

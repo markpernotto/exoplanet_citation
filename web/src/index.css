@@ -368,6 +368,42 @@ footer.site .footer-line { line-height: 1.4; }
 }
 .modal-zoom-hint .zoom-reset-link:hover { color: var(--fg); }
 
+.real-size-btn {
+  position: absolute;
+  top: 0.6rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  background: rgba(19, 23, 34, 0.7);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--fg-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+}
+.real-size-btn:hover { color: var(--fg); border-color: var(--fg-muted); }
+.real-size-btn.active { color: var(--accent); border-color: var(--accent); }
+
+.modal-zoom-slider {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 1.25rem 0.6rem;
+  color: var(--fg-muted);
+  font-size: 0.8rem;
+}
+.modal-zoom-slider input[type='range'] {
+  flex: 1;
+  accent-color: var(--accent);
+  height: 4px;
+  cursor: pointer;
+}
+
 .modal-close-btn {
   position: absolute;
   top: 0.6rem;

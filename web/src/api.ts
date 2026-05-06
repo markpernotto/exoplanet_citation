@@ -99,6 +99,25 @@ export type PlanetHistoryResponse = {
   changes: ChangeRecord[];
 };
 
+export type HostStarGaia = {
+  gaia_dr3_id: string;
+  hostname: string;
+  parallax_mas: number | null;
+  parallax_error: number | null;
+  pmra_mas_yr: number | null;
+  pmdec_mas_yr: number | null;
+  radial_velocity_km_s: number | null;
+  phot_g_mean_mag: number | null;
+  phot_bp_mean_mag: number | null;
+  phot_rp_mean_mag: number | null;
+  bp_rp: number | null;
+  teff_gspphot: number | null;
+  logg_gspphot: number | null;
+  mh_gspphot: number | null;
+  distance_gspphot_pc: number | null;
+  retrieved_at: string;
+};
+
 export type StatsResponse = {
   total_planets: number;
   total_snapshots: number;
@@ -146,4 +165,6 @@ export const api = {
     get<PlanetDetail>(`/api/planets/${encodeURIComponent(plName)}`),
   planetHistory: (plName: string) =>
     get<PlanetHistoryResponse>(`/api/planets/${encodeURIComponent(plName)}/history`),
+  planetHostStar: (plName: string) =>
+    get<HostStarGaia>(`/api/planets/${encodeURIComponent(plName)}/host_star`),
 };

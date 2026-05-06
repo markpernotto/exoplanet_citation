@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { api, type PlanetDetail as PlanetDetailType, type PlanetHistoryResponse, type PlanetsListResponse } from '../api';
+import { api, type HostStarGaia, type PlanetDetail as PlanetDetailType, type PlanetHistoryResponse, type PlanetsListResponse } from '../api';
+import GalaxyMap from '../components/GalaxyMap';
 import PlanetCard from '../components/PlanetCard';
 import { collectFacts } from '../lib/derived';
 
@@ -13,6 +14,7 @@ export default function PlanetDetail() {
   const from = (location.state as { from?: string } | null)?.from;
 
   const [planet, setPlanet] = useState<PlanetDetailType | null>(null);
+  const [hostStar, setHostStar] = useState<HostStarGaia | null>(null);
   const [history, setHistory] = useState<PlanetHistoryResponse | null>(null);
   const [siblings, setSiblings] = useState<PlanetsListResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -31,9 +33,11 @@ export default function PlanetDetail() {
   useEffect(() => {
     setPlanet(null);
     setSiblings(null);
+    setHostStar(null);
     setError(null);
     api.planetDetail(plName).then(setPlanet).catch((e) => setError(e.message));
     api.planetHistory(plName).then(setHistory).catch(() => {});
+    api.planetHostStar(plName).then(setHostStar).catch(() => {});
   }, [plName]);
 
   // Once we have the planet, fetch siblings (other planets with same hostname)
@@ -86,7 +90,7 @@ export default function PlanetDetail() {
 
       <div className="planet-detail">
         <div className="planet-detail-left">
-          <PlanetCard planet={planet} siblings={siblings?.results.filter((s) => s.pl_name !== planet.pl_name) ?? null} />
+          <PlanetCard planet={planet} siblings={siblings?.results.filter((s) => s.pl_name !== planet.pl_name) ?? null} bp_rp={hostStar?.bp_rp} />
           <HostStarCard planet={planet} />
         </div>
 
@@ -127,9 +131,34 @@ export default function PlanetDetail() {
                   <span style={{ color: 'var(--fg-muted)' }}>Not available</span>
                 )}
               </p>
-              <p style={{ margin: '0.5rem 0 0', fontSize: '0.85rem', color: 'var(--fg-muted)' }}>
-                Galactic positioning view coming in Phase 2 (with Gaia DR3 enrichment).
-              </p>
+              {(() => {
+                const pc = hostStar?.distance_gspphot_pc ?? (planet.sy_dist ?? null);
+                if (pc == null) return null;
+                const ly = pc * 3.2616;
+                return (
+                  <p style={{ margin: '0.5rem 0 0', fontSize: '0.85rem', color: 'var(--fg-muted)' }}>
+                    {ly < 100
+                      ? <><strong>{ly.toFixed(1)} light-years</strong> away ({pc.toFixed(1)} pc)</>
+                      : ly < 10000
+                      ? <><strong>{Math.round(ly).toLocaleString()} light-years</strong> away ({Math.round(pc).toLocaleString()} pc)</>
+                      : <><strong>{(ly / 1000).toFixed(1)}k light-years</strong> away ({Math.round(pc).toLocaleString()} pc)</>
+                    }
+                    {hostStar?.distance_gspphot_pc != null && <> · via Gaia DR3</>}
+                  </p>
+                );
+              })()}
+              {planet.ra != null && planet.dec != null && (() => {
+                const pc = hostStar?.distance_gspphot_pc ?? planet.sy_dist ?? null;
+                if (pc == null) return null;
+                return (
+                  <GalaxyMap
+                    ra={planet.ra}
+                    dec={planet.dec}
+                    distPc={pc}
+                    hostname={planet.hostname}
+                  />
+                );
+              })()}
             </div>
           </section>
 

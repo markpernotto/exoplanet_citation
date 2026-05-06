@@ -112,6 +112,25 @@ class PlanetHistoryResponse(BaseModel):
     changes: list[ChangeRecord]
 
 
+class HostStarGaia(BaseModel):
+    gaia_dr3_id: str
+    hostname: str
+    parallax_mas: float | None
+    parallax_error: float | None
+    pmra_mas_yr: float | None
+    pmdec_mas_yr: float | None
+    radial_velocity_km_s: float | None
+    phot_g_mean_mag: float | None
+    phot_bp_mean_mag: float | None
+    phot_rp_mean_mag: float | None
+    bp_rp: float | None
+    teff_gspphot: float | None
+    logg_gspphot: float | None
+    mh_gspphot: float | None
+    distance_gspphot_pc: float | None
+    retrieved_at: datetime
+
+
 class StatsResponse(BaseModel):
     total_planets: int
     total_snapshots: int

@@ -13,7 +13,7 @@
 
 * { box-sizing: border-box; }
 
-html, body, #root {
+html, body {
   margin: 0;
   padding: 0;
   background: var(--bg);
@@ -23,25 +23,37 @@ html, body, #root {
   line-height: 1.5;
   min-height: 100vh;
 }
+/* Flex column ensures footer hugs the bottom of the viewport when content is
+   short, scrolls with content when long. Avoids position:fixed which is
+   broken on iOS Safari. */
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
 
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
 .layout {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
   max-width: 1100px;
   margin: 0 auto;
-  padding: 1.5rem 1rem 4rem;
+  padding: 0 1rem;
+  box-sizing: border-box;
 }
-/* Footer is position:fixed at viewport bottom, so content needs bottom padding
-   to avoid being hidden behind it on the last screenful. */
-body { padding-bottom: 2.5rem; }
+.layout > main { flex: 1; padding: 0.5rem 0; }
 
 header.site {
+  position: -webkit-sticky;
   position: sticky;
   top: 0;
   z-index: 10;
-  background: linear-gradient(to bottom, var(--bg) 85%, rgba(11,13,18,0.92));
-  backdrop-filter: blur(6px);
+  /* Solid background, no backdrop-filter — that combination breaks sticky on iOS Safari */
+  background: var(--bg);
   margin: 0 -1rem 1.5rem;
   padding: 0.75rem 1rem 0.85rem;
   border-bottom: 1px solid var(--border);
@@ -174,25 +186,19 @@ section h2 { font-size: 1.1rem; font-weight: 600; margin: 0 0 0.75rem; color: va
 .tier-B { background: var(--tier-b); color: #0b0d12; }
 
 footer.site {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  margin: 0;
-  padding: 0.5rem 1rem;
-  background: rgba(11, 13, 18, 0.92);
-  backdrop-filter: blur(6px);
+  /* No position:fixed — flexbox layout (#root) puts this at viewport bottom
+     when content is short, and at end-of-content when long. Works on iOS. */
+  margin: 4rem -1rem 0;
+  padding: 0.6rem 1rem;
+  background: var(--bg);
   border-top: 1px solid var(--border);
   color: var(--fg-muted);
   font-size: 0.78rem;
   text-align: center;
-  z-index: 5;
 }
-footer.site .footer-line {
-  line-height: 1.4;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+footer.site .footer-line { line-height: 1.4; }
+@media (max-width: 600px) {
+  footer.site .footer-line { white-space: normal; }
 }
 
 .error {
@@ -233,6 +239,76 @@ footer.site .footer-line {
   line-height: 1.4;
 }
 .orbit-legend strong { font-weight: 600; }
+
+/* Planet card controls (speed buttons + expand) */
+.planet-card-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+.speed-controls {
+  display: flex;
+  gap: 0.25rem;
+}
+.speed-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--fg-muted);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.78rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  min-width: 32px;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+.speed-btn:hover { color: var(--fg); border-color: var(--accent); }
+.speed-btn.active {
+  background: var(--accent);
+  color: #0b0d12;
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.expand-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--fg-muted);
+  padding: 0.25rem 0.55rem;
+  font-size: 0.95rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1;
+}
+.expand-btn:hover { color: var(--fg); border-color: var(--accent); }
+
+/* Fullscreen "expand" view */
+.planet-card-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.planet-card-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(11, 13, 18, 0.92);
+}
+.planet-card-modal-inner {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 1100px;
+  max-height: 95vh;
+  overflow-y: auto;
+}
 
 .planet-detail-left {
   display: flex;

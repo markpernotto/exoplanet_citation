@@ -4,6 +4,14 @@ import { planetVisual, starColor } from '../procedural';
 
 type Props = { planet: PlanetDetail };
 
+const SPEED_OPTIONS = [
+  { label: '⏸', mult: 0,    title: 'Pause' },
+  { label: '½×', mult: 0.5,  title: 'Half speed' },
+  { label: '1×', mult: 1,    title: 'Real-time animation pace' },
+  { label: '2×', mult: 2,    title: 'Double speed' },
+  { label: '4×', mult: 4,    title: 'Quadruple speed' },
+];
+
 // Wall-clock seconds since component mount. Updates every animation frame.
 // Respects prefers-reduced-motion: returns 0 forever (planet pinned at periapsis).
 function useAnimationTime(): number {
@@ -54,8 +62,24 @@ function formatPeriod(days: number): string {
 
 export default function PlanetCard({ planet }: Props) {
   const t = useAnimationTime();
+  const [speedMult, setSpeedMult] = useState(1);
+  const [expanded, setExpanded] = useState(false);
   const visual = planetVisual(planet.pl_eqt, planet.pl_dens, planet.pl_rade);
   const star = starColor(null, planet.st_teff);
+
+  // ESC key closes the expanded view.
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setExpanded(false);
+    };
+    window.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [expanded]);
 
   // Orbit parameters from the data, with safe defaults.
   const period = planet.pl_orbper;
@@ -65,7 +89,8 @@ export default function PlanetCard({ planet }: Props) {
   // Mean anomaly progresses linearly with time; eccentric anomaly does not.
   // If we have no period data, pin the planet at periapsis (M=0) instead of
   // animating — animating a planet without an orbit path looks broken.
-  const M = period != null ? (2 * Math.PI * t) / animSec : 0;
+  // speedMult of 0 pauses; >1 speeds up; <1 slows down.
+  const M = period != null ? (2 * Math.PI * t * speedMult) / animSec : 0;
   const E = solveKeplerEquation(M, eccentricity);
 
   // Sizing — uses real radius data so planet/star ratio reflects reality.
@@ -124,8 +149,8 @@ export default function PlanetCard({ planet }: Props) {
 
   const id = planet.pl_name.replace(/[^a-zA-Z0-9]/g, '_');
 
-  return (
-    <div className="card">
+  const cardContent = (
+    <>
       <svg viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`} width="100%" style={{ display: 'block' }} role="img"
            aria-label={`Animated visualization of ${planet.pl_name} orbiting host star ${planet.hostname}`}>
         <defs>
@@ -239,6 +264,34 @@ export default function PlanetCard({ planet }: Props) {
 
       </svg>
 
+      {/* Controls: speed buttons + expand toggle */}
+      <div className="planet-card-controls">
+        <div className="speed-controls" role="group" aria-label="Animation speed">
+          {SPEED_OPTIONS.map((opt) => (
+            <button
+              key={opt.label}
+              type="button"
+              className={`speed-btn ${speedMult === opt.mult ? 'active' : ''}`}
+              onClick={() => setSpeedMult(opt.mult)}
+              title={opt.title}
+              aria-label={opt.title}
+              aria-pressed={speedMult === opt.mult}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          className="expand-btn"
+          onClick={() => setExpanded((x) => !x)}
+          title={expanded ? 'Close fullscreen view (Esc)' : 'Expand to fullscreen'}
+          aria-label={expanded ? 'Close fullscreen view' : 'Expand to fullscreen'}
+        >
+          {expanded ? '✕' : '⛶'}
+        </button>
+      </div>
+
       <p style={{ margin: '0.75rem 0 0', fontSize: '0.9rem', color: 'var(--fg)', lineHeight: 1.5 }}>
         {visual.description}
       </p>
@@ -272,8 +325,31 @@ export default function PlanetCard({ planet }: Props) {
         {' '}Animation pace is logarithmic in real period — a 1-day orbit takes ~6 seconds, a multi-year orbit takes ~25.
         {' '}Sizes are not to scale; real stars are ~9–100× larger than their planets.
       </p>
-    </div>
+    </>
   );
+
+  if (expanded) {
+    return (
+      <>
+        {/* Inline card stays in place under the modal so layout doesn't jump */}
+        <div className="card">{cardContent}</div>
+
+        <div className="planet-card-modal" role="dialog" aria-modal="true" aria-label={`${planet.pl_name} expanded view`}>
+          <div className="planet-card-modal-backdrop" onClick={() => setExpanded(false)} />
+          <div className="planet-card-modal-inner card">
+            <h2 style={{ margin: '0 0 0.75rem' }}>{planet.pl_name}</h2>
+            <p style={{ margin: '0 0 1rem', color: 'var(--fg-muted)' }}>
+              Orbiting <strong>{planet.hostname}</strong>
+              {planet.st_spectype && <> ({planet.st_spectype})</>}
+            </p>
+            {cardContent}
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  return <div className="card">{cardContent}</div>;
 }
 
 function describeEccentricity(e: number): string {

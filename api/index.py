@@ -318,28 +318,8 @@ def planets_list(
     )
 
 
-@app.get("/api/planets/{pl_name}", response_model=PlanetDetail, tags=["planets"])
-def planet_detail(pl_name: str) -> PlanetDetail:
-    """Single planet from the latest snapshot, with all 28 typed columns."""
-    with _connect() as conn:
-        with conn.cursor(row_factory=dict_row) as cur:
-            cur.execute(
-                f"""
-                SELECT {_PLANET_DETAIL_COLS}
-                FROM planets_snapshots
-                WHERE pl_name = %s
-                ORDER BY snapshot_date DESC
-                LIMIT 1
-                """,
-                (pl_name,),
-            )
-            row = cur.fetchone()
-
-    if row is None:
-        raise HTTPException(status_code=404, detail=f"No planet named {pl_name!r}")
-    return PlanetDetail(**row)
-
-
+# NOTE: this route must be registered BEFORE `/api/planets/{pl_name}` so FastAPI
+# matches `/api/planets/recent` to the static path, not as a `pl_name="recent"` lookup.
 @app.get("/api/planets/recent", response_model=PlanetsListResponse, tags=["planets"])
 def planets_recent(limit: int = Query(100, ge=1, le=500), offset: int = Query(0, ge=0)) -> PlanetsListResponse:
     """Most recently confirmed planets, ordered by discovery year (newest first)."""
@@ -369,6 +349,28 @@ def planets_recent(limit: int = Query(100, ge=1, le=500), offset: int = Query(0,
         offset=offset,
         results=[PlanetSummary(**r) for r in rows],
     )
+
+
+@app.get("/api/planets/{pl_name}", response_model=PlanetDetail, tags=["planets"])
+def planet_detail(pl_name: str) -> PlanetDetail:
+    """Single planet from the latest snapshot, with all 28 typed columns."""
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                f"""
+                SELECT {_PLANET_DETAIL_COLS}
+                FROM planets_snapshots
+                WHERE pl_name = %s
+                ORDER BY snapshot_date DESC
+                LIMIT 1
+                """,
+                (pl_name,),
+            )
+            row = cur.fetchone()
+
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"No planet named {pl_name!r}")
+    return PlanetDetail(**row)
 
 
 @app.get("/api/systems/{hostname}/planets", response_model=PlanetsListResponse, tags=["planets"])

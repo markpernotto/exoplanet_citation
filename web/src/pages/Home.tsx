@@ -96,10 +96,19 @@ export default function Home() {
 }
 
 function PlanetGrid({ results }: { results: import('../api').PlanetSummary[] }) {
+  const location = useLocation();
+  // Carry the current URL forward as `from` state so PlanetDetail's "back"
+  // can return here with the search query intact.
+  const from = location.pathname + location.search;
   return (
     <div className="discoveries-list">
       {results.map((p) => (
-        <Link key={p.pl_name} className="discovery-item" to={`/planets/${encodeURIComponent(p.pl_name)}`}>
+        <Link
+          key={p.pl_name}
+          className="discovery-item"
+          to={`/planets/${encodeURIComponent(p.pl_name)}`}
+          state={{ from }}
+        >
           <span className="badge PARAMETER_CHANGE">{p.disc_year ?? '—'}</span>
           <div>
             <div className="pl-name">{p.pl_name}</div>

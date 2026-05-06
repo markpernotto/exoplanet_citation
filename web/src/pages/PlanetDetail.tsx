@@ -1,15 +1,32 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api, type PlanetDetail as PlanetDetailType, type PlanetHistoryResponse, type PlanetsListResponse } from '../api';
 import PlanetCard from '../components/PlanetCard';
 import { collectFacts } from '../lib/derived';
 
 export default function PlanetDetail() {
   const { plName = '' } = useParams<{ plName: string }>();
+  const navigate = useNavigate();
+  const location = useLocation();
+  // The `from` state is set by links on Home.tsx when navigating in-app, so
+  // we know exactly where to return on "back" (preserving any search query).
+  const from = (location.state as { from?: string } | null)?.from;
+
   const [planet, setPlanet] = useState<PlanetDetailType | null>(null);
   const [history, setHistory] = useState<PlanetHistoryResponse | null>(null);
   const [siblings, setSiblings] = useState<PlanetsListResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  function goBack(e: React.MouseEvent) {
+    e.preventDefault();
+    if (from) {
+      navigate(from);
+    } else if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/');
+    }
+  }
 
   useEffect(() => {
     setPlanet(null);
@@ -57,7 +74,7 @@ export default function PlanetDetail() {
   return (
     <>
       <p style={{ margin: '0 0 1rem' }}>
-        <Link to="/">← back</Link>
+        <a href={from || '/'} onClick={goBack}>← back{from && from.includes('q=') ? ' to search' : ''}</a>
       </p>
       <h1 style={{ margin: '0 0 0.25rem' }}>{planet.pl_name}</h1>
       <p style={{ margin: '0 0 1.5rem', color: 'var(--fg-muted)' }}>

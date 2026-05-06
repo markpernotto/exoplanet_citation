@@ -164,6 +164,15 @@ export default function PlanetCard({ planet, siblings, bp_rp }: Props) {
 
   const id = planet.pl_name.replace(/[^a-zA-Z0-9]/g, '_');
 
+  // Circumbinary: two stars orbit each other at the shared focus.
+  const isBinary = planet.cb_flag === 1;
+  const star2Color = starColor(null, Math.min(4500, (planet.st_teff ?? 5000) * 0.7));
+  const cbSep = starRadius;
+  const cbStarR = Math.max(4, displayStarRadius * 0.70);
+  const cbAngle = (2 * Math.PI * t) / Math.max(1, animSec / 4);
+  const cbStar1 = { x: focusX + cbSep * Math.cos(cbAngle), y: focusY + cbSep * Math.sin(cbAngle) };
+  const cbStar2 = { x: focusX - cbSep * Math.cos(cbAngle), y: focusY - cbSep * Math.sin(cbAngle) };
+
   const singleNaturalVB: ViewBox = { x: 0, y: 0, w: viewBoxWidth, h: viewBoxHeight };
 
   const singleOrbitContent = (
@@ -180,6 +189,13 @@ export default function PlanetCard({ planet, siblings, bp_rp }: Props) {
             <stop offset="35%" stopColor={star} stopOpacity="0.2" />
             <stop offset="100%" stopColor={star} stopOpacity="0" />
           </radialGradient>
+          {isBinary && (
+            <radialGradient id={`star2-${id}`} cx="38%" cy="38%">
+              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.9" />
+              <stop offset="35%" stopColor={star2Color} stopOpacity="1" />
+              <stop offset="100%" stopColor={star2Color} stopOpacity="0.85" />
+            </radialGradient>
+          )}
 
           {/* Planet: dayside facing the star, nightside opposite */}
           <radialGradient id={`planet-${id}`} cx={`${litX}%`} cy={`${litY}%`}>
@@ -245,11 +261,25 @@ export default function PlanetCard({ planet, siblings, bp_rp }: Props) {
           </text>
         )}
 
-        {/* Host star at the focus, with corona */}
-        <circle cx={focusX} cy={focusY} r={displayStarRadius * 2.6} fill={`url(#corona-${id})`} />
-        <circle cx={focusX} cy={focusY} r={displayStarRadius} fill={`url(#star-${id})`}>
-          <title>Host star: {planet.hostname} ({planet.st_spectype ?? 'spectral type unknown'})</title>
-        </circle>
+        {/* Host star — single or circumbinary pair orbiting their common focus */}
+        {isBinary ? (
+          <>
+            <circle cx={focusX} cy={focusY} r={cbSep + cbStarR * 2.5} fill={`url(#corona-${id})`} />
+            <circle cx={cbStar1.x} cy={cbStar1.y} r={cbStarR} fill={`url(#star-${id})`}>
+              <title>Primary star: {planet.hostname} A</title>
+            </circle>
+            <circle cx={cbStar2.x} cy={cbStar2.y} r={cbStarR * 0.82} fill={`url(#star2-${id})`}>
+              <title>Companion star: {planet.hostname} B — {planet.pl_name} orbits both stars</title>
+            </circle>
+          </>
+        ) : (
+          <>
+            <circle cx={focusX} cy={focusY} r={displayStarRadius * 2.6} fill={`url(#corona-${id})`} />
+            <circle cx={focusX} cy={focusY} r={displayStarRadius} fill={`url(#star-${id})`}>
+              <title>Host star: {planet.hostname} ({planet.st_spectype ?? 'spectral type unknown'})</title>
+            </circle>
+          </>
+        )}
 
         {/* Planet — order: glow halo → body → bands → atmospheric haze */}
         {visual.glow && (
@@ -273,9 +303,9 @@ export default function PlanetCard({ planet, siblings, bp_rp }: Props) {
         )}
 
         {/* Star name label, fixed at focus */}
-        <text x={focusX} y={focusY + displayStarRadius + 22} textAnchor="middle"
+        <text x={focusX} y={focusY + (isBinary ? cbSep + cbStarR + 18 : displayStarRadius + 22)} textAnchor="middle"
               fill="#9099aa" fontSize="11" fontFamily="-apple-system, sans-serif">
-          {planet.hostname}
+          {planet.hostname}{isBinary ? ' AB' : ''}
         </text>
       </>
   );
@@ -354,6 +384,14 @@ export default function PlanetCard({ planet, siblings, bp_rp }: Props) {
       ? Math.max(1, stRad * SOLAR_RADII_IN_AU * pxPerAU)
       : starRadius;
 
+    // Binary helpers for multi-orbit.
+    const multiCbSep = starRadius;
+    const multiCbStarR = Math.max(4, multiStarRadius * 0.70);
+    const primaryAnimSec = orbitAnimationSeconds(orbiters[0].period);
+    const multiCbAngle = (2 * Math.PI * t) / Math.max(1, primaryAnimSec / 4);
+    const multiStar1 = { x: focusX + multiCbSep * Math.cos(multiCbAngle), y: focusY + multiCbSep * Math.sin(multiCbAngle) };
+    const multiStar2 = { x: focusX - multiCbSep * Math.cos(multiCbAngle), y: focusY - multiCbSep * Math.sin(multiCbAngle) };
+
     // Pre-compute per-orbiter geometry + visuals.
     const drawn = orbiters.map((o) => {
       const animSec = orbitAnimationSeconds(o.period);
@@ -393,6 +431,13 @@ export default function PlanetCard({ planet, siblings, bp_rp }: Props) {
             <stop offset="35%" stopColor={star} stopOpacity="0.2" />
             <stop offset="100%" stopColor={star} stopOpacity="0" />
           </radialGradient>
+          {isBinary && (
+            <radialGradient id={`star2-multi-${id}`} cx="38%" cy="38%">
+              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.9" />
+              <stop offset="35%" stopColor={star2Color} stopOpacity="1" />
+              <stop offset="100%" stopColor={star2Color} stopOpacity="0.85" />
+            </radialGradient>
+          )}
           {drawn.map((d) => (
             <radialGradient key={`pg-${d.o.key}`} id={`planet-multi-${d.o.key}`} cx={`${d.litX}%`} cy={`${d.litY}%`}>
               <stop offset="0%" stopColor="rgba(255,255,255,0.35)" />
@@ -421,11 +466,25 @@ export default function PlanetCard({ planet, siblings, bp_rp }: Props) {
           />
         ))}
 
-        {/* Star at the shared focus */}
-        <circle cx={focusX} cy={focusY} r={multiStarRadius * 2.6} fill={`url(#corona-multi-${id})`} />
-        <circle cx={focusX} cy={focusY} r={multiStarRadius} fill={`url(#star-multi-${id})`}>
-          <title>Host star: {planet.hostname} ({planet.st_spectype ?? 'spectral type unknown'})</title>
-        </circle>
+        {/* Star at the shared focus — single or circumbinary pair */}
+        {isBinary ? (
+          <>
+            <circle cx={focusX} cy={focusY} r={multiCbSep + multiCbStarR * 2.5} fill={`url(#corona-multi-${id})`} />
+            <circle cx={multiStar1.x} cy={multiStar1.y} r={multiCbStarR} fill={`url(#star-multi-${id})`}>
+              <title>Primary star: {planet.hostname} A</title>
+            </circle>
+            <circle cx={multiStar2.x} cy={multiStar2.y} r={multiCbStarR * 0.82} fill={`url(#star2-multi-${id})`}>
+              <title>Companion star: {planet.hostname} B</title>
+            </circle>
+          </>
+        ) : (
+          <>
+            <circle cx={focusX} cy={focusY} r={multiStarRadius * 2.6} fill={`url(#corona-multi-${id})`} />
+            <circle cx={focusX} cy={focusY} r={multiStarRadius} fill={`url(#star-multi-${id})`}>
+              <title>Host star: {planet.hostname} ({planet.st_spectype ?? 'spectral type unknown'})</title>
+            </circle>
+          </>
+        )}
 
         {/* Planets */}
         {drawn.map((d) => (
@@ -452,9 +511,9 @@ export default function PlanetCard({ planet, siblings, bp_rp }: Props) {
           </g>
         ))}
 
-        <text x={focusX} y={focusY + multiStarRadius + 22} textAnchor="middle"
+        <text x={focusX} y={focusY + (isBinary ? multiCbSep + multiCbStarR + 18 : multiStarRadius + 22)} textAnchor="middle"
               fill="#9099aa" fontSize="11" fontFamily="-apple-system, sans-serif">
-          {planet.hostname}
+          {planet.hostname}{isBinary ? ' AB' : ''}
         </text>
       </>
     );
@@ -513,6 +572,18 @@ export default function PlanetCard({ planet, siblings, bp_rp }: Props) {
       </p>
 
       <div className="orbit-legend">
+        {isBinary && (
+          <div className="metric-item">
+            <div className="metric-row">
+              <span className="metric-label">Circumbinary</span>
+              <span className="metric-value" style={{ color: 'var(--tier-b)' }}>orbits 2 stars</span>
+            </div>
+            <p className="metric-explain">
+              A real-life Tatooine — {planet.pl_name} orbits a binary star pair rather than a single star.
+              The two stars spin around each other in the center while the planet traces its larger path around both.
+            </p>
+          </div>
+        )}
         <div className="metric-item">
           <div className="metric-row">
             <span className="metric-label">Period</span>

@@ -133,7 +133,20 @@ section h2 { font-size: 1.1rem; font-weight: 600; margin: 0 0 0.75rem; color: va
 
 .discovery-item .summary { color: var(--fg); }
 .discovery-item .when { color: var(--fg-muted); font-size: 0.85rem; }
-.discovery-item .pl-name { font-weight: 600; }
+.discovery-item .pl-name { font-weight: 600; display: flex; align-items: baseline; gap: 0.4rem; flex-wrap: wrap; }
+
+.pill {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
+}
+.pill-cb { background: var(--tier-b); color: #0b0d12; }
+.pill-multi { background: var(--tier-a); color: #0b0d12; }
+.pill-gaia { background: var(--new); color: #0b0d12; }
 
 .empty {
   padding: 1.5rem;

@@ -83,6 +83,9 @@ export default function PlanetDetail() {
       <h1 style={{ margin: '0 0 0.25rem' }}>{planet.pl_name}</h1>
       <p style={{ margin: '0 0 1.5rem', color: 'var(--fg-muted)' }}>
         Orbiting <strong>{planet.hostname}</strong>
+        {planet.cb_flag === 1 && (
+          <span style={{ display: 'inline-block', fontSize: '0.7rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: '3px', background: 'var(--tier-b)', color: '#0b0d12', marginLeft: '0.45rem', verticalAlign: 'middle', letterSpacing: '0.04em' }}>circumbinary</span>
+        )}
         {planet.st_spectype && <> ({planet.st_spectype})</>}
         {planet.disc_year && <> · discovered {planet.disc_year}</>}
         {planet.discoverymethod && <> · {planet.discoverymethod}</>}
@@ -150,14 +153,7 @@ export default function PlanetDetail() {
               {planet.ra != null && planet.dec != null && (() => {
                 const pc = hostStar?.distance_gspphot_pc ?? planet.sy_dist ?? null;
                 if (pc == null) return null;
-                return (
-                  <GalaxyMap
-                    ra={planet.ra}
-                    dec={planet.dec}
-                    distPc={pc}
-                    hostname={planet.hostname}
-                  />
-                );
+                return <GalaxyMap ra={planet.ra} dec={planet.dec} distPc={pc} hostname={planet.hostname} />;
               })()}
             </div>
           </section>

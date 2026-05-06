@@ -53,6 +53,9 @@ class DiscoveriesResponse(BaseModel):
 class PlanetSummary(BaseModel):
     pl_name: str
     hostname: str
+    sy_pnum: int | None
+    cb_flag: int | None
+    gaia_dr3_id: str | None
     discoverymethod: str | None
     disc_year: int | None
     disc_facility: str | None
@@ -70,6 +73,7 @@ class PlanetDetail(BaseModel):
     hostname: str
     sy_snum: int | None
     sy_pnum: int | None
+    cb_flag: int | None
     discoverymethod: str | None
     disc_year: int | None
     disc_facility: str | None

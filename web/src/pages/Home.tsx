@@ -236,7 +236,12 @@ function PlanetGrid({ results }: { results: PlanetSummary[] }) {
         >
           <span className="badge PARAMETER_CHANGE">{p.disc_year ?? '—'}</span>
           <div>
-            <div className="pl-name">{p.pl_name}</div>
+            <div className="pl-name">
+              {p.pl_name}
+              {p.cb_flag === 1 && <span className="pill pill-cb">circumbinary</span>}
+              {(p.sy_pnum ?? 0) > 1 && <span className="pill pill-multi">{p.sy_pnum}-planet system</span>}
+              {p.gaia_dr3_id && <span className="pill pill-gaia">Gaia DR3</span>}
+            </div>
             <div className="summary">
               {p.hostname}
               {p.discoverymethod && <> · {p.discoverymethod}</>}

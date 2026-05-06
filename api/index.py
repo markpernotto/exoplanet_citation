@@ -254,12 +254,15 @@ def discoveries_by_month(
 # ---------- Planets ----------
 
 _PLANET_SUMMARY_COLS = """
-    pl_name, hostname, discoverymethod, disc_year, disc_facility,
-    pl_orbper, pl_orbsmax, pl_orbeccen, pl_rade, pl_bmasse, pl_eqt, sy_dist
+    pl_name, hostname, sy_pnum, discoverymethod, disc_year, disc_facility,
+    pl_orbper, pl_orbsmax, pl_orbeccen, pl_rade, pl_bmasse, pl_eqt, sy_dist,
+    (raw_row->>'cb_flag')::int AS cb_flag,
+    gaia_dr3_id
 """
 
 _PLANET_DETAIL_COLS = """
     pl_name, hostname, sy_snum, sy_pnum,
+    (raw_row->>'cb_flag')::int AS cb_flag,
     discoverymethod, disc_year, disc_facility, disc_telescope, disc_instrument, disc_refname,
     pl_orbper, pl_orbsmax, pl_orbeccen,
     pl_rade, pl_bmasse, pl_dens, pl_eqt, pl_insol,

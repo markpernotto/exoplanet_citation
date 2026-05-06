@@ -40,6 +40,9 @@ export type DiscoveriesResponse = {
 export type PlanetSummary = {
   pl_name: string;
   hostname: string;
+  sy_pnum: number | null;
+  cb_flag: number | null;
+  gaia_dr3_id: string | null;
   discoverymethod: string | null;
   disc_year: number | null;
   disc_facility: string | null;
@@ -57,6 +60,7 @@ export type PlanetDetail = {
   hostname: string;
   sy_snum: number | null;
   sy_pnum: number | null;
+  cb_flag: number | null;
   discoverymethod: string | null;
   disc_year: number | null;
   disc_facility: string | null;

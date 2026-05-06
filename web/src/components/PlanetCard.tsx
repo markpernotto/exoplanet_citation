@@ -4,32 +4,30 @@ import { planetVisual, starColor } from '../procedural';
 
 type Props = { planet: PlanetDetail };
 
-const SPEED_OPTIONS = [
-  { label: '⏸', mult: 0,    title: 'Pause' },
-  { label: '½×', mult: 0.5,  title: 'Half speed' },
-  { label: '1×', mult: 1,    title: 'Real-time animation pace' },
-  { label: '2×', mult: 2,    title: 'Double speed' },
-  { label: '4×', mult: 4,    title: 'Quadruple speed' },
-];
-
-// Wall-clock seconds since component mount. Updates every animation frame.
+// Animation time in seconds, pausable. When `running` is false, t freezes at
+// its current value; when running resumes, t picks up from where it left off
+// (rather than jumping ahead by the duration of the pause).
 // Respects prefers-reduced-motion: returns 0 forever (planet pinned at periapsis).
-function useAnimationTime(): number {
+function useAnimationTime(running: boolean): number {
   const [t, setT] = useState(0);
-  const rafRef = useRef<number | null>(null);
+  const accumulatedRef = useRef(0);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const start = performance.now();
+    if (!running) return;
+    const startWall = performance.now();
+    let raf: number;
     const tick = (now: number) => {
-      setT((now - start) / 1000);
-      rafRef.current = requestAnimationFrame(tick);
+      setT(accumulatedRef.current + (now - startWall) / 1000);
+      raf = requestAnimationFrame(tick);
     };
-    rafRef.current = requestAnimationFrame(tick);
+    raf = requestAnimationFrame(tick);
     return () => {
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      cancelAnimationFrame(raf);
+      // Bank the elapsed time so the next run resumes from here.
+      accumulatedRef.current += (performance.now() - startWall) / 1000;
     };
-  }, []);
+  }, [running]);
   return t;
 }
 
@@ -61,13 +59,13 @@ function formatPeriod(days: number): string {
 }
 
 export default function PlanetCard({ planet }: Props) {
-  const t = useAnimationTime();
-  const [speedMult, setSpeedMult] = useState(1);
+  const [paused, setPaused] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const t = useAnimationTime(!paused);
   const visual = planetVisual(planet.pl_eqt, planet.pl_dens, planet.pl_rade);
   const star = starColor(null, planet.st_teff);
 
-  // ESC key closes the expanded view.
+  // ESC key closes the expanded view; lock body scroll while open.
   useEffect(() => {
     if (!expanded) return;
     const onKey = (e: KeyboardEvent) => {
@@ -89,8 +87,7 @@ export default function PlanetCard({ planet }: Props) {
   // Mean anomaly progresses linearly with time; eccentric anomaly does not.
   // If we have no period data, pin the planet at periapsis (M=0) instead of
   // animating — animating a planet without an orbit path looks broken.
-  // speedMult of 0 pauses; >1 speeds up; <1 slows down.
-  const M = period != null ? (2 * Math.PI * t * speedMult) / animSec : 0;
+  const M = period != null ? (2 * Math.PI * t) / animSec : 0;
   const E = solveKeplerEquation(M, eccentricity);
 
   // Sizing — uses real radius data so planet/star ratio reflects reality.
@@ -151,6 +148,11 @@ export default function PlanetCard({ planet }: Props) {
 
   const cardContent = (
     <>
+      <div
+        className="planet-svg-wrapper"
+        onPointerEnter={() => setPaused(true)}
+        onPointerLeave={() => setPaused(false)}
+      >
       <svg viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`} width="100%" style={{ display: 'block' }} role="img"
            aria-label={`Animated visualization of ${planet.pl_name} orbiting host star ${planet.hostname}`}>
         <defs>
@@ -263,33 +265,18 @@ export default function PlanetCard({ planet }: Props) {
         </text>
 
       </svg>
-
-      {/* Controls: speed buttons + expand toggle */}
-      <div className="planet-card-controls">
-        <div className="speed-controls" role="group" aria-label="Animation speed">
-          {SPEED_OPTIONS.map((opt) => (
-            <button
-              key={opt.label}
-              type="button"
-              className={`speed-btn ${speedMult === opt.mult ? 'active' : ''}`}
-              onClick={() => setSpeedMult(opt.mult)}
-              title={opt.title}
-              aria-label={opt.title}
-              aria-pressed={speedMult === opt.mult}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
+      {paused && <div className="paused-badge">paused — move cursor away to resume</div>}
+      {!expanded && (
         <button
           type="button"
-          className="expand-btn"
-          onClick={() => setExpanded((x) => !x)}
-          title={expanded ? 'Close fullscreen view (Esc)' : 'Expand to fullscreen'}
-          aria-label={expanded ? 'Close fullscreen view' : 'Expand to fullscreen'}
+          className="expand-btn-corner"
+          onClick={() => setExpanded(true)}
+          title="Expand to a larger view"
+          aria-label="Expand to a larger view"
         >
-          {expanded ? '✕' : '⛶'}
+          ⛶
         </button>
+      )}
       </div>
 
       <p style={{ margin: '0.75rem 0 0', fontSize: '0.9rem', color: 'var(--fg)', lineHeight: 1.5 }}>
@@ -337,7 +324,16 @@ export default function PlanetCard({ planet }: Props) {
         <div className="planet-card-modal" role="dialog" aria-modal="true" aria-label={`${planet.pl_name} expanded view`}>
           <div className="planet-card-modal-backdrop" onClick={() => setExpanded(false)} />
           <div className="planet-card-modal-inner card">
-            <h2 style={{ margin: '0 0 0.75rem' }}>{planet.pl_name}</h2>
+            <button
+              type="button"
+              className="modal-close-btn"
+              onClick={() => setExpanded(false)}
+              title="Close (Esc)"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+            <h2 style={{ margin: '0 0 0.25rem' }}>{planet.pl_name}</h2>
             <p style={{ margin: '0 0 1rem', color: 'var(--fg-muted)' }}>
               Orbiting <strong>{planet.hostname}</strong>
               {planet.st_spectype && <> ({planet.st_spectype})</>}

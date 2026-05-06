@@ -62,8 +62,11 @@ from a stock-image library.
 - **FastAPI** with 7 endpoints + automatic OpenAPI/Swagger docs, deployed
   to Vercel as Python serverless functions
 - **React frontend** (Vite + TypeScript) deployed alongside the API on the
-  same Vercel project — search bar, recent-discoveries feed, planet
-  detail page with procedurally-rendered planet card and full change history
+  same Vercel project — search bar, infinite-scroll catalog, planet detail
+  page with procedurally-rendered planet card and full change history,
+  system orbital view with true AU scaling and scroll-to-zoom, and six
+  optional retro display themes (P1 Phosphor, P3 Phosphor, CGA, EGA, HGC,
+  Plasma) activated via `?theme=` URL parameter
 - **Phase 2 scaffold:** Gaia DR3 client tested end-to-end against real
   data — ready for enrichment work
 - **64 unit tests + 13 dbt tests** all green; CI workflow with ruff lint
@@ -127,6 +130,8 @@ make help        # list all targets
   families decoded, our tier mapping, source provenance, known quirks
 - **[docs/PROCEDURAL_RENDERING.md](docs/PROCEDURAL_RENDERING.md)** —
   temperature / density / insolation → visual mapping for the planet UI
+- **[docs/THEMING.md](docs/THEMING.md)** — retro display themes: design
+  rationale, technical implementation, theme catalog, self-hosted fonts
 
 ---
 
@@ -140,8 +145,10 @@ make help        # list all targets
 - Field-tier-aware diff (Tier A surfaced, Tier B logged-only, Tier C ignored)
 - Cloudflare R2 raw landing with manifest in git
 - FastAPI: 7 endpoints + OpenAPI/Swagger docs
-- React frontend: search, discoveries feed, planet detail with
-  procedural rendering
+- React frontend: search, infinite-scroll catalog, planet detail with
+  procedural rendering, system orbital view (true AU scale, scroll-to-zoom)
+- Six retro display themes switchable via `?theme=` URL param; self-hosted
+  OFL fonts; no CDN dependency; shareable links
 - Vercel deployment for both API and frontend
 - Phase 2 scaffold: Gaia DR3 client + smoke test verified end-to-end
 - Documentation: data catalog, procedural rendering plan, architecture

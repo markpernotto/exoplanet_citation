@@ -45,7 +45,7 @@ For implementation details see [PLAN.md](../PLAN.md).
    │    dim_planet, dim_publication                          │
    │    fact_discovery, fact_parameter_revision              │
    └─────────┬───────────────────────────┬───────────────────┘
-             │ etl/diff.py + publish.py  │ FastAPI (Day 8)
+             │ etl/diff.py + publish.py  │ FastAPI
              ▼                           ▼
    ┌────────────────────────┐   ┌──────────────────────┐
    │  static feeds          │   │  REST API            │
@@ -65,7 +65,6 @@ For implementation details see [PLAN.md](../PLAN.md).
                 │  + Python          │
                 │  serverless        │
                 │  + React frontend  │
-                │  (web/, Day 9)     │
                 └────────────────────┘
 ```
 
@@ -154,9 +153,44 @@ classification.
 | `etl/smoke_gaia.py` | One-shot Gaia DR3 client smoke test | dev |
 | `api/index.py` | FastAPI app (7 endpoints + OpenAPI/Swagger) deployed as Vercel Python serverless | 1 |
 | `api/models.py` | Pydantic response models | 1 |
-| `web/` | Vite + React + TypeScript SPA — search, discoveries feed, procedural planet detail | 1 |
+| `web/` | Vite + React + TypeScript SPA — search, infinite-scroll catalog, procedural planet detail, system orbital view, retro display themes | 1 |
+| `web/src/components/ThemeSwitcher.tsx` | URL-param retro theme switcher (six themes; see `docs/THEMING.md`) | 1 |
 | `web/src/procedural.ts` | Body-type/temperature → color mapping (see `docs/PROCEDURAL_RENDERING.md`) | 1 |
 | `vocabularies/` | Controlled vocabularies (SKOS-lite YAML) | 1 |
+
+---
+
+## Frontend
+
+The React frontend (`web/`) is a Vite + TypeScript SPA deployed to Vercel
+alongside the API. It makes all data requests to `/api/*`, which Vercel
+routes to the Python serverless functions in `api/`.
+
+Key frontend design decisions:
+
+**Procedural planet visuals.** Every planet card and system view is rendered
+from measured astrophysical properties — no stock imagery. Color, size, and
+orbital shape are computed from `pl_eqt`, `pl_dens`, `pl_rade`, and
+`pl_orbsmax`. See [PROCEDURAL_RENDERING.md](PROCEDURAL_RENDERING.md).
+
+**System orbital view.** Planet detail pages include a full-screen modal
+showing all sibling planets in their correct relative AU positions (true
+linear scale, not log-compressed). Scroll-to-zoom and drag-to-pan are
+implemented on a `<canvas>`. An "actual size" mode scales stars and planets
+by true stellar and planetary radii.
+
+**Retro display themes.** Six optional CRT/early-digital themes (P1
+Phosphor, P3 Phosphor, CGA, EGA, HGC, Plasma) switchable via `?theme=` URL
+parameter. Implemented via CSS custom properties and `html[data-theme]`
+selectors. No cookies or localStorage — the URL is the complete state.
+Self-hosted woff2 fonts under OFL license; no CDN dependency. See
+[THEMING.md](THEMING.md). Planet visuals are intentionally immune to theming
+(SVG fills are hardcoded, not driven by CSS variables).
+
+**URL-first state.** Search (`?q=`), theme (`?theme=`), and navigation
+history are all encoded in the URL. This makes views shareable and keeps
+React state minimal. Both parameters coexist and are preserved across all
+in-app navigation.
 
 ---
 
@@ -321,8 +355,8 @@ exoplanet_citation/
 │   ├── check_setup.py       # dev tool
 │   └── smoke_gaia.py        # dev tool
 ├── vocabularies/            # SKOS-lite YAML
-├── api/                     # FastAPI (Day 8)
-├── web/                     # React + Vite (Day 9)
+├── api/                     # FastAPI + Pydantic models
+├── web/                     # React + Vite + TypeScript SPA
 ├── data/
 │   └── MANIFEST.jsonl       # snapshot index (R2 keys + checksums)
 ├── public/                  # generated static feeds (nightly)

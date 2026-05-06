@@ -1,11 +1,28 @@
-import { Link, Route, Routes } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, Route, Routes, useLocation, useNavigationType } from 'react-router-dom';
 import SearchBar from './components/SearchBar';
 import Home from './pages/Home';
 import PlanetDetail from './pages/PlanetDetail';
 
+// Scroll to top whenever the user navigates forward (clicking a link or
+// search-submit). Browser-back ("POP") preserves the previous scroll position
+// so going back from a planet detail returns you to where you were in the
+// infinite-scroll list.
+function ScrollToTop() {
+  const { pathname, search } = useLocation();
+  const navType = useNavigationType();
+  useEffect(() => {
+    if (navType !== 'POP') {
+      window.scrollTo(0, 0);
+    }
+  }, [pathname, search, navType]);
+  return null;
+}
+
 export default function App() {
   return (
     <div className="layout">
+      <ScrollToTop />
       <header className="site">
         <div className="site-header-row">
           <h1><Link to="/">exoplanet_citation</Link></h1>

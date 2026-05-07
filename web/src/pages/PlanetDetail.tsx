@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { api, type HostStarGaia, type PlanetDetail as PlanetDetailType, type PlanetHistoryResponse, type PlanetsListResponse } from '../api';
+import { api, type DiscoveryPaper, type HostStarGaia, type PlanetDetail as PlanetDetailType, type PlanetHistoryResponse, type PlanetsListResponse } from '../api';
 import GalaxyMap from '../components/GalaxyMap';
 import LoadingBar from '../components/LoadingBar';
 import PlanetCard from '../components/PlanetCard';
@@ -20,6 +20,7 @@ export default function PlanetDetail() {
   const [hostStar, setHostStar] = useState<HostStarGaia | null>(null);
   const [history, setHistory] = useState<PlanetHistoryResponse | null>(null);
   const [siblings, setSiblings] = useState<PlanetsListResponse | null>(null);
+  const [paper, setPaper] = useState<DiscoveryPaper | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   function goBack(e: React.MouseEvent) {
@@ -37,10 +38,12 @@ export default function PlanetDetail() {
     setPlanet(null);
     setSiblings(null);
     setHostStar(null);
+    setPaper(null);
     setError(null);
     api.planetDetail(plName).then(setPlanet).catch((e) => setError(e.message));
     api.planetHistory(plName).then(setHistory).catch(() => {});
     api.planetHostStar(plName).then(setHostStar).catch(() => {});
+    api.planetPaper(plName).then(setPaper).catch(() => {});
   }, [plName]);
 
   // Once we have the planet, fetch siblings (other planets with same hostname)
@@ -97,7 +100,7 @@ export default function PlanetDetail() {
       <div className="planet-detail">
         <div className="planet-detail-left">
           <PlanetCard planet={planet} siblings={siblings?.results.filter((s) => s.pl_name !== planet.pl_name) ?? null} bp_rp={hostStar?.bp_rp} />
-          <HostStarCard planet={planet} />
+          <HostStarCard planet={planet} sectionDelay={4000} />
         </div>
 
         <div>
@@ -105,14 +108,14 @@ export default function PlanetDetail() {
             <h2>Stat card</h2>
             <div className="card">
               <dl className="stat-grid">
-                {fmtRow('Distance from host star', planet.pl_orbsmax, 'AU')}
-                {fmtRow('Orbital period', planet.pl_orbper, 'days')}
-                {fmtRow('Eccentricity', planet.pl_orbeccen, '')}
-                {fmtRow('Radius', planet.pl_rade, 'Earth radii')}
-                {fmtRow('Mass', planet.pl_bmasse, 'Earth masses')}
-                {fmtRow('Density', planet.pl_dens, 'g/cc')}
-                {fmtRow('Equilibrium temperature', planet.pl_eqt, 'K')}
-                {fmtRow('Insolation flux', planet.pl_insol, '× Earth')}
+                {fmtRow('Distance from host star', planet.pl_orbsmax, 'AU', '', 0)}
+                {fmtRow('Orbital period', planet.pl_orbper, 'days', '', 1)}
+                {fmtRow('Eccentricity', planet.pl_orbeccen, '', '', 2)}
+                {fmtRow('Radius', planet.pl_rade, 'Earth radii', '', 3)}
+                {fmtRow('Mass', planet.pl_bmasse, 'Earth masses', '', 4)}
+                {fmtRow('Density', planet.pl_dens, 'g/cc', '', 5)}
+                {fmtRow('Equilibrium temperature', planet.pl_eqt, 'K', '', 6)}
+                {fmtRow('Insolation flux', planet.pl_insol, '× Earth', '', 7)}
                 {planet.gaia_dr3_id && (
                   <>
                     <dt>Gaia DR3</dt>
@@ -123,7 +126,7 @@ export default function PlanetDetail() {
             </div>
           </section>
 
-          <BeyondBasicsCard planet={planet} />
+          <BeyondBasicsCard planet={planet} sectionDelay={2200} />
 
           <SystemSiblingsSection planet={planet} siblings={siblings} />
 
@@ -161,30 +164,7 @@ export default function PlanetDetail() {
             </div>
           </section>
 
-          <section>
-            <h2>Discovery</h2>
-            <div className="card">
-              {planet.disc_facility && <p style={{ margin: '0 0 0.5rem' }}><strong>Facility:</strong> {planet.disc_facility}</p>}
-              {planet.disc_telescope && <p style={{ margin: '0 0 0.5rem' }}><strong>Telescope:</strong> {planet.disc_telescope}</p>}
-              {planet.disc_instrument && <p style={{ margin: '0 0 0.5rem' }}><strong>Instrument:</strong> {planet.disc_instrument}</p>}
-              {planet.disc_refname && (() => {
-                const ref = parseDiscRefname(planet.disc_refname);
-                return (
-                  <p style={{ margin: 0, fontSize: '0.9rem' }}>
-                    <strong>Reference:</strong>{' '}
-                    {ref.url ? (
-                      <a href={ref.url} target="_blank" rel="noopener noreferrer">{ref.text}</a>
-                    ) : (
-                      <span style={{ color: 'var(--fg-muted)' }}>{ref.text}</span>
-                    )}
-                  </p>
-                );
-              })()}
-              <p style={{ margin: '0.75rem 0 0', fontSize: '0.85rem', color: 'var(--fg-muted)' }}>
-                Citation graph (DOI / arXiv resolution) coming in Phase 2.
-              </p>
-            </div>
-          </section>
+          <DiscoverySection planet={planet} paper={paper} sectionDelay={1200} />
         </div>
       </div>
 
@@ -223,7 +203,155 @@ export default function PlanetDetail() {
   );
 }
 
-function HostStarCard({ planet }: { planet: PlanetDetailType }) {
+function DiscoverySection({ planet, paper, sectionDelay = 0 }: { planet: PlanetDetailType; paper: DiscoveryPaper | null; sectionDelay?: number }) {
+  const [abstractExpanded, setAbstractExpanded] = useState(false);
+  const [authorsExpanded, setAuthorsExpanded] = useState(false);
+  const location = useLocation();
+  const themeQuery = (() => { const t = new URLSearchParams(location.search).get('theme'); return t ? `?theme=${t}` : ''; })();
+  const ref = planet.disc_refname ? parseDiscRefname(planet.disc_refname) : null;
+  const adsUrl = paper
+    ? `https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(paper.bibcode)}/abstract`
+    : ref?.url ?? null;
+  const hasMeta = !!(planet.disc_facility || planet.disc_telescope || planet.disc_instrument);
+
+  return (
+    <section>
+      <h2>Discovery</h2>
+      <div className="card">
+        {planet.disc_facility && <p style={{ margin: '0 0 0.35rem' }}><strong>Facility:</strong> {planet.disc_facility}</p>}
+        {planet.disc_telescope && <p style={{ margin: '0 0 0.35rem' }}><strong>Telescope:</strong> {planet.disc_telescope}</p>}
+        {planet.disc_instrument && <p style={{ margin: '0 0 0.75rem' }}><strong>Instrument:</strong> {planet.disc_instrument}</p>}
+
+        {paper ? (
+          <div style={{ borderTop: hasMeta ? '1px solid var(--border)' : undefined, paddingTop: hasMeta ? '0.75rem' : undefined }}>
+            <p style={{ margin: '0 0 0.25rem', fontWeight: 600, fontSize: '0.95rem', lineHeight: 1.4 }}>
+              {adsUrl ? (
+                <a href={adsUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--fg)' }}>
+                  {paper.title ?? paper.bibcode}
+                </a>
+              ) : (paper.title ?? paper.bibcode)}
+            </p>
+
+            {paper.authors.length > 0 && (() => {
+              const PREVIEW = 5;
+              const shown = authorsExpanded ? paper.authors : paper.authors.slice(0, PREVIEW);
+              const hidden = paper.authors.length - PREVIEW;
+              return (
+                <p style={{ margin: '0 0 0.35rem', fontSize: '0.85rem', color: 'var(--fg-muted)', lineHeight: 1.6 }}>
+                  {shown.map((author, i) => (
+                    <span key={author}>
+                      {i > 0 && ', '}
+                      <Link
+                        to={`/authors/${encodeURIComponent(author)}${themeQuery}`}
+                        style={{ color: 'var(--fg-muted)' }}
+                      >
+                        {author}
+                      </Link>
+                    </span>
+                  ))}
+                  {!authorsExpanded && hidden > 0 && (
+                    <>
+                      {', '}
+                      <button
+                        onClick={() => setAuthorsExpanded(true)}
+                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: '0.85rem', color: 'var(--accent)' }}
+                      >
+                        +{hidden} more
+                      </button>
+                    </>
+                  )}
+                  {authorsExpanded && hidden > 0 && (
+                    <>
+                      {' '}
+                      <button
+                        onClick={() => setAuthorsExpanded(false)}
+                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: '0.8rem', color: 'var(--accent)' }}
+                      >
+                        show less
+                      </button>
+                    </>
+                  )}
+                </p>
+              );
+            })()}
+
+            <p style={{ margin: '0 0 0.6rem', fontSize: '0.82rem', color: 'var(--fg-muted)' }}>
+              {[paper.journal, paper.pub_date?.slice(0, 4)].filter(Boolean).join(' · ')}
+              {paper.citation_count != null && (
+                <> · <strong style={{ color: 'var(--fg)' }}>{paper.citation_count.toLocaleString()}</strong> citations</>
+              )}
+            </p>
+
+            {paper.abstract && (() => {
+              const LIMIT = 300;
+              const truncated = paper.abstract.length > LIMIT;
+              const displayText = abstractExpanded || !truncated
+                ? paper.abstract
+                : paper.abstract.slice(0, LIMIT).trimEnd() + '…';
+              return (
+                <div style={{ margin: '0 0 0.75rem' }}>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--fg-muted)', lineHeight: 1.55 }}>
+                    {abstractExpanded
+                      ? displayText
+                      : <TypewriterText text={displayText} startDelay={sectionDelay + 300} />}
+                  </p>
+                  {truncated && (
+                    <button
+                      onClick={() => setAbstractExpanded((e) => !e)}
+                      style={{ background: 'none', border: 'none', padding: '0.2rem 0', cursor: 'pointer', fontSize: '0.8rem', color: 'var(--accent)', marginTop: '0.2rem' }}
+                    >
+                      {abstractExpanded ? 'show less' : 'show more…'}
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
+
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', fontSize: '0.82rem' }}>
+              {adsUrl && <a href={adsUrl} target="_blank" rel="noopener noreferrer">ADS →</a>}
+              {paper.doi && (
+                <a href={`https://doi.org/${paper.doi}`} target="_blank" rel="noopener noreferrer">DOI →</a>
+              )}
+              {paper.arxiv_id && (
+                <a href={`https://arxiv.org/abs/${paper.arxiv_id}`} target="_blank" rel="noopener noreferrer">arXiv →</a>
+              )}
+            </div>
+          </div>
+        ) : ref ? (
+          <p style={{ margin: 0, fontSize: '0.9rem' }}>
+            <strong>Reference:</strong>{' '}
+            {ref.url ? (
+              <a href={ref.url} target="_blank" rel="noopener noreferrer">{ref.text}</a>
+            ) : (
+              <span style={{ color: 'var(--fg-muted)' }}>{ref.text}</span>
+            )}
+          </p>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function TypewriterText({ text, startDelay, msPerWord = 80 }: { text: string; startDelay: number; msPerWord?: number }) {
+  const [visibleCount, setVisibleCount] = useState(0);
+
+  useEffect(() => {
+    setVisibleCount(0);
+    const words = text.split(' ');
+    const timeouts: ReturnType<typeof setTimeout>[] = [];
+    words.forEach((_, i) => {
+      const t = setTimeout(() => setVisibleCount((c) => Math.max(c, i + 1)), startDelay + i * msPerWord);
+      timeouts.push(t);
+    });
+    return () => timeouts.forEach(clearTimeout);
+  }, [text, startDelay, msPerWord]);
+
+  const words = text.split(' ');
+  if (visibleCount === 0) return null;
+  return <>{words.slice(0, visibleCount).join(' ')}</>;
+}
+
+function HostStarCard({ planet, sectionDelay = 0 }: { planet: PlanetDetailType; sectionDelay?: number }) {
   const facts = collectStarFacts(planet);
   const spectralInfo = describeSpectralClass(planet.st_spectype);
   // st_lum is log10(L/L☉) per NASA Exoplanet Archive convention.
@@ -231,6 +359,7 @@ function HostStarCard({ planet }: { planet: PlanetDetailType }) {
   const hzInner = linearLum != null ? Math.sqrt(linearLum) : null;
   const hzOuter = hzInner != null ? hzInner * 1.4 : null;
   if (facts.length === 0 && !spectralInfo && hzInner == null) return null;
+  const sd = `${sectionDelay}ms`;
   return (
     <section style={{ marginTop: '1rem' }}>
       <h2>Host star — {planet.hostname}</h2>
@@ -242,63 +371,94 @@ function HostStarCard({ planet }: { planet: PlanetDetailType }) {
         )}
         {(facts.length > 0 || hzInner != null) && (
           <div className="beyond-basics">
-            {facts.map((f) => (
-              <div key={f.label} className="metric-item">
-                <div className="metric-row">
-                  <span className="metric-label">{f.label}</span>
-                  <span className="metric-value">{f.value}</span>
+            {facts.map((f, i) => {
+              const rowStart = sectionDelay + i * 150;
+              const explainStart = rowStart + f.value.length * 65 + 100;
+              return (
+                <div key={f.label} className="metric-item">
+                  <div className="metric-row">
+                    <span className="metric-label">{f.label}</span>
+                    <span className="metric-value">
+                      <span className="tw" style={{ '--tw-chars': f.value.length, '--tw-delay': i, '--section-delay': sd } as React.CSSProperties}>
+                        {f.value}
+                      </span>
+                    </span>
+                  </div>
+                  {f.explain && (
+                    <p className="metric-explain">
+                      <TypewriterText text={f.explain} startDelay={explainStart} />
+                    </p>
+                  )}
                 </div>
-                {f.explain && <p className="metric-explain">{f.explain}</p>}
-              </div>
-            ))}
-            {hzInner != null && hzOuter != null && (
+              );
+            })}
+            {hzInner != null && hzOuter != null && (() => {
+              const hzStr = `${hzInner.toFixed(2)}–${hzOuter.toFixed(2)} AU`;
+              const hzLabel = 'Habitable zone (estimated)';
+              const hzRowStart = sectionDelay + facts.length * 150;
+              const hzExplainStart = hzRowStart + hzStr.length * 65 + 100;
+              const hzExplain = `Distance range where an Earth-like planet could host liquid water. Computed from luminosity (HZ_inner ≈ √(L/L☉) AU). Brighter stars push the zone outward.`;
+              const orbText = planet.pl_orbsmax != null ? ` ${planet.pl_name} orbits at ${planet.pl_orbsmax.toFixed(3)} AU — ${planet.pl_orbsmax < hzInner ? 'inside' : planet.pl_orbsmax > hzOuter ? 'beyond' : 'within'} the zone.` : '';
+              return (
               <div className="metric-item">
                 <div className="metric-row">
-                  <span className="metric-label">Habitable zone (estimated)</span>
-                  <span className="metric-value">{hzInner.toFixed(2)}–{hzOuter.toFixed(2)} AU</span>
+                  <span className="metric-label">{hzLabel}</span>
+                  <span className="metric-value">
+                    <span className="tw" style={{ '--tw-chars': hzStr.length, '--tw-delay': facts.length, '--section-delay': sd } as React.CSSProperties}>
+                      {hzStr}
+                    </span>
+                  </span>
                 </div>
                 <p className="metric-explain">
-                  Distance range where an Earth-like planet could host liquid water on its surface.
-                  Computed from luminosity (HZ_inner ≈ √(L/L☉) AU). Brighter stars push the zone outward.
-                  {planet.pl_orbsmax != null && (() => {
-                    const where =
-                      planet.pl_orbsmax < hzInner ? 'inside' :
-                      planet.pl_orbsmax > hzOuter ? 'beyond' : 'within';
-                    return <> {planet.pl_name} orbits at {planet.pl_orbsmax.toFixed(3)} AU — {where} the zone.</>;
-                  })()}
+                  <TypewriterText text={hzExplain + orbText} startDelay={hzExplainStart} />
                 </p>
               </div>
-            )}
+              );
+            })()}
           </div>
         )}
         <p style={{ margin: '0.85rem 0 0', fontSize: '0.78rem', color: 'var(--fg-muted)', lineHeight: 1.55 }}>
-          <strong>Composition</strong> — like nearly all main-sequence stars, {planet.hostname} is mostly hydrogen
-          (~73% by mass) and helium (~25%), with the remaining ~2% being heavier elements (collectively called
-          "metals" in astronomy, even when they're carbon, oxygen, or neon). What really distinguishes one star
-          from another is its mass and temperature, which set its color, brightness, and lifespan.
+          <strong>Composition</strong>{' — '}
+          <TypewriterText
+            text={`like nearly all main-sequence stars, ${planet.hostname} is mostly hydrogen (~73% by mass) and helium (~25%), with the remaining ~2% being heavier elements (collectively called "metals" in astronomy, even when they're carbon, oxygen, or neon). What really distinguishes one star from another is its mass and temperature, which set its color, brightness, and lifespan.`}
+            startDelay={sectionDelay + (facts.length + (hzInner != null ? 1 : 0)) * 150 + 600}
+          />
         </p>
       </div>
     </section>
   );
 }
 
-function BeyondBasicsCard({ planet }: { planet: PlanetDetailType }) {
+function BeyondBasicsCard({ planet, sectionDelay = 0 }: { planet: PlanetDetailType; sectionDelay?: number }) {
   const facts = collectFacts(planet);
   if (facts.length === 0) return null;
+  const sd = `${sectionDelay}ms`;
   return (
     <section style={{ marginTop: '1rem' }}>
       <h2>Beyond the basics</h2>
       <div className="card">
         <div className="beyond-basics">
-          {facts.map((f) => (
-            <div key={f.label} className="metric-item">
-              <div className="metric-row">
-                <span className="metric-label">{f.label}</span>
-                <span className="metric-value">{f.value}</span>
+          {facts.map((f, i) => {
+            const rowStart = sectionDelay + i * 150;
+            const explainStart = rowStart + f.value.length * 65 + 100;
+            return (
+              <div key={f.label} className="metric-item">
+                <div className="metric-row">
+                  <span className="metric-label">{f.label}</span>
+                  <span className="metric-value">
+                    <span className="tw" style={{ '--tw-chars': f.value.length, '--tw-delay': i, '--section-delay': sd } as React.CSSProperties}>
+                      {f.value}
+                    </span>
+                  </span>
+                </div>
+                {f.explain && (
+                  <p className="metric-explain">
+                    <TypewriterText text={f.explain} startDelay={explainStart} />
+                  </p>
+                )}
               </div>
-              {f.explain && <p className="metric-explain">{f.explain}</p>}
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
@@ -420,15 +580,22 @@ function parseDiscRefname(raw: string): { text: string; url: string | null } {
   return { text: match[2].trim(), url: match[1] };
 }
 
-function fmtRow(label: string, value: number | null, unit: string, suffix = '') {
+function fmtRow(label: string, value: number | null, unit: string, suffix = '', rowIndex = 0, sectionDelay = 0) {
   if (value == null) return null;
+  const numStr = Number.isInteger(value) ? String(value) : value.toPrecision(4);
+  const charCount = [numStr, unit, suffix].filter(Boolean).join(' ').length;
   return (
     <>
       <dt>{label}</dt>
       <dd>
-        {Number.isInteger(value) ? value : value.toPrecision(4)}
-        {unit && <span style={{ color: 'var(--fg-muted)' }}> {unit}</span>}
-        {suffix && <span style={{ color: 'var(--fg-muted)', fontSize: '0.85rem' }}> {suffix}</span>}
+        <span
+          className="tw"
+          style={{ '--tw-chars': charCount, '--tw-delay': rowIndex, '--section-delay': `${sectionDelay}ms` } as React.CSSProperties}
+        >
+          {numStr}
+          {unit && <span style={{ color: 'var(--fg-muted)' }}> {unit}</span>}
+          {suffix && <span style={{ color: 'var(--fg-muted)', fontSize: '0.85rem' }}> {suffix}</span>}
+        </span>
       </dd>
     </>
   );

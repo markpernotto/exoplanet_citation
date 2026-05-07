@@ -1,7 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Route, Routes, useLocation, useNavigationType, useSearchParams } from 'react-router-dom';
 import SearchBar from './components/SearchBar';
 import ThemeSwitcher from './components/ThemeSwitcher';
+import { api, type StatsResponse } from './api';
+import AuthorDetail from './pages/AuthorDetail';
 import Home from './pages/Home';
 import PlanetDetail from './pages/PlanetDetail';
 
@@ -37,6 +39,27 @@ function ScrollToTop() {
   return null;
 }
 
+function SiteTitle() {
+  const [searchParams] = useSearchParams();
+  const theme = searchParams.get('theme');
+  const to = theme ? `/?theme=${theme}` : '/';
+  return <h1><Link to={to}>exoplanet_citation</Link></h1>;
+}
+
+function CatalogStats() {
+  const [stats, setStats] = useState<StatsResponse | null>(null);
+  useEffect(() => { api.stats().then(setStats).catch(() => {}); }, []);
+  if (!stats) return null;
+  const topMethod = Object.entries(stats.discoveries_by_method).sort((a, b) => b[1] - a[1])[0]?.[0];
+  return (
+    <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: 'var(--fg-muted)' }}>
+      <strong style={{ color: 'var(--fg)' }}>{stats.total_planets.toLocaleString()}</strong> confirmed exoplanets
+      {stats.latest_snapshot && <> · last refreshed {stats.latest_snapshot}</>}
+      {topMethod && <> · top discovery method <strong style={{ color: 'var(--fg)' }}>{topMethod}</strong></>}
+    </p>
+  );
+}
+
 export default function App() {
   return (
     <>
@@ -45,11 +68,12 @@ export default function App() {
       <header className="site">
         <div className="site-inner">
           <div className="site-header-row">
-            <h1><Link to="/">exoplanet_citation</Link></h1>
+            <SiteTitle />
             <span className="tagline">a public catalog of confirmed exoplanets and the papers that announced them</span>
             <ThemeSwitcher />
           </div>
           <SearchBar />
+          <CatalogStats />
         </div>
       </header>
 
@@ -58,6 +82,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/planets/:plName" element={<PlanetDetail />} />
+            <Route path="/authors/:authorName" element={<AuthorDetail />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>

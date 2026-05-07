@@ -267,9 +267,14 @@ footer.site .footer-line { line-height: 1.4; }
 @media (max-width: 600px) {
   footer.site .footer-line { white-space: normal; }
 }
-/* Touch devices have no hover — keep the footer permanently revealed there. */
+/* Touch devices: flow the footer in the document instead of floating it over content. */
 @media (hover: none) {
-  footer.site { transform: translateY(0); }
+  footer.site {
+    position: static;
+    transform: none;
+    border-top: 1px solid var(--border);
+  }
+  footer.site::before { display: none; }
 }
 
 .error {
@@ -377,7 +382,7 @@ footer.site .footer-line { line-height: 1.4; }
   z-index: 1;
   width: 50%;
   max-width: 700px;
-  max-height: 80vh;
+  max-height: 95vh;
   overflow-y: auto;
 }
 
@@ -484,6 +489,27 @@ footer.site .footer-line { line-height: 1.4; }
 .siblings-list li { font-size: 0.9rem; }
 .siblings-list a { font-weight: 600; }
 .siblings-list .muted { color: var(--fg-muted); font-size: 0.82rem; margin-left: 0.25rem; }
+
+.featured-category-select {
+  width: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.4rem 0.6rem;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239099aa'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.7rem center;
+  padding-right: 2rem;
+}
+.featured-category-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
 
 .featured-systems {
   list-style: none;
@@ -835,3 +861,21 @@ html[data-theme="plasma"] .badge {
   color: var(--fg-muted);
   margin-top: 0.3em;
 }
+
+/* ── Typewriter value reveal ─────────────────────────────────────────────── */
+@keyframes typewriter {
+  from { width: 0ch; }
+  to   { width: calc(var(--tw-chars) * 1ch); }
+}
+
+/* Width-based reveal — use for short single-line numeric values (no letter-spacing). */
+.tw {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  vertical-align: bottom;
+  width: 0ch;
+  animation: typewriter calc(var(--tw-chars) * 65ms) steps(var(--tw-chars)) forwards;
+  animation-delay: calc(var(--tw-delay, 0) * 150ms + var(--section-delay, 0ms));
+}
+

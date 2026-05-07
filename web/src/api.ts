@@ -53,6 +53,7 @@ export type PlanetSummary = {
   pl_bmasse: number | null;
   pl_eqt: number | null;
   sy_dist: number | null;
+  disc_paper_citations: number | null;
 };
 
 export type PlanetDetail = {
@@ -122,6 +123,47 @@ export type HostStarGaia = {
   retrieved_at: string;
 };
 
+export type TopAuthor = {
+  author: string;
+  planet_count: number;
+};
+
+export type TopAuthorsResponse = {
+  authors: TopAuthor[];
+};
+
+export type AuthorPlanet = {
+  pl_name: string;
+  hostname: string;
+  disc_year: number | null;
+  discoverymethod: string | null;
+  bibcode: string;
+  paper_title: string | null;
+  journal: string | null;
+  citation_count: number | null;
+  pub_date: string | null;
+  doi: string | null;
+  arxiv_id: string | null;
+};
+
+export type AuthorResponse = {
+  author: string;
+  planet_count: number;
+  planets: AuthorPlanet[];
+};
+
+export type DiscoveryPaper = {
+  bibcode: string;
+  title: string | null;
+  authors: string[];
+  abstract: string | null;
+  citation_count: number | null;
+  pub_date: string | null;
+  journal: string | null;
+  doi: string | null;
+  arxiv_id: string | null;
+};
+
 export type StatsResponse = {
   total_planets: number;
   total_snapshots: number;
@@ -171,4 +213,12 @@ export const api = {
     get<PlanetHistoryResponse>(`/api/planets/${encodeURIComponent(plName)}/history`),
   planetHostStar: (plName: string) =>
     get<HostStarGaia>(`/api/planets/${encodeURIComponent(plName)}/host_star`),
+  planetPaper: (plName: string) =>
+    get<DiscoveryPaper>(`/api/planets/${encodeURIComponent(plName)}/paper`),
+  authorDetail: (authorName: string) =>
+    get<AuthorResponse>(`/api/authors/${encodeURIComponent(authorName)}`),
+  authorsTop: (limit = 20) =>
+    get<TopAuthorsResponse>(`/api/authors/top?limit=${limit}`),
+  authorsSearch: (q: string, limit = 20) =>
+    get<TopAuthorsResponse>(`/api/authors/search?q=${encodeURIComponent(q)}&limit=${limit}`),
 };

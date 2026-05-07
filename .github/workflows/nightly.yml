@@ -38,6 +38,7 @@ jobs:
       DBT_SCHEMA: ${{ secrets.DBT_SCHEMA }}
       USER_AGENT_PROJECT: 'exoplanet_citation/0.1 (+https://github.com/markpernotto/exoplanet_citation)'
       USER_AGENT_EMAIL: ${{ secrets.USER_AGENT_EMAIL }}
+      ADS_API_TOKEN: ${{ secrets.ADS_API_TOKEN }}
 
     steps:
       - uses: actions/checkout@v4
@@ -66,6 +67,9 @@ jobs:
 
       - name: Diff snapshots into discovery_changes
         run: python -m etl.diff
+
+      - name: Enrich discovery papers from ADS
+        run: python -m etl.enrich_ads
 
       - name: Publish RSS + JSON feeds
         run: python -m etl.publish

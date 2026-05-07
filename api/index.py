@@ -23,7 +23,9 @@ OpenAPI / interactive docs:
 from __future__ import annotations
 
 import os
+import re
 from datetime import UTC, datetime, timedelta
+from urllib.parse import unquote
 
 import psycopg
 from dotenv import load_dotenv
@@ -32,8 +34,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from psycopg.rows import dict_row
 
 from api.models import (
+    AuthorPlanet,
+    AuthorResponse,
+    TopAuthor,
+    TopAuthorsResponse,
     ChangeRecord,
     DiscoveriesResponse,
+    DiscoveryPaper,
     FreshnessInfo,
     HealthResponse,
     HostStarGaia,
@@ -257,7 +264,10 @@ _PLANET_SUMMARY_COLS = """
     pl_name, hostname, sy_pnum, discoverymethod, disc_year, disc_facility,
     pl_orbper, pl_orbsmax, pl_orbeccen, pl_rade, pl_bmasse, pl_eqt, sy_dist,
     (raw_row->>'cb_flag')::int AS cb_flag,
-    gaia_dr3_id
+    gaia_dr3_id,
+    (SELECT citation_count FROM discovery_papers
+     WHERE bibcode = replace(substring(disc_refname FROM 'abs/([^/]+)/abstract'), '%%26', '&')
+     LIMIT 1) AS disc_paper_citations
 """
 
 _PLANET_DETAIL_COLS = """
@@ -472,6 +482,160 @@ def planet_host_star(pl_name: str) -> HostStarGaia:
     return HostStarGaia(**row)
 
 
+_BIBCODE_SQL = "replace(substring(disc_refname FROM 'abs/([^/]+)/abstract'), '%%26', '&')"
+
+
+@app.get("/api/authors/search", response_model=TopAuthorsResponse, tags=["authors"])
+def authors_search(
+    q: str = Query(..., min_length=2, description="Partial author name (ILIKE)"),
+    limit: int = Query(20, ge=1, le=100),
+) -> TopAuthorsResponse:
+    """Search author names by partial match, ranked by planet count."""
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                f"""
+                SELECT author_name, COUNT(DISTINCT p.pl_name) AS planet_count
+                FROM planets_current p
+                JOIN discovery_papers dp
+                    ON dp.bibcode = {_BIBCODE_SQL}
+                CROSS JOIN jsonb_array_elements_text(dp.authors) AS author_name
+                WHERE author_name ILIKE %s
+                GROUP BY author_name
+                ORDER BY planet_count DESC, author_name
+                LIMIT %s
+                """,
+                (f"%{q}%", limit),
+            )
+            rows = cur.fetchall()
+    return TopAuthorsResponse(
+        authors=[TopAuthor(author=r["author_name"], planet_count=r["planet_count"]) for r in rows]
+    )
+
+
+@app.get("/api/authors/top", response_model=TopAuthorsResponse, tags=["authors"])
+def authors_top(
+    limit: int = Query(20, ge=1, le=100),
+) -> TopAuthorsResponse:
+    """Most prolific exoplanet discoverers ranked by confirmed-planet count."""
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                f"""
+                SELECT author_name, COUNT(DISTINCT p.pl_name) AS planet_count
+                FROM planets_current p
+                JOIN discovery_papers dp
+                    ON dp.bibcode = {_BIBCODE_SQL}
+                CROSS JOIN jsonb_array_elements_text(dp.authors) AS author_name
+                GROUP BY author_name
+                ORDER BY planet_count DESC, author_name
+                LIMIT %s
+                """,
+                (limit,),
+            )
+            rows = cur.fetchall()
+
+    return TopAuthorsResponse(
+        authors=[TopAuthor(author=r["author_name"], planet_count=r["planet_count"]) for r in rows]
+    )
+
+
+@app.get("/api/authors/{author_name}", response_model=AuthorResponse, tags=["authors"])
+def author_detail(author_name: str) -> AuthorResponse:
+    """All confirmed-exoplanet discoveries for a given author (exact ADS name match)."""
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                f"""
+                SELECT
+                    p.pl_name, p.hostname, p.disc_year, p.discoverymethod,
+                    dp.bibcode, dp.title AS paper_title, dp.journal,
+                    dp.citation_count, dp.pub_date, dp.doi, dp.arxiv_id
+                FROM planets_current p
+                JOIN discovery_papers dp
+                    ON dp.bibcode = {_BIBCODE_SQL}
+                WHERE dp.authors @> jsonb_build_array(%s::text)
+                ORDER BY p.disc_year DESC NULLS LAST, p.pl_name
+                """,
+                (author_name,),
+            )
+            rows = cur.fetchall()
+
+    if not rows:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No confirmed discoveries found for author {author_name!r}",
+        )
+
+    return AuthorResponse(
+        author=author_name,
+        planet_count=len(rows),
+        planets=[AuthorPlanet(**r) for r in rows],
+    )
+
+
+def _extract_bibcode(refname: str | None) -> str | None:
+    m = re.search(r"abs/([^/]+)/abstract", refname or "")
+    return unquote(m.group(1)) if m else None
+
+
+@app.get(
+    "/api/planets/{pl_name}/paper",
+    response_model=DiscoveryPaper,
+    tags=["planets"],
+)
+def planet_paper(pl_name: str) -> DiscoveryPaper:
+    """Discovery paper metadata from NASA ADS for the given planet."""
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                "SELECT disc_refname FROM planets_current WHERE pl_name = %s LIMIT 1",
+                (pl_name,),
+            )
+            row = cur.fetchone()
+
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"No planet named {pl_name!r}")
+
+    bibcode = _extract_bibcode(row["disc_refname"])
+    if not bibcode:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No ADS bibcode found in disc_refname for {pl_name!r}",
+        )
+
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT bibcode, title, authors, abstract, citation_count,
+                       pub_date, journal, doi, arxiv_id
+                FROM discovery_papers
+                WHERE bibcode = %s
+                """,
+                (bibcode,),
+            )
+            paper = cur.fetchone()
+
+    if paper is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No cached paper for bibcode {bibcode!r}",
+        )
+
+    return DiscoveryPaper(
+        bibcode=paper["bibcode"],
+        title=paper["title"],
+        authors=paper["authors"] or [],
+        abstract=paper["abstract"],
+        citation_count=paper["citation_count"],
+        pub_date=paper["pub_date"],
+        journal=paper["journal"],
+        doi=paper["doi"],
+        arxiv_id=paper["arxiv_id"],
+    )
+
+
 # ---------- Root ----------
 
 @app.get("/", tags=["meta"])
@@ -491,5 +655,6 @@ def root() -> dict:
             "/api/planets/{pl_name}",
             "/api/planets/{pl_name}/history",
             "/api/planets/{pl_name}/host_star",
+            "/api/planets/{pl_name}/paper",
         ],
     }

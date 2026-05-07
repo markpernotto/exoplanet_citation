@@ -66,6 +66,7 @@ class PlanetSummary(BaseModel):
     pl_bmasse: float | None
     pl_eqt: float | None
     sy_dist: float | None
+    disc_paper_citations: int | None
 
 
 class PlanetDetail(BaseModel):
@@ -133,6 +134,47 @@ class HostStarGaia(BaseModel):
     mh_gspphot: float | None
     distance_gspphot_pc: float | None
     retrieved_at: datetime
+
+
+class TopAuthor(BaseModel):
+    author: str
+    planet_count: int
+
+
+class TopAuthorsResponse(BaseModel):
+    authors: list[TopAuthor]
+
+
+class AuthorPlanet(BaseModel):
+    pl_name: str
+    hostname: str
+    disc_year: int | None
+    discoverymethod: str | None
+    bibcode: str
+    paper_title: str | None
+    journal: str | None
+    citation_count: int | None
+    pub_date: str | None
+    doi: str | None
+    arxiv_id: str | None
+
+
+class AuthorResponse(BaseModel):
+    author: str
+    planet_count: int
+    planets: list[AuthorPlanet]
+
+
+class DiscoveryPaper(BaseModel):
+    bibcode: str
+    title: str | None
+    authors: list[str]
+    abstract: str | None
+    citation_count: int | None
+    pub_date: str | None
+    journal: str | None
+    doi: str | None
+    arxiv_id: str | None
 
 
 class StatsResponse(BaseModel):

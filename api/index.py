@@ -13,6 +13,9 @@ Endpoints:
   GET /api/planets/{pl_name}                      — single planet detail
   GET /api/planets/{pl_name}/history              — all change events for a planet
   GET /api/planets/{pl_name}/host_star            — Gaia DR3 record for the host star
+  GET /api/planets/{pl_name}/publications         — citation graph: papers linked to a planet
+  GET /api/publications/{bibcode}                 — single publication + linked planets
+  GET /api/authors/{author_name}/publications     — publications from the citation graph by author
 
 OpenAPI / interactive docs:
   /docs      — Swagger UI
@@ -48,8 +51,12 @@ from api.models import (
     HostStarGaia,
     PlanetDetail,
     PlanetHistoryResponse,
+    PlanetPublication,
+    PlanetPublicationsResponse,
     PlanetsListResponse,
     PlanetSummary,
+    Publication,
+    PublicationPlanetsResponse,
     StatsResponse,
 )
 
@@ -638,6 +645,105 @@ def planet_paper(pl_name: str) -> DiscoveryPaper:
     )
 
 
+# ---------- Publications (citation graph) ----------
+
+_PUB_COLS = """
+    pub.pub_id, pub.bibcode, pub.doi, pub.arxiv_id, pub.title,
+    pub.authors, pub.abstract, pub.journal, pub.pub_date,
+    pub.citation_count, pub.resolved_via, pub.confidence
+"""
+
+
+def _pub_row(row: dict) -> dict:
+    return {**row, "authors": row["authors"] or []}
+
+
+@app.get(
+    "/api/planets/{pl_name}/publications",
+    response_model=PlanetPublicationsResponse,
+    tags=["publications"],
+)
+def planet_publications(pl_name: str) -> PlanetPublicationsResponse:
+    """All publications linked to a planet (from the citation graph)."""
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                "SELECT 1 FROM planets_current WHERE pl_name = %s LIMIT 1",
+                (pl_name,),
+            )
+            if cur.fetchone() is None:
+                raise HTTPException(status_code=404, detail=f"No planet named {pl_name!r}")
+
+            cur.execute(
+                f"""
+                SELECT {_PUB_COLS}, pp.role
+                FROM planet_publications pp
+                JOIN publications pub ON pub.pub_id = pp.pub_id
+                WHERE pp.pl_name = %s
+                ORDER BY pp.role, pub.pub_date DESC NULLS LAST
+                """,
+                (pl_name,),
+            )
+            rows = cur.fetchall()
+
+    return PlanetPublicationsResponse(
+        pl_name=pl_name,
+        publications=[PlanetPublication(**_pub_row(r)) for r in rows],
+    )
+
+
+@app.get(
+    "/api/publications/{bibcode:path}",
+    response_model=PublicationPlanetsResponse,
+    tags=["publications"],
+)
+def publication_detail(bibcode: str) -> PublicationPlanetsResponse:
+    """A single publication record and every planet it is linked to."""
+    bibcode = unquote(bibcode)
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                f"SELECT {_PUB_COLS} FROM publications pub WHERE pub.bibcode = %s",
+                (bibcode,),
+            )
+            pub = cur.fetchone()
+            if pub is None:
+                raise HTTPException(
+                    status_code=404, detail=f"No publication with bibcode {bibcode!r}"
+                )
+
+            cur.execute(
+                "SELECT pl_name FROM planet_publications WHERE pub_id = %s ORDER BY pl_name",
+                (pub["pub_id"],),
+            )
+            planet_names = [r["pl_name"] for r in cur.fetchall()]
+
+    return PublicationPlanetsResponse(**_pub_row(pub), planets=planet_names)
+
+
+@app.get(
+    "/api/authors/{author_name}/publications",
+    response_model=list[Publication],
+    tags=["publications"],
+)
+def author_publications(author_name: str) -> list[Publication]:
+    """Publications from the citation graph where the given author appears."""
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                f"""
+                SELECT DISTINCT {_PUB_COLS}
+                FROM publications pub
+                WHERE pub.authors @> jsonb_build_array(%s::text)
+                ORDER BY pub.pub_date DESC NULLS LAST
+                """,
+                (author_name,),
+            )
+            rows = cur.fetchall()
+
+    return [Publication(**_pub_row(r)) for r in rows]
+
+
 # ---------- RSS feeds ----------
 
 _SITE_URL = os.environ.get("SITE_URL", "https://exoplanet-citation.vercel.app")
@@ -802,6 +908,9 @@ def root() -> dict:
             "/api/planets/{pl_name}/history",
             "/api/planets/{pl_name}/host_star",
             "/api/planets/{pl_name}/paper",
+            "/api/planets/{pl_name}/publications",
+            "/api/publications/{bibcode}",
+            "/api/authors/{author_name}/publications",
             "/api/rss",
             "/api/rss/planet/{pl_name}",
             "/api/rss/system/{hostname}",

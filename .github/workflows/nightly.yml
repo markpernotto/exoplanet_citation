@@ -74,6 +74,9 @@ jobs:
       - name: Enrich discovery papers from ADS
         run: python -m etl.enrich_ads
 
+      - name: Resolve citation graph
+        run: python -m etl.resolve_citations
+
       - name: Publish RSS + JSON feeds
         run: python -m etl.publish
 

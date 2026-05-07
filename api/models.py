@@ -185,3 +185,31 @@ class StatsResponse(BaseModel):
     latest_snapshot: date | None
     discoveries_by_year: dict[int, int]
     discoveries_by_method: dict[str, int]
+
+
+class Publication(BaseModel):
+    pub_id: int
+    bibcode: str | None
+    doi: str | None
+    arxiv_id: str | None
+    title: str | None
+    authors: list[str]
+    abstract: str | None
+    journal: str | None
+    pub_date: date | None
+    citation_count: int | None
+    resolved_via: str
+    confidence: str
+
+
+class PlanetPublication(Publication):
+    role: str  # 'discovery' | 'follow_up'
+
+
+class PlanetPublicationsResponse(BaseModel):
+    pl_name: str
+    publications: list[PlanetPublication]
+
+
+class PublicationPlanetsResponse(Publication):
+    planets: list[str]  # pl_name list

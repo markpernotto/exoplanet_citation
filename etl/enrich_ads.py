@@ -23,45 +23,22 @@ import time
 from typing import Any
 from urllib.parse import unquote
 
-import httpx
 import psycopg
 from dotenv import load_dotenv
 from psycopg.types.json import Jsonb
-from tenacity import retry, stop_after_attempt, wait_exponential
+
+from etl.sources.ads import BATCH_SIZE, SLEEP_BETWEEN, fetch_by_bibcodes, extract_arxiv_id
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
 
-ADS_BASE    = "https://api.adsabs.harvard.edu/v1/search/query"
-BATCH_SIZE  = 5   # small batches keep OR queries simple; ADS 503s on large ones
-ADS_FIELDS  = "bibcode,title,author,abstract,citation_count,pubdate,pub,doi,identifier"
-SLEEP_BETWEEN_BATCHES = 0.3
+SLEEP_BETWEEN_BATCHES = SLEEP_BETWEEN
 
 
 def extract_bibcode(refname: str | None) -> str | None:
     m = re.search(r"abs/([^/]+)/abstract", refname or "")
     return unquote(m.group(1)) if m else None
-
-
-def extract_arxiv_id(identifiers: list[str]) -> str | None:
-    for ident in identifiers:
-        if ident.startswith("arXiv:"):
-            return ident[6:]
-    return None
-
-
-@retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=2, max=30))
-def fetch_batch(bibcodes: list[str], api_key: str) -> list[dict[str, Any]]:
-    query = " OR ".join(f"bibcode:{bc}" for bc in bibcodes)
-    resp = httpx.get(
-        ADS_BASE,
-        params={"q": query, "fl": ADS_FIELDS, "rows": len(bibcodes)},
-        headers={"Authorization": f"Bearer {api_key}"},
-        timeout=30,
-    )
-    resp.raise_for_status()
-    return resp.json()["response"]["docs"]
 
 
 def doc_to_row(doc: dict[str, Any]) -> dict[str, Any]:
@@ -161,7 +138,7 @@ def main() -> None:
     for i, batch in enumerate(batches, 1):
         log.info("Batch %d/%d (%d bibcodes)", i, len(batches), len(batch))
         try:
-            docs = fetch_batch(batch, api_key)
+            docs = fetch_by_bibcodes(batch, api_key)
             fetched += len(docs)
             rows = [doc_to_row(d) for d in docs]
             with psycopg.connect(db_url) as wconn:

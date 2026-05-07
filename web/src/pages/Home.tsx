@@ -154,6 +154,7 @@ export default function Home() {
           {total != null && <> <span style={{ color: 'var(--fg-muted)', fontWeight: 'normal', fontSize: '0.75rem' }}>
             ({items.length.toLocaleString()} of {total.toLocaleString()})
           </span></>}
+          <a href="/api/rss" title="Subscribe to all exoplanet changes" style={{ marginLeft: '0.75rem', fontSize: '0.72rem', fontWeight: 'normal', color: 'var(--fg-muted)', textTransform: 'none', letterSpacing: 0 }}>RSS</a>
         </h2>
 
         {items.length > 0 && <PlanetGrid results={items} />}

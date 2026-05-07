@@ -26,10 +26,12 @@ import os
 import re
 from datetime import UTC, datetime, timedelta
 from urllib.parse import unquote
+from xml.etree import ElementTree as ET
+from xml.etree.ElementTree import Element, SubElement
 
 import psycopg
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Path, Query
+from fastapi import FastAPI, HTTPException, Path, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from psycopg.rows import dict_row
 
@@ -636,6 +638,150 @@ def planet_paper(pl_name: str) -> DiscoveryPaper:
     )
 
 
+# ---------- RSS feeds ----------
+
+_SITE_URL = os.environ.get("SITE_URL", "https://exoplanet-citation.vercel.app")
+_SURFACED = "(dc.change_type IN ('NEW', 'REMOVED') OR dc.field_tier = 'A')"
+_CHANGE_COLS = """
+    dc.change_id, dc.observed_at, dc.pl_name, dc.change_type,
+    dc.field_name, dc.field_tier, dc.diff_summary
+"""
+
+
+def _rfc822(dt: datetime) -> str:
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    return dt.strftime("%a, %d %b %Y %H:%M:%S +0000")
+
+
+def _change_title(c: dict) -> str:
+    if c["change_type"] == "NEW":
+        return f"New exoplanet confirmed: {c['pl_name']}"
+    if c["change_type"] == "REMOVED":
+        return f"Exoplanet removed: {c['pl_name']}"
+    return f"Parameter update — {c['pl_name']}: {c['field_name']}"
+
+
+def _build_rss(title: str, description: str, self_url: str, changes: list[dict]) -> Response:
+    rss = Element("rss", {"version": "2.0", "xmlns:atom": "http://www.w3.org/2005/Atom"})
+    ch = SubElement(rss, "channel")
+    SubElement(ch, "title").text = title
+    SubElement(ch, "link").text = _SITE_URL
+    SubElement(ch, "description").text = description
+    SubElement(ch, "language").text = "en-us"
+    SubElement(ch, "lastBuildDate").text = _rfc822(datetime.now(UTC))
+    SubElement(ch, "ttl").text = "1440"
+    SubElement(ch, "atom:link", {
+        "href": self_url,
+        "rel": "self",
+        "type": "application/rss+xml",
+    })
+    for c in changes:
+        item = SubElement(ch, "item")
+        SubElement(item, "title").text = _change_title(c)
+        SubElement(item, "guid", {"isPermaLink": "false"}).text = f"change-{c['change_id']}"
+        SubElement(item, "pubDate").text = _rfc822(c["observed_at"])
+        SubElement(item, "description").text = c.get("diff_summary") or _change_title(c)
+    ET.indent(rss, space="  ")
+    xml = '<?xml version="1.0" encoding="UTF-8"?>\n' + ET.tostring(rss, encoding="unicode")
+    return Response(content=xml, media_type="application/rss+xml; charset=utf-8")
+
+
+@app.get("/api/rss", tags=["rss"])
+def rss_all(days: int = Query(30, ge=1, le=365)) -> Response:
+    """RSS feed of all surfaced changes (NEW, REMOVED, Tier-A parameter updates)."""
+    cutoff = datetime.now(UTC) - timedelta(days=days)
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                f"SELECT {_CHANGE_COLS} FROM discovery_changes dc "
+                f"WHERE dc.observed_at >= %s AND {_SURFACED} "
+                f"ORDER BY dc.observed_at DESC LIMIT 500",
+                (cutoff,),
+            )
+            rows = cur.fetchall()
+    return _build_rss(
+        title="Exoplanet Discoveries",
+        description="New, removed, and revised exoplanet records from the NASA Exoplanet Archive, diffed nightly.",
+        self_url=f"{_SITE_URL}/api/rss",
+        changes=rows,
+    )
+
+
+@app.get("/api/rss/planet/{pl_name}", tags=["rss"])
+def rss_planet(pl_name: str = Path(...)) -> Response:
+    """RSS feed for a single planet — all surfaced changes to that planet."""
+    pl_name = unquote(pl_name)
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                f"SELECT {_CHANGE_COLS} FROM discovery_changes dc "
+                f"WHERE dc.pl_name = %s AND {_SURFACED} "
+                f"ORDER BY dc.observed_at DESC LIMIT 200",
+                (pl_name,),
+            )
+            rows = cur.fetchall()
+    return _build_rss(
+        title=f"{pl_name} — Exoplanet Updates",
+        description=f"Parameter updates and status changes for {pl_name} from the NASA Exoplanet Archive.",
+        self_url=f"{_SITE_URL}/api/rss/planet/{pl_name}",
+        changes=rows,
+    )
+
+
+@app.get("/api/rss/system/{hostname}", tags=["rss"])
+def rss_system(hostname: str = Path(...)) -> Response:
+    """RSS feed for an entire planetary system — all surfaced changes to any planet orbiting this star."""
+    hostname = unquote(hostname)
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                f"""
+                SELECT {_CHANGE_COLS}
+                FROM discovery_changes dc
+                JOIN planets_current p ON p.pl_name = dc.pl_name
+                WHERE p.hostname = %s AND {_SURFACED}
+                ORDER BY dc.observed_at DESC LIMIT 200
+                """,
+                (hostname,),
+            )
+            rows = cur.fetchall()
+    return _build_rss(
+        title=f"{hostname} system — Exoplanet Updates",
+        description=f"New and updated planets in the {hostname} system, from the NASA Exoplanet Archive.",
+        self_url=f"{_SITE_URL}/api/rss/system/{hostname}",
+        changes=rows,
+    )
+
+
+@app.get("/api/rss/author/{author_name}", tags=["rss"])
+def rss_author(author_name: str = Path(...)) -> Response:
+    """RSS feed for a discoverer — changes to planets they co-authored the discovery paper for."""
+    author_name = unquote(author_name)
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                f"""
+                SELECT {_CHANGE_COLS}
+                FROM discovery_changes dc
+                JOIN planets_current p ON p.pl_name = dc.pl_name
+                JOIN discovery_papers dp
+                    ON dp.bibcode = {_BIBCODE_SQL}
+                WHERE dp.authors @> jsonb_build_array(%s::text)
+                  AND {_SURFACED}
+                ORDER BY dc.observed_at DESC LIMIT 200
+                """,
+                (author_name,),
+            )
+            rows = cur.fetchall()
+    return _build_rss(
+        title=f"{author_name} — Exoplanet Discoveries",
+        description=f"Changes to exoplanets whose discovery paper lists {author_name} as a co-author.",
+        self_url=f"{_SITE_URL}/api/rss/author/{author_name}",
+        changes=rows,
+    )
+
+
 # ---------- Root ----------
 
 @app.get("/", tags=["meta"])
@@ -656,5 +802,9 @@ def root() -> dict:
             "/api/planets/{pl_name}/history",
             "/api/planets/{pl_name}/host_star",
             "/api/planets/{pl_name}/paper",
+            "/api/rss",
+            "/api/rss/planet/{pl_name}",
+            "/api/rss/system/{hostname}",
+            "/api/rss/author/{author_name}",
         ],
     }

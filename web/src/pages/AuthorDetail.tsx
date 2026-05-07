@@ -58,6 +58,8 @@ export default function AuthorDetail() {
             <strong style={{ color: 'var(--fg)' }}>{data.planet_count}</strong> confirmed exoplanet{data.planet_count === 1 ? '' : 's'} as co-author of discovery paper
             {' · '}
             <a href={adsSearchUrl} target="_blank" rel="noopener noreferrer">ADS author search →</a>
+            {' · '}
+            <a href={`/api/rss/author/${encodeURIComponent(decoded)}`} title="Subscribe to updates on this author's discoveries">RSS</a>
           </>
         ) : 'Loading…'}
       </p>

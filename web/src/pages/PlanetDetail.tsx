@@ -95,6 +95,11 @@ export default function PlanetDetail() {
         {planet.st_spectype && <> ({planet.st_spectype})</>}
         {planet.disc_year && <> · discovered {planet.disc_year}</>}
         {planet.discoverymethod && <> · {planet.discoverymethod}</>}
+        <span style={{ marginLeft: '0.75rem', fontSize: '0.78rem' }}>
+          <a href={`/api/rss/planet/${encodeURIComponent(planet.pl_name)}`} title={`RSS: updates to ${planet.pl_name}`} style={{ color: 'var(--fg-muted)' }}>RSS</a>
+          {' · '}
+          <a href={`/api/rss/system/${encodeURIComponent(planet.hostname)}`} title={`RSS: all ${planet.hostname} system updates`} style={{ color: 'var(--fg-muted)' }}>{planet.hostname} system</a>
+        </span>
       </p>
 
       <div className="planet-detail">

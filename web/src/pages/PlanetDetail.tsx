@@ -333,9 +333,11 @@ function DiscoverySection({ planet, paper, sectionDelay = 0 }: { planet: PlanetD
 }
 
 function TypewriterText({ text, startDelay, msPerWord = 80 }: { text: string; startDelay: number; msPerWord?: number }) {
-  const [visibleCount, setVisibleCount] = useState(0);
+  const themed = !!document.documentElement.dataset.theme;
+  const [visibleCount, setVisibleCount] = useState(themed ? 0 : text.split(' ').length);
 
   useEffect(() => {
+    if (!document.documentElement.dataset.theme) return;
     setVisibleCount(0);
     const words = text.split(' ');
     const timeouts: ReturnType<typeof setTimeout>[] = [];

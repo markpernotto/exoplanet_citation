@@ -20,7 +20,7 @@ export default function ThemeSwitcher() {
     } else {
       next.set('theme', slug);
     }
-    setSearchParams(next, { replace: false });
+    setSearchParams(next, { replace: true });
   }
 
   return (

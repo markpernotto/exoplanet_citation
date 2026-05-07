@@ -68,6 +68,9 @@ jobs:
       - name: Diff snapshots into discovery_changes
         run: python -m etl.diff
 
+      - name: Enrich host stars from Gaia DR3
+        run: python -m etl.enrich_gaia
+
       - name: Enrich discovery papers from ADS
         run: python -m etl.enrich_ads
 

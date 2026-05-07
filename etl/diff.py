@@ -291,7 +291,40 @@ def main() -> int:
         conn.commit()
         print(f"  ✓ wrote {len(changes)} change records (idempotent: duplicates skipped)")
 
+    if not args.dry_run:
+        _prune_old_snapshots(keep=2)
+
     return 0
+
+
+def _prune_old_snapshots(keep: int = 2) -> None:
+    """Delete snapshot rows older than the most recent `keep` dates.
+
+    The diff only ever needs the current and previous snapshot. Beyond those
+    two dates, raw_row JSONB accumulates ~50 MB/day and will exhaust the
+    Neon free tier within weeks. The change events are already safely written
+    to discovery_changes, so old raw rows carry no information.
+    """
+    with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                DELETE FROM planets_snapshots
+                WHERE snapshot_date < (
+                    SELECT MIN(d) FROM (
+                        SELECT DISTINCT snapshot_date AS d
+                        FROM planets_snapshots
+                        ORDER BY snapshot_date DESC
+                        LIMIT %s
+                    ) t
+                )
+                """,
+                (keep,),
+            )
+            deleted = cur.rowcount
+        conn.commit()
+    if deleted:
+        print(f"  ✓ pruned {deleted:,} old snapshot rows (kept {keep} most recent dates)")
 
 
 if __name__ == "__main__":

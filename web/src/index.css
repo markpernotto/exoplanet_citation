@@ -868,12 +868,15 @@ html[data-theme="plasma"] .badge {
   to   { width: calc(var(--tw-chars) * 1ch); }
 }
 
-/* Width-based reveal — use for short single-line numeric values (no letter-spacing). */
+/* Width-based reveal — only animates under a retro theme; shows immediately in default theme. */
 .tw {
   display: inline-block;
   overflow: hidden;
   white-space: nowrap;
   vertical-align: bottom;
+}
+
+html[data-theme] .tw {
   width: 0ch;
   animation: typewriter calc(var(--tw-chars) * 65ms) steps(var(--tw-chars)) forwards;
   animation-delay: calc(var(--tw-delay, 0) * 150ms + var(--section-delay, 0ms));

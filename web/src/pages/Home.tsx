@@ -99,17 +99,35 @@ export default function Home() {
 
   // ── SEARCH MODE ──────────────────────────────────────────────────────────
   if (query) {
-    const noPlanets = searchResults && searchResults.total === 0;
-    const noAuthors = authorResults && authorResults.length === 0;
+    const noPlanets = searchResults !== null && searchResults.total === 0;
     const bothLoaded = searchResults !== null && authorResults !== null;
+    // Show discoverers only when there are no planet matches — as a fallback, not a parallel track.
+    const showAuthors = noPlanets && authorResults && authorResults.length > 0;
     return (
       <>
-        {authorResults && authorResults.length > 0 && (
+        <section>
+          <h2>
+            {searchResults
+              ? <>Search results — {searchResults.total} planet{searchResults.total === 1 ? '' : 's'} matching "{query}"</>
+              : <>Searching for "{query}"…</>}
+          </h2>
+          {error && <div className="error">Error: {error}</div>}
+          {searchResults && searchResults.total > 0 && (
+            <PlanetGrid results={searchResults.results} />
+          )}
+          {bothLoaded && noPlanets && !showAuthors && (
+            <div className="empty">
+              No planets matched "{query}". Try a partial name like "Kepler-22" or a discoverer like "Marcy".
+            </div>
+          )}
+        </section>
+
+        {showAuthors && (
           <section>
-            <h2>Discoverers matching "{query}"</h2>
+            <h2>No planets matched — did you mean a discoverer?</h2>
             <div className="card" style={{ padding: '0.85rem 1rem' }}>
               <ol style={{ margin: 0, padding: '0 0 0 1.4rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                {authorResults.map((a) => (
+                {authorResults!.map((a) => (
                   <li key={a.author} style={{ fontSize: '0.9rem' }}>
                     <SearchAuthorLink author={a.author} />
                     <span style={{ color: 'var(--fg-muted)', marginLeft: '0.5rem' }}>
@@ -121,23 +139,6 @@ export default function Home() {
             </div>
           </section>
         )}
-
-        <section>
-          <h2>
-            {searchResults
-              ? <>Planets — {searchResults.total} match{searchResults.total === 1 ? '' : 'es'} for "{query}"</>
-              : <>Searching for "{query}"…</>}
-          </h2>
-          {error && <div className="error">Error: {error}</div>}
-          {bothLoaded && noPlanets && noAuthors && (
-            <div className="empty">
-              No planets or discoverers matched "{query}". Try a partial name like "Kepler-22" or "Marcy".
-            </div>
-          )}
-          {searchResults && searchResults.total > 0 && (
-            <PlanetGrid results={searchResults.results} />
-          )}
-        </section>
       </>
     );
   }

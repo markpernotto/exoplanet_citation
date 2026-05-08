@@ -18,7 +18,7 @@ env:
 jobs:
   pipeline:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     permissions:
       contents: write   # commit MANIFEST.jsonl + public/ feeds back to main
       issues: write     # open an issue on failure
@@ -75,7 +75,10 @@ jobs:
         run: python -m etl.enrich_ads
 
       - name: Resolve citation graph
-        run: python -m etl.resolve_citations
+        # Cap per-run work so the cron stays bounded. New planets (~10/night)
+        # always fit; the unresolved backlog gets chipped away gradually.
+        # Manual catch-up is `python -m etl.resolve_citations` (no cap).
+        run: python -m etl.resolve_citations --max-planets 50
 
       - name: Publish RSS + JSON feeds
         run: python -m etl.publish

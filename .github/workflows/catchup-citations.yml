@@ -1,0 +1,63 @@
+name: Catch-up — full citation backfill
+
+# One-shot run at 05:15 UTC on 2026-05-09 (= 22:15 Pacific 2026-05-08),
+# a few minutes after the ADS daily quota window resets, to close the
+# remaining 7% of unresolved planets.
+#
+# After it completes successfully, this file should be deleted from main
+# (or at minimum the schedule line) so it doesn't fire again next year.
+
+on:
+  schedule:
+    - cron: '15 5 9 5 *'   # 05:15 UTC, May 9 — one-shot
+  workflow_dispatch:        # manual trigger from the Actions tab
+
+concurrency:
+  group: citation-catchup
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  catchup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      USER_AGENT_PROJECT: 'exoplanet_citation/0.1 (+https://github.com/markpernotto/exoplanet_citation)'
+      USER_AGENT_EMAIL: ${{ secrets.USER_AGENT_EMAIL }}
+      ADS_API_TOKEN: ${{ secrets.ADS_API_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Resolve citation graph (no cap)
+        run: python -m etl.resolve_citations
+
+      - name: Report final state
+        if: always()
+        run: |
+          python -c "
+          import os, psycopg
+          with psycopg.connect(os.environ['DATABASE_URL']) as conn:
+              with conn.cursor() as cur:
+                  cur.execute('SELECT COUNT(*) FROM planet_publications')
+                  print(f'planet_publications: {cur.fetchone()[0]:,}')
+                  cur.execute('SELECT COUNT(*) FROM citation_manual_queue')
+                  print(f'manual_queue:        {cur.fetchone()[0]:,}')
+                  cur.execute('SELECT resolved_via, count(*) FROM publications GROUP BY 1 ORDER BY 2 DESC')
+                  for row in cur.fetchall():
+                      print(f'  {row[0]:<14} {row[1]:,}')
+          "

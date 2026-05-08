@@ -537,24 +537,17 @@ footer.site .footer-line { line-height: 1.4; }
 }
 
 .theme-btn {
-  width: 18px;
-  height: 13px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 2px;
-  cursor: pointer;
+  width: 24px;
+  height: 22px;
+  border: 0;
   padding: 0;
-  transition: transform 0.1s;
+  cursor: pointer;
   background: transparent;
+  transition: transform 0.1s;
+  line-height: 0;
 }
-.theme-btn:hover { transform: scale(1.2); }
-.theme-btn.active { outline: 2px solid var(--fg); outline-offset: 2px; }
-
-.theme-btn--phosphor-green { background: #33ff33; }
-.theme-btn--amber          { background: #ffb000; }
-.theme-btn--cga            { background: #0000aa; border-color: #ffff55; }
-.theme-btn--ega            { background: #55ffff; border-color: #005555; }
-.theme-btn--hgc            { background: #f0f0f0; border-color: #666666; }
-.theme-btn--plasma         { background: #ff6600; }
+.theme-btn:hover { transform: scale(1.15); }
+.theme-btn.active { transform: scale(1.1); filter: drop-shadow(0 0 3px var(--fg, #fff)); }
 
 /* ============================================================
    RETRO CRT / COMPUTER THEMES

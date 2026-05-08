@@ -41,8 +41,6 @@ from psycopg.rows import dict_row
 from api.models import (
     AuthorPlanet,
     AuthorResponse,
-    TopAuthor,
-    TopAuthorsResponse,
     ChangeRecord,
     DiscoveriesResponse,
     DiscoveryPaper,
@@ -59,6 +57,8 @@ from api.models import (
     PublicationPlanetsResponse,
     StatsResponse,
     StorageInfo,
+    TopAuthor,
+    TopAuthorsResponse,
 )
 
 load_dotenv()

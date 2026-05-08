@@ -9,11 +9,10 @@ API docs: https://ui.adsabs.harvard.edu/help/api/
 
 from __future__ import annotations
 
-import time
-from typing import Any
-
 import logging
-from datetime import datetime, timezone
+import time
+from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
@@ -33,7 +32,7 @@ class QuotaExhausted(Exception):
         self.reset_unix = reset_unix
         msg = "ADS daily quota exhausted"
         if reset_unix:
-            reset_dt = datetime.fromtimestamp(reset_unix, tz=timezone.utc)
+            reset_dt = datetime.fromtimestamp(reset_unix, tz=UTC)
             msg += f" — resets at {reset_dt.isoformat()}"
         super().__init__(msg)
 

@@ -27,7 +27,7 @@ import psycopg
 from dotenv import load_dotenv
 from psycopg.types.json import Jsonb
 
-from etl.sources.ads import BATCH_SIZE, SLEEP_BETWEEN, fetch_by_bibcodes, extract_arxiv_id
+from etl.sources.ads import BATCH_SIZE, SLEEP_BETWEEN, extract_arxiv_id, fetch_by_bibcodes
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")

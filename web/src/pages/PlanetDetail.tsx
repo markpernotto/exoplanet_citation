@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { api, type DiscoveryPaper, type HostStarGaia, type PlanetDetail as PlanetDetailType, type PlanetHistoryResponse, type PlanetsListResponse } from '../api';
+import { api, type DiscoveryPaper, type HostStarGaia, type PlanetDetail as PlanetDetailType, type PlanetHistoryResponse, type PlanetPublication, type PlanetsListResponse } from '../api';
 import GalaxyMap from '../components/GalaxyMap';
 import LoadingBar from '../components/LoadingBar';
 import PlanetCard from '../components/PlanetCard';
@@ -21,6 +21,7 @@ export default function PlanetDetail() {
   const [history, setHistory] = useState<PlanetHistoryResponse | null>(null);
   const [siblings, setSiblings] = useState<PlanetsListResponse | null>(null);
   const [paper, setPaper] = useState<DiscoveryPaper | null>(null);
+  const [publications, setPublications] = useState<PlanetPublication[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   function goBack(e: React.MouseEvent) {
@@ -39,11 +40,13 @@ export default function PlanetDetail() {
     setSiblings(null);
     setHostStar(null);
     setPaper(null);
+    setPublications(null);
     setError(null);
     api.planetDetail(plName).then(setPlanet).catch((e) => setError(e.message));
     api.planetHistory(plName).then(setHistory).catch(() => {});
     api.planetHostStar(plName).then(setHostStar).catch(() => {});
     api.planetPaper(plName).then(setPaper).catch(() => {});
+    api.planetPublications(plName).then((r) => setPublications(r.publications)).catch(() => {});
   }, [plName]);
 
   // Once we have the planet, fetch siblings (other planets with same hostname)
@@ -169,7 +172,7 @@ export default function PlanetDetail() {
             </div>
           </section>
 
-          <DiscoverySection planet={planet} paper={paper} sectionDelay={1200} />
+          <DiscoverySection planet={planet} paper={paper} publications={publications} sectionDelay={1200} />
         </div>
       </div>
 
@@ -208,15 +211,22 @@ export default function PlanetDetail() {
   );
 }
 
-function DiscoverySection({ planet, paper, sectionDelay = 0 }: { planet: PlanetDetailType; paper: DiscoveryPaper | null; sectionDelay?: number }) {
+function DiscoverySection({ planet, paper, publications, sectionDelay = 0 }: { planet: PlanetDetailType; paper: DiscoveryPaper | null; publications: PlanetPublication[] | null; sectionDelay?: number }) {
   const [abstractExpanded, setAbstractExpanded] = useState(false);
   const [authorsExpanded, setAuthorsExpanded] = useState(false);
+  const [coPlanetsExpanded, setCoPlanetsExpanded] = useState(false);
   const location = useLocation();
   const themeQuery = (() => { const t = new URLSearchParams(location.search).get('theme'); return t ? `?theme=${t}` : ''; })();
   const ref = planet.disc_refname ? parseDiscRefname(planet.disc_refname) : null;
   const adsUrl = paper
     ? `https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(paper.bibcode)}/abstract`
     : ref?.url ?? null;
+  // Find the publication that matches the discovery paper bibcode and pull its sibling planets.
+  const coPlanets = (() => {
+    if (!paper || !publications) return [];
+    const match = publications.find((p) => p.bibcode === paper.bibcode);
+    return match?.co_planets ?? [];
+  })();
   const hasMeta = !!(planet.disc_facility || planet.disc_telescope || planet.disc_instrument);
 
   return (
@@ -286,6 +296,46 @@ function DiscoverySection({ planet, paper, sectionDelay = 0 }: { planet: PlanetD
                 <> · <strong style={{ color: 'var(--fg)' }}>{paper.citation_count.toLocaleString()}</strong> citations</>
               )}
             </p>
+
+            {coPlanets.length > 0 && (() => {
+              const PREVIEW = 6;
+              const shown = coPlanetsExpanded ? coPlanets : coPlanets.slice(0, PREVIEW);
+              const hidden = coPlanets.length - PREVIEW;
+              return (
+                <p style={{ margin: '0 0 0.6rem', fontSize: '0.82rem', color: 'var(--fg-muted)' }}>
+                  This paper also announced{coPlanets.length === 1 ? '' : ` ${coPlanets.length}`}{' '}
+                  {coPlanets.length === 1 ? '' : 'other planets'}:{' '}
+                  {shown.map((name, i) => (
+                    <span key={name}>
+                      <Link to={`/planets/${encodeURIComponent(name)}${themeQuery}`}>{name}</Link>
+                      {i < shown.length - 1 ? ', ' : ''}
+                    </span>
+                  ))}
+                  {hidden > 0 && !coPlanetsExpanded && (
+                    <>
+                      {' '}
+                      <button
+                        onClick={() => setCoPlanetsExpanded(true)}
+                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: '0.8rem', color: 'var(--accent)' }}
+                      >
+                        … +{hidden} more
+                      </button>
+                    </>
+                  )}
+                  {coPlanetsExpanded && hidden > 0 && (
+                    <>
+                      {' '}
+                      <button
+                        onClick={() => setCoPlanetsExpanded(false)}
+                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: '0.8rem', color: 'var(--accent)' }}
+                      >
+                        show less
+                      </button>
+                    </>
+                  )}
+                </p>
+              );
+            })()}
 
             {paper.abstract && (() => {
               const LIMIT = 300;

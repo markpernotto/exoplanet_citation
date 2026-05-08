@@ -63,6 +63,14 @@ ON CONFLICT (batch_id) DO UPDATE SET
 """
 
 
+def _ensure_connection(conn):
+    """Reconnect to Postgres if the connection has been closed (Neon idle timeout)."""
+    if conn.closed or conn.broken:
+        log.warning("Postgres connection lost — reconnecting")
+        return psycopg.connect(os.environ["DATABASE_URL"])
+    return conn
+
+
 def _save_state(conn, batch_id: str, *, last_key: str, total: int,
                 processed: int, errors: int, status: str, notes: dict) -> None:
     with conn.cursor() as cur:
@@ -185,6 +193,8 @@ def _upsert_pub(cur, params: dict[str, Any]) -> int:
 
 def _try_tier1(planet: dict, api_key: str) -> dict[str, Any] | None:
     """Tier 1: extract bibcode from disc_refname, fetch from ADS."""
+    if ads.quota_status() is not None:
+        return None
     bibcode = _extract_bibcode(planet.get("disc_refname"))
     if not bibcode:
         return None
@@ -222,6 +232,8 @@ def _try_tier2(planet: dict) -> dict[str, Any] | None:
 
 def _try_tier3(planet: dict, api_key: str) -> dict[str, Any] | None:
     """Tier 3: ADS title search using title from discovery_papers."""
+    if ads.quota_status() is not None:
+        return None
     title   = planet.get("title")
     authors = planet.get("authors") or []
     first_author = authors[0] if authors else ""
@@ -339,6 +351,7 @@ def resolve(
                 tier_hit = "tier3"
 
         try:
+            conn = _ensure_connection(conn)
             with conn.cursor() as cur:
                 if data:
                     params = _pub_params(data, data["resolved_via"], data["confidence"])
@@ -354,7 +367,10 @@ def resolve(
                     counts["queued"] += 1
             conn.commit()
         except Exception as exc:
-            conn.rollback()
+            try:
+                conn.rollback()
+            except Exception:
+                pass
             log.error("DB write failed for %s: %s", pl_name, exc)
             counts["errors"] += 1
 
@@ -363,6 +379,7 @@ def resolve(
 
         if processed % 100 == 0:
             log.info("Progress: %d/%d resolved", processed, total)
+            conn = _ensure_connection(conn)
             _save_state(conn, batch_id, last_key=last_key, total=total,
                         processed=processed, errors=counts["errors"],
                         status="in_progress", notes=dict(counts))

@@ -164,6 +164,31 @@ export type DiscoveryPaper = {
   arxiv_id: string | null;
 };
 
+export type Publication = {
+  pub_id: number;
+  bibcode: string | null;
+  doi: string | null;
+  arxiv_id: string | null;
+  title: string | null;
+  authors: string[];
+  abstract: string | null;
+  journal: string | null;
+  pub_date: string | null;
+  citation_count: number | null;
+  resolved_via: 'ads_bibcode' | 'crossref_doi' | 'ads_title' | 'manual';
+  confidence: 'high' | 'medium' | 'low';
+};
+
+export type PlanetPublication = Publication & {
+  role: 'discovery' | 'follow_up';
+  co_planets: string[];
+};
+
+export type PlanetPublicationsResponse = {
+  pl_name: string;
+  publications: PlanetPublication[];
+};
+
 export type StatsResponse = {
   total_planets: number;
   total_snapshots: number;
@@ -215,6 +240,8 @@ export const api = {
     get<HostStarGaia>(`/api/planets/${encodeURIComponent(plName)}/host_star`),
   planetPaper: (plName: string) =>
     get<DiscoveryPaper>(`/api/planets/${encodeURIComponent(plName)}/paper`),
+  planetPublications: (plName: string) =>
+    get<PlanetPublicationsResponse>(`/api/planets/${encodeURIComponent(plName)}/publications`),
   authorDetail: (authorName: string) =>
     get<AuthorResponse>(`/api/authors/${encodeURIComponent(authorName)}`),
   authorsTop: (limit = 20) =>

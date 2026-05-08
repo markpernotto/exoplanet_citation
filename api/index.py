@@ -58,11 +58,17 @@ from api.models import (
     Publication,
     PublicationPlanetsResponse,
     StatsResponse,
+    StorageInfo,
 )
 
 load_dotenv()
 
 SLO_FRESHNESS_HOURS = 26
+
+# Neon free tier ceiling. Update if we move to a paid plan.
+NEON_STORAGE_LIMIT_BYTES = 500 * 1024 * 1024  # 500 MB
+STORAGE_WARNING_THRESHOLD = 0.80   # warn at 80% of limit
+STORAGE_CRITICAL_THRESHOLD = 0.95  # critical at 95%
 
 app = FastAPI(
     title="exoplanet_citation",
@@ -106,7 +112,7 @@ def _to_change_record(row: dict) -> ChangeRecord:
 
 @app.get("/api/health", response_model=HealthResponse, tags=["health"])
 def health() -> HealthResponse:
-    """Pipeline health and freshness measurement against the SLO."""
+    """Pipeline health, freshness vs. SLO, and Neon storage utilization."""
     with _connect() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
@@ -124,6 +130,9 @@ def health() -> HealthResponse:
             )
             recent_count = cur.fetchone()["c"]
 
+            cur.execute("SELECT pg_database_size(current_database()) AS bytes")
+            db_bytes = cur.fetchone()["bytes"]
+
     freshness: FreshnessInfo | None = None
     if snap:
         retrieved = snap["source_retrieved_at"]
@@ -140,11 +149,32 @@ def health() -> HealthResponse:
             note="Clock A approximation. Phase-1.x work upgrades to Clock B (upstream last_modified).",
         )
 
+    pct = db_bytes / NEON_STORAGE_LIMIT_BYTES
+    if pct >= STORAGE_CRITICAL_THRESHOLD:
+        storage_status = "critical"
+    elif pct >= STORAGE_WARNING_THRESHOLD:
+        storage_status = "warning"
+    else:
+        storage_status = "ok"
+    storage = StorageInfo(
+        bytes_used=db_bytes,
+        bytes_limit=NEON_STORAGE_LIMIT_BYTES,
+        pct_used=round(pct * 100, 2),
+        status=storage_status,
+    )
+
+    overall = "no_data"
+    if freshness:
+        overall = freshness.status
+        if storage_status != "ok":
+            overall = storage_status
+
     return HealthResponse(
-        status=(freshness.status if freshness else "no_data"),
+        status=overall,
         checked_at=datetime.now(UTC),
         freshness=freshness,
         recent_change_count=recent_count,
+        storage=storage,
     )
 
 
@@ -664,7 +694,11 @@ def _pub_row(row: dict) -> dict:
     tags=["publications"],
 )
 def planet_publications(pl_name: str) -> PlanetPublicationsResponse:
-    """All publications linked to a planet (from the citation graph)."""
+    """All publications linked to a planet, with co-planet lists for each.
+
+    The co_planets array on each publication makes multi-planet papers
+    surfaceable in one round-trip.
+    """
     with _connect() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
@@ -676,13 +710,19 @@ def planet_publications(pl_name: str) -> PlanetPublicationsResponse:
 
             cur.execute(
                 f"""
-                SELECT {_PUB_COLS}, pp.role
+                SELECT {_PUB_COLS}, pp.role,
+                       COALESCE(
+                           (SELECT array_agg(pp2.pl_name ORDER BY pp2.pl_name)
+                            FROM planet_publications pp2
+                            WHERE pp2.pub_id = pub.pub_id AND pp2.pl_name <> %s),
+                           ARRAY[]::TEXT[]
+                       ) AS co_planets
                 FROM planet_publications pp
                 JOIN publications pub ON pub.pub_id = pp.pub_id
                 WHERE pp.pl_name = %s
                 ORDER BY pp.role, pub.pub_date DESC NULLS LAST
                 """,
-                (pl_name,),
+                (pl_name, pl_name),
             )
             rows = cur.fetchall()
 

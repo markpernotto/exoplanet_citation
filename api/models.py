@@ -23,11 +23,19 @@ class FreshnessInfo(BaseModel):
     note: str
 
 
+class StorageInfo(BaseModel):
+    bytes_used: int
+    bytes_limit: int
+    pct_used: float
+    status: str  # "ok" | "warning" | "critical"
+
+
 class HealthResponse(BaseModel):
     status: str
     checked_at: datetime
     freshness: FreshnessInfo | None
     recent_change_count: int
+    storage: StorageInfo | None = None
 
 
 class ChangeRecord(BaseModel):
@@ -204,6 +212,7 @@ class Publication(BaseModel):
 
 class PlanetPublication(Publication):
     role: str  # 'discovery' | 'follow_up'
+    co_planets: list[str]  # other planets linked to this publication
 
 
 class PlanetPublicationsResponse(BaseModel):

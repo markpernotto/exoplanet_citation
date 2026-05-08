@@ -12,11 +12,11 @@ For implementation details see [PLAN.md](../PLAN.md).
 
 ```
 ┌──────────────────┐    ┌─────────────────┐    ┌──────────────┐
-│ NASA Exoplanet   │    │ Crossref / arXiv│    │ Gaia DR3     │
-│ Archive (TAP)    │    │ NASA ADS        │    │ TAP service  │
+│ NASA Exoplanet   │    │ NASA ADS +      │    │ Gaia DR3     │
+│ Archive (TAP)    │    │ Crossref        │    │ TAP service  │
 └────────┬─────────┘    └────────┬────────┘    └──────┬───────┘
-         │ pscomppars            │ DOI / arXiv ID     │ source_id
-         │ (Phase 1+2)           │ / bibcode (Phase 2)│ (Phase 2)
+         │ pscomppars            │ bibcode / DOI      │ source_id
+         │                       │                    │
          ▼                       │                    │
    ┌──────────────────────┐      │                    │
    │   Cloudflare R2      │      │                    │
@@ -31,12 +31,14 @@ For implementation details see [PLAN.md](../PLAN.md).
    │              Postgres (Neon free tier)                 │
    │                                                         │
    │  public.                                                │
-   │    planets_snapshots         raw landing, 28 typed cols │
-   │    discovery_changes         diff events                │
-   │    publications              [Phase 2]                  │
-   │    planet_publications       [Phase 2 — citation graph] │
-   │    host_stars_gaia           [Phase 2]                  │
-   │    backfill_state            [Phase 2]                  │
+   │    planets_snapshots         raw landing (rolling 2-day)│
+   │    discovery_changes         diff events (append-only)  │
+   │    discovery_papers          ADS-cached paper metadata  │
+   │    publications              citation graph nodes       │
+   │    planet_publications       citation graph junction    │
+   │    citation_manual_queue     planets needing triage     │
+   │    host_stars_gaia           Gaia DR3 host enrichment   │
+   │    backfill_state            resumable backfill cursor  │
    │                                                         │
    │  staging.                    dbt views                  │
    │    stg_pscomppars                                       │
@@ -45,15 +47,17 @@ For implementation details see [PLAN.md](../PLAN.md).
    │    dim_planet, dim_publication                          │
    │    fact_discovery, fact_parameter_revision              │
    └─────────┬───────────────────────────┬───────────────────┘
-             │ etl/diff.py + publish.py  │ FastAPI
+             │ etl/diff.py + publish.py  │ FastAPI (22 routes)
              ▼                           ▼
    ┌────────────────────────┐   ┌──────────────────────┐
    │  static feeds          │   │  REST API            │
    │                        │   │                      │
    │  public/rss.xml        │   │  /api/discoveries/.. │
    │  public/discoveries    │   │  /api/planets/...    │
-   │       .json            │   │  /api/publications.. │
-   │  public/health.json    │   │  /api/health         │
+   │       .json            │   │  /api/publications/..│
+   │  public/health.json    │   │  /api/authors/...    │
+   │                        │   │  /api/rss/{*}        │
+   │                        │   │  /api/health         │
    └──────────┬─────────────┘   └────────┬─────────────┘
               │                          │
               └─────────┬────────────────┘
@@ -86,20 +90,30 @@ The full pipeline runs in this exact order on a GitHub Actions cron at
    newly-loaded snapshot.
 4. **Diff** — `python -m etl.diff` compares the two most recent
    `snapshot_date` values, emits `NEW` / `REMOVED` / `PARAMETER_CHANGE`
-   events to `discovery_changes` per the field-tier rules below.
-5. **Publish** — `python -m etl.publish` reads recent surfaced changes
+   events to `discovery_changes` per the field-tier rules below, then
+   prunes `planets_snapshots` to a rolling 2-day window so storage stays
+   constant.
+5. **Enrich (Gaia)** — `python -m etl.enrich_gaia` looks up new hosts in
+   Gaia DR3 by `source_id` and UPSERTs into `host_stars_gaia`. Resumable
+   via `backfill_state`.
+6. **Enrich (ADS)** — `python -m etl.enrich_ads` fetches paper metadata
+   from NASA ADS for any new bibcode found in `disc_refname` and caches
+   it in `discovery_papers`.
+7. **Resolve citations** — `python -m etl.resolve_citations` runs the
+   4-tier resolver per planet (ADS bibcode → Crossref DOI → ADS title →
+   manual queue), writing to `publications` + `planet_publications` with
+   provenance. Trips a circuit breaker on ADS quota exhaustion and skips
+   ADS-tier work until the next run.
+8. **Publish** — `python -m etl.publish` reads recent surfaced changes
    and produces `public/rss.xml`, `public/discoveries.json`, and
    `public/health.json`.
-6. **Commit + push** — the GitHub Actions runner commits the updated
+9. **Commit + push** — the GitHub Actions runner commits the updated
    `data/MANIFEST.jsonl` and `public/` files back to `main` with
    `[skip ci]` to avoid retriggering.
 
 Failure at any step opens a GitHub issue automatically (`actions/github-script@v7`,
-`if: failure()`).
-
-Phase 2 will add a parallel resolution branch (`etl/resolve_citation.py`)
-plus Gaia enrichment (`etl/enrich_gaia.py`) running after diff. Both
-backfill jobs are designed resumable so they can be paused mid-run.
+`if: failure()`). Both enrichment and resolver jobs use `backfill_state`
+so they can be paused mid-run and resumed later.
 
 ---
 
@@ -134,26 +148,24 @@ classification.
 | Module | Role | Phase |
 |---|---|---|
 | `etl/sources/exoplanet_archive.py` | NASA Exoplanet Archive TAP client | 1 |
-| `etl/sources/gaia.py` | Gaia DR3 TAP client | 2 (scaffolded) |
-| `etl/sources/crossref.py` | Crossref REST client | 2 (TBD) |
-| `etl/sources/arxiv.py` | arXiv API client | 2 (TBD) |
-| `etl/sources/ads.py` | NASA ADS API client | 2 (TBD) |
+| `etl/sources/gaia.py` | Gaia DR3 TAP client | 2 |
+| `etl/sources/ads.py` | NASA ADS API client (quota-aware circuit breaker) | 2 |
+| `etl/sources/crossref.py` | Crossref REST client (Tier 2 fallback) | 2 |
 | `etl/r2.py` | Cloudflare R2 helper (boto3 wrapper) | 1 |
 | `etl/extract.py` | Orchestrates fetch → R2 → manifest | 1 |
 | `etl/load.py` | Loads R2 snapshot into Postgres (UPSERT) | 1 |
-| `etl/diff.py` | Field-tier-aware diff between two snapshots | 1 |
+| `etl/diff.py` | Field-tier-aware diff + rolling 2-day prune | 1 |
+| `etl/enrich_gaia.py` | Per-host Gaia DR3 lookup (resumable) | 2 |
+| `etl/enrich_ads.py` | ADS bibcode metadata cache (`discovery_papers`) | 2 |
+| `etl/resolve_citations.py` | 4-tier citation resolver writing the citation graph | 2 |
 | `etl/publish.py` | Generates RSS + JSON feeds + health snapshot | 1 |
-| `etl/transform/` | dbt project (staging now, marts in Phase 2) | 1+2 |
-| `etl/resolve_citation.py` | 4-tier DOI/bibcode resolver | 2 (TBD) |
-| `etl/enrich_gaia.py` | Per-host-star Gaia DR3 lookup | 2 (TBD) |
-| `etl/backfill_citations.py` | Resumable citation backfill | 2 (TBD) |
-| `etl/backfill_gaia.py` | Resumable Gaia backfill | 2 (TBD) |
+| `etl/transform/` | dbt project (staging now, marts later) | 1+ |
 | `etl/inspect.py` | Local-dev tool for browsing raw_row by planet | dev |
 | `etl/check_setup.py` | Connectivity smoke test (Neon + R2) | dev |
 | `etl/smoke_gaia.py` | One-shot Gaia DR3 client smoke test | dev |
-| `api/index.py` | FastAPI app (7 endpoints + OpenAPI/Swagger) deployed as Vercel Python serverless | 1 |
-| `api/models.py` | Pydantic response models | 1 |
-| `web/` | Vite + React + TypeScript SPA — search, infinite-scroll catalog, procedural planet detail, system orbital view, retro display themes | 1 |
+| `api/index.py` | FastAPI app (22 endpoints + OpenAPI/Swagger), Vercel serverless | 1+2 |
+| `api/models.py` | Pydantic response models | 1+2 |
+| `web/` | Vite + React + TypeScript SPA — search, catalog, procedural planet detail with multi-planet citation affordance, system orbital view, retro themes | 1+2 |
 | `web/src/components/ThemeSwitcher.tsx` | URL-param retro theme switcher (six themes; see `docs/THEMING.md`) | 1 |
 | `web/src/procedural.ts` | Body-type/temperature → color mapping (see `docs/PROCEDURAL_RENDERING.md`) | 1 |
 | `vocabularies/` | Controlled vocabularies (SKOS-lite YAML) | 1 |
@@ -218,23 +230,33 @@ they live in R2 and are referenced by the manifest.
 Three logical layers, separated by schema:
 
 ```
-public.            ← raw landing (load.py + diff.py + Phase 2 writes here)
-  planets_snapshots
-  discovery_changes
-  publications              [Phase 2]
-  planet_publications       [Phase 2]
-  host_stars_gaia           [Phase 2]
-  backfill_state            [Phase 2]
+public.            ← raw + enrichment (load.py, diff.py, enrich_*.py,
+                     resolve_citations.py write here)
+  planets_snapshots         rolling 2-day window of raw NASA snapshots
+  discovery_changes         append-only diff event log
+  discovery_papers          ADS metadata cache, keyed by bibcode
+  publications              citation graph nodes (with provenance)
+  planet_publications       planet ↔ publication junction (M:N)
+  citation_manual_queue     planets that fell through all 4 resolver tiers
+  host_stars_gaia           Gaia DR3 enrichment per host star
+  backfill_state            resumable cursor for enrichment + resolver
 
 staging.           ← dbt views (clean, typed projection of raw)
   stg_pscomppars
 
-marts.             ← dbt tables (analytical models)
-  dim_planet                [Phase 2]
-  dim_publication           [Phase 2]
-  fact_discovery            [Phase 2]
-  fact_parameter_revision   [Phase 2]
+marts.             ← dbt tables (analytical models, deferred)
+  dim_planet                [later]
+  dim_publication           [later]
+  fact_discovery            [later]
+  fact_parameter_revision   [later]
 ```
+
+**Storage budget.** Total DB size sits around ~230 MB against the Neon
+free-tier 500 MB ceiling. The `planets_snapshots` table dominates (~210 MB
+of typed columns + raw_row JSONB), held constant by the rolling 2-day
+prune. Append-only tables grow by an estimated 5–15 MB/year combined.
+`/api/health` exposes `storage.pct_used` and a `status` field that flips
+to `warning` at 80% and `critical` at 95%.
 
 Schema separation makes it easy to drop and rebuild marts without
 touching raw data, and clearly delineates the boundary between
@@ -288,7 +310,17 @@ Every step in the pipeline is safe to re-run:
 - **`diff.py`** — guarded by a unique index
   `(source_snapshot_date, pl_name, change_type, COALESCE(field_name, ''))`
   with `ON CONFLICT DO NOTHING`. Re-running produces the same change records;
-  duplicates are silently skipped.
+  duplicates are silently skipped. The post-diff prune keeps the 2 most
+  recent snapshot dates and is itself idempotent.
+- **`enrich_gaia.py`** — UPSERTs by `gaia_dr3_id`. Skips already-enriched
+  hosts unless `--refresh-all`. State stored under `backfill_state.batch_id
+  = 'gaia-enrich-YYYY-MM-DD'`.
+- **`enrich_ads.py`** — UPSERTs by `bibcode`. Skips already-cached papers
+  unless `--refresh-all`.
+- **`resolve_citations.py`** — skips planets already present in
+  `planet_publications` unless `--all`. UPSERTs `publications` keyed by
+  `bibcode` (primary) or `doi` (when no bibcode). Crashes from network /
+  Postgres-idle disconnects can be resumed safely.
 - **`publish.py`** — purely derivative; just regenerates files from current DB
   state.
 - **dbt** — views are recreated from scratch on every `dbt run`.
@@ -317,17 +349,18 @@ Every row in `discovery_changes` carries:
 - `field_tier` (for `PARAMETER_CHANGE`) — A or B classification
 - `prev_value` / `new_value` (JSONB) — the actual transition
 
-Every Phase 2 row in `publications` will carry:
+Every row in `publications` carries:
 
-- `resolved_via` — `crossref` | `arxiv` | `ads`
-- `resolved_at` — when the resolver ran
-- `source_record` — raw API response
-
-Every Phase 2 row in `planet_publications` will carry:
-
+- `resolved_via` — `ads_bibcode` | `crossref_doi` | `ads_title` | `manual`
 - `confidence` — `high` | `medium` | `low`
-- `confidence_reason` — human-readable rationale
-- `extracted_from` — `disc_refname` | `pl_refname` | `manual` | `ads_query`
+- `created_at` / `updated_at` — when the row was first written and last
+  refreshed by the resolver
+- `citation_count_updated_at` — when ADS last reported the citation count
+
+Every row in `host_stars_gaia` carries:
+
+- `source_record` JSONB — the raw Gaia DR3 record we resolved
+- `retrieved_at` — when we pulled it
 
 Anyone consuming the data can answer "where did this value come from?"
 deterministically. That's the project's distinguishing technical bet.
@@ -360,11 +393,12 @@ exoplanet_citation/
 ├── data/
 │   └── MANIFEST.jsonl       # snapshot index (R2 keys + checksums)
 ├── public/                  # generated static feeds (nightly)
-├── tests/                   # pytest unit tests (64 currently)
+├── tests/                   # pytest unit tests (78 currently)
 ├── docs/
 │   ├── ARCHITECTURE.md      # this file
 │   ├── DATA_CATALOG.md
-│   └── PROCEDURAL_RENDERING.md
+│   ├── PROCEDURAL_RENDERING.md
+│   └── THEMING.md
 ├── infra/                   # Terraform (TBD)
 ├── Dockerfile
 ├── docker-compose.yml       # local Postgres for dev

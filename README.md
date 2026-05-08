@@ -9,12 +9,18 @@ Gaia DR3.
 · [API docs (Swagger)](https://exoplanet-citation.vercel.app/docs)
 · [Source on GitHub](https://github.com/markpernotto/exoplanet_citation)
 
-**Status:** Phase 1 nearly complete. Daily ingest pipeline running on a
-GitHub Actions cron; ~6,300 confirmed planets loaded into Postgres; FastAPI
-serving 7 endpoints with automatic Swagger docs; React frontend deployed
-with procedurally-rendered planet cards; 64 unit tests + 13 dbt tests
-passing. Phase 2 (the library-science differentiator: citation graph) is
-the next major milestone.
+**Status:** Phase 1 done. Phase 2 substantially complete. Daily ingest
+pipeline running on a GitHub Actions cron; 6,286 confirmed planets loaded
+into Postgres with 5 consecutive nightly runs since 2026-05-04; FastAPI
+serving 22 endpoints with automatic Swagger docs; React frontend deployed
+with procedurally-rendered planet cards; Gaia DR3 host-star enrichment
+complete for all 4,355 enrichable hosts; ADS-backed `discovery_papers`
+table populated for ~1,250 unique discovery papers; **citation graph
+(`publications` + `planet_publications`) resolved for 5,856 / 6,286
+planets (93%)** via a 4-tier resolver (ADS bibcode → Crossref DOI → ADS
+title → manual queue); planet detail UI surfaces multi-planet discovery
+papers via "this paper also announced…" links; 78 unit tests + 13 dbt
+tests passing.
 
 See [PLAN.md](PLAN.md) for the full implementation roadmap and
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the pieces fit together.
@@ -54,22 +60,42 @@ from a stock-image library.
 - **dbt project** transforms raw → staging (`stg_pscomppars` view) with
   13 data tests passing
 - **Diff job** emits `NEW` / `REMOVED` / Tier-A / Tier-B `PARAMETER_CHANGE`
-  events to `discovery_changes`, idempotent across re-runs
+  events to `discovery_changes`, idempotent across re-runs. Auto-prunes
+  `planets_snapshots` to a rolling 2-day window after the diff commits,
+  keeping Neon storage steady.
+- **Gaia DR3 enrichment** — `etl/enrich_gaia.py` populates `host_stars_gaia`
+  for every host with a parsable `gaia_dr3_id` (parallax, BP-RP color,
+  Gaia-derived stellar parameters). Resumable via `backfill_state`.
+- **ADS discovery-paper enrichment** — `etl/enrich_ads.py` caches paper
+  metadata (title, authors, abstract, citation count, DOI, arXiv ID) in
+  `discovery_papers`. Quota-aware; falls back gracefully when ADS rate
+  limits are hit.
+- **Citation graph resolver** — `etl/resolve_citations.py` runs a 4-tier
+  strategy per planet: extract ADS bibcode from `disc_refname` → look up
+  by DOI in Crossref → ADS title search → manual queue. Writes to
+  `publications` + `planet_publications` with provenance (`resolved_via`,
+  `confidence`). Resumable via `backfill_state`. Trips a circuit breaker
+  on `X-RateLimit-Remaining: 0` and stops calling ADS until quota resets.
 - **Publisher** generates RSS 2.0, JSON, and health-snapshot feeds with
-  freshness measurement against a 26-hour SLO
-- **GitHub Actions** runs the full pipeline daily at 06:00 UTC, commits
-  results back, opens an issue on failure
-- **FastAPI** with 7 endpoints + automatic OpenAPI/Swagger docs, deployed
-  to Vercel as Python serverless functions
+  freshness measurement against a 26-hour SLO. Per-planet, per-system, and
+  per-author RSS feeds are also exposed dynamically by the API.
+- **GitHub Actions** runs the full pipeline daily at 06:00 UTC (extract →
+  load → dbt → diff → Gaia → ADS → resolve_citations → publish), commits
+  results back, opens an issue on failure.
+- **FastAPI** with 22 endpoints + automatic OpenAPI/Swagger docs, deployed
+  to Vercel as Python serverless functions. Citation graph endpoints
+  (`/api/planets/{name}/publications`, `/api/publications/{bibcode}`,
+  `/api/authors/{name}/publications`) expose the resolved graph.
+  `/api/health` reports DB freshness AND Neon storage utilization with
+  warning/critical thresholds.
 - **React frontend** (Vite + TypeScript) deployed alongside the API on the
-  same Vercel project — search bar, infinite-scroll catalog, planet detail
-  page with procedurally-rendered planet card and full change history,
-  system orbital view with true AU scaling and scroll-to-zoom, and six
-  optional retro display themes (P1 Phosphor, P3 Phosphor, CGA, EGA, HGC,
-  Plasma) activated via `?theme=` URL parameter
-- **Phase 2 scaffold:** Gaia DR3 client tested end-to-end against real
-  data — ready for enrichment work
-- **64 unit tests + 13 dbt tests** all green; CI workflow with ruff lint
+  same Vercel project — search bar (planet + author), infinite-scroll
+  catalog, planet detail page with procedurally-rendered planet card,
+  multi-planet discovery paper affordance ("this paper also announced X,
+  Y, Z"), full change history, system orbital view with true AU scaling
+  and scroll-to-zoom, and six optional retro display themes (P1 Phosphor,
+  P3 Phosphor, CGA, EGA, HGC, Plasma) activated via `?theme=` URL param.
+- **78 unit tests + 13 dbt tests** all green; CI workflow with ruff lint
 
 ---
 
@@ -86,9 +112,13 @@ pip install -e ".[dev]"
 cp .env.example .env
 # edit .env with your Neon DATABASE_URL, R2 keys, and DBT_* fields
 
-# Apply schema
+# Apply schema (in order)
 psql "$DATABASE_URL" -f etl/schema.sql
 psql "$DATABASE_URL" -f etl/migrations/001_phase1x_typed_columns.sql
+psql "$DATABASE_URL" -f etl/migrations/002_phase2_host_stars_gaia.sql
+psql "$DATABASE_URL" -f etl/migrations/003_fix_planets_current_view.sql
+psql "$DATABASE_URL" -f etl/migrations/004_discovery_papers.sql
+psql "$DATABASE_URL" -f etl/migrations/005_citation_graph.sql
 
 # Verify connectivity
 make check-setup
@@ -97,11 +127,14 @@ make check-setup
 make pipeline
 
 # Or step-by-step:
-make extract     # NASA Exoplanet Archive → R2
-make load        # R2 → Postgres planets_snapshots
-make dbt-run     # raw → staging
-make diff        # consecutive snapshots → discovery_changes
-make publish     # → public/rss.xml, public/discoveries.json, public/health.json
+make extract                            # NASA Exoplanet Archive → R2
+make load                               # R2 → Postgres planets_snapshots
+make dbt-run                            # raw → staging
+make diff                               # consecutive snapshots → discovery_changes (also auto-prunes)
+python -m etl.enrich_gaia               # host_stars_gaia (resumable)
+python -m etl.enrich_ads                # discovery_papers from NASA ADS
+python -m etl.resolve_citations         # publications + planet_publications (4-tier resolver)
+make publish                            # → public/rss.xml, public/discoveries.json, public/health.json
 
 # Run the API locally
 make api         # http://localhost:8000/docs
@@ -141,39 +174,49 @@ make help        # list all targets
 
 - ETL pipeline: extract → load → dbt staging → diff → publish
 - 28-column typed schema with JSONB raw preservation
-- Nightly cron on GitHub Actions (06:00 UTC)
+- Nightly cron on GitHub Actions (06:00 UTC) — 5 consecutive green runs
+  since 2026-05-04 (Star Wars Day)
 - Field-tier-aware diff (Tier A surfaced, Tier B logged-only, Tier C ignored)
-- Cloudflare R2 raw landing with manifest in git
-- FastAPI: 7 endpoints + OpenAPI/Swagger docs
-- React frontend: search, infinite-scroll catalog, planet detail with
-  procedural rendering, system orbital view (true AU scale, scroll-to-zoom)
+- Auto-prune of `planets_snapshots` to a rolling 2-day window so Neon
+  storage stays steady at ~230 MB
+- Cloudflare R2 raw landing with manifest in git (full historical record)
+- React frontend: search (planet + author), infinite-scroll catalog,
+  planet detail with procedural rendering, system orbital view (true AU
+  scale, scroll-to-zoom), retro display themes
 - Six retro display themes switchable via `?theme=` URL param; self-hosted
   OFL fonts; no CDN dependency; shareable links
 - Vercel deployment for both API and frontend
-- Phase 2 scaffold: Gaia DR3 client + smoke test verified end-to-end
-- Documentation: data catalog, procedural rendering plan, architecture
-- 64 unit tests + 13 dbt tests; CI with ruff lint
+- Documentation: data catalog, procedural rendering plan, architecture, theming
+- CI with ruff lint
 
-### Phase 1 — remaining before "shipped"
+### Phase 2 — substantially complete
 
-- 5 consecutive green nightly runs (the formal Phase 1 ship bar)
-- ARCHITECTURE.md polish + diagrams in `docs/diagrams/`
-- README v1 polish (this file)
-- Real second-snapshot diff with actual change events (data driven by
-  upstream NASA cadence)
-
-### Phase 2 — next major milestone
-
-- **Citation resolution** via Crossref + arXiv + NASA ADS (4-tier strategy:
-  direct DOI → ADS bibcode → Crossref title/author/year → manual queue)
-- **dbt marts**: `dim_planet`, `dim_publication`, `fact_discovery`,
-  `fact_parameter_revision`
-- **Gaia DR3 host-star enrichment**: ~6,300 hosts queried by source ID,
-  results in `host_stars_gaia` (parallax, BP-RP color, Gaia-derived
-  stellar parameters)
-- **API endpoints** for the citation graph
-- **Frontend** surfaces the citation graph + Gaia-enriched host star color
-- **Resumable backfill** of all ~6,300 planets across Crossref + ADS
+- ✅ **Gaia DR3 host-star enrichment** — `host_stars_gaia` populated for
+  all 4,355 enrichable hosts (parallax, BP-RP color, Gaia-derived stellar
+  parameters)
+- ✅ **ADS discovery-paper enrichment** — `discovery_papers` populated for
+  ~1,250 unique bibcodes (title, authors, abstract, citation count, DOI,
+  arXiv ID)
+- ✅ **Citation graph schema** — `publications` + `planet_publications` +
+  `citation_manual_queue` with provenance (resolved_via, confidence)
+- ✅ **4-tier citation resolver** — `etl/resolve_citations.py` (ADS bibcode
+  → Crossref DOI → ADS title → manual queue) with quota-aware circuit
+  breaker, resumable via `backfill_state`
+- ✅ **API endpoints for the citation graph** — planet/publications,
+  publication detail, author publications
+- ✅ **Frontend multi-planet UI** — discovery section on PlanetDetail
+  surfaces sibling planets announced in the same paper
+- ✅ **`/api/health` storage monitoring** — Neon DB size + warning/critical
+  thresholds at 80% / 95% of the 500 MB free-tier ceiling
+- ✅ **78 unit tests + 13 dbt tests; resumable backfills via `backfill_state`**
+- 🔜 **Final 7% citation coverage** — 430 planets pending. ADS daily quota
+  resets at the rolling 24h mark; one more clean run will close the gap.
+- 🔜 **Crossref purge / single-source consolidation** — once ADS coverage
+  reaches 100%, drop `resolved_via='crossref_doi'` rows and re-resolve via
+  ADS for richer metadata (abstract, ADS bibcode, ADS citation count).
+  Then remove `etl/sources/crossref.py` from the codebase.
+- 🔜 **dbt marts** (`dim_planet`, `dim_publication`, `fact_discovery`,
+  `fact_parameter_revision`) — deferred; the API doesn't need them yet.
 
 ### Phase 3 — post-v1.0
 
@@ -181,6 +224,8 @@ make help        # list all targets
 - Galactic positioning view ("Here we are / Here this planet is")
 - Optional: PHL Habitable Exoplanets Catalog integration for
   Earth-Similarity Index tagging
+- Manual-queue triage UI for the ~50 planets that fall through all four
+  resolver tiers
 
 ---
 

@@ -2,7 +2,7 @@
 
 **Owner:** Mark Pernotto (mark@pernotto.com)
 **Repo:** https://github.com/markpernotto/exoplanet_citation
-**Status:** Phase 1 nearly complete. ETL pipeline live on nightly GitHub Actions cron; FastAPI deployed to Vercel with 7 endpoints and Swagger docs; React frontend deployed alongside with search, discoveries feed, and a procedurally-rendered planet detail page; Gaia DR3 client scaffolded for Phase 2; 64 unit tests + 13 dbt tests green. Remaining Phase 1 work is the formal ship bar (5 consecutive green nightly runs) and polish; Phase 2 (citation graph + Gaia enrichment) is the next major milestone.
+**Status:** Phase 1 shipped. Phase 2 substantially complete. ETL pipeline live on nightly GitHub Actions cron with 5+ consecutive green runs since 2026-05-04; rolling 2-day snapshot prune keeps Neon storage steady; FastAPI deployed to Vercel with 22 endpoints and Swagger docs; React frontend with search (planet + author), procedurally-rendered planet detail, multi-planet "this paper also announced…" affordance, system orbital view, six retro display themes; Gaia DR3 enrichment complete for all 4,355 enrichable hosts; ADS-cached `discovery_papers` for ~1,250 unique bibcodes; **citation graph (`publications` + `planet_publications`) resolved for 5,856 / 6,286 planets (93%)** via a 4-tier resolver with quota-aware ADS circuit breaker; 78 unit tests + 13 dbt tests green. Remaining Phase 2 work is one more clean ADS-quota window to close the final 7%, plus Crossref-source consolidation. Phase 3 (follow-up paper graph) is the next major decision point.
 **Plan finalized:** 2026-05-03
 **Last updated:** 2026-05-05
 **Target effort:** ~4 weeks part-time (target, not a deadline; daily breakdown is a guide)
@@ -30,38 +30,44 @@ Phase 1 is independently shippable and useful. Phase 3 is gated on Phase 2's res
 
 ## Definition of Done
 
-### Phase 1
-- [ ] Repo public on GitHub at `markpernotto/exoplanet_citation`
-- [ ] Nightly GitHub Action ingests NASA Exoplanet Archive's `pscomppars` table via TAP
-- [ ] Postgres (Neon) contains historical snapshots of the archive
-- [ ] Snapshots stored in Cloudflare R2; `data/MANIFEST.jsonl` in git tracks date / R2 key / sha256 / row count per snapshot
-- [ ] Diff job emits a feed of `NEW`, `REMOVED`, and `PARAMETER_CHANGE` events using the high-value field allowlist (see Field Allowlist section)
-- [ ] Public RSS feed of new confirmations
-- [ ] Public JSON endpoints: `/api/discoveries/latest`, `/api/discoveries/by-month/{yyyy-mm}`
-- [ ] `/api/health` endpoint exposes freshness measurement (Clock B — see Freshness SLO)
-- [ ] Minimal React page shows the last 30 days of new/changed planets
-- [ ] dbt project initialized and used for staging/marts from Day 2 (not bolted on later)
-- [ ] README with architecture diagram, data sources, attribution, how-to-run
-- [ ] `docs/DATA_CATALOG.md` entry for `pscomppars`
-- [ ] Controlled-vocabulary YAMLs for `discovery_method`, `discovery_facility`, `parameter_change_type`
-- [ ] Freshness SLO defined and met: published data ≤ 26 hours from upstream `last_modified`
-- [ ] pytest suite covers extract success, transform idempotency, diff correctness, load idempotency, API response schema
-- [ ] Action has been green for 5 consecutive nights
+### Phase 1 — shipped
 
-### Phase 2
-- [ ] Each confirmed planet linked to ≥1 discovery publication via DOI or arXiv ID, where resolvable
-- [ ] Resolution confidence per link (high / medium / low) with human-readable reason
-- [ ] Crossref + arXiv + NASA ADS metadata cached in `publications` table
-- [ ] **Gaia DR3 host-star enrichment**: every host star with a `gaia_dr3_id` queried against the Gaia TAP service; BP-RP photometry, parallax, proper motion, Gaia-derived stellar parameters cached in `host_stars_gaia` table
-- [ ] dbt marts: `dim_planet`, `dim_publication`, `fact_discovery`, `fact_parameter_revision`
-- [ ] Public endpoints: `/api/planets/{name}`, `/api/planets/{name}/publications`, `/api/publications/{doi}`, `/api/publications/{doi}/planets`, `/api/planets/{name}/host_star` (Gaia-enriched)
-- [ ] Browsable React UI: planet detail page shows discovery paper, the planet rendered procedurally from typed columns, the host star colored from Gaia BP-RP; publication detail page shows all planets it discusses
-- [ ] dbt tests pass in CI; `dbt docs` published to GitHub Pages or Vercel
-- [ ] `docs/DATA_CATALOG.md` extended with publication sources (Crossref, arXiv, ADS) and Gaia DR3
-- [ ] `docs/CITATION_RESOLUTION.md` documents tier strategy + current resolution rate as a KPI
-- [ ] `docs/PROCEDURAL_RENDERING.md` documents the temperature/density/insolation → visual mapping
-- [ ] Backfill of all ~6,300 existing planets completed via resumable batch script (citation + Gaia, runnable independently)
-- [ ] README v2 leads with the citation-graph contribution and the procedural-visualization differentiator
+- [x] Repo public on GitHub at `markpernotto/exoplanet_citation`
+- [x] Nightly GitHub Action ingests NASA Exoplanet Archive's `pscomppars` table via TAP
+- [x] Postgres (Neon) contains rolling 2-day window of snapshots; full
+      historical record preserved in Cloudflare R2
+- [x] Snapshots stored in Cloudflare R2; `data/MANIFEST.jsonl` in git tracks date / R2 key / sha256 / row count per snapshot
+- [x] Diff job emits a feed of `NEW`, `REMOVED`, and `PARAMETER_CHANGE` events using the high-value field allowlist (see Field Allowlist section)
+- [x] Public RSS feed of new confirmations (static + per-planet/system/author dynamic)
+- [x] Public JSON endpoints: `/api/discoveries/latest`, `/api/discoveries/by-month/{yyyy-mm}`
+- [x] `/api/health` endpoint exposes freshness measurement and Neon storage utilization
+- [x] React page shows the last 30 days of new/changed planets, plus
+      full catalog browser, planet/system/author detail pages
+- [x] dbt project initialized and used for staging from Day 2
+- [x] README with architecture diagram, data sources, attribution, how-to-run
+- [x] `docs/DATA_CATALOG.md` entry for `pscomppars`
+- [x] Controlled-vocabulary YAMLs for `discovery_method`, `discovery_facility`, `parameter_change_type`
+- [x] Freshness SLO defined and met: published data ≤ 26 hours from upstream
+- [x] pytest suite covers extract, transform idempotency, diff correctness, load idempotency, API response schema (78 tests)
+- [x] Action has been green for 5 consecutive nights (since 2026-05-04)
+
+### Phase 2 — substantially complete (final pass + cleanup pending)
+
+- [x] Each confirmed planet linked to ≥1 discovery publication via ADS bibcode / DOI where resolvable (5,856 / 6,286 = 93% as of 2026-05-08)
+- [x] Resolution provenance per row: `resolved_via` (`ads_bibcode`, `crossref_doi`, `ads_title`, `manual`) + `confidence` (`high` / `medium` / `low`)
+- [x] NASA ADS metadata cached in `discovery_papers` (~1,250 unique bibcodes); citation graph in `publications` + `planet_publications`
+- [x] **Gaia DR3 host-star enrichment**: every host with parsable `gaia_dr3_id` (4,355 hosts) enriched in `host_stars_gaia`
+- [x] Public endpoints: `/api/planets/{name}`, `/api/planets/{name}/publications` (with `co_planets` for one-shot multi-planet UI), `/api/publications/{bibcode}`, `/api/authors/{name}/publications`, `/api/planets/{name}/host_star`
+- [x] React UI: planet detail surfaces discovery paper, "this paper also announced N planets" multi-planet affordance, procedural rendering, system orbital view, retro themes; AuthorDetail page; per-feed RSS subscribe links
+- [ ] Final 7% citation coverage closed (430 planets pending one more ADS-quota window)
+- [ ] Crossref purge + ADS re-resolution to consolidate on a single source
+- [ ] dbt marts: `dim_planet`, `dim_publication`, `fact_discovery`, `fact_parameter_revision` — deferred (not on critical path)
+- [ ] dbt docs published to GitHub Pages or Vercel — deferred
+- [x] `docs/DATA_CATALOG.md` extended with NASA ADS, Crossref, Gaia DR3 sections
+- [ ] `docs/CITATION_RESOLUTION.md` (writeup) — optional, deferred
+- [x] `docs/PROCEDURAL_RENDERING.md` documents the temperature/density/insolation → visual mapping
+- [x] Backfill of all 6,286 existing planets via resumable scripts using `backfill_state` (citation + Gaia, runnable independently)
+- [x] README v2 leads with the citation-graph contribution and the procedural-visualization differentiator
 
 ### Phase 3 (post-v1.0, decision after Phase 2 ships)
 - [ ] For each discovery publication, query ADS for citing papers that mention the planet name in their abstract
@@ -71,16 +77,19 @@ Phase 1 is independently shippable and useful. Phase 3 is gated on Phase 2's res
 
 ---
 
-## Day 0 / Pre-work (do before Day 1)
+## Day 0 / Pre-work — complete
 
-These are blocking dependencies. Complete before starting Week 1.
+All blocking dependencies are in place.
 
-- [ ] Sign up for ADS account and **request API token** at https://ui.adsabs.harvard.edu/user/settings/token (approval can take days; this is the long pole)
-- [ ] Create Neon Postgres project (free tier), save connection string
-- [ ] Create Cloudflare R2 account, create bucket `exoplanet-citation-snapshots`, save access keys
-- [ ] Create Vercel account — deploys both the React frontend AND the FastAPI backend as Python serverless functions (Fly.io's free tier was retired; Vercel handles both for free)
-- [ ] Confirm Python 3.12 available locally: `/opt/homebrew/bin/python3.12 --version`
-- [ ] Pull the `disc_refname` sample (see Citation Resolution section) and skim it to validate the parser strategy assumption
+- [x] ADS API token approved and stored in `.env` / GitHub Actions secrets
+- [x] Neon Postgres project provisioned, connection string in `.env`
+- [x] Cloudflare R2 bucket `exoplanet-citation-snapshots` provisioned;
+      access keys in `.env` / GitHub Actions secrets
+- [x] Vercel project deployed (API + React frontend under one URL)
+- [x] Python 3.12 venv set up at `.venv/`
+- [x] `disc_refname` format inspected — turned out to be HTML-embedded
+      ADS URLs, not free-text reference strings, which made Tier 1
+      regex-based bibcode extraction trivially reliable
 
 ---
 
@@ -199,36 +208,56 @@ INDEX (observed_at DESC), INDEX (pl_name), INDEX (change_type), INDEX (field_tie
 
 The `field_tier` column lets the RSS publisher filter to Tier A only without re-deriving classification.
 
-### `publications` (Phase 2)
+### `publications` (Phase 2 — implemented in migration `005_citation_graph.sql`)
+
+The shipped shape is a tighter superset of the original plan: provenance
+fields collapsed to `resolved_via` + `confidence`, raw API record
+discarded (we trusted the normalized fields and didn't keep needing the
+raw payload), `bibcode` and `doi` both serve as alternate uniques.
 
 ```sql
-publication_id         BIGSERIAL PRIMARY KEY
-doi                    TEXT UNIQUE
-arxiv_id               TEXT UNIQUE
-ads_bibcode            TEXT UNIQUE
-title                  TEXT NOT NULL
-authors                JSONB NOT NULL          -- ordered list of {given, family, orcid, ror}
-journal                TEXT
-year                   INT
-abstract               TEXT
-canonical_url          TEXT
-source_record          JSONB NOT NULL          -- raw response from whichever API resolved it
-resolved_via           TEXT NOT NULL           -- 'crossref' | 'arxiv' | 'ads'
-resolved_at            TIMESTAMPTZ NOT NULL
+pub_id                    BIGSERIAL PRIMARY KEY
+bibcode                   TEXT UNIQUE             -- ADS bibcode (primary key in ADS world)
+doi                       TEXT UNIQUE
+arxiv_id                  TEXT
+title                     TEXT
+authors                   JSONB                   -- ordered list of "Last, F." strings
+abstract                  TEXT
+journal                   TEXT
+pub_date                  DATE
+citation_count            INT
+citation_count_updated_at TIMESTAMPTZ
+resolved_via              TEXT NOT NULL           -- 'ads_bibcode' | 'crossref_doi' | 'ads_title' | 'manual'
+confidence                TEXT NOT NULL           -- 'high' | 'medium' | 'low'
+created_at                TIMESTAMPTZ NOT NULL DEFAULT now()
+updated_at                TIMESTAMPTZ NOT NULL DEFAULT now()
 ```
 
 ### `planet_publications` (the citation graph — Phase 2)
 
 ```sql
 pl_name                TEXT NOT NULL
-publication_id         BIGINT NOT NULL REFERENCES publications(publication_id)
-relationship           TEXT NOT NULL           -- 'discovery' | 'follow_up' (Phase 3) | 'parameter_revision'
-confidence             TEXT NOT NULL           -- 'high' | 'medium' | 'low'
-confidence_reason      TEXT NOT NULL
-extracted_from         TEXT NOT NULL           -- 'disc_refname' | 'pl_refname' | 'manual' | 'ads_query'
-extracted_at           TIMESTAMPTZ NOT NULL
-PRIMARY KEY (pl_name, publication_id, relationship)
+pub_id                 BIGINT NOT NULL REFERENCES publications(pub_id) ON DELETE CASCADE
+role                   TEXT NOT NULL DEFAULT 'discovery'  -- 'discovery' | 'follow_up'
+PRIMARY KEY (pl_name, pub_id, role)
 ```
+
+Confidence/extracted-from fields collapsed onto the parent `publications`
+row instead of the junction — the `resolved_via` value tells you the
+extraction method, and a single planet wouldn't disagree about the
+confidence of the same paper.
+
+### `citation_manual_queue` (Phase 2)
+
+```sql
+pl_name      TEXT PRIMARY KEY
+disc_refname TEXT
+notes        TEXT
+created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+```
+
+Tier 4 of the resolver: planets that fail all three automated tiers land
+here for human triage.
 
 ### `host_stars_gaia` (Phase 2 — Gaia DR3 enrichment)
 
@@ -254,13 +283,18 @@ retrieved_at           TIMESTAMPTZ NOT NULL
 
 ### `backfill_state` (Phase 2 — for resumable backfill)
 
+Used by both `enrich_gaia.py` (`batch_id = 'gaia-enrich-YYYY-MM-DD'`) and
+`resolve_citations.py` (`batch_id = 'citations-YYYY-MM-DD'`).
+
 ```sql
-batch_id               TEXT PRIMARY KEY        -- e.g. "discovery-resolve-2026-W19"
-last_processed_pl_name TEXT NOT NULL
+batch_id               TEXT PRIMARY KEY        -- e.g. "citations-2026-05-08"
+last_processed_key     TEXT NOT NULL           -- pl_name or gaia_dr3_id
 total_targets          INT NOT NULL
 processed_count        INT NOT NULL
-last_updated_at        TIMESTAMPTZ NOT NULL
-status                 TEXT NOT NULL           -- 'in_progress' | 'completed' | 'paused'
+error_count            INT NOT NULL DEFAULT 0
+last_updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+status                 TEXT NOT NULL           -- 'in_progress' | 'completed' | 'failed'
+notes                  JSONB                   -- per-job stats (hits, misses, tier counts, etc.)
 ```
 
 ### dbt mart layer
@@ -296,48 +330,74 @@ NASA Exoplanet Archive TAP
   FastAPI / Vercel → /api/discoveries, /api/planets, /api/health, /rss.xml
 ```
 
-### Phase 2 additions
+### Phase 2 additions (as built)
 ```
-discovery_changes (where change_type = NEW)
+planets_snapshots (after diff)
         │
         ▼
-  resolve_citation.py    → Tier 1 (DOI direct) → Tier 3 (Crossref) → Tier 2 (ADS) → Tier 4 (queue)
-        │                  → write to publications + planet_publications
-        │
-        │  (parallel branch)
+  enrich_gaia.py         → for each host with parsable gaia_dr3_id, query Gaia DR3 TAP
+        │                  → UPSERT into host_stars_gaia (resumable via backfill_state)
         ▼
-  enrich_gaia.py         → for each new host with gaia_dr3_id, query Gaia DR3 TAP
-        │                  → write to host_stars_gaia
+  enrich_ads.py          → for each new bibcode in disc_refname, fetch from NASA ADS
+        │                  → UPSERT into discovery_papers
         ▼
-  dbt run                → marts: dim_planet, dim_publication, fact_discovery, fact_parameter_revision
-        │
+  resolve_citations.py   → 4-tier per planet:
+        │                    Tier 1: ADS bibcode (from disc_refname regex)
+        │                    Tier 2: Crossref by DOI (from discovery_papers)
+        │                    Tier 3: ADS title search (fuzzy match)
+        │                    Tier 4: insert into citation_manual_queue
+        │                  → UPSERT publications + planet_publications
+        │                  → ADS quota circuit breaker on X-RateLimit-Remaining: 0
         ▼
-  publish.py             → regenerate citation-graph + procedural-rendering endpoints
+  publish.py             → regenerate rss.xml + discoveries.json + health.json
 ```
 
-Note tier ordering: Tier 2 (ADS) runs after Tier 3 (Crossref) intentionally because the ADS API key may not arrive by the time we start coding the resolver. Tier 2 reprocesses anything Tiers 1 and 3 left as low-confidence or unresolved.
+The two enrichment passes run sequentially in `nightly.yml`; they could
+run in parallel but the data volume per night is small enough that
+sequential is simpler. `resolve_citations.py` runs after `enrich_ads.py`
+because Tier 2 (Crossref by DOI) reads DOIs that `enrich_ads.py` cached
+into `discovery_papers`.
 
-Gaia enrichment runs as a parallel branch — it has no dependency on citation resolution. The two backfill jobs can run independently and concurrently (Gaia: ~6,300 hosts, batched lookups, ~hour of clock time; citations: ~6,300 planets across 3 APIs, several hours).
+dbt marts (`dim_planet`, `dim_publication`, etc.) deferred — not on the
+critical path; the API serves directly from the public schema.
 
 ---
 
-## Citation Resolution Strategy
+## Citation Resolution Strategy (as shipped)
 
-The `disc_refname` field is a free-text bibliographic reference like:
-> `Borucki W. J., et al. 2011, ApJ, 736, 19`
+`disc_refname` is HTML-embedded, not free text. It looks like:
+> `<a href="https://ui.adsabs.harvard.edu/abs/2011ApJ...736...19B/abstract" target=_blank>Borucki et al. 2011</a>`
 
-Tiered strategy:
+That HTML envelope makes Tier 1 trivial: regex out the bibcode and call
+ADS. Tiers 2 and 3 are fallbacks for the small fraction of planets where
+either the bibcode is missing/malformed or ADS itself is rate-limited.
 
-1. **Tier 1 — direct DOI present.** Some entries already include a DOI. Trivial, mark `confidence='high'`, `extracted_from='disc_refname'`.
-2. **Tier 3 — Crossref title/author search.** Parse first-author surname + year + journal abbreviation, query Crossref `/works` with structured filters. If exactly one result matches author+year+journal, mark `confidence='medium'`. (Numbered "3" because it's built second but is logically the third tier of confidence.)
-3. **Tier 2 — ADS bibcode lookup.** Construct the bibcode from the reference string (`2011ApJ...736...19B`), query ADS, get DOI + metadata. Mark `confidence='high'` if ADS returns an exact match. Built last, runs across queue + low-confidence entries to upgrade them.
-4. **Tier 4 — manual review queue.** Anything that can't be resolved with confidence goes into `data/unresolved.csv` for human review. Track resolution rate as a project KPI.
+Tiers (per planet, stop at first success):
 
-**Anti-goal:** doing real NLP. This is rule-based parsing with progressively wider nets. If a reference can't be resolved by Tier 3 (or upgraded by Tier 2), it goes to the queue.
+1. **Tier 1 — ADS bibcode from `disc_refname`.** Regex `abs/([^/]+)/abstract`
+   on the embedded URL, decode `%26` → `&`. Confidence: `high`.
+   `resolved_via='ads_bibcode'`. Covers ~99% of catalog rows.
+2. **Tier 2 — Crossref by DOI.** Pulls the DOI we already cached in
+   `discovery_papers` (during `enrich_ads.py`) and queries Crossref's
+   `/works/{doi}` endpoint. Confidence: `high`. `resolved_via='crossref_doi'`.
+   Used as the fallback when Tier 1 fails (typically: ADS quota
+   exhausted that day; a transient error during the title search; a
+   handful of malformed bibcodes).
+3. **Tier 3 — ADS title search.** Fuzzy `title:"…" author:"…"` search
+   ranked by relevance. Confidence: `medium`. `resolved_via='ads_title'`.
+   Rarely hit in practice.
+4. **Tier 4 — `citation_manual_queue` insert.** No `publications` row;
+   logged for human triage. Currently ~50 planets, mostly from
+   long-tail edge cases (in-press references, malformed HTML, etc.).
 
-**Tier 4 ergonomics:** `data/unresolved.csv` is a flat file. Manual workflow: open the file, fill in the DOI/bibcode column for entries you can resolve by hand, re-run `resolve_citation.py --from-manual data/unresolved.csv`. No UI.
+**Why Crossref will likely be retired:** most Crossref-resolved rows
+exist because ADS was rate-limited that day, not because ADS lacks the
+paper. After a clean ADS run with full quota we expect to delete those
+rows and re-resolve via ADS, leaving a 3-tier resolver.
 
-**Day 0 sanity check:** before locking the Phase 2 timeline, pull a sample of `disc_refname` (URL above) and skim 100 values. If the long tail of weird formats (concatenated multi-references, "in press", URL-only, conference proceedings) is >30% of rows, the resolution-rate target needs to be honest about it (e.g. "we resolve 65% of references; the remaining 35% are documented in `docs/UNRESOLVED.md`").
+**Anti-goal:** doing real NLP. This is regex + structured-API lookups.
+The library-science contribution is the provenance trail
+(`resolved_via` + `confidence` per row), not the parsing.
 
 ---
 
@@ -439,14 +499,17 @@ exoplanet_citation/
 ## Phase status
 
 Work is sequenced by phase, not by calendar day. Slip is acceptable;
-ship-quality is not. Phase 1 must produce **5 consecutive green nightly
-runs** before being declared shipped, regardless of calendar date.
+ship-quality is not.
 
-### Phase 1 — done
+### Phase 1 — shipped
+
+5 consecutive green nightly runs since 2026-05-04 (Star Wars Day);
+storage held steady by the rolling 2-day prune; data products committed
+back to `main` automatically.
 
 - ETL pipeline: `extract.py` (Exoplanet Archive TAP → R2 + manifest),
   `load.py` (R2 → Postgres UPSERT), dbt staging (`stg_pscomppars`),
-  `diff.py` (field-tier-aware NEW/REMOVED/PARAMETER_CHANGE),
+  `diff.py` (field-tier-aware NEW/REMOVED/PARAMETER_CHANGE + auto-prune),
   `publish.py` (RSS + JSON + health snapshot)
 - Schema with 28 typed columns + JSONB raw row preservation, 13 dbt tests
 - Cloudflare R2 raw landing zone with sha256 manifest in git
@@ -455,76 +518,79 @@ runs** before being declared shipped, regardless of calendar date.
   floats with Tier A demotion / Tier B suppression of sub-tolerance changes
 - Nightly GitHub Actions cron at 06:00 UTC; auto-issue-on-failure;
   results auto-committed back to `main` with `[skip ci]`
-- FastAPI: 7 endpoints + automatic OpenAPI/Swagger docs
-- React frontend (Vite + TypeScript): search, recent-discoveries feed,
-  planet detail page with **procedural rendering** from typed columns
+- FastAPI: 22 endpoints + automatic OpenAPI/Swagger docs (Phase 1 +
+  Phase 2 endpoints)
+- React frontend (Vite + TypeScript): search (planet + author),
+  infinite-scroll catalog, planet detail with **procedural rendering**,
+  full-screen system orbital view (true AU scaling, scroll-to-zoom),
+  six retro display themes
 - Vercel deployment serving both API (Python serverless) and React static
   build under one project at `exoplanet-citation.vercel.app`
-- 64 unit tests + 13 dbt tests, all green; CI workflow with ruff lint
+- 78 unit tests + 13 dbt tests, all green; CI workflow with ruff lint
 - Provenance per row: `source_url`, `source_retrieved_at`,
   `source_checksum`, `extraction_version`, `raw_row` JSONB
-- Documentation: ARCHITECTURE.md, DATA_CATALOG.md (column families
-  decoded), PROCEDURAL_RENDERING.md (visual mapping rationale),
-  controlled-vocabulary YAMLs
-- Phase 2 scaffold: Gaia DR3 client + smoke test verified end-to-end
+- Documentation: ARCHITECTURE.md, DATA_CATALOG.md, PROCEDURAL_RENDERING.md,
+  THEMING.md, controlled-vocabulary YAMLs
 
-### Phase 1 — remaining before "shipped"
+### Phase 2 — substantially complete (93% citation coverage; final pass pending)
 
-- 5 consecutive green nightly cron runs (the formal Phase 1 ship bar)
-- README v1 polish + ARCHITECTURE.md polish + diagrams under `docs/diagrams/`
-- Real-data validation: at least one nightly cycle producing actual
-  change events (gated on upstream NASA Exoplanet Archive cadence,
-  which is approximately weekly)
-- Optional: PRIVACY.md polish, `freshness-check.yml` weekly external
-  uptime check
+**Citation resolution — implemented:**
+- `etl/sources/ads.py` (NASA ADS client with quota-aware circuit breaker;
+  reads `X-RateLimit-Reset` header)
+- `etl/sources/crossref.py` (DOI lookup, polite-pool with `mailto`)
+- Migration `005_citation_graph.sql` adding `publications`,
+  `planet_publications`, `citation_manual_queue`
+- `etl/resolve_citations.py` — 4-tier strategy:
+  Tier 1 (ADS bibcode from `disc_refname`)
+  → Tier 2 (Crossref by known DOI)
+  → Tier 3 (ADS title search)
+  → Tier 4 (insert into `citation_manual_queue`)
+- Resumable via `backfill_state` (batch_id `'citations'`)
+- 5,856 / 6,286 planets resolved (93%); 50 in manual queue; 430 awaiting
+  next ADS-quota window
+- The arXiv API client was deferred — ADS already exposes arXiv IDs
+  for cached papers, so it's not on the critical path
 
-### Phase 2 — next major milestone
+**ADS discovery-paper enrichment — implemented:**
+- `etl/sources/ads.py` shared client
+- `etl/enrich_ads.py` populates `discovery_papers` (~1,250 unique
+  bibcodes today) with title, authors, abstract, citation_count, DOI,
+  arXiv ID
+- Migration `004_discovery_papers.sql`
 
-The library-science differentiator. Two parallel workstreams:
+**Gaia DR3 enrichment — done:**
+- `etl/sources/gaia.py` (TAP client, batched)
+- Migration `002_phase2_host_stars_gaia.sql`
+- `etl/enrich_gaia.py` — UPSERTs into `host_stars_gaia` with resumable
+  cursor; complete for 4,355 / 4,355 hosts that have a parsable Gaia DR3
+  source ID
 
-**Citation resolution:**
-- `etl/sources/crossref.py`, `etl/sources/arxiv.py`, `etl/sources/ads.py`
-  source clients (polite-pool with email, retry handling)
-- `publications`, `planet_publications`, `backfill_state` schema migration
-- `etl/resolve_citation.py` — 4-tier strategy:
-  Tier 1 (direct DOI in `disc_refname`)
-  → Tier 3 (Crossref title/author/year search)
-  → Tier 2 (ADS bibcode lookup; built last because the API key is the
-     long pole; runs across queue + low-confidence rows to upgrade them)
-  → Tier 4 (manual queue at `data/unresolved.csv`)
-- `etl/backfill_citations.py` — resumable batched backfill across all
-  ~6,300 planets, runs overnight unattended
-- `tests/test_resolve_citation.py` — ≥10 cases per tier including
-  edge-case reference strings (in-press, conference proceedings,
-  concatenated multi-references)
-- `docs/CITATION_RESOLUTION.md` — methodology, decision tree, confidence
-  rubric, current resolution rate KPI
+**API + UI extensions — implemented:**
+- Endpoints: `/api/planets/{name}/publications` (with `co_planets` per
+  publication for one-shot multi-planet UI), `/api/publications/{bibcode}`
+  (publication + linked planets), `/api/authors/{name}/publications`,
+  `/api/planets/{name}/host_star`, `/api/planets/{name}/paper`,
+  `/api/authors/top`, `/api/authors/search`, `/api/rss/{*}` (per-planet,
+  per-system, per-author RSS), `/api/health` with storage warning
+- Frontend: discovery section on PlanetDetail surfaces "this paper also
+  announced N planets" with collapsible `+N more` expansion;
+  AuthorDetail page; per-feed RSS subscribe links
 
-**Gaia DR3 enrichment** (parallel branch, no dependency on citation work):
-- `etl/sources/gaia.py` — already scaffolded
-- `host_stars_gaia` schema migration
-- `etl/enrich_gaia.py` — for each host with `gaia_dr3_id`, look up Gaia
-  record, write to `host_stars_gaia`
-- `etl/backfill_gaia.py` — resumable batched backfill across ~6,300 hosts,
-  ~hour of clock time at default batch size
-
-**dbt marts:**
-- `dim_planet`, `dim_publication`, `fact_discovery`,
-  `fact_parameter_revision` (the last requires a one-time ingest of the
-  full `ps` table)
-- dbt tests: not_null, unique, relationships, plus custom tests like
-  "every planet has at least one discovery publication or is in the
-  unresolved queue"
-
-**API + UI extensions:**
-- New endpoints: `/api/planets/{name}/publications`,
-  `/api/publications/{doi}`, `/api/publications/{doi}/planets`,
-  `/api/planets/{name}/host_star`
-- Frontend: planet detail page surfaces discovery paper(s) with confidence
-  badge; publication detail page lists all planets discussed; host star
-  rendered using Gaia BP-RP color (replaces the current `st_teff`
-  fallback in `web/src/procedural.ts`); citation-graph-health panel
-  showing resolution rate over time
+**Phase 2 — remaining:**
+- One more clean ADS run after the rolling 24h quota window resets, to
+  close the final 7% citation coverage gap
+- Crossref purge + ADS re-resolution: once ADS coverage hits 100%,
+  `DELETE FROM publications WHERE resolved_via='crossref_doi'` and rerun
+  to upgrade those rows with richer ADS metadata (abstract, ADS bibcode,
+  ADS citation count). Then delete `etl/sources/crossref.py`.
+- dbt marts (`dim_planet`, `dim_publication`, `fact_discovery`,
+  `fact_parameter_revision`) — deferred; the API serves directly from
+  the public schema today and the marts aren't blocking anything
+- Optional: `docs/CITATION_RESOLUTION.md` writeup with confidence rubric
+  and resolution-rate KPI tracking
+- Optional: storage warning surfaced in the UI (data is in `/api/health`
+  already, just needs a footer/header treatment)
+- Optional: manual-queue triage UI for the ~50 queued planets
 
 ### Phase 3 — post-v1.0
 

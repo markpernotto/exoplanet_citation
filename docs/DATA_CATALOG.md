@@ -14,7 +14,7 @@ A reference for every dataset this project ingests. One section per source, plus
 | **Schema docs** | https://exoplanetarchive.ipac.caltech.edu/docs/API_PS_columns.html |
 | **License / use policy** | https://exoplanetarchive.ipac.caltech.edu/docs/acknowledge.html |
 | **Update cadence** | Approximately weekly |
-| **Coverage** | All confirmed exoplanets known to NASA's catalog (~6,300 as of May 2026) |
+| **Coverage** | All confirmed exoplanets known to NASA's catalog (6,286 as of 2026-05-08) |
 | **Row grain** | One row per planet, with archive-preferred parameter values |
 | **Citation string** | "This research has made use of the NASA Exoplanet Archive, which is operated by the California Institute of Technology, under contract with the National Aeronautics and Space Administration under the Exoplanet Exploration Program." |
 | **Used by** | `etl/sources/exoplanet_archive.py` (extract); `etl/load.py` (raw landing); `etl/transform/models/staging/stg_pscomppars.sql` (staging) |
@@ -134,14 +134,12 @@ Our typed columns in `planets_snapshots` carry only the **value** column today. 
 How our pipeline classifies each column for change-event handling. See [PLAN.md](../PLAN.md) for the full rationale.
 
 - **Tier A** (RSS-surfaced, public change feed): `discoverymethod`, `disc_year`, `disc_facility`, `pl_orbper`, `pl_rade`, `pl_bmasse`. Tier A floats use 1% relative-tolerance with sub-tolerance demoted to Tier B.
-- **Tier B** (logged in `discovery_changes` but not surfaced in feeds): `sy_snum`, `sy_pnum`, `pl_eqt`, `st_dist`. Sub-tolerance changes are *suppressed* (not demoted).
-- **Tier C** (preserved in `raw_row` JSONB only, never diffed): everything else.
-
-Phase 1.x will add to Tier B: `pl_orbsmax`, `pl_orbeccen`, `pl_insol`, `st_teff`, `st_rad`, `st_mass`. These need schema expansion in `planets_snapshots` first.
+- **Tier B** (logged in `discovery_changes` but not surfaced in feeds, 13 columns after Phase 1.x): `sy_snum`, `sy_pnum`, `pl_eqt`, `pl_orbsmax`, `pl_orbeccen`, `pl_insol`, `pl_dens`, `st_teff`, `st_rad`, `st_mass`, `st_lum`, `st_spectype`, `sy_dist`. Sub-tolerance float changes are *suppressed* (not demoted).
+- **Tier C** (preserved in `raw_row` JSONB only, never diffed): everything else, plus the identity-stable typed columns `ra`, `dec`, `gaia_dr3_id`.
 
 ### Known quirks and caveats
 
-- **`disc_refname` is free text, not structured citation data.** Format varies (`"Borucki W. J., et al. 2011, ApJ, 736, 19"` is the clean case; URLs, "in press", and concatenated multi-references also occur). Phase 2's `etl/resolve_citation.py` parses these into DOIs.
+- **`disc_refname` is HTML-embedded, not free-text reference strings.** Format is typically `<a href="https://ui.adsabs.harvard.edu/abs/{bibcode}/abstract">label</a>`, with `%26` encoding embedded `&` characters. `etl/resolve_citations.py` parses out the bibcode via regex (`abs/([^/]+)/abstract`) as Tier 1 of the citation resolver.
 - **Errors are sometimes asymmetric, sometimes symmetric.** When `errN` columns are populated and `symerr` is null, use the asymmetric pair. When `symerr` is populated and `errN` are null, use the symmetric value.
 - **Limit flags matter for filtering.** A row with `pl_dens_lim = 1` means the density value is an *upper limit* — the planet is at most that dense, not exactly that dense. UI plots should mark these distinctly.
 - **`gaia_dr2_id` and `gaia_dr3_id` are different IDs for the same star.** DR3 superseded DR2 in 2022. Always prefer DR3 for cross-reference queries to Gaia's TAP service.
@@ -160,32 +158,63 @@ This catalog reflects our project's *use* of the columns. The upstream docs are 
 
 ---
 
-## Future sources (Phase 2+)
+## Phase 2 sources — integrated
 
-The following sources will be added when their respective phases begin. Stubs left here so the catalog grows alongside the pipeline.
+### NASA ADS API *(integrated)*
+- **Source URL:** `https://api.adsabs.harvard.edu/v1/search/query`
+- **Purpose:** Astronomy-specific bibliographic database. Resolves
+  bibcodes (extracted from `disc_refname` or via title search) to
+  rich paper metadata: title, authors, abstract, citation count, DOI,
+  arXiv ID.
+- **Used by:** `etl/sources/ads.py` (client with quota-aware circuit
+  breaker), `etl/enrich_ads.py` (caches results in `discovery_papers`),
+  `etl/resolve_citations.py` (Tier 1 + Tier 3 of the resolver).
+- **Quota:** 5,000 requests/user/day on the free tier; reset is
+  reported in the `X-RateLimit-Reset` response header (rolling 24h
+  window). The client trips a module-level circuit breaker on
+  `X-RateLimit-Remaining: 0` and short-circuits all subsequent calls
+  for the rest of the process to avoid wasted roundtrips.
+- **License / acknowledgement:** see https://ui.adsabs.harvard.edu/help/terms/
 
-### Crossref REST API *(Phase 2)*
-- **Source URL:** https://api.crossref.org/works/{doi}
-- **Purpose:** Resolve DOIs to publication metadata.
-- **Status:** Not yet integrated.
+### Crossref REST API *(integrated, Tier 2 fallback)*
+- **Source URL:** `https://api.crossref.org/works/{doi}`
+- **Purpose:** Resolve DOIs (already known from `discovery_papers`) to
+  publication metadata when ADS is unavailable or rate-limited.
+- **Used by:** `etl/sources/crossref.py`, called by `resolve_citations.py`
+  Tier 2.
+- **Auth:** none required. We send `mailto={USER_AGENT_EMAIL}` to land
+  in the polite request pool.
+- **Status:** in active use as a fallback while ADS coverage is being
+  built up. Likely to be retired once the citation graph reaches 100%
+  ADS resolution (see PLAN.md / README roadmap).
 
-### arXiv API *(Phase 2)*
+### Gaia DR3 *(integrated)*
+- **Source URL:** `https://gea.esac.esa.int/tap-server/tap`
+- **Purpose:** Per-host-star astrometry (precise distance, proper
+  motion, radial velocity), photometry (BP-RP color → derived surface
+  temperature for visualizations), Gaia-derived stellar parameters
+  (`teff_gspphot`, `logg_gspphot`, `mh_gspphot`, `distance_gspphot`).
+  Cross-referenced via `gaia_dr3_id` from pscomppars.
+- **Used by:** `etl/sources/gaia.py` (TAP client),
+  `etl/enrich_gaia.py` (UPSERTs into `host_stars_gaia`).
+- **Why not just use pscomppars Gaia columns:** pscomppars carries only
+  `sy_gaiamag` and the Gaia source IDs. Querying Gaia directly gives
+  access to BP-RP photometry, parallax with full precision, proper
+  motion, and Gaia-derived stellar parameters not present in pscomppars.
+
+---
+
+## Future sources (Phase 3+)
+
+### arXiv API *(deferred)*
 - **Source URL:** http://export.arxiv.org/api/query
-- **Purpose:** Resolve arXiv IDs to preprint metadata.
-- **Status:** Not yet integrated.
-
-### NASA ADS API *(Phase 2)*
-- **Source URL:** https://api.adsabs.harvard.edu/v1
-- **Purpose:** Astronomy-specific bibliographic database. Bibcode resolution; follow-up paper graph (Phase 3).
-- **Status:** Not yet integrated.
-
-### Gaia DR3 *(Phase 2 candidate)*
-- **Source URL:** https://gea.esac.esa.int/tap-server/tap
-- **Purpose:** Per-host-star astrometry (precise distance, proper motion, radial velocity), photometry (BP-RP color → derived surface temperature for visualizations), 3D galactic position. Cross-referenced via `gaia_dr3_id` from pscomppars.
-- **Status:** Not yet integrated. See [PLAN.md](../PLAN.md) for sequencing.
-- **Why not duplicate of pscomppars Gaia columns:** pscomppars carries only `sy_gaiamag` and the Gaia source IDs. Querying Gaia directly gives access to BP-RP photometry, parallax with full precision, proper motion, and Gaia-derived stellar parameters not present in pscomppars.
+- **Purpose:** Resolve arXiv IDs to preprint metadata; potential Phase 3
+  source for follow-up paper discovery.
+- **Status:** Not integrated; ADS already exposes arXiv IDs for cached
+  papers, so a direct arXiv client is not strictly required for Phase 2.
 
 ### Habitable Exoplanets Catalog (PHL @ UPR Arecibo) *(Stretch)*
 - **Source URL:** http://phl.upr.edu/projects/habitable-exoplanets-catalog
-- **Purpose:** Pre-computed Earth-Similarity Index per planet, habitable-zone classification.
-- **Status:** Under consideration for Phase 1.x or Phase 3.
+- **Purpose:** Pre-computed Earth-Similarity Index per planet,
+  habitable-zone classification.
+- **Status:** Under consideration for Phase 3.

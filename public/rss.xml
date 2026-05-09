@@ -5,7 +5,199 @@
     <link>https://github.com/markpernotto/exoplanet_citation</link>
     <description>Newly confirmed and revised exoplanet records from the NASA Exoplanet Archive, diffed nightly. Surfaces NEW / REMOVED / Tier-A parameter changes only.</description>
     <language>en-us</language>
-    <lastBuildDate>Thu, 07 May 2026 06:53:52 +0000</lastBuildDate>
+    <lastBuildDate>Sat, 09 May 2026 06:40:53 +0000</lastBuildDate>
     <ttl>1440</ttl>
+    <item>
+      <title>Parameter update — CFHTWIR-Oph 98 b: disc_year</title>
+      <guid isPermaLink="false">change-1</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>CFHTWIR-Oph 98 b disc_year: 2021 → 2020</description>
+    </item>
+    <item>
+      <title>Parameter update — GJ 1132 b: pl_rade</title>
+      <guid isPermaLink="false">change-3</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>GJ 1132 b pl_rade: 1.19151465 → 1.22</description>
+    </item>
+    <item>
+      <title>Parameter update — GJ 1132 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-4</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>GJ 1132 b pl_bmasse: 1.83704819 → 1.69</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 206893 b: pl_orbper</title>
+      <guid isPermaLink="false">change-11</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>HD 206893 b pl_orbper: 9350.0 → 11100.0</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 206893 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-12</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>HD 206893 b pl_bmasse: 8899.195396 → 6197.6539365</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 206893 c: pl_orbper</title>
+      <guid isPermaLink="false">change-16</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>HD 206893 c pl_orbper: 2090.0 → 2290.0</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 206893 c: pl_bmasse</title>
+      <guid isPermaLink="false">change-17</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>HD 206893 c pl_bmasse: 4036.4207689 → 3527.8953177</description>
+    </item>
+    <item>
+      <title>Parameter update — HIP 41378 b: pl_rade</title>
+      <guid isPermaLink="false">change-22</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>HIP 41378 b pl_rade: 2.595 → 2.419</description>
+    </item>
+    <item>
+      <title>Parameter update — HIP 41378 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-23</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>HIP 41378 b pl_bmasse: 6.89 → 9.06</description>
+    </item>
+    <item>
+      <title>Parameter update — HIP 41378 c: pl_rade</title>
+      <guid isPermaLink="false">change-31</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>HIP 41378 c pl_rade: 2.727 → 2.505</description>
+    </item>
+    <item>
+      <title>Parameter update — HIP 41378 c: pl_bmasse</title>
+      <guid isPermaLink="false">change-32</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>HIP 41378 c pl_bmasse: 4.4 → 6.53</description>
+    </item>
+    <item>
+      <title>Parameter update — HIP 41378 g: pl_orbper</title>
+      <guid isPermaLink="false">change-39</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>HIP 41378 g pl_orbper: 62.06 → 64.067</description>
+    </item>
+    <item>
+      <title>Parameter update — HIP 41378 g: pl_rade</title>
+      <guid isPermaLink="false">change-40</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>HIP 41378 g pl_rade: 2.54 → 2.5</description>
+    </item>
+    <item>
+      <title>Parameter update — HIP 41378 g: pl_bmasse</title>
+      <guid isPermaLink="false">change-41</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>HIP 41378 g pl_bmasse: 7.0 → 6.81</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TIC 183374187 b</title>
+      <guid isPermaLink="false">change-46</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>New planet: TIC 183374187 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-1752 b</title>
+      <guid isPermaLink="false">change-47</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>New planet: TOI-1752 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-1752 c</title>
+      <guid isPermaLink="false">change-48</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>New planet: TOI-1752 c</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-201 b: pl_rade</title>
+      <guid isPermaLink="false">change-50</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>TOI-201 b pl_rade: 11.82547464 → 11.4</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-201 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-51</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>TOI-201 b pl_bmasse: 184.34047606 → 164.0</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-201 c: pl_orbper</title>
+      <guid isPermaLink="false">change-57</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>TOI-201 c pl_orbper: 2800.0 → 2890.0</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-201 c: pl_rade</title>
+      <guid isPermaLink="false">change-58</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>TOI-201 c pl_rade: 11.13051784 → 10.4</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-201 c: pl_bmasse</title>
+      <guid isPermaLink="false">change-59</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>TOI-201 c pl_bmasse: 4513.1633794 → 4990.0</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-201 d</title>
+      <guid isPermaLink="false">change-66</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>New planet: TOI-201 d</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-5624 b: pl_rade</title>
+      <guid isPermaLink="false">change-69</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>TOI-5624 b pl_rade: 2.18231452 → 2.314</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-5624 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-70</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>TOI-5624 b pl_bmasse: 5.4 → 9.4</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-5624 c</title>
+      <guid isPermaLink="false">change-79</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>New planet: TOI-5624 c</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-5624 d</title>
+      <guid isPermaLink="false">change-80</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>New planet: TOI-5624 d</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-5624 e</title>
+      <guid isPermaLink="false">change-81</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>New planet: TOI-5624 e</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-5624 f</title>
+      <guid isPermaLink="false">change-82</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>New planet: TOI-5624 f</description>
+    </item>
+    <item>
+      <title>Parameter update — iot Dra c: disc_year</title>
+      <guid isPermaLink="false">change-84</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>iot Dra c disc_year: 2022 → 2021</description>
+    </item>
+    <item>
+      <title>Parameter update — kap And b: pl_rade</title>
+      <guid isPermaLink="false">change-85</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>kap And b pl_rade: 12.3 → 15.91675259</description>
+    </item>
+    <item>
+      <title>Parameter update — kap And b: pl_bmasse</title>
+      <guid isPermaLink="false">change-86</guid>
+      <pubDate>Fri, 08 May 2026 06:30:59 +0000</pubDate>
+      <description>kap And b pl_bmasse: 4327.36 → 5498.4314411</description>
+    </item>
   </channel>
 </rss>

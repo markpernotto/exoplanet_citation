@@ -1,12 +1,11 @@
 """Citation graph resolution.
 
 Resolves every planet in planets_current to a publication record, using a
-4-tier strategy (stopping at the first success per planet):
+3-tier strategy (stopping at the first success per planet):
 
-  Tier 1  disc_refname → ADS bibcode   (confidence: high)
-  Tier 2  known DOI   → Crossref       (confidence: high)
-  Tier 3  paper title → ADS title search  (confidence: medium)
-  Tier 4  manual queue (log and continue, no API call)
+  Tier 1  disc_refname → ADS bibcode      (confidence: high)
+  Tier 2  paper title → ADS title search  (confidence: medium)
+  Tier 3  manual queue (log and continue, no API call)
 
 Results land in the publications + planet_publications tables.
 Resumable via backfill_state (key: 'citations').
@@ -18,6 +17,13 @@ Run:
   python -m etl.resolve_citations --all        # re-resolve every planet
   python -m etl.resolve_citations --dry-run    # show plan, no writes/API calls
   python -m etl.resolve_citations --max-planets 50  # stop early (debug)
+
+History: a Crossref-by-DOI Tier 2 existed when ADS daily quota was the
+bottleneck during initial backfill. Once ADS coverage hit ~99% on a
+single fresh-quota run, Crossref produced strictly worse data (no
+abstract, no ADS bibcode, no ADS-tracked citation count) and was
+removed. The DB CHECK on publications.resolved_via still permits
+'crossref_doi' for forward compatibility, but no code writes it.
 """
 
 from __future__ import annotations
@@ -36,7 +42,7 @@ import psycopg
 from dotenv import load_dotenv
 from psycopg.types.json import Jsonb
 
-from etl.sources import ads, crossref
+from etl.sources import ads
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -213,25 +219,8 @@ def _try_tier1(planet: dict, api_key: str) -> dict[str, Any] | None:
         return None
 
 
-def _try_tier2(planet: dict) -> dict[str, Any] | None:
-    """Tier 2: look up known DOI (from discovery_papers) via Crossref."""
-    doi = planet.get("doi")
-    if not doi:
-        return None
-    try:
-        data = crossref.fetch_by_doi(doi)
-        if not data:
-            return None
-        data["resolved_via"] = "crossref_doi"
-        data["confidence"]   = "high"
-        return data
-    except Exception as exc:
-        log.warning("Tier 2 Crossref fetch failed for DOI %s: %s", doi, exc)
-        return None
-
-
-def _try_tier3(planet: dict, api_key: str) -> dict[str, Any] | None:
-    """Tier 3: ADS title search using title from discovery_papers."""
+def _try_tier2(planet: dict, api_key: str) -> dict[str, Any] | None:
+    """Tier 2: ADS title search using title from discovery_papers."""
     if ads.quota_status() is not None:
         return None
     title   = planet.get("title")
@@ -248,7 +237,7 @@ def _try_tier3(planet: dict, api_key: str) -> dict[str, Any] | None:
         data["confidence"]   = "medium"
         return data
     except Exception as exc:
-        log.warning("Tier 3 ADS title search failed for '%s': %s", title, exc)
+        log.warning("Tier 2 ADS title search failed for '%s': %s", title, exc)
         return None
 
 
@@ -311,14 +300,14 @@ def resolve(
     planets = _load_planets(conn, refresh_all=refresh_all)
     if not planets:
         log.info("Nothing to do.")
-        return {"total": 0, "tier1": 0, "tier2": 0, "tier3": 0, "queued": 0}
+        return {"total": 0, "tier1": 0, "tier2": 0, "queued": 0}
 
     if max_planets:
         planets = planets[:max_planets]
 
     batch_id = f"citations-{date.today().isoformat()}"
     total = len(planets)
-    counts = {"tier1": 0, "tier2": 0, "tier3": 0, "queued": 0, "errors": 0}
+    counts = {"tier1": 0, "tier2": 0, "queued": 0, "errors": 0}
     processed = 0
     last_key = ""
 
@@ -330,25 +319,17 @@ def resolve(
         data: dict[str, Any] | None = None
         tier_hit = ""
 
-        # Tier 1
+        # Tier 1: bibcode from disc_refname → ADS
         data = _try_tier1(planet, api_key)
         if data:
             tier_hit = "tier1"
-        else:
-            time.sleep(0.05)  # small pause between API tiers
 
-        # Tier 2
-        if not data:
-            data = _try_tier2(planet)
-            if data:
-                tier_hit = "tier2"
-
-        # Tier 3
+        # Tier 2: title search → ADS (only when Tier 1 missed; also short-circuits on quota exhaustion)
         if not data:
             time.sleep(0.1)
-            data = _try_tier3(planet, api_key)
+            data = _try_tier2(planet, api_key)
             if data:
-                tier_hit = "tier3"
+                tier_hit = "tier2"
 
         try:
             conn = _ensure_connection(conn)
@@ -389,8 +370,8 @@ def resolve(
                 status="completed", notes=dict(counts))
 
     log.info(
-        "Done · tier1=%d tier2=%d tier3=%d queued=%d errors=%d",
-        counts["tier1"], counts["tier2"], counts["tier3"],
+        "Done · tier1=%d tier2=%d queued=%d errors=%d",
+        counts["tier1"], counts["tier2"],
         counts["queued"], counts["errors"],
     )
     return {"total": total, **counts}

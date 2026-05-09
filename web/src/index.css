@@ -76,7 +76,11 @@ a:hover { text-decoration: underline; }
   padding: 0 1rem;
   box-sizing: border-box;
 }
-.layout > main { flex: 1; padding: 0.5rem 0; }
+/* Bottom padding clears the position:fixed hover-to-peek footer + its 36px
+   peek zone, so the last line of any page isn't covered when the footer
+   slides up. The (hover: none) media query below makes the footer flow
+   inline, so this padding is harmless extra whitespace on touch devices. */
+.layout > main { flex: 1; padding: 0.5rem 0 5rem; }
 
 header.site {
   position: -webkit-sticky;

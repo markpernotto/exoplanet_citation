@@ -2,25 +2,25 @@
 
 A public data warehouse linking confirmed exoplanets to the scientific papers
 that announced them. Built on the NASA Exoplanet Archive, with citation
-resolution via Crossref, arXiv, and NASA ADS, and host-star enrichment via
-Gaia DR3.
+resolution via NASA ADS and host-star enrichment via Gaia DR3.
 
 **Live:** [exoplanet-citation.vercel.app](https://exoplanet-citation.vercel.app)
 · [API docs (Swagger)](https://exoplanet-citation.vercel.app/docs)
 · [Source on GitHub](https://github.com/markpernotto/exoplanet_citation)
 
-**Status:** Phase 1 done. Phase 2 substantially complete. Daily ingest
-pipeline running on a GitHub Actions cron; 6,286 confirmed planets loaded
-into Postgres with 5 consecutive nightly runs since 2026-05-04; FastAPI
-serving 22 endpoints with automatic Swagger docs; React frontend deployed
-with procedurally-rendered planet cards; Gaia DR3 host-star enrichment
-complete for all 4,355 enrichable hosts; ADS-backed `discovery_papers`
-table populated for ~1,250 unique discovery papers; **citation graph
-(`publications` + `planet_publications`) resolved for 5,856 / 6,286
-planets (93%)** via a 4-tier resolver (ADS bibcode → Crossref DOI → ADS
-title → manual queue); planet detail UI surfaces multi-planet discovery
-papers via "this paper also announced…" links; 78 unit tests + 13 dbt
-tests passing.
+**Status:** Phase 1 done. Phase 2 complete. Daily ingest pipeline running
+on a GitHub Actions cron; 6,286 confirmed planets loaded into Postgres
+with 5+ consecutive nightly runs since 2026-05-04; FastAPI serving 22
+endpoints with automatic Swagger docs; React frontend deployed with
+procedurally-rendered planet cards, multi-planet "this paper also
+announced…" affordance, and a `/feeds` index for personalized RSS
+subscriptions; Gaia DR3 host-star enrichment complete for all 4,355
+enrichable hosts; **citation graph (`publications` +
+`planet_publications`) resolved for 6,219 / 6,286 planets (98.9%)** via
+a 3-tier ADS-only resolver (bibcode from `disc_refname` → ADS title
+search → manual queue), with 67 long-tail edge cases parked in
+`citation_manual_queue` for human triage; 78 unit tests + 13 dbt tests
+passing.
 
 See [PLAN.md](PLAN.md) for the full implementation roadmap and
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the pieces fit together.
@@ -70,12 +70,12 @@ from a stock-image library.
   metadata (title, authors, abstract, citation count, DOI, arXiv ID) in
   `discovery_papers`. Quota-aware; falls back gracefully when ADS rate
   limits are hit.
-- **Citation graph resolver** — `etl/resolve_citations.py` runs a 4-tier
-  strategy per planet: extract ADS bibcode from `disc_refname` → look up
-  by DOI in Crossref → ADS title search → manual queue. Writes to
-  `publications` + `planet_publications` with provenance (`resolved_via`,
-  `confidence`). Resumable via `backfill_state`. Trips a circuit breaker
-  on `X-RateLimit-Remaining: 0` and stops calling ADS until quota resets.
+- **Citation graph resolver** — `etl/resolve_citations.py` runs a 3-tier
+  ADS-only strategy per planet: extract ADS bibcode from `disc_refname`
+  → ADS title search → manual queue. Writes to `publications` +
+  `planet_publications` with provenance (`resolved_via`, `confidence`).
+  Resumable via `backfill_state`. Trips a circuit breaker on
+  `X-RateLimit-Remaining: 0` and stops calling ADS until quota resets.
 - **Publisher** generates RSS 2.0, JSON, and health-snapshot feeds with
   freshness measurement against a 26-hour SLO. Per-planet, per-system, and
   per-author RSS feeds are also exposed dynamically by the API.
@@ -133,7 +133,7 @@ make dbt-run                            # raw → staging
 make diff                               # consecutive snapshots → discovery_changes (also auto-prunes)
 python -m etl.enrich_gaia               # host_stars_gaia (resumable)
 python -m etl.enrich_ads                # discovery_papers from NASA ADS
-python -m etl.resolve_citations         # publications + planet_publications (4-tier resolver)
+python -m etl.resolve_citations         # publications + planet_publications (3-tier ADS resolver)
 make publish                            # → public/rss.xml, public/discoveries.json, public/health.json
 
 # Run the API locally
@@ -199,9 +199,10 @@ make help        # list all targets
   arXiv ID)
 - ✅ **Citation graph schema** — `publications` + `planet_publications` +
   `citation_manual_queue` with provenance (resolved_via, confidence)
-- ✅ **4-tier citation resolver** — `etl/resolve_citations.py` (ADS bibcode
-  → Crossref DOI → ADS title → manual queue) with quota-aware circuit
-  breaker, resumable via `backfill_state`
+- ✅ **3-tier ADS-only resolver** — `etl/resolve_citations.py` (ADS bibcode
+  → ADS title → manual queue) with quota-aware circuit breaker, resumable
+  via `backfill_state`. (Crossref previously served as a Tier 2 fallback
+  during initial backfill; retired once ADS coverage hit 98.9%.)
 - ✅ **API endpoints for the citation graph** — planet/publications,
   publication detail, author publications
 - ✅ **Frontend multi-planet UI** — discovery section on PlanetDetail
@@ -209,12 +210,11 @@ make help        # list all targets
 - ✅ **`/api/health` storage monitoring** — Neon DB size + warning/critical
   thresholds at 80% / 95% of the 500 MB free-tier ceiling
 - ✅ **78 unit tests + 13 dbt tests; resumable backfills via `backfill_state`**
-- 🔜 **Final 7% citation coverage** — 430 planets pending. ADS daily quota
-  resets at the rolling 24h mark; one more clean run will close the gap.
-- 🔜 **Crossref purge / single-source consolidation** — once ADS coverage
-  reaches 100%, drop `resolved_via='crossref_doi'` rows and re-resolve via
-  ADS for richer metadata (abstract, ADS bibcode, ADS citation count).
-  Then remove `etl/sources/crossref.py` from the codebase.
+- ✅ **Single-source ADS consolidation** — Crossref tier removed; all
+  resolved publications now come from ADS, with richer metadata
+  (abstracts, ADS bibcodes, ADS-tracked citation counts). 67 long-tail
+  edge cases remain in `citation_manual_queue` for human triage.
+- 🔜 **Manual-queue triage UI** for the ~67 queued planets
 - 🔜 **dbt marts** (`dim_planet`, `dim_publication`, `fact_discovery`,
   `fact_parameter_revision`) — deferred; the API doesn't need them yet.
 

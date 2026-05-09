@@ -281,18 +281,20 @@ def main() -> int:
         if args.dry_run:
             print("--dry-run: not writing to discovery_changes")
             return 0
-        if not changes:
+
+        if changes:
+            db_records = [to_db_record(c) for c in changes]
+            with conn.cursor() as cur:
+                cur.executemany(INSERT_CHANGE_SQL, db_records)
+            conn.commit()
+            print(f"  ✓ wrote {len(changes)} change records (idempotent: duplicates skipped)")
+        else:
             print("No changes to insert.")
-            return 0
 
-        db_records = [to_db_record(c) for c in changes]
-        with conn.cursor() as cur:
-            cur.executemany(INSERT_CHANGE_SQL, db_records)
-        conn.commit()
-        print(f"  ✓ wrote {len(changes)} change records (idempotent: duplicates skipped)")
-
-    if not args.dry_run:
-        _prune_old_snapshots(keep=2)
+    # Always prune after a successful diff, even on quiet nights — NASA data is
+    # stable most days, and an early-return-on-no-changes would let snapshots
+    # accumulate forever.
+    _prune_old_snapshots(keep=2)
 
     return 0
 

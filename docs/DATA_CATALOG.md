@@ -176,17 +176,19 @@ This catalog reflects our project's *use* of the columns. The upstream docs are 
   for the rest of the process to avoid wasted roundtrips.
 - **License / acknowledgement:** see https://ui.adsabs.harvard.edu/help/terms/
 
-### Crossref REST API *(integrated, Tier 2 fallback)*
+### Crossref REST API *(retired)*
 - **Source URL:** `https://api.crossref.org/works/{doi}`
-- **Purpose:** Resolve DOIs (already known from `discovery_papers`) to
-  publication metadata when ADS is unavailable or rate-limited.
-- **Used by:** `etl/sources/crossref.py`, called by `resolve_citations.py`
-  Tier 2.
-- **Auth:** none required. We send `mailto={USER_AGENT_EMAIL}` to land
-  in the polite request pool.
-- **Status:** in active use as a fallback while ADS coverage is being
-  built up. Likely to be retired once the citation graph reaches 100%
-  ADS resolution (see PLAN.md / README roadmap).
+- **Purpose (historical):** Tier 2 fallback during initial backfill — when
+  the daily ADS quota was exhausted, planets with a known DOI in
+  `discovery_papers` were resolved against Crossref instead of going
+  straight to the manual queue.
+- **Status:** removed 2026-05-08 once ADS coverage hit 98.9% on a single
+  fresh-quota run. Crossref produced strictly thinner data than ADS (no
+  abstract, no ADS bibcode, no ADS-tracked citation count) so all
+  Crossref-resolved publications were purged and re-resolved via ADS.
+  `etl/sources/crossref.py` is deleted; the `publications.resolved_via`
+  CHECK constraint still permits `'crossref_doi'` for forward
+  compatibility, but no code path writes it.
 
 ### Gaia DR3 *(integrated)*
 - **Source URL:** `https://gea.esac.esa.int/tap-server/tap`

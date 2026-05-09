@@ -12,10 +12,10 @@ For implementation details see [PLAN.md](../PLAN.md).
 
 ```
 ┌──────────────────┐    ┌─────────────────┐    ┌──────────────┐
-│ NASA Exoplanet   │    │ NASA ADS +      │    │ Gaia DR3     │
-│ Archive (TAP)    │    │ Crossref        │    │ TAP service  │
+│ NASA Exoplanet   │    │ NASA ADS        │    │ Gaia DR3     │
+│ Archive (TAP)    │    │                 │    │ TAP service  │
 └────────┬─────────┘    └────────┬────────┘    └──────┬───────┘
-         │ pscomppars            │ bibcode / DOI      │ source_id
+         │ pscomppars            │ bibcode / title    │ source_id
          │                       │                    │
          ▼                       │                    │
    ┌──────────────────────┐      │                    │
@@ -100,10 +100,12 @@ The full pipeline runs in this exact order on a GitHub Actions cron at
    from NASA ADS for any new bibcode found in `disc_refname` and caches
    it in `discovery_papers`.
 7. **Resolve citations** — `python -m etl.resolve_citations` runs the
-   4-tier resolver per planet (ADS bibcode → Crossref DOI → ADS title →
-   manual queue), writing to `publications` + `planet_publications` with
+   3-tier ADS-only resolver per planet (ADS bibcode → ADS title → manual
+   queue), writing to `publications` + `planet_publications` with
    provenance. Trips a circuit breaker on ADS quota exhaustion and skips
-   ADS-tier work until the next run.
+   ADS-tier work until the next run. The nightly invocation passes
+   `--max-planets 50` so a single quota window can never blow past the
+   45-min job timeout.
 8. **Publish** — `python -m etl.publish` reads recent surfaced changes
    and produces `public/rss.xml`, `public/discoveries.json`, and
    `public/health.json`.
@@ -150,14 +152,13 @@ classification.
 | `etl/sources/exoplanet_archive.py` | NASA Exoplanet Archive TAP client | 1 |
 | `etl/sources/gaia.py` | Gaia DR3 TAP client | 2 |
 | `etl/sources/ads.py` | NASA ADS API client (quota-aware circuit breaker) | 2 |
-| `etl/sources/crossref.py` | Crossref REST client (Tier 2 fallback) | 2 |
 | `etl/r2.py` | Cloudflare R2 helper (boto3 wrapper) | 1 |
 | `etl/extract.py` | Orchestrates fetch → R2 → manifest | 1 |
 | `etl/load.py` | Loads R2 snapshot into Postgres (UPSERT) | 1 |
 | `etl/diff.py` | Field-tier-aware diff + rolling 2-day prune | 1 |
 | `etl/enrich_gaia.py` | Per-host Gaia DR3 lookup (resumable) | 2 |
 | `etl/enrich_ads.py` | ADS bibcode metadata cache (`discovery_papers`) | 2 |
-| `etl/resolve_citations.py` | 4-tier citation resolver writing the citation graph | 2 |
+| `etl/resolve_citations.py` | 3-tier ADS-only citation resolver writing the citation graph | 2 |
 | `etl/publish.py` | Generates RSS + JSON feeds + health snapshot | 1 |
 | `etl/transform/` | dbt project (staging now, marts later) | 1+ |
 | `etl/inspect.py` | Local-dev tool for browsing raw_row by planet | dev |
@@ -351,7 +352,9 @@ Every row in `discovery_changes` carries:
 
 Every row in `publications` carries:
 
-- `resolved_via` — `ads_bibcode` | `crossref_doi` | `ads_title` | `manual`
+- `resolved_via` — `ads_bibcode` | `ads_title` | `manual` (the CHECK
+  constraint also accepts `crossref_doi` for forward compatibility, but
+  no current code path writes it)
 - `confidence` — `high` | `medium` | `low`
 - `created_at` / `updated_at` — when the row was first written and last
   refreshed by the resolver

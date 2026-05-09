@@ -4,6 +4,7 @@ import SearchBar from './components/SearchBar';
 import ThemeSwitcher from './components/ThemeSwitcher';
 import { api, type StatsResponse } from './api';
 import AuthorDetail from './pages/AuthorDetail';
+import Feeds from './pages/Feeds';
 import Home from './pages/Home';
 import PlanetDetail from './pages/PlanetDetail';
 
@@ -83,6 +84,7 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/planets/:plName" element={<PlanetDetail />} />
             <Route path="/authors/:authorName" element={<AuthorDetail />} />
+            <Route path="/feeds" element={<Feeds />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
@@ -92,6 +94,7 @@ export default function App() {
             Built as part of <a href="https://facetbuild.llc">Facet Build, LLC</a>
             {' · '}<a href="https://github.com/markpernotto/exoplanet_citation">Source on GitHub</a>
             {' · '}<a href="/docs">API docs</a>
+            {' · '}<Link to="/feeds">Subscribe</Link>
             {' · '}Data from <a href="https://exoplanetarchive.ipac.caltech.edu/">NASA Exoplanet Archive</a>
           </div>
         </footer>

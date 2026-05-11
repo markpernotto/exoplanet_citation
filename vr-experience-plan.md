@@ -77,18 +77,35 @@ A single new endpoint — `/api/planets/{name}/scene` — composes everything th
 | Curated set | ~120-150 planets in v0; expand in v1 | Quality bar > coverage |
 | Rendering contract | Identical to 2D: visuals computed from measured properties; NULL → "uncertain" | Extends `PROCEDURAL_RENDERING.md` unchanged |
 
-## Data sources — concrete sizes and counts
+## Data sources — realized coverage (Milestone 1 backfill, 2026-05-10)
 
-Pulled from the live database 2026-05-10:
+| Source | Result | Notes |
+|---|---|---|
+| **NASA `spectra` table** | **274 unique planets, 1,631 obs** | Above the 150-200 forecast; JWST era productive |
+| **SIMBAD spatial binary lookup** | **229 of 418 hosts (55%), 309 companion rows, 289 planets** | First-pass name-suffix matching got only 5%; pivoted to spatial cross-match with parallax similarity filtering |
+| **Curated molecule detections** | TODO in v0 — 0 rows yet | Will be hand-extracted from the 274 hosts' bibcodes |
+| **Gaia DR3 starfield** | TODO — script ready | One-shot, ships to `web/public/` |
 
-| Source | Planets affected | Storage cost | Pipeline cost |
-|---|---|---|---|
-| **WDS binary companions** | ~300-450 of 562 multi-star planets (estimated match rate) | <200 KB Postgres table | Bulk CSV download, one-time + monthly refresh |
-| **NASA `spectra` table** (observation metadata) | ~150-200 unique planets (2026 estimate) | <1 MB Postgres table | TAP query, weekly refresh |
-| **Curated molecule detections** | ~30 planets in v0 (grows over time) | <50 KB Postgres table | Hand-entered + LLM-extracted from `spectra` bibcodes; reviewed |
-| **Gaia DR3 starfield** | All planets (background sky) | ~6 MB **static asset**, zero Neon cost | One-time TAP query, manual refresh on Gaia DR releases |
+Total Neon impact so far: **<2 MB** added to a 182 MB / 500 MB DB.
 
-Total Neon impact: **<2 MB** added to a 182 MB / 500 MB DB. Zero risk to the storage budget.
+### Why we abandoned the WDS-CSV approach
+
+The plan originally called for parsing the Washington Double Star bulk CSV. Empirical investigation found that:
+- WDS uses its own discoverer designations (e.g. "STT 547") that don't match our hostname strings
+- SIMBAD aggregates WDS plus many other catalogs and is queryable by our hostnames directly
+- SIMBAD's `h_link` hierarchy table doesn't reliably encode binary relationships — most exoplanet hosts have a *moving group* as their h_link parent, not a binary system
+
+The right approach turned out to be: **spatial cross-match within 200 arcsec, filtered by parallax similarity (within 20% relative tolerance).** Two physically-bound stars share distance from us, so similar parallax is a strong physical-pair indicator. This jumped coverage from 5% to 55% — every well-resolved visual binary in our catalog with measurable parallax is now captured.
+
+### Why 45% are still missed
+
+Real data limits, not bugs:
+- **Spectroscopic and eclipsing binaries** (otype `SB*`/`EB*`) — secondary has no separate sky position, only a radial-velocity signature
+- **Survey-named hosts** (some 2MASS, BEBOP, EPIC) — not in SIMBAD's `basic` table
+- **Faint companions without parallax** — Gaia hasn't measured them precisely enough
+- **Coordinate drift** — high-proper-motion hosts whose `planets_current` RA/Dec doesn't match SIMBAD's epoch within 5 arcsec
+
+For v0 these systems are flagged as multi-star (via the `binary system` pill on the home page) but not enumerated with companion data. The renderer treats them as "unresolved companion present" — the second star is implied at the primary's position rather than placed separately.
 
 ## New database tables
 

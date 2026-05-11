@@ -41,6 +41,7 @@ export type PlanetSummary = {
   pl_name: string;
   hostname: string;
   sy_pnum: number | null;
+  sy_snum: number | null;
   cb_flag: number | null;
   gaia_dr3_id: string | null;
   discoverymethod: string | null;

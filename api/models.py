@@ -62,6 +62,7 @@ class PlanetSummary(BaseModel):
     pl_name: str
     hostname: str
     sy_pnum: int | None
+    sy_snum: int | None
     cb_flag: int | None
     gaia_dr3_id: str | None
     discoverymethod: str | None

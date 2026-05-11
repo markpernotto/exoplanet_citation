@@ -80,6 +80,14 @@ jobs:
         # Manual catch-up is `python -m etl.resolve_citations` (no cap).
         run: python -m etl.resolve_citations --max-planets 50
 
+      - name: Sync atmospheric observation metadata (NASA spectra)
+        run: python -m etl.enrich_atmospheric_observations
+
+      - name: Enrich binary companions from SIMBAD
+        # Incremental by default — first run resolves all ~560 multi-star hosts
+        # (~4 min at 0.4s/req); subsequent runs only resolve new arrivals.
+        run: python -m etl.enrich_binaries
+
       - name: Publish RSS + JSON feeds
         run: python -m etl.publish
 

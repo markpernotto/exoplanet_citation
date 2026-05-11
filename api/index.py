@@ -300,7 +300,7 @@ def discoveries_by_month(
 # ---------- Planets ----------
 
 _PLANET_SUMMARY_COLS = """
-    pl_name, hostname, sy_pnum, discoverymethod, disc_year, disc_facility,
+    pl_name, hostname, sy_pnum, sy_snum, discoverymethod, disc_year, disc_facility,
     pl_orbper, pl_orbsmax, pl_orbeccen, pl_rade, pl_bmasse, pl_eqt, sy_dist,
     (raw_row->>'cb_flag')::int AS cb_flag,
     gaia_dr3_id,

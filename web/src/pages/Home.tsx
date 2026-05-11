@@ -345,6 +345,11 @@ function PlanetGrid({ results }: { results: PlanetSummary[] }) {
             <div className="pl-name">
               {p.pl_name}
               {p.cb_flag === 1 && <span className="pill pill-cb">circumbinary</span>}
+              {p.cb_flag !== 1 && (p.sy_snum ?? 0) >= 2 && (
+                <span className="pill pill-binary" title={`Planet orbits one star in a ${p.sy_snum}-star system; companion star(s) visible in the sky`}>
+                  {p.sy_snum === 2 ? 'binary system' : `${p.sy_snum}-star system`}
+                </span>
+              )}
               {(p.sy_pnum ?? 0) > 1 && <span className="pill pill-multi">{p.sy_pnum}-planet system</span>}
               {p.gaia_dr3_id && <span className="pill pill-gaia">Gaia DR3</span>}
             </div>

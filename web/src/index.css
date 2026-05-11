@@ -185,6 +185,7 @@ section h2 { font-size: 1.1rem; font-weight: 600; margin: 0 0 0.75rem; color: va
 .pill-cb { background: var(--tier-b); color: #0b0d12; }
 .pill-multi { background: var(--tier-a); color: #0b0d12; }
 .pill-gaia { background: var(--new); color: #0b0d12; }
+.pill-binary { background: var(--fg-muted); color: #0b0d12; }
 
 .empty {
   padding: 1.5rem;

@@ -7,6 +7,7 @@ import AuthorDetail from './pages/AuthorDetail';
 import Feeds from './pages/Feeds';
 import Home from './pages/Home';
 import PlanetDetail from './pages/PlanetDetail';
+import ScenePage from './pages/ScenePage';
 
 // Scroll to top whenever the user navigates forward (clicking a link or
 // search-submit). Browser-back ("POP") preserves the previous scroll position
@@ -83,6 +84,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/planets/:plName" element={<PlanetDetail />} />
+            <Route path="/planets/:plName/scene" element={<ScenePage />} />
             <Route path="/authors/:authorName" element={<AuthorDetail />} />
             <Route path="/feeds" element={<Feeds />} />
             <Route path="*" element={<NotFound />} />

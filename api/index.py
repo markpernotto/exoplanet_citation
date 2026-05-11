@@ -39,8 +39,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from psycopg.rows import dict_row
 
 from api.models import (
+    AtmosphericMolecule,
+    AtmosphericObservation,
     AuthorPlanet,
     AuthorResponse,
+    BinaryCompanion,
     ChangeRecord,
     DiscoveriesResponse,
     DiscoveryPaper,
@@ -55,11 +58,14 @@ from api.models import (
     PlanetSummary,
     Publication,
     PublicationPlanetsResponse,
+    SceneHints,
+    SceneResponse,
     StatsResponse,
     StorageInfo,
     TopAuthor,
     TopAuthorsResponse,
 )
+from api.scene import derive_scene_hints
 
 load_dotenv()
 
@@ -686,6 +692,121 @@ _PUB_COLS = """
 
 def _pub_row(row: dict) -> dict:
     return {**row, "authors": row["authors"] or []}
+
+
+@app.get(
+    "/api/planets/{pl_name}/scene",
+    response_model=SceneResponse,
+    tags=["scene"],
+)
+def planet_scene(pl_name: str) -> SceneResponse:
+    """Composed payload for the VR/3D scene viewer.
+
+    One round-trip returns: planet detail, host star Gaia record, sibling
+    planets in the system, resolved binary companions, atmospheric
+    observation campaigns + curated molecule detections, and a
+    `scene_hints` block with renderer-ready derived values (sun color,
+    angular size, day length, body type, survival estimate).
+    """
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                f"""
+                SELECT {_PLANET_DETAIL_COLS}
+                FROM planets_snapshots
+                WHERE pl_name = %s
+                ORDER BY snapshot_date DESC
+                LIMIT 1
+                """,
+                (pl_name,),
+            )
+            planet_row = cur.fetchone()
+
+    if planet_row is None:
+        raise HTTPException(status_code=404, detail=f"No planet named {pl_name!r}")
+
+    hostname = planet_row["hostname"]
+
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            # Host star Gaia (may be missing)
+            cur.execute(
+                """
+                SELECT h.gaia_dr3_id, h.hostname,
+                       h.parallax_mas, h.parallax_error,
+                       h.pmra_mas_yr, h.pmdec_mas_yr, h.radial_velocity_km_s,
+                       h.phot_g_mean_mag, h.phot_bp_mean_mag, h.phot_rp_mean_mag, h.bp_rp,
+                       h.teff_gspphot, h.logg_gspphot, h.mh_gspphot, h.distance_gspphot_pc,
+                       h.retrieved_at
+                FROM host_stars_gaia h
+                WHERE h.hostname = %s
+                LIMIT 1
+                """,
+                (hostname,),
+            )
+            host_row = cur.fetchone()
+
+            # Sibling planets in the same system
+            cur.execute(
+                f"""
+                SELECT {_PLANET_SUMMARY_COLS}
+                FROM planets_snapshots
+                WHERE hostname = %s
+                  AND snapshot_date = (SELECT MAX(snapshot_date) FROM planets_snapshots)
+                ORDER BY pl_orbsmax NULLS LAST, pl_name
+                """,
+                (hostname,),
+            )
+            sibling_rows = cur.fetchall()
+
+            # Binary companions (Milestone 1 data)
+            cur.execute(
+                """
+                SELECT component_designation, primary_designation,
+                       separation_arcsec, position_angle_deg,
+                       component_mag_v, component_spectype, source_catalog
+                FROM binary_companions
+                WHERE hostname = %s
+                ORDER BY separation_arcsec NULLS LAST
+                """,
+                (hostname,),
+            )
+            companion_rows = cur.fetchall()
+
+            # Atmospheric observation campaigns (bulk metadata)
+            cur.execute(
+                """
+                SELECT spec_type, instrument, facility,
+                       min_wavelength_um, max_wavelength_um, bibcode
+                FROM planet_atmospheric_observations
+                WHERE pl_name = %s
+                ORDER BY bibcode NULLS LAST
+                """,
+                (pl_name,),
+            )
+            atm_obs_rows = cur.fetchall()
+
+            # Curated atmospheric molecule detections
+            cur.execute(
+                """
+                SELECT molecule, detection, instrument, confidence_sigma
+                FROM planet_atmospheres
+                WHERE pl_name = %s
+                ORDER BY molecule
+                """,
+                (pl_name,),
+            )
+            atm_det_rows = cur.fetchall()
+
+    return SceneResponse(
+        planet=PlanetDetail(**planet_row),
+        host_star=HostStarGaia(**host_row) if host_row else None,
+        siblings=[PlanetSummary(**r) for r in sibling_rows],
+        binary_companions=[BinaryCompanion(**r) for r in companion_rows],
+        atmospheric_observations=[AtmosphericObservation(**r) for r in atm_obs_rows],
+        atmospheric_detections=[AtmosphericMolecule(**r) for r in atm_det_rows],
+        scene_hints=SceneHints(**derive_scene_hints(planet_row)),
+    )
 
 
 @app.get(

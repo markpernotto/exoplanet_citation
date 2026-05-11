@@ -89,7 +89,18 @@ export default function PlanetDetail() {
       <p style={{ margin: '0 0 1rem' }}>
         <a href={from || '/'} onClick={goBack}>← back{from && from.includes('q=') ? ' to search' : ''}</a>
       </p>
-      <h1 style={{ margin: '0 0 0.25rem' }}>{planet.pl_name}</h1>
+      <h1 style={{ margin: '0 0 0.25rem', display: 'flex', alignItems: 'baseline', gap: '0.6rem', flexWrap: 'wrap' }}>
+        {planet.pl_name}
+        {planet.st_teff != null && planet.st_rad != null && planet.pl_orbsmax != null && (
+          <Link
+            to={`/planets/${encodeURIComponent(plName)}/scene${themeQuery}`}
+            style={{ fontSize: '0.7rem', fontWeight: 600, padding: '0.15rem 0.5rem', borderRadius: 3, background: 'var(--accent)', color: '#0b0d12', textDecoration: 'none', letterSpacing: '0.04em', textTransform: 'uppercase' }}
+            title="Open the experimental 3D scene viewer"
+          >
+            View in 3D ↗
+          </Link>
+        )}
+      </h1>
       <p style={{ margin: '0 0 1.5rem', color: 'var(--fg-muted)' }}>
         Orbiting <strong>{planet.hostname}</strong>
         {planet.cb_flag === 1 && (

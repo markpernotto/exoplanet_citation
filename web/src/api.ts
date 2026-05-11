@@ -190,6 +190,52 @@ export type PlanetPublicationsResponse = {
   publications: PlanetPublication[];
 };
 
+export type BinaryCompanion = {
+  component_designation: string;
+  primary_designation: string;
+  separation_arcsec: number | null;
+  position_angle_deg: number | null;
+  component_mag_v: number | null;
+  component_spectype: string | null;
+  source_catalog: string;
+};
+
+export type AtmosphericObservation = {
+  spec_type: string | null;
+  instrument: string | null;
+  facility: string | null;
+  min_wavelength_um: number | null;
+  max_wavelength_um: number | null;
+  bibcode: string | null;
+};
+
+export type AtmosphericMolecule = {
+  molecule: string;
+  detection: 'detected' | 'tentative' | 'upper_limit' | string;
+  instrument: string | null;
+  confidence_sigma: number | null;
+};
+
+export type SceneHints = {
+  sun_color_hex: string;
+  sun_angular_size_deg: number | null;
+  day_length_hours: number | null;
+  insolation_relative_earth: number | null;
+  insolation_label: string | null;
+  body_type: 'rocky' | 'icy' | 'gas_giant' | 'uncertain' | string;
+  death_seconds: number | null;
+};
+
+export type SceneResponse = {
+  planet: PlanetDetail;
+  host_star: HostStarGaia | null;
+  siblings: PlanetSummary[];
+  binary_companions: BinaryCompanion[];
+  atmospheric_observations: AtmosphericObservation[];
+  atmospheric_detections: AtmosphericMolecule[];
+  scene_hints: SceneHints;
+};
+
 export type StatsResponse = {
   total_planets: number;
   total_snapshots: number;
@@ -249,4 +295,6 @@ export const api = {
     get<TopAuthorsResponse>(`/api/authors/top?limit=${limit}`),
   authorsSearch: (q: string, limit = 20) =>
     get<TopAuthorsResponse>(`/api/authors/search?q=${encodeURIComponent(q)}&limit=${limit}`),
+  planetScene: (plName: string) =>
+    get<SceneResponse>(`/api/planets/${encodeURIComponent(plName)}/scene`),
 };

@@ -223,3 +223,49 @@ class PlanetPublicationsResponse(BaseModel):
 
 class PublicationPlanetsResponse(Publication):
     planets: list[str]  # pl_name list
+
+
+class BinaryCompanion(BaseModel):
+    component_designation: str
+    primary_designation: str
+    separation_arcsec: float | None
+    position_angle_deg: float | None
+    component_mag_v: float | None
+    component_spectype: str | None
+    source_catalog: str
+
+
+class AtmosphericObservation(BaseModel):
+    spec_type: str | None
+    instrument: str | None
+    facility: str | None
+    min_wavelength_um: float | None
+    max_wavelength_um: float | None
+    bibcode: str | None
+
+
+class AtmosphericMolecule(BaseModel):
+    molecule: str
+    detection: str
+    instrument: str | None
+    confidence_sigma: float | None
+
+
+class SceneHints(BaseModel):
+    sun_color_hex: str
+    sun_angular_size_deg: float | None
+    day_length_hours: float | None
+    insolation_relative_earth: float | None
+    insolation_label: str | None
+    body_type: str   # 'rocky' | 'icy' | 'gas_giant' | 'uncertain'
+    death_seconds: int | None
+
+
+class SceneResponse(BaseModel):
+    planet: PlanetDetail
+    host_star: HostStarGaia | None
+    siblings: list[PlanetSummary]
+    binary_companions: list[BinaryCompanion]
+    atmospheric_observations: list[AtmosphericObservation]
+    atmospheric_detections: list[AtmosphericMolecule]
+    scene_hints: SceneHints

@@ -78,7 +78,15 @@ export default function ScenePage() {
       <Canvas
         style={{ position: 'fixed', inset: 0, background: '#000', zIndex: 0 }}
         camera={{ position: camPos, fov: 50, near: focalRadius * 0.01, far: farPlane }}
-        gl={{ logarithmicDepthBuffer: true }}
+        gl={{
+          logarithmicDepthBuffer: true,
+          // ACES filmic tone-mapping compresses HDR values into the visible
+          // range while PRESERVING hue. Without this, our 2.5× HDR sun pushes
+          // M-dwarf reds toward yellow/white because each channel clips
+          // independently. ACES rolls off the highlights properly.
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 1.0,
+        }}
       >
         <ambientLight intensity={0.04} />
         <OrbitControls
@@ -91,11 +99,12 @@ export default function ScenePage() {
         <Starfield />
         <EffectComposer>
           <Bloom
+            /* Bright halo + eclipse-dimming during transits. */
             intensity={1.4}
-            luminanceThreshold={0.6}
-            luminanceSmoothing={0.4}
+            luminanceThreshold={0.7}
+            luminanceSmoothing={0.35}
             mipmapBlur
-            radius={0.85}
+            radius={0.8}
           />
         </EffectComposer>
       </Canvas>
@@ -338,19 +347,25 @@ function SceneContents({
           The glow is a camera-facing plane with a custom radial-gradient
           shader — smooth multi-stop falloff (core, corona, halo) plus
           time-driven rim flicker for "boiling" stellar edge animation. */}
-      {/* Photosphere is the ONLY visual for the sun now — no separate
-          corona billboard. The bloom post-process (in EffectComposer) creates
-          the glow halo automatically by smearing bright pixels into their
-          surroundings. No depth-test conflicts, no plane intersecting sphere,
-          no visible boundary between two layers. */}
-      <Photosphere radius={sunRadius} color={sun_color_hex} />
-      {/* Sun light: decay=2 (physically correct inverse-square). Combined
-          with a generous base intensity, this makes inner planets receive
-          dramatically more flux than outer ones — matching reality. */}
-      <pointLight position={[0, 0, 0]} intensity={focalOrbsmax * focalOrbsmax * 3.5} color={sun_color_hex} distance={0} decay={2} />
-      {/* Very faint fill so the night side isn't pitch-black, but low enough
-          that the lit/dark terminator stays clearly visible. */}
-      <hemisphereLight intensity={0.05} color="#3a4055" groundColor="#1a1a22" />
+      {/* Photosphere(s). For circumbinary planets (cb_flag=1) the planet
+          orbits a tight binary pair, so we render TWO suns rotating around
+          their common barycenter at the origin. For everything else, one
+          sun at origin. Bloom handles the glow for both cases the same way. */}
+      {planet.cb_flag === 1
+        ? <BinaryPhotospheres radius={sunRadius} color={sun_color_hex} paused={paused} speed={speed} />
+        : <Photosphere radius={sunRadius} color={sun_color_hex} />
+      }
+      {/* Sun light: decay=2 (physically correct inverse-square). Inner
+          planets receive dramatically more flux than outer ones — matching
+          real-life sunlight falloff. The base intensity is calibrated so
+          the focal planet receives ~1.5 units (well-lit, not saturated);
+          inner planets get more (still mostly lit), outer planets less
+          (visibly dimmer, but readable thanks to the hemisphere fill below). */}
+      <pointLight position={[0, 0, 0]} intensity={focalOrbsmax * focalOrbsmax * 1.5} color={sun_color_hex} distance={0} decay={2} />
+      {/* Hemisphere fill so outer planets and the dark side of inner planets
+          aren't pitch black. Boosted just enough to make far-out worlds
+          visible without washing out the dramatic terminator on inner ones. */}
+      <hemisphereLight intensity={0.12} color="#3a4055" groundColor="#1a1a22" />
 
       {/* Orbit rings — focal in accent color, siblings dimmer */}
       <OrbitRing orbsmax={focalOrbsmax} eccen={planet.pl_orbeccen ?? 0} color="#7ad6ff" opacity={0.55} />
@@ -492,7 +507,18 @@ function Photosphere({ radius, color }: { radius: number; color: string }) {
       uColor: { value: new THREE.Color(color) },
       uTime:  { value: 0 },
     },
+    // Opt into three.js's logarithmic depth buffer. The renderer is
+    // configured with logarithmicDepthBuffer=true (needed because our scene
+    // spans 0.001 AU planet bodies to 5000 AU starfield). MeshStandardMaterial
+    // and MeshBasicMaterial pick up log depth automatically; custom
+    // ShaderMaterial does NOT — it has to include the chunks below or its
+    // depth output won't match the rest of the scene. (That mismatch is what
+    // turned the photosphere into a black disc.)
+    defines: { USE_LOGDEPTHBUF: '' },
     vertexShader: `
+      #include <common>
+      #include <logdepthbuf_pars_vertex>
+
       varying vec3 vNormal;
       varying vec3 vViewDir;
       varying vec3 vWorldPos;
@@ -502,9 +528,14 @@ function Photosphere({ radius, color }: { radius: number; color: string }) {
         vViewDir = normalize(-mvPos.xyz);
         vWorldPos = position;
         gl_Position = projectionMatrix * mvPos;
+
+        #include <logdepthbuf_vertex>
       }
     `,
     fragmentShader: `
+      #include <common>
+      #include <logdepthbuf_pars_fragment>
+
       uniform vec3 uColor;
       uniform float uTime;
       varying vec3 vNormal;
@@ -524,6 +555,8 @@ function Photosphere({ radius, color }: { radius: number; color: string }) {
       }
 
       void main() {
+        #include <logdepthbuf_fragment>
+
         // Subtle granulation noise + slight limb darkening for solidity.
         vec3 np = vWorldPos * 18.0 + vec3(uTime * 0.08, uTime * 0.04, 0.0);
         float granule = (noise(np) - 0.5) * 0.5 + (noise(np * 2.3) - 0.5) * 0.25;
@@ -532,26 +565,126 @@ function Photosphere({ radius, color }: { radius: number; color: string }) {
         float mu = max(0.0, dot(vNormal, vViewDir));
         float limb = mix(0.92, 1.0, pow(mu, 0.5));
 
-        // Push brightness well past 1.0 (HDR) so the post-process bloom
-        // pass sees this as a "very bright" pixel and bleeds it outward
-        // into a soft, depth-coherent halo. Without HDR pixels, bloom does
-        // nothing useful. The factor 2.5 is calibrated against the bloom's
-        // luminanceThreshold = 0.6.
-        gl_FragColor = vec4(uColor * surf * limb * 2.5, 1.0);
+        // HDR (>1.0) so bloom catches it. ACES tone mapping (renderer-level)
+        // compresses to displayable range while preserving HUE so M-dwarf
+        // reds stay red.
+        gl_FragColor = vec4(uColor * surf * limb * 3.0, 1.0);
       }
     `,
-    toneMapped: false,
+    transparent: false,
+    depthWrite: true,
+    depthTest: true,
+    toneMapped: true,
   }), [color]);
 
   useFrame((state) => {
     material.uniforms.uTime.value = state.clock.getElapsedTime();
   });
 
-  return (
-    <mesh material={material}>
-      <sphereGeometry args={[radius, 64, 64]} />
-    </mesh>
+  // Two-pass rendering to GUARANTEE the sun occludes anything behind it:
+  //   1) Depth pre-pass at renderOrder=-100 — invisible (colorWrite=false),
+  //      writes only depth. Runs FIRST in the opaque pass, before any planet.
+  //      Result: when planets render afterwards, a far-side planet's depth
+  //      test against the existing sun-depth FAILS and the planet is culled
+  //      before being drawn at all. No bleed-through possible.
+  //   2) Color pass at renderOrder=10 — the visible photosphere shader.
+  //      depthFunc=LessEqual ensures it draws cleanly on top of its own
+  //      pre-pass depth without z-fighting.
+  // Same geometry on both passes (64 segs) so the depth values match
+  // identically between pre-pass and color pass. Both materials now use
+  // logarithmic depth (the color shader has the chunks above; MeshBasic
+  // gets it automatically when the renderer flag is on), so no precision
+  // mismatch that would cause z-fighting.
+  const depthOnlyMaterial = useMemo(
+    () => new THREE.MeshBasicMaterial({
+      colorWrite: false,
+      depthWrite: true,
+      depthTest: true,
+    }),
+    [],
   );
+  return (
+    <>
+      <mesh material={depthOnlyMaterial} renderOrder={-100}>
+        <sphereGeometry args={[radius, 64, 64]} />
+      </mesh>
+      <mesh material={material} renderOrder={10}>
+        <sphereGeometry args={[radius, 64, 64]} />
+      </mesh>
+    </>
+  );
+}
+
+// ── binary photospheres (circumbinary systems) ───────────────────────────
+// For cb_flag=1 planets, the host is a tight binary pair (the planet orbits
+// both stars, Tatooine-style). Render two unequal suns orbiting their common
+// barycenter at the system origin.
+//
+// Honest defaults — these systems are spectroscopic binaries (the two stars
+// are too close together to resolve on the sky), so we typically don't have
+// measured masses or radii for the secondary. We assume:
+//   - Primary: 0.80× the host's nominal radius, full color from st_teff
+//   - Secondary: 0.45× the nominal radius, slightly redder
+//     (Statistically, secondaries in circumbinary systems are usually M-
+//     dwarfs cooler than the primary — Kepler-16: K-dwarf + M-dwarf,
+//     Kepler-47: G-type + M-dwarf, TOI-1338: F-type + M-dwarf, etc.
+//     The shift toward red is a defensible visual default, not a measurement.)
+// Barycenter-weighted orbital radii reflect the mass asymmetry: the smaller
+// secondary swings on a larger circle, the bigger primary stays closer in.
+
+function BinaryPhotospheres({
+  radius, color, paused, speed,
+}: {
+  radius: number; color: string; paused: boolean; speed: number;
+}) {
+  const starA = useRef<THREE.Group>(null);
+  const starB = useRef<THREE.Group>(null);
+  const clock = useRef(0);
+
+  const primaryRadius   = radius * 0.80;
+  const secondaryRadius = radius * 0.45;
+  const separation      = radius * 3.5;
+  // Mass-ratio-weighted barycenter offsets. Assume primary ~0.7 of total mass:
+  // primary swings on a circle of 0.3*sep, secondary on 0.7*sep, opposite phase.
+  const primaryArm   = separation * 0.30;
+  const secondaryArm = separation * 0.70;
+  const secondaryColor = shiftTowardRed(color);
+  const SECS_PER_BINARY_ORBIT = 6;
+
+  useFrame((_, delta) => {
+    if (!paused) clock.current += delta * speed;
+    const a = (clock.current / SECS_PER_BINARY_ORBIT) * Math.PI * 2;
+    if (starA.current) starA.current.position.set( primaryArm  * Math.cos(a), 0,  primaryArm  * Math.sin(a));
+    if (starB.current) starB.current.position.set(-secondaryArm * Math.cos(a), 0, -secondaryArm * Math.sin(a));
+  });
+
+  return (
+    <>
+      <group ref={starA}>
+        <Photosphere radius={primaryRadius} color={color} />
+      </group>
+      <group ref={starB}>
+        <Photosphere radius={secondaryRadius} color={secondaryColor} />
+      </group>
+    </>
+  );
+}
+
+// Pull a hex color halfway toward a generic M-dwarf red. Used for the
+// secondary in a circumbinary pair when we don't know its true composition
+// (which is almost always the case — most secondaries in cb systems are
+// M-dwarfs that the spectroscopic data can't characterize independently).
+function shiftTowardRed(hex: string): string {
+  const M_DWARF_REF: [number, number, number] = [255, 130, 70];   // generic deep orange-red
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  const blend = (a: number, target: number) => Math.round(a * 0.5 + target * 0.5);
+  const nr = blend(r, M_DWARF_REF[0]);
+  const ng = blend(g, M_DWARF_REF[1]);
+  const nb = blend(b, M_DWARF_REF[2]);
+  return `#${nr.toString(16).padStart(2, '0')}${ng.toString(16).padStart(2, '0')}${nb.toString(16).padStart(2, '0')}`;
 }
 
 // ── orbit rings ──────────────────────────────────────────────────────────

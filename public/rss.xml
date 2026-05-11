@@ -5,7 +5,7 @@
     <link>https://github.com/markpernotto/exoplanet_citation</link>
     <description>Newly confirmed and revised exoplanet records from the NASA Exoplanet Archive, diffed nightly. Surfaces NEW / REMOVED / Tier-A parameter changes only.</description>
     <language>en-us</language>
-    <lastBuildDate>Sun, 10 May 2026 06:52:06 +0000</lastBuildDate>
+    <lastBuildDate>Mon, 11 May 2026 07:02:46 +0000</lastBuildDate>
     <ttl>1440</ttl>
     <item>
       <title>Parameter update — CFHTWIR-Oph 98 b: disc_year</title>

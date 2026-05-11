@@ -204,16 +204,29 @@ This catalog reflects our project's *use* of the columns. The upstream docs are 
   access to BP-RP photometry, parallax with full precision, proper
   motion, and Gaia-derived stellar parameters not present in pscomppars.
 
+### arXiv API *(integrated)*
+- **Source URL:** `https://export.arxiv.org/api/query`
+- **Purpose:** Tier 2 of the citation resolver — handles planets whose
+  `disc_refname` cites an arXiv-form bibcode (e.g. `2010arXiv1007.4552J`)
+  that ADS's bibcode lookup doesn't index. Returns title, authors,
+  abstract, publication date, arXiv ID, and (often) the eventual
+  journal-publication DOI.
+- **Used by:** `etl/sources/arxiv.py`, called by `resolve_citations.py`
+  Tier 2.
+- **Auth:** none required. We send a `User-Agent` header carrying
+  `USER_AGENT_PROJECT (USER_AGENT_EMAIL)` per arXiv ToS.
+- **Rate limit:** arXiv asks for ≤1 request per 3 seconds. Enforced
+  module-side via a `_last_call_ts` clock so even a failed call
+  preserves the cooldown for the next attempt.
+- **Bibcode quirks handled:**
+  - `2010arXiv1007.4552J` → arXiv ID `1007.4552` (4-digit suffix; dot present)
+  - `2026arXiv260218207S` → arXiv ID `2602.18207` (5-digit suffix; ADS strips
+    the dot to fit the 19-char bibcode limit, so we re-insert it)
+  - `2007arXivastro-ph0701592M` → `astro-ph/0701592` (old subject-class form)
+
 ---
 
 ## Future sources (Phase 3+)
-
-### arXiv API *(deferred)*
-- **Source URL:** http://export.arxiv.org/api/query
-- **Purpose:** Resolve arXiv IDs to preprint metadata; potential Phase 3
-  source for follow-up paper discovery.
-- **Status:** Not integrated; ADS already exposes arXiv IDs for cached
-  papers, so a direct arXiv client is not strictly required for Phase 2.
 
 ### Habitable Exoplanets Catalog (PHL @ UPR Arecibo) *(Stretch)*
 - **Source URL:** http://phl.upr.edu/projects/habitable-exoplanets-catalog

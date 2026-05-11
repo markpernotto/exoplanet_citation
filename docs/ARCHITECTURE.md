@@ -12,10 +12,10 @@ For implementation details see [PLAN.md](../PLAN.md).
 
 ```
 ┌──────────────────┐    ┌─────────────────┐    ┌──────────────┐
-│ NASA Exoplanet   │    │ NASA ADS        │    │ Gaia DR3     │
-│ Archive (TAP)    │    │                 │    │ TAP service  │
+│ NASA Exoplanet   │    │ NASA ADS +      │    │ Gaia DR3     │
+│ Archive (TAP)    │    │ arXiv API       │    │ TAP service  │
 └────────┬─────────┘    └────────┬────────┘    └──────┬───────┘
-         │ pscomppars            │ bibcode / title    │ source_id
+         │ pscomppars            │ bibcode / arXiv ID │ source_id
          │                       │                    │
          ▼                       │                    │
    ┌──────────────────────┐      │                    │
@@ -100,10 +100,11 @@ The full pipeline runs in this exact order on a GitHub Actions cron at
    from NASA ADS for any new bibcode found in `disc_refname` and caches
    it in `discovery_papers`.
 7. **Resolve citations** — `python -m etl.resolve_citations` runs the
-   3-tier ADS-only resolver per planet (ADS bibcode → ADS title → manual
-   queue), writing to `publications` + `planet_publications` with
+   4-tier resolver per planet (ADS bibcode → arXiv API → ADS title →
+   manual queue), writing to `publications` + `planet_publications` with
    provenance. Trips a circuit breaker on ADS quota exhaustion and skips
-   ADS-tier work until the next run. The nightly invocation passes
+   ADS-tier work until the next run. arXiv calls respect the
+   polite-pool 3-second inter-call window. The nightly invocation passes
    `--max-planets 50` so a single quota window can never blow past the
    45-min job timeout.
 8. **Publish** — `python -m etl.publish` reads recent surfaced changes
@@ -152,13 +153,14 @@ classification.
 | `etl/sources/exoplanet_archive.py` | NASA Exoplanet Archive TAP client | 1 |
 | `etl/sources/gaia.py` | Gaia DR3 TAP client | 2 |
 | `etl/sources/ads.py` | NASA ADS API client (quota-aware circuit breaker) | 2 |
+| `etl/sources/arxiv.py` | arXiv Atom-API client (polite-pool 3s window) | 2 |
 | `etl/r2.py` | Cloudflare R2 helper (boto3 wrapper) | 1 |
 | `etl/extract.py` | Orchestrates fetch → R2 → manifest | 1 |
 | `etl/load.py` | Loads R2 snapshot into Postgres (UPSERT) | 1 |
 | `etl/diff.py` | Field-tier-aware diff + rolling 2-day prune | 1 |
 | `etl/enrich_gaia.py` | Per-host Gaia DR3 lookup (resumable) | 2 |
 | `etl/enrich_ads.py` | ADS bibcode metadata cache (`discovery_papers`) | 2 |
-| `etl/resolve_citations.py` | 3-tier ADS-only citation resolver writing the citation graph | 2 |
+| `etl/resolve_citations.py` | 4-tier citation resolver (ADS + arXiv) writing the citation graph | 2 |
 | `etl/publish.py` | Generates RSS + JSON feeds + health snapshot | 1 |
 | `etl/transform/` | dbt project (staging now, marts later) | 1+ |
 | `etl/inspect.py` | Local-dev tool for browsing raw_row by planet | dev |
@@ -320,8 +322,12 @@ Every step in the pipeline is safe to re-run:
   unless `--refresh-all`.
 - **`resolve_citations.py`** — skips planets already present in
   `planet_publications` unless `--all`. UPSERTs `publications` keyed by
-  `bibcode` (primary) or `doi` (when no bibcode). Crashes from network /
-  Postgres-idle disconnects can be resumed safely.
+  `bibcode` (primary) or `doi` (when no bibcode). On a successful resolve
+  for a planet that was previously queued, the planet's row in
+  `citation_manual_queue` is deleted in the same transaction so the
+  queue stays a true source of truth for "planets still needing
+  triage." Crashes from network / Postgres-idle disconnects can be
+  resumed safely.
 - **`publish.py`** — purely derivative; just regenerates files from current DB
   state.
 - **dbt** — views are recreated from scratch on every `dbt run`.
@@ -352,9 +358,9 @@ Every row in `discovery_changes` carries:
 
 Every row in `publications` carries:
 
-- `resolved_via` — `ads_bibcode` | `ads_title` | `manual` (the CHECK
-  constraint also accepts `crossref_doi` for forward compatibility, but
-  no current code path writes it)
+- `resolved_via` — `ads_bibcode` | `arxiv` | `ads_title` | `manual` (the
+  CHECK constraint also accepts `crossref_doi` for forward
+  compatibility, but no current code path writes it)
 - `confidence` — `high` | `medium` | `low`
 - `created_at` / `updated_at` — when the row was first written and last
   refreshed by the resolver

@@ -1,16 +1,18 @@
 """Citation graph resolution.
 
 Resolves every planet in planets_current to a publication record, using a
-3-tier strategy (stopping at the first success per planet):
+4-tier strategy (stopping at the first success per planet):
 
-  Tier 1  disc_refname → ADS bibcode      (confidence: high)
-  Tier 2  paper title → ADS title search  (confidence: medium)
-  Tier 3  manual queue (log and continue, no API call)
+  Tier 1  disc_refname → ADS bibcode       (confidence: high)
+  Tier 2  arXiv-form bibcode → arXiv API   (confidence: high)
+  Tier 3  paper title → ADS title search   (confidence: medium)
+  Tier 4  manual queue (log and continue, no API call)
 
 Results land in the publications + planet_publications tables.
 Resumable via backfill_state (key: 'citations').
 
-Prerequisite: apply etl/migrations/005_citation_graph.sql to your DB.
+Prerequisite: apply etl/migrations/005_citation_graph.sql AND
+etl/migrations/006_add_arxiv_resolved_via.sql to your DB.
 
 Run:
   python -m etl.resolve_citations              # incremental (default)
@@ -18,12 +20,13 @@ Run:
   python -m etl.resolve_citations --dry-run    # show plan, no writes/API calls
   python -m etl.resolve_citations --max-planets 50  # stop early (debug)
 
-History: a Crossref-by-DOI Tier 2 existed when ADS daily quota was the
+History: a Crossref-by-DOI tier existed when ADS daily quota was the
 bottleneck during initial backfill. Once ADS coverage hit ~99% on a
-single fresh-quota run, Crossref produced strictly worse data (no
-abstract, no ADS bibcode, no ADS-tracked citation count) and was
-removed. The DB CHECK on publications.resolved_via still permits
-'crossref_doi' for forward compatibility, but no code writes it.
+single fresh-quota run, Crossref produced strictly worse data than ADS
+and was removed. The DB CHECK on publications.resolved_via still
+permits 'crossref_doi' for forward compatibility, but no code writes
+it. The arXiv tier (Tier 2) was added later to mop up the long tail of
+arXiv-only preprints that ADS's bibcode lookup doesn't index.
 """
 
 from __future__ import annotations
@@ -42,7 +45,7 @@ import psycopg
 from dotenv import load_dotenv
 from psycopg.types.json import Jsonb
 
-from etl.sources import ads
+from etl.sources import ads, arxiv
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -100,8 +103,8 @@ INSERT INTO publications (
     citation_count, citation_count_updated_at, resolved_via, confidence, updated_at
 ) VALUES (
     %(bibcode)s, %(doi)s, %(arxiv_id)s, %(title)s, %(authors)s, %(abstract)s,
-    %(journal)s, %(pub_date)s, %(citation_count)s,
-    CASE WHEN %(citation_count)s IS NOT NULL THEN now() ELSE NULL END,
+    %(journal)s, %(pub_date)s, %(citation_count)s::INT,
+    CASE WHEN %(citation_count)s::INT IS NOT NULL THEN now() ELSE NULL END,
     %(resolved_via)s, %(confidence)s, now()
 )
 ON CONFLICT (bibcode) WHERE bibcode IS NOT NULL DO UPDATE SET
@@ -127,8 +130,8 @@ INSERT INTO publications (
     citation_count, citation_count_updated_at, resolved_via, confidence, updated_at
 ) VALUES (
     %(bibcode)s, %(doi)s, %(arxiv_id)s, %(title)s, %(authors)s, %(abstract)s,
-    %(journal)s, %(pub_date)s, %(citation_count)s,
-    CASE WHEN %(citation_count)s IS NOT NULL THEN now() ELSE NULL END,
+    %(journal)s, %(pub_date)s, %(citation_count)s::INT,
+    CASE WHEN %(citation_count)s::INT IS NOT NULL THEN now() ELSE NULL END,
     %(resolved_via)s, %(confidence)s, now()
 )
 ON CONFLICT (doi) WHERE doi IS NOT NULL DO UPDATE SET
@@ -151,6 +154,13 @@ JUNCTION_SQL = """
 INSERT INTO planet_publications (pl_name, pub_id, role)
 VALUES (%(pl_name)s, %(pub_id)s, 'discovery')
 ON CONFLICT DO NOTHING
+"""
+
+# Self-cleanup: when a planet finally resolves via any tier, drop any stale
+# row it had in citation_manual_queue from a previous run. Keeps the queue an
+# accurate source of truth for "planets still needing triage."
+QUEUE_DELETE_SQL = """
+DELETE FROM citation_manual_queue WHERE pl_name = %(pl_name)s
 """
 
 MANUAL_QUEUE_SQL = """
@@ -219,8 +229,32 @@ def _try_tier1(planet: dict, api_key: str) -> dict[str, Any] | None:
         return None
 
 
-def _try_tier2(planet: dict, api_key: str) -> dict[str, Any] | None:
-    """Tier 2: ADS title search using title from discovery_papers."""
+def _try_tier2(planet: dict) -> dict[str, Any] | None:
+    """Tier 2: arXiv API for arXiv-form bibcodes ADS doesn't index.
+
+    Only fires when the bibcode extracted from disc_refname matches the
+    arXiv pattern (e.g. 2010arXiv1007.4552J). Multi-planet papers that
+    share the same bibcode benefit from the publications.bibcode UPSERT
+    on the second-and-subsequent calls — arXiv is hit per planet but
+    only once per unique bibcode does any DB write happen.
+    """
+    bibcode = _extract_bibcode(planet.get("disc_refname"))
+    if not bibcode or "arXiv" not in bibcode:
+        return None
+    try:
+        data = arxiv.fetch_by_bibcode(bibcode)
+        if not data:
+            return None
+        data["resolved_via"] = "arxiv"
+        data["confidence"]   = "high"
+        return data
+    except Exception as exc:
+        log.warning("Tier 2 arXiv fetch failed for %s: %s", bibcode, exc)
+        return None
+
+
+def _try_tier3(planet: dict, api_key: str) -> dict[str, Any] | None:
+    """Tier 3: ADS title search using title from discovery_papers."""
     if ads.quota_status() is not None:
         return None
     title   = planet.get("title")
@@ -237,7 +271,7 @@ def _try_tier2(planet: dict, api_key: str) -> dict[str, Any] | None:
         data["confidence"]   = "medium"
         return data
     except Exception as exc:
-        log.warning("Tier 2 ADS title search failed for '%s': %s", title, exc)
+        log.warning("Tier 3 ADS title search failed for '%s': %s", title, exc)
         return None
 
 
@@ -300,14 +334,14 @@ def resolve(
     planets = _load_planets(conn, refresh_all=refresh_all)
     if not planets:
         log.info("Nothing to do.")
-        return {"total": 0, "tier1": 0, "tier2": 0, "queued": 0}
+        return {"total": 0, "tier1": 0, "tier2": 0, "tier3": 0, "queued": 0}
 
     if max_planets:
         planets = planets[:max_planets]
 
     batch_id = f"citations-{date.today().isoformat()}"
     total = len(planets)
-    counts = {"tier1": 0, "tier2": 0, "queued": 0, "errors": 0}
+    counts = {"tier1": 0, "tier2": 0, "tier3": 0, "queued": 0, "errors": 0}
     processed = 0
     last_key = ""
 
@@ -324,12 +358,18 @@ def resolve(
         if data:
             tier_hit = "tier1"
 
-        # Tier 2: title search → ADS (only when Tier 1 missed; also short-circuits on quota exhaustion)
+        # Tier 2: arXiv API (only fires for arXiv-form bibcodes ADS rejected)
         if not data:
-            time.sleep(0.1)
-            data = _try_tier2(planet, api_key)
+            data = _try_tier2(planet)
             if data:
                 tier_hit = "tier2"
+
+        # Tier 3: ADS title search (last resort; short-circuits on ADS quota exhaustion)
+        if not data:
+            time.sleep(0.1)
+            data = _try_tier3(planet, api_key)
+            if data:
+                tier_hit = "tier3"
 
         try:
             conn = _ensure_connection(conn)
@@ -338,6 +378,7 @@ def resolve(
                     params = _pub_params(data, data["resolved_via"], data["confidence"])
                     pub_id = _upsert_pub(cur, params)
                     cur.execute(JUNCTION_SQL, {"pl_name": pl_name, "pub_id": pub_id})
+                    cur.execute(QUEUE_DELETE_SQL, {"pl_name": pl_name})
                     counts[tier_hit] += 1
                 else:
                     cur.execute(MANUAL_QUEUE_SQL, {
@@ -370,8 +411,8 @@ def resolve(
                 status="completed", notes=dict(counts))
 
     log.info(
-        "Done · tier1=%d tier2=%d queued=%d errors=%d",
-        counts["tier1"], counts["tier2"],
+        "Done · tier1=%d tier2=%d tier3=%d queued=%d errors=%d",
+        counts["tier1"], counts["tier2"], counts["tier3"],
         counts["queued"], counts["errors"],
     )
     return {"total": total, **counts}

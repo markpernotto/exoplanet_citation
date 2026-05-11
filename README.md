@@ -10,15 +10,15 @@ resolution via NASA ADS and host-star enrichment via Gaia DR3.
 
 **Status:** Phase 1 done. Phase 2 complete. Daily ingest pipeline running
 on a GitHub Actions cron; 6,286 confirmed planets loaded into Postgres
-with 5+ consecutive nightly runs since 2026-05-04; FastAPI serving 22
+with 7+ consecutive nightly runs since 2026-05-04; FastAPI serving 22
 endpoints with automatic Swagger docs; React frontend deployed with
 procedurally-rendered planet cards, multi-planet "this paper also
 announced…" affordance, and a `/feeds` index for personalized RSS
 subscriptions; Gaia DR3 host-star enrichment complete for all 4,355
 enrichable hosts; **citation graph (`publications` +
-`planet_publications`) resolved for 6,219 / 6,286 planets (98.9%)** via
-a 3-tier ADS-only resolver (bibcode from `disc_refname` → ADS title
-search → manual queue), with 67 long-tail edge cases parked in
+`planet_publications`) resolved for 6,279 / 6,286 planets (99.89%)** via
+a 4-tier resolver (ADS bibcode → arXiv API → ADS title search → manual
+queue), with only 7 genuinely weird edge cases parked in
 `citation_manual_queue` for human triage; 78 unit tests + 13 dbt tests
 passing.
 
@@ -70,12 +70,14 @@ from a stock-image library.
   metadata (title, authors, abstract, citation count, DOI, arXiv ID) in
   `discovery_papers`. Quota-aware; falls back gracefully when ADS rate
   limits are hit.
-- **Citation graph resolver** — `etl/resolve_citations.py` runs a 3-tier
-  ADS-only strategy per planet: extract ADS bibcode from `disc_refname`
-  → ADS title search → manual queue. Writes to `publications` +
-  `planet_publications` with provenance (`resolved_via`, `confidence`).
-  Resumable via `backfill_state`. Trips a circuit breaker on
-  `X-RateLimit-Remaining: 0` and stops calling ADS until quota resets.
+- **Citation graph resolver** — `etl/resolve_citations.py` runs a 4-tier
+  strategy per planet: ADS bibcode from `disc_refname` → arXiv API for
+  arXiv-form bibcodes ADS doesn't index → ADS title search → manual
+  queue. Writes to `publications` + `planet_publications` with
+  provenance (`resolved_via`, `confidence`). Resumable via
+  `backfill_state`. Trips a circuit breaker on
+  `X-RateLimit-Remaining: 0` and stops calling ADS until quota resets;
+  arXiv tier respects the polite-pool 3-second inter-call window.
 - **Publisher** generates RSS 2.0, JSON, and health-snapshot feeds with
   freshness measurement against a 26-hour SLO. Per-planet, per-system, and
   per-author RSS feeds are also exposed dynamically by the API.
@@ -119,6 +121,7 @@ psql "$DATABASE_URL" -f etl/migrations/002_phase2_host_stars_gaia.sql
 psql "$DATABASE_URL" -f etl/migrations/003_fix_planets_current_view.sql
 psql "$DATABASE_URL" -f etl/migrations/004_discovery_papers.sql
 psql "$DATABASE_URL" -f etl/migrations/005_citation_graph.sql
+psql "$DATABASE_URL" -f etl/migrations/006_add_arxiv_resolved_via.sql
 
 # Verify connectivity
 make check-setup
@@ -133,7 +136,7 @@ make dbt-run                            # raw → staging
 make diff                               # consecutive snapshots → discovery_changes (also auto-prunes)
 python -m etl.enrich_gaia               # host_stars_gaia (resumable)
 python -m etl.enrich_ads                # discovery_papers from NASA ADS
-python -m etl.resolve_citations         # publications + planet_publications (3-tier ADS resolver)
+python -m etl.resolve_citations         # publications + planet_publications (4-tier resolver: ADS + arXiv)
 make publish                            # → public/rss.xml, public/discoveries.json, public/health.json
 
 # Run the API locally
@@ -199,10 +202,13 @@ make help        # list all targets
   arXiv ID)
 - ✅ **Citation graph schema** — `publications` + `planet_publications` +
   `citation_manual_queue` with provenance (resolved_via, confidence)
-- ✅ **3-tier ADS-only resolver** — `etl/resolve_citations.py` (ADS bibcode
-  → ADS title → manual queue) with quota-aware circuit breaker, resumable
-  via `backfill_state`. (Crossref previously served as a Tier 2 fallback
-  during initial backfill; retired once ADS coverage hit 98.9%.)
+- ✅ **4-tier resolver** — `etl/resolve_citations.py` (ADS bibcode → arXiv
+  API → ADS title → manual queue) with quota-aware circuit breaker,
+  resumable via `backfill_state`. The arXiv tier closes the long tail
+  of arXiv-only preprints that ADS's bibcode lookup doesn't index.
+  (A Crossref-by-DOI tier briefly existed during initial backfill while
+  ADS daily quota was the bottleneck; retired once ADS Tier 1 alone
+  hit 98.9%.)
 - ✅ **API endpoints for the citation graph** — planet/publications,
   publication detail, author publications
 - ✅ **Frontend multi-planet UI** — discovery section on PlanetDetail
@@ -210,11 +216,12 @@ make help        # list all targets
 - ✅ **`/api/health` storage monitoring** — Neon DB size + warning/critical
   thresholds at 80% / 95% of the 500 MB free-tier ceiling
 - ✅ **78 unit tests + 13 dbt tests; resumable backfills via `backfill_state`**
-- ✅ **Single-source ADS consolidation** — Crossref tier removed; all
-  resolved publications now come from ADS, with richer metadata
-  (abstracts, ADS bibcodes, ADS-tracked citation counts). 67 long-tail
-  edge cases remain in `citation_manual_queue` for human triage.
-- 🔜 **Manual-queue triage UI** for the ~67 queued planets
+- ✅ **arXiv resolver tier** — `etl/sources/arxiv.py` + Tier 2 in the
+  resolver. Mops up arXiv-only preprints (60 planets cleared on first
+  run). Polite-pool 3-second inter-call window enforced; user-agent
+  carries project + contact email per arXiv ToS.
+- 🔜 **Manual-queue triage UI** for the remaining 7 queued planets
+  (3 non-arXiv bibcodes ADS rejects + 4 with non-ADS reference URLs)
 - 🔜 **dbt marts** (`dim_planet`, `dim_publication`, `fact_discovery`,
   `fact_parameter_revision`) — deferred; the API doesn't need them yet.
 

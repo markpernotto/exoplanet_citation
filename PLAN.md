@@ -2,7 +2,7 @@
 
 **Owner:** Mark Pernotto (mark@pernotto.com)
 **Repo:** https://github.com/markpernotto/exoplanet_citation
-**Status:** Phase 1 shipped. Phase 2 complete. ETL pipeline live on nightly GitHub Actions cron with 5+ consecutive green runs since 2026-05-04; rolling 2-day snapshot prune keeps Neon storage steady; FastAPI deployed to Vercel with 22 endpoints and Swagger docs; React frontend with search (planet + author), procedurally-rendered planet detail, multi-planet "this paper also announced…" affordance, system orbital view, six retro display themes (rendered as little CRT monitors), and a `/feeds` index documenting the four personalized RSS feed shapes; Gaia DR3 enrichment complete for all 4,355 enrichable hosts; ADS-cached `discovery_papers` for ~1,650 unique bibcodes; **citation graph (`publications` + `planet_publications`) resolved for 6,219 / 6,286 planets (98.9%)** via a 3-tier ADS-only resolver (the Crossref Tier 2 fallback was retired once ADS coverage hit 99% on a single fresh-quota run); 67 long-tail edge cases parked in `citation_manual_queue` for human triage; 78 unit tests + 13 dbt tests green. Phase 3 (follow-up paper graph) is the next major decision point.
+**Status:** Phase 1 shipped. Phase 2 complete. ETL pipeline live on nightly GitHub Actions cron with 7+ consecutive green runs since 2026-05-04; rolling 2-day snapshot prune keeps Neon storage steady; FastAPI deployed to Vercel with 22 endpoints and Swagger docs; React frontend with search (planet + author), procedurally-rendered planet detail, multi-planet "this paper also announced…" affordance, system orbital view, six retro display themes (rendered as little CRT monitors), and a `/feeds` index documenting the four personalized RSS feed shapes; Gaia DR3 enrichment complete for all 4,355 enrichable hosts; ADS-cached `discovery_papers` for ~1,650 unique bibcodes; **citation graph (`publications` + `planet_publications`) resolved for 6,279 / 6,286 planets (99.89%)** via a 4-tier resolver (ADS bibcode → arXiv API → ADS title → manual queue); 7 genuinely weird edge cases parked in `citation_manual_queue` for human triage; 78 unit tests + 13 dbt tests green. Phase 3 (follow-up paper graph) is the next major decision point.
 **Plan finalized:** 2026-05-03
 **Last updated:** 2026-05-05
 **Target effort:** ~4 weeks part-time (target, not a deadline; daily breakdown is a guide)
@@ -53,8 +53,8 @@ Phase 1 is independently shippable and useful. Phase 3 is gated on Phase 2's res
 
 ### Phase 2 — substantially complete (final pass + cleanup pending)
 
-- [x] Each confirmed planet linked to ≥1 discovery publication via ADS bibcode where resolvable (6,219 / 6,286 = 98.9% as of 2026-05-09; remaining 67 in `citation_manual_queue`)
-- [x] Resolution provenance per row: `resolved_via` (`ads_bibcode`, `ads_title`, `manual`) + `confidence` (`high` / `medium` / `low`)
+- [x] Each confirmed planet linked to ≥1 discovery publication via ADS bibcode or arXiv ID where resolvable (6,279 / 6,286 = 99.89% as of 2026-05-10; remaining 7 in `citation_manual_queue`)
+- [x] Resolution provenance per row: `resolved_via` (`ads_bibcode`, `arxiv`, `ads_title`, `manual`) + `confidence` (`high` / `medium` / `low`)
 - [x] NASA ADS metadata cached in `discovery_papers` (~1,250 unique bibcodes); citation graph in `publications` + `planet_publications`
 - [x] **Gaia DR3 host-star enrichment**: every host with parsable `gaia_dr3_id` (4,355 hosts) enriched in `host_stars_gaia`
 - [x] Public endpoints: `/api/planets/{name}`, `/api/planets/{name}/publications` (with `co_planets` for one-shot multi-planet UI), `/api/publications/{bibcode}`, `/api/authors/{name}/publications`, `/api/planets/{name}/host_star`
@@ -227,7 +227,7 @@ journal                   TEXT
 pub_date                  DATE
 citation_count            INT
 citation_count_updated_at TIMESTAMPTZ
-resolved_via              TEXT NOT NULL           -- 'ads_bibcode' | 'ads_title' | 'manual'  ('crossref_doi' still allowed by CHECK but never written)
+resolved_via              TEXT NOT NULL           -- 'ads_bibcode' | 'arxiv' | 'ads_title' | 'manual'  ('crossref_doi' still allowed by CHECK but never written)
 confidence                TEXT NOT NULL           -- 'high' | 'medium' | 'low'
 created_at                TIMESTAMPTZ NOT NULL DEFAULT now()
 updated_at                TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -341,12 +341,15 @@ planets_snapshots (after diff)
   enrich_ads.py          → for each new bibcode in disc_refname, fetch from NASA ADS
         │                  → UPSERT into discovery_papers
         ▼
-  resolve_citations.py   → 3-tier per planet:
+  resolve_citations.py   → 4-tier per planet:
         │                    Tier 1: ADS bibcode (from disc_refname regex)
-        │                    Tier 2: ADS title search (fuzzy match)
-        │                    Tier 3: insert into citation_manual_queue
+        │                    Tier 2: arXiv API (for arXiv-form bibcodes ADS doesn't index)
+        │                    Tier 3: ADS title search (fuzzy match)
+        │                    Tier 4: insert into citation_manual_queue
         │                  → UPSERT publications + planet_publications
+        │                  → on success, drop stale citation_manual_queue row in same txn
         │                  → ADS quota circuit breaker on X-RateLimit-Remaining: 0
+        │                  → arXiv tier respects 3-second polite-pool window
         │                  → nightly invocation passes --max-planets 50 to bound the cron
         ▼
   publish.py             → regenerate rss.xml + discoveries.json + health.json
@@ -369,20 +372,25 @@ critical path; the API serves directly from the public schema.
 > `<a href="https://ui.adsabs.harvard.edu/abs/2011ApJ...736...19B/abstract" target=_blank>Borucki et al. 2011</a>`
 
 That HTML envelope makes Tier 1 trivial: regex out the bibcode and call
-ADS. Tier 2 is a fuzzy fallback for the small fraction of planets where
-the bibcode is missing or malformed. Tier 3 is the human triage queue.
+ADS. Tier 2 catches arXiv-form bibcodes ADS doesn't index. Tier 3 is a
+fuzzy fallback for the small remainder. Tier 4 is the human triage queue.
 
 Tiers (per planet, stop at first success):
 
 1. **Tier 1 — ADS bibcode from `disc_refname`.** Regex `abs/([^/]+)/abstract`
    on the embedded URL, decode `%26` → `&`. Confidence: `high`.
    `resolved_via='ads_bibcode'`. Covers ~99% of catalog rows.
-2. **Tier 2 — ADS title search.** Fuzzy `title:"…" author:"…"` search
+2. **Tier 2 — arXiv API.** Fires only when the extracted bibcode matches
+   `^\d{4}arXiv` (ADS bibcode form for arXiv preprints). Strips the
+   year prefix + author letter to recover the canonical arXiv ID
+   (`2010arXiv1007.4552J` → `1007.4552`; for newer 5-digit-suffix IDs
+   the dot is re-inserted). Confidence: `high`. `resolved_via='arxiv'`.
+3. **Tier 3 — ADS title search.** Fuzzy `title:"…" author:"…"` search
    ranked by relevance. Confidence: `medium`. `resolved_via='ads_title'`.
    Rarely hit in practice.
-3. **Tier 3 — `citation_manual_queue` insert.** No `publications` row;
-   logged for human triage. Currently 67 planets, mostly long-tail edge
-   cases (in-press references, malformed HTML, etc.).
+4. **Tier 4 — `citation_manual_queue` insert.** No `publications` row;
+   logged for human triage. Currently 7 planets — long-tail edge cases
+   (typo'd bibcodes, non-ADS reference URLs).
 
 **Historical note:** during initial backfill a Crossref-by-DOI tier sat
 between today's Tier 1 and Tier 2 to provide a fallback when the daily
@@ -530,26 +538,31 @@ back to `main` automatically.
 - Documentation: ARCHITECTURE.md, DATA_CATALOG.md, PROCEDURAL_RENDERING.md,
   THEMING.md, controlled-vocabulary YAMLs
 
-### Phase 2 — complete (98.9% citation coverage)
+### Phase 2 — complete (99.89% citation coverage)
 
-**Citation resolution — implemented and consolidated on ADS:**
+**Citation resolution — implemented:**
 - `etl/sources/ads.py` (NASA ADS client with quota-aware circuit breaker;
   reads `X-RateLimit-Reset` header)
+- `etl/sources/arxiv.py` (arXiv Atom-API client with module-level 3-second
+  polite-pool window enforced via `_last_call_ts`)
 - Migration `005_citation_graph.sql` adding `publications`,
   `planet_publications`, `citation_manual_queue`
-- `etl/resolve_citations.py` — 3-tier ADS-only strategy:
+- Migration `006_add_arxiv_resolved_via.sql` extending the
+  `publications.resolved_via` CHECK constraint to include `'arxiv'`
+- `etl/resolve_citations.py` — 4-tier strategy:
   Tier 1 (ADS bibcode from `disc_refname`)
-  → Tier 2 (ADS title search)
-  → Tier 3 (insert into `citation_manual_queue`)
+  → Tier 2 (arXiv API for arXiv-form bibcodes ADS doesn't index)
+  → Tier 3 (ADS title search)
+  → Tier 4 (insert into `citation_manual_queue`)
 - Resumable via `backfill_state` (batch_id `'citations'`)
-- 6,219 / 6,286 planets resolved (98.9%); 67 in manual queue
-- A Crossref-by-DOI tier existed during the initial backfill while ADS
-  daily quota was the bottleneck. After a fresh-quota run hit ~99%
-  coverage on Tier 1 alone, Crossref produced strictly worse data and
-  was retired (Crossref-resolved rows purged, planets re-resolved via
-  ADS, `etl/sources/crossref.py` deleted from the codebase)
-- The arXiv API client was deferred — ADS already exposes arXiv IDs
-  for cached papers, so it's not on the critical path
+- Self-cleaning: a successful resolve drops the planet's stale row from
+  `citation_manual_queue` in the same transaction
+- 6,279 / 6,286 planets resolved (99.89%); 7 in manual queue
+- Historical: a Crossref-by-DOI tier existed during initial backfill
+  while ADS daily quota was the bottleneck. After a fresh-quota run hit
+  ~99% coverage on Tier 1 alone, Crossref produced strictly worse data
+  and was retired. The arXiv tier was added afterward to mop up the
+  ~60 arXiv-only-preprint long tail.
 
 **ADS discovery-paper enrichment — implemented:**
 - `etl/sources/ads.py` shared client
@@ -587,7 +600,10 @@ back to `main` automatically.
   and resolution-rate KPI tracking
 - Optional: storage warning surfaced in the UI (data is in `/api/health`
   already, just needs a footer/header treatment)
-- Optional: manual-queue triage UI for the 67 queued planets
+- Optional: manual-queue triage UI for the remaining 7 queued planets
+  (3 non-arXiv bibcodes ADS rejects + 4 with non-ADS reference URLs
+  pointing directly at Nature/Science articles). All would benefit from
+  the same triage UI proposed in Phase 3.
 
 ### Phase 3 — post-v1.0
 
@@ -598,22 +614,14 @@ back to `main` automatically.
   Milky Way map using `ra`, `dec`, `sy_dist` plus Gaia astrometry
 - Optional: PHL Habitable Exoplanets Catalog integration for
   Earth-Similarity Index per planet
-- **Close the citation-graph long tail** — the 67 planets currently in
-  `citation_manual_queue` are almost entirely planets whose `disc_refname`
-  cites an arXiv-only preprint that ADS doesn't index under that exact
-  bibcode form (e.g. `2010arXiv1007.4552J`, `2026arXiv260218207S`). Two
-  ways to attack this:
-  1. **arXiv resolver tier** — add `etl/sources/arxiv.py` and a new tier
-     between today's Tier 1 and Tier 2: when the extracted bibcode
-     matches `^\d{4}arXiv`, query the arXiv API directly to fetch
-     metadata, store it in `publications` with `resolved_via='arxiv'`
-     (requires a CHECK constraint update on
-     `publications.resolved_via`). Expected to catch ~50 of the 67.
-  2. **Manual triage UI** — a small page that lists queued planets with
-     their `disc_refname`, accepts a corrected bibcode/DOI, and runs a
-     one-shot resolver against the input. Catches the genuinely weird
-     handful (the 4 planets with malformed `disc_refname`) plus the
-     long-tail arXiv-only ones the arXiv tier can't fetch.
+- **Manual triage UI for the remaining queue (~7 planets).** The arXiv
+  tier (shipped 2026-05-10) cleared 60 of the original 67 queued
+  planets. The 7 holdouts split: 3 are non-arXiv bibcodes ADS rejects
+  (likely typos like `2009ReA&A` instead of `RAA`), 4 have a
+  `disc_refname` that points directly at Nature/Science URLs without an
+  ADS bibcode at all. A small admin page that lists each queued planet
+  with its raw `disc_refname` and accepts a manually-entered bibcode or
+  DOI would let a human resolve the long tail in minutes.
 
 ---
 

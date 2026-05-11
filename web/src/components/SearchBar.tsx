@@ -7,11 +7,14 @@ export default function SearchBar() {
   const [query, setQuery] = useState('');
 
   // Pre-fill the input based on current route:
-  //   /planets/:plName → fill with plName
-  //   /?q=foo         → fill with foo
-  //   anything else   → empty
+  //   /planets/:plName       → fill with plName
+  //   /planets/:plName/scene → fill with plName (NOT plName/scene)
+  //   /?q=foo                → fill with foo
+  //   anything else          → empty
   useEffect(() => {
-    const planetMatch = location.pathname.match(/^\/planets\/(.+)$/);
+    // Match only the first path segment after /planets/ (stops at next slash),
+    // so subroutes like /planets/X/scene don't include "/scene" in the search.
+    const planetMatch = location.pathname.match(/^\/planets\/([^/]+)/);
     if (planetMatch) {
       setQuery(decodeURIComponent(planetMatch[1]));
       return;

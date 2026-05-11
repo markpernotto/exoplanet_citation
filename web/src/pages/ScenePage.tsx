@@ -4,7 +4,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { Html, OrbitControls } from '@react-three/drei';
 import { Bloom, EffectComposer } from '@react-three/postprocessing';
 import * as THREE from 'three';
-import { api, type BinaryCompanion, type SceneResponse } from '../api';
+import { api, type BinaryCompanion, type DiscoveryPaper, type SceneResponse } from '../api';
 import { planetVisual } from '../procedural';
 
 export default function ScenePage() {
@@ -14,18 +14,23 @@ export default function ScenePage() {
   const themeQuery = themeParam ? `?theme=${themeParam}` : '';
 
   const [scene, setScene] = useState<SceneResponse | null>(null);
+  const [paper, setPaper] = useState<DiscoveryPaper | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [paused, setPaused] = useState(true);          // start paused (per plan)
   const [speed, setSpeed] = useState(1);               // 0.25 / 1 / 4 / 16
+  const [panelCollapsed, setPanelCollapsed] = useState(false);
 
   useEffect(() => {
     setScene(null);
+    setPaper(null);
     setError(null);
     setPaused(true);
     setSpeed(1);
     api.planetScene(plName)
       .then(setScene)
       .catch((e: Error) => setError(e.message));
+    // Paper fetch is best-effort — many planets don't have ADS data, that's fine
+    api.planetPaper(plName).then(setPaper).catch(() => {});
   }, [plName]);
 
   if (error) {
@@ -67,14 +72,17 @@ export default function ScenePage() {
   const maxOrbit = Math.max(orbsmax, ...scene.siblings.map((s) => s.pl_orbsmax ?? 0));
   const farPlane = STAR_SPHERE_AU * 1.2;
 
+  const backTo = `/planets/${encodeURIComponent(plName)}${themeQuery}`;
   return (
     <>
-      <SceneHUD
-        scene={scene}
-        backTo={`/planets/${encodeURIComponent(plName)}${themeQuery}`}
-        paused={paused} setPaused={setPaused}
-        speed={speed} setSpeed={setSpeed}
-      />
+      {!panelCollapsed && (
+        <InfoPanel scene={scene} paper={paper} onCollapse={() => setPanelCollapsed(true)} />
+      )}
+      {panelCollapsed && (
+        <ExpandTab onExpand={() => setPanelCollapsed(false)} />
+      )}
+      <CloseButton to={backTo} />
+      <PlaybackControls paused={paused} setPaused={setPaused} speed={speed} setSpeed={setSpeed} />
       <Canvas
         style={{ position: 'fixed', inset: 0, background: '#000', zIndex: 0 }}
         camera={{ position: camPos, fov: 50, near: focalRadius * 0.01, far: farPlane }}
@@ -188,35 +196,58 @@ function sunDisplayRadius(st_rad_solar: number | null, innermostPeriapsisAu: num
 }
 
 
-function SceneHUD({
-  scene, backTo,
-  paused, setPaused,
-  speed, setSpeed,
+// ── HUD layout ────────────────────────────────────────────────────────────
+// Top-left:  InfoPanel (collapsible, sectioned with per-section expand)
+// Top-right: CloseButton (X — exit to planet detail page)
+// Bottom-right: PlaybackControls (play/pause, speed, help text)
+// All overlays sit BELOW the site header (CSS-sticky, ~130px tall).
+
+const HEADER_OFFSET_PX = 130;   // safe vertical offset below the sticky header
+
+function InfoPanel({
+  scene, paper, onCollapse,
 }: {
   scene: SceneResponse;
-  backTo: string;
-  paused: boolean;
-  setPaused: (p: boolean) => void;
-  speed: number;
-  setSpeed: (s: number) => void;
+  paper: DiscoveryPaper | null;
+  onCollapse: () => void;
 }) {
-  const { planet, scene_hints } = scene;
+  const { planet, scene_hints, host_star } = scene;
+  // Per-section expand state. Quick stats + planet name always visible.
+  const [openSections, setOpenSections] = useState<Set<string>>(new Set());
+  const toggle = (k: string) => setOpenSections((prev) => {
+    const next = new Set(prev);
+    if (next.has(k)) next.delete(k); else next.add(k);
+    return next;
+  });
+
+  const distance_pc = host_star?.distance_gspphot_pc ?? planet.sy_dist;
+
   return (
     <div
       style={{
-        position: 'fixed', top: 16, left: 16, zIndex: 10,
-        background: 'rgba(11, 13, 18, 0.78)', color: 'var(--fg)',
-        padding: '0.85rem 1rem', borderRadius: 4,
-        fontSize: '0.85rem', maxWidth: 380, lineHeight: 1.5,
-        backdropFilter: 'blur(4px)',
+        position: 'fixed', top: HEADER_OFFSET_PX, left: 16, zIndex: 10,
+        background: 'rgba(11, 13, 18, 0.85)', color: 'var(--fg)',
+        padding: '0.85rem 1rem 0.7rem', borderRadius: 4,
+        fontSize: '0.85rem', width: 320, maxHeight: `calc(100vh - ${HEADER_OFFSET_PX + 32}px)`,
+        overflowY: 'auto', lineHeight: 1.5, backdropFilter: 'blur(4px)',
+        border: '1px solid var(--border)',
       }}
     >
-      <p style={{ margin: '0 0 0.5rem' }}>
-        <Link to={backTo} replace>← exit 3D scene</Link>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
+        <h2 style={{ margin: 0, fontSize: '1rem' }}>{planet.pl_name}</h2>
+        <button
+          onClick={onCollapse}
+          title="Collapse panel (full-screen scene)"
+          style={{ background: 'transparent', color: 'var(--fg-muted)', border: '1px solid var(--border)', padding: '0.05rem 0.4rem', borderRadius: 3, cursor: 'pointer', fontSize: '0.85rem', flexShrink: 0 }}
+        >
+          ‹
+        </button>
+      </div>
+      <p style={{ margin: '0.1rem 0 0.6rem', fontSize: '0.75rem', color: 'var(--fg-muted)' }}>
+        orbiting {planet.hostname}{planet.disc_year && <> · discovered {planet.disc_year}</>}
       </p>
-      <h2 style={{ margin: '0 0 0.4rem', fontSize: '1rem' }}>
-        {planet.pl_name} — preview scene
-      </h2>
+
+      {/* Quick stats — always visible */}
       <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.2rem 0.7rem', fontSize: '0.78rem' }}>
         <dt style={{ color: 'var(--fg-muted)' }}>body</dt>
         <dd style={{ margin: 0 }}>{scene_hints.body_type}</dd>
@@ -243,10 +274,157 @@ function SceneHUD({
             : 'survivable on temperature alone'}
         </dd>
       </dl>
-      <div style={{ marginTop: '0.7rem', paddingTop: '0.6rem', borderTop: '1px solid var(--border)', display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap', fontSize: '0.78rem' }}>
+
+      {/* Sky position */}
+      <Section
+        label="Sky position"
+        open={openSections.has('sky')}
+        onToggle={() => toggle('sky')}
+      >
+        {planet.ra != null && planet.dec != null ? (
+          <p style={{ margin: '0 0 0.3rem' }}>
+            RA <code>{planet.ra.toFixed(3)}°</code> · Dec <code>{planet.dec.toFixed(3)}°</code>
+          </p>
+        ) : <p style={{ margin: '0 0 0.3rem', color: 'var(--fg-muted)' }}>position not in catalog</p>}
+        {distance_pc != null && (
+          <p style={{ margin: 0, color: 'var(--fg-muted)' }}>
+            <strong style={{ color: 'var(--fg)' }}>{(distance_pc * 3.2616).toFixed(1)}</strong> light-years away
+            ({distance_pc.toFixed(1)} pc)
+            {host_star?.distance_gspphot_pc != null && <> · via Gaia DR3</>}
+          </p>
+        )}
+      </Section>
+
+      {/* Discovery */}
+      <Section
+        label="Discovery"
+        open={openSections.has('disc')}
+        onToggle={() => toggle('disc')}
+      >
+        <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.15rem 0.6rem', fontSize: '0.78rem' }}>
+          {planet.disc_year && <><dt style={{ color: 'var(--fg-muted)' }}>year</dt><dd style={{ margin: 0 }}>{planet.disc_year}</dd></>}
+          {planet.discoverymethod && <><dt style={{ color: 'var(--fg-muted)' }}>method</dt><dd style={{ margin: 0 }}>{planet.discoverymethod}</dd></>}
+          {planet.disc_facility && <><dt style={{ color: 'var(--fg-muted)' }}>facility</dt><dd style={{ margin: 0 }}>{planet.disc_facility}</dd></>}
+          {planet.disc_telescope && <><dt style={{ color: 'var(--fg-muted)' }}>telescope</dt><dd style={{ margin: 0 }}>{planet.disc_telescope}</dd></>}
+          {planet.disc_instrument && <><dt style={{ color: 'var(--fg-muted)' }}>instrument</dt><dd style={{ margin: 0 }}>{planet.disc_instrument}</dd></>}
+        </dl>
+      </Section>
+
+      {/* Citation */}
+      <Section
+        label={`Citation${paper?.citation_count != null ? ` · ${paper.citation_count.toLocaleString()} cites` : ''}`}
+        open={openSections.has('cite')}
+        onToggle={() => toggle('cite')}
+      >
+        {paper ? (
+          <>
+            <p style={{ margin: '0 0 0.3rem', fontSize: '0.8rem', fontWeight: 600, lineHeight: 1.35 }}>
+              {paper.title ?? paper.bibcode}
+            </p>
+            {paper.authors.length > 0 && (
+              <p style={{ margin: '0 0 0.3rem', fontSize: '0.74rem', color: 'var(--fg-muted)' }}>
+                {paper.authors.slice(0, 3).join(', ')}
+                {paper.authors.length > 3 && ` +${paper.authors.length - 3} more`}
+              </p>
+            )}
+            <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', color: 'var(--fg-muted)' }}>
+              {[paper.journal, paper.pub_date?.slice(0, 4)].filter(Boolean).join(' · ')}
+            </p>
+            {paper.abstract && (
+              <p style={{ margin: '0 0 0.4rem', fontSize: '0.74rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+                {paper.abstract.length > 240 ? paper.abstract.slice(0, 240).trimEnd() + '…' : paper.abstract}
+              </p>
+            )}
+            <div style={{ display: 'flex', gap: '0.6rem', fontSize: '0.74rem' }}>
+              <a href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(paper.bibcode)}/abstract`} target="_blank" rel="noopener noreferrer">ADS →</a>
+              {paper.doi && <a href={`https://doi.org/${paper.doi}`} target="_blank" rel="noopener noreferrer">DOI →</a>}
+              {paper.arxiv_id && <a href={`https://arxiv.org/abs/${paper.arxiv_id}`} target="_blank" rel="noopener noreferrer">arXiv →</a>}
+            </div>
+          </>
+        ) : <p style={{ margin: 0, color: 'var(--fg-muted)', fontSize: '0.78rem' }}>No ADS record cached for this discovery paper.</p>}
+      </Section>
+    </div>
+  );
+}
+
+function Section({
+  label, open, onToggle, children,
+}: {
+  label: string; open: boolean; onToggle: () => void; children: React.ReactNode;
+}) {
+  return (
+    <div style={{ marginTop: '0.6rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border)' }}>
+      <button
+        onClick={onToggle}
+        style={{ background: 'transparent', color: 'var(--fg)', border: 'none', padding: 0, cursor: 'pointer', width: '100%', textAlign: 'left', fontSize: '0.82rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+      >
+        <span style={{ color: 'var(--fg-muted)', display: 'inline-block', width: '0.7rem' }}>{open ? '▾' : '▸'}</span>
+        {label}
+      </button>
+      {open && <div style={{ marginTop: '0.4rem' }}>{children}</div>}
+    </div>
+  );
+}
+
+function ExpandTab({ onExpand }: { onExpand: () => void }) {
+  return (
+    <button
+      onClick={onExpand}
+      title="Show planet info panel"
+      style={{
+        position: 'fixed', top: HEADER_OFFSET_PX, left: 0, zIndex: 10,
+        background: 'rgba(11, 13, 18, 0.85)', color: 'var(--fg)',
+        border: '1px solid var(--border)', borderLeft: 'none',
+        padding: '0.5rem 0.6rem', borderTopRightRadius: 4, borderBottomRightRadius: 4,
+        cursor: 'pointer', fontSize: '0.95rem',
+        backdropFilter: 'blur(4px)',
+      }}
+    >
+      ›
+    </button>
+  );
+}
+
+function CloseButton({ to }: { to: string }) {
+  return (
+    <Link
+      to={to}
+      replace
+      title="Exit 3D scene"
+      style={{
+        position: 'fixed', top: HEADER_OFFSET_PX, right: 16, zIndex: 10,
+        background: 'rgba(11, 13, 18, 0.85)', color: 'var(--fg)',
+        padding: '0.35rem 0.6rem', borderRadius: 4, textDecoration: 'none',
+        fontSize: '0.85rem', fontWeight: 600,
+        border: '1px solid var(--border)', backdropFilter: 'blur(4px)',
+        display: 'flex', alignItems: 'center', gap: '0.35rem',
+      }}
+    >
+      <span style={{ fontSize: '1rem', lineHeight: 1 }}>✕</span> exit
+    </Link>
+  );
+}
+
+function PlaybackControls({
+  paused, setPaused, speed, setSpeed,
+}: {
+  paused: boolean; setPaused: (p: boolean) => void;
+  speed: number; setSpeed: (s: number) => void;
+}) {
+  return (
+    <div
+      style={{
+        position: 'fixed', bottom: 16, right: 16, zIndex: 10,
+        background: 'rgba(11, 13, 18, 0.85)', color: 'var(--fg)',
+        padding: '0.7rem 0.9rem', borderRadius: 4, maxWidth: 360,
+        border: '1px solid var(--border)', backdropFilter: 'blur(4px)',
+        fontSize: '0.78rem',
+      }}
+    >
+      <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
         <button
           onClick={() => setPaused(!paused)}
-          style={{ background: paused ? 'var(--accent)' : 'transparent', color: paused ? '#0b0d12' : 'var(--fg)', border: '1px solid var(--border)', padding: '0.2rem 0.55rem', borderRadius: 3, cursor: 'pointer', fontWeight: 600 }}
+          style={{ background: paused ? 'var(--accent)' : 'transparent', color: paused ? '#0b0d12' : 'var(--fg)', border: '1px solid var(--border)', padding: '0.25rem 0.7rem', borderRadius: 3, cursor: 'pointer', fontWeight: 600 }}
         >
           {paused ? '▶ play' : '❚❚ pause'}
         </button>
@@ -261,13 +439,11 @@ function SceneHUD({
           </button>
         ))}
       </div>
-      <p style={{ margin: '0.7rem 0 0', fontSize: '0.72rem', color: 'var(--fg-muted)' }}>
+      <p style={{ margin: '0.55rem 0 0', fontSize: '0.7rem', color: 'var(--fg-muted)', lineHeight: 1.45 }}>
         Drag to orbit · scroll to zoom · pan with right-mouse · ~60 sec per focal-planet orbit at 1×.
       </p>
-      <p style={{ margin: '0.4rem 0 0', fontSize: '0.7rem', color: 'var(--fg-muted)', lineHeight: 1.45 }}>
-        <strong style={{ color: 'var(--fg-muted)' }}>Scale note:</strong> orbital distances are at true AU scale.
-        Bodies (sun + planets) are uniformly exaggerated ~{BODY_EXAG}× so natural proportions survive — true-scale Earth at 1 AU would be invisible at any reasonable zoom.
-        Surface-view mode (coming) will use true sizes for the "what does the sky look like from here" answer.
+      <p style={{ margin: '0.35rem 0 0', fontSize: '0.68rem', color: 'var(--fg-muted)', lineHeight: 1.4 }}>
+        <strong style={{ color: 'var(--fg-muted)' }}>Scale:</strong> orbits at true AU; bodies exaggerated ~{BODY_EXAG}× so they're visible.
       </p>
     </div>
   );
@@ -355,17 +531,17 @@ function SceneContents({
         ? <BinaryPhotospheres radius={sunRadius} color={sun_color_hex} paused={paused} speed={speed} />
         : <Photosphere radius={sunRadius} color={sun_color_hex} />
       }
-      {/* Sun light: decay=2 (physically correct inverse-square). Inner
-          planets receive dramatically more flux than outer ones — matching
-          real-life sunlight falloff. The base intensity is calibrated so
-          the focal planet receives ~1.5 units (well-lit, not saturated);
-          inner planets get more (still mostly lit), outer planets less
-          (visibly dimmer, but readable thanks to the hemisphere fill below). */}
-      <pointLight position={[0, 0, 0]} intensity={focalOrbsmax * focalOrbsmax * 1.5} color={sun_color_hex} distance={0} decay={2} />
-      {/* Hemisphere fill so outer planets and the dark side of inner planets
-          aren't pitch black. Boosted just enough to make far-out worlds
-          visible without washing out the dramatic terminator on inner ones. */}
-      <hemisphereLight intensity={0.12} color="#3a4055" groundColor="#1a1a22" />
+      {/* Sun light: decay=1.7 (slightly less aggressive than physical 1/r²).
+          Pure inverse-square crushes outer planets visually faster than the
+          eye expects in a stylized 3D scene; 1.7 keeps the directional
+          lit/dark sense while extending visibility outward. Base intensity
+          calibrated so the focal planet's lit side reads bright but doesn't
+          saturate to white. */}
+      <pointLight position={[0, 0, 0]} intensity={focalOrbsmax * focalOrbsmax * 2.2} color={sun_color_hex} distance={0} decay={1.7} />
+      {/* Hemisphere fill — provides ambient brightness so even the dark
+          side of planets and far-out outer worlds remain readable in dark
+          space. Without this they sink into the void. */}
+      <hemisphereLight intensity={0.22} color="#475066" groundColor="#1f1f2a" />
 
       {/* Orbit rings — focal in accent color, siblings dimmer */}
       <OrbitRing orbsmax={focalOrbsmax} eccen={planet.pl_orbeccen ?? 0} color="#7ad6ff" opacity={0.55} />

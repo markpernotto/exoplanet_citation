@@ -76,6 +76,7 @@ class PlanetSummary(BaseModel):
     pl_eqt: float | None
     sy_dist: float | None
     disc_paper_citations: int | None
+    has_measured_geometry: bool | None
 
 
 class PlanetDetail(BaseModel):
@@ -251,6 +252,16 @@ class AtmosphericMolecule(BaseModel):
     confidence_sigma: float | None
 
 
+class OrbitalGeometryRecord(BaseModel):
+    pl_name: str
+    reference_pl_name: str | None
+    mutual_inclination_deg: float | None
+    inclination_uncertainty_deg: float | None
+    method: str
+    bibcode: str | None
+    note: str | None
+
+
 class SceneHints(BaseModel):
     sun_color_hex: str
     sun_angular_size_deg: float | None
@@ -268,4 +279,5 @@ class SceneResponse(BaseModel):
     binary_companions: list[BinaryCompanion]
     atmospheric_observations: list[AtmosphericObservation]
     atmospheric_detections: list[AtmosphericMolecule]
+    orbital_geometry: list[OrbitalGeometryRecord]
     scene_hints: SceneHints

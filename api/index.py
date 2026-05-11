@@ -50,6 +50,7 @@ from api.models import (
     FreshnessInfo,
     HealthResponse,
     HostStarGaia,
+    OrbitalGeometryRecord,
     PlanetDetail,
     PlanetHistoryResponse,
     PlanetPublication,
@@ -312,7 +313,8 @@ _PLANET_SUMMARY_COLS = """
     gaia_dr3_id,
     (SELECT citation_count FROM discovery_papers
      WHERE bibcode = replace(substring(disc_refname FROM 'abs/([^/]+)/abstract'), '%%26', '&')
-     LIMIT 1) AS disc_paper_citations
+     LIMIT 1) AS disc_paper_citations,
+    EXISTS (SELECT 1 FROM system_orbital_geometry g WHERE g.hostname = planets_snapshots.hostname) AS has_measured_geometry
 """
 
 _PLANET_DETAIL_COLS = """
@@ -798,6 +800,19 @@ def planet_scene(pl_name: str) -> SceneResponse:
             )
             atm_det_rows = cur.fetchall()
 
+            # Measured orbital geometry — every planet in this system if known
+            cur.execute(
+                """
+                SELECT pl_name, reference_pl_name, mutual_inclination_deg,
+                       inclination_uncertainty_deg, method, bibcode, note
+                FROM system_orbital_geometry
+                WHERE hostname = %s
+                ORDER BY mutual_inclination_deg NULLS FIRST
+                """,
+                (hostname,),
+            )
+            geometry_rows = cur.fetchall()
+
     return SceneResponse(
         planet=PlanetDetail(**planet_row),
         host_star=HostStarGaia(**host_row) if host_row else None,
@@ -805,6 +820,7 @@ def planet_scene(pl_name: str) -> SceneResponse:
         binary_companions=[BinaryCompanion(**r) for r in companion_rows],
         atmospheric_observations=[AtmosphericObservation(**r) for r in atm_obs_rows],
         atmospheric_detections=[AtmosphericMolecule(**r) for r in atm_det_rows],
+        orbital_geometry=[OrbitalGeometryRecord(**r) for r in geometry_rows],
         scene_hints=SceneHints(**derive_scene_hints(planet_row)),
     )
 

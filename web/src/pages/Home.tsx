@@ -352,6 +352,11 @@ function PlanetGrid({ results }: { results: PlanetSummary[] }) {
               )}
               {(p.sy_pnum ?? 0) > 1 && <span className="pill pill-multi">{p.sy_pnum}-planet system</span>}
               {p.gaia_dr3_id && <span className="pill pill-gaia">Gaia DR3</span>}
+              {p.has_measured_geometry && (
+                <span className="pill pill-geometry" title="Mutual inclinations between sibling planets have been measured — the 3D scene shows the real architecture">
+                  measured 3D
+                </span>
+              )}
             </div>
             <div className="summary">
               {p.hostname}

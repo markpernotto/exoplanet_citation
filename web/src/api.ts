@@ -55,6 +55,17 @@ export type PlanetSummary = {
   pl_eqt: number | null;
   sy_dist: number | null;
   disc_paper_citations: number | null;
+  has_measured_geometry: boolean | null;
+};
+
+export type OrbitalGeometryRecord = {
+  pl_name: string;
+  reference_pl_name: string | null;
+  mutual_inclination_deg: number | null;
+  inclination_uncertainty_deg: number | null;
+  method: string;
+  bibcode: string | null;
+  note: string | null;
 };
 
 export type PlanetDetail = {
@@ -233,6 +244,7 @@ export type SceneResponse = {
   binary_companions: BinaryCompanion[];
   atmospheric_observations: AtmosphericObservation[];
   atmospheric_detections: AtmosphericMolecule[];
+  orbital_geometry: OrbitalGeometryRecord[];
   scene_hints: SceneHints;
 };
 

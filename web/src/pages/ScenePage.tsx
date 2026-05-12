@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, OrbitControls } from '@react-three/drei';
 import { Bloom, EffectComposer } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import { api, type BinaryCompanion, type DiscoveryPaper, type SceneResponse } from '../api';
+import LoadingBar from '../components/LoadingBar';
 import { planetVisual } from '../procedural';
 
 export default function ScenePage() {
@@ -19,6 +20,15 @@ export default function ScenePage() {
   const [paused, setPaused] = useState(true);          // start paused (per plan)
   const [speed, setSpeed] = useState(1);               // 0.25 / 1 / 4 / 16
   const [panelCollapsed, setPanelCollapsed] = useState(false);
+  const [viewMode, setViewMode] = useState<'system' | 'surface'>('system');
+
+  // Shared ref written by SceneContents each frame with the focal planet's
+  // animated world position. Read by CameraFollowFocal in surface mode so
+  // the camera rides along with the planet as it orbits.
+  // The sun is always at scene origin — its position is constant.
+  // BOTH hooks must be declared before any early returns (React rules of hooks).
+  const focalPosRef = useRef(new THREE.Vector3());
+  const sunWorldPos = useMemo(() => new THREE.Vector3(0, 0, 0), []);
 
   useEffect(() => {
     setScene(null);
@@ -43,10 +53,11 @@ export default function ScenePage() {
   }
 
   if (!scene) {
+    // Just the loading bar — no premature "exit" link cluttering the screen.
+    // The header search bar above is still available for navigation.
     return (
       <div style={{ padding: '1rem' }}>
-        <p><Link to={`/planets/${encodeURIComponent(plName)}${themeQuery}`} replace>← exit 3D scene</Link></p>
-        <p>Loading 3D scene…</p>
+        <LoadingBar loading={true} />
       </div>
     );
   }
@@ -73,6 +84,17 @@ export default function ScenePage() {
   const farPlane = STAR_SPHERE_AU * 1.2;
 
   const backTo = `/planets/${encodeURIComponent(plName)}${themeQuery}`;
+  // Initialize the shared position to the focal planet's t=0 location so the
+  // first surface-mode frame doesn't snap from origin to its actual position.
+  if (focalPosRef.current.x === 0 && focalPosRef.current.z === 0) {
+    focalPosRef.current.set(orbsmax, 0, 0);
+  }
+  // The focal planet's display radius — used as the camera's vertical offset
+  // above the planet center in surface mode (so we're standing ON it, not in it).
+  const surfaceOffset = focalRadius * 1.1;
+  // sunWorldPos was declared at the top of the component (alongside other
+  // hooks) to satisfy React's rules-of-hooks. It's used here to point the
+  // surface-view camera tracker at the sun, which always lives at origin.
   return (
     <>
       {!panelCollapsed && (
@@ -82,28 +104,59 @@ export default function ScenePage() {
         <ExpandTab onExpand={() => setPanelCollapsed(false)} />
       )}
       <CloseButton to={backTo} />
-      <PlaybackControls paused={paused} setPaused={setPaused} speed={speed} setSpeed={setSpeed} />
+      <PlaybackControls
+        paused={paused} setPaused={setPaused}
+        speed={speed} setSpeed={setSpeed}
+        viewMode={viewMode} setViewMode={setViewMode}
+      />
+      {/* Re-mount the Canvas on viewMode change so the camera + controls swap
+          cleanly. Slight perf hit on toggle, but no stale-state bugs. */}
       <Canvas
+        key={viewMode}
         style={{ position: 'fixed', inset: 0, background: '#000', zIndex: 0 }}
-        camera={{ position: camPos, fov: 50, near: focalRadius * 0.01, far: farPlane }}
+        camera={
+          viewMode === 'system'
+            ? { position: camPos, fov: 50, near: focalRadius * 0.01, far: farPlane }
+            : {
+                // Surface: start at the focal planet's t=0 position. CameraFollowFocal
+                // updates this every frame as the planet orbits.
+                position: [orbsmax, surfaceOffset, 0],
+                fov: 75,
+                near: focalRadius * 0.01,
+                far: farPlane,
+              }
+        }
         gl={{
           logarithmicDepthBuffer: true,
-          // ACES filmic tone-mapping compresses HDR values into the visible
-          // range while PRESERVING hue. Without this, our 2.5× HDR sun pushes
-          // M-dwarf reds toward yellow/white because each channel clips
-          // independently. ACES rolls off the highlights properly.
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 1.0,
         }}
       >
         <ambientLight intensity={0.04} />
-        <OrbitControls
-          target={focalPos}
-          enablePan={true}
-          minDistance={focalRadius * 1.5}
-          maxDistance={maxOrbit * 4 + 5}
-        />
-        <SceneContents scene={scene} paused={paused} speed={speed} />
+        {viewMode === 'system' ? (
+          <>
+            <OrbitControls
+              target={focalPos}
+              enablePan={true}
+              minDistance={focalRadius * 1.5}
+              maxDistance={maxOrbit * 4 + 5}
+            />
+            <SceneContents scene={scene} paused={paused} speed={speed} />
+          </>
+        ) : (
+          <>
+            {/* Tracking the sun (origin) keeps the user oriented on the
+                tidally-locked sun-facing side. Drag offset is preserved —
+                if the user looks left 90°, they keep looking 90° from sun. */}
+            <FirstPersonLook trackTarget={sunWorldPos} />
+            <SceneContents
+              scene={scene} paused={paused} speed={speed}
+              hideFocal
+              focalPosOut={focalPosRef}
+            />
+            <CameraFollowFocal focalPosRef={focalPosRef} surfaceOffset={surfaceOffset} />
+          </>
+        )}
         <Starfield />
         <EffectComposer>
           <Bloom
@@ -407,10 +460,13 @@ function CloseButton({ to }: { to: string }) {
 
 function PlaybackControls({
   paused, setPaused, speed, setSpeed,
+  viewMode, setViewMode,
 }: {
   paused: boolean; setPaused: (p: boolean) => void;
   speed: number; setSpeed: (s: number) => void;
+  viewMode: 'system' | 'surface'; setViewMode: (v: 'system' | 'surface') => void;
 }) {
+  const isSurface = viewMode === 'surface';
   return (
     <div
       style={{
@@ -421,6 +477,24 @@ function PlaybackControls({
         fontSize: '0.78rem',
       }}
     >
+      {/* View-mode toggle row */}
+      <div style={{ display: 'flex', gap: '0.3rem', marginBottom: '0.55rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.55rem' }}>
+        <button
+          onClick={() => setViewMode('system')}
+          style={{ flex: 1, background: !isSurface ? 'var(--fg)' : 'transparent', color: !isSurface ? '#0b0d12' : 'var(--fg-muted)', border: '1px solid var(--border)', padding: '0.2rem 0.5rem', borderRadius: 3, cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
+        >
+          system view
+        </button>
+        <button
+          onClick={() => setViewMode('surface')}
+          style={{ flex: 1, background: isSurface ? 'var(--fg)' : 'transparent', color: isSurface ? '#0b0d12' : 'var(--fg-muted)', border: '1px solid var(--border)', padding: '0.2rem 0.5rem', borderRadius: 3, cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
+        >
+          from surface
+        </button>
+      </div>
+
+      {/* Playback — meaningful in BOTH modes. System: orbital animation.
+          Surface: day/night cycle (sun arcs across the sky). */}
       <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
         <button
           onClick={() => setPaused(!paused)}
@@ -439,22 +513,160 @@ function PlaybackControls({
           </button>
         ))}
       </div>
+
       <p style={{ margin: '0.55rem 0 0', fontSize: '0.7rem', color: 'var(--fg-muted)', lineHeight: 1.45 }}>
-        Drag to orbit · scroll to zoom · pan with right-mouse · ~60 sec per focal-planet orbit at 1×.
+        {isSurface
+          ? "Drag to look around · zoom locked · you're standing on the planet, riding it as it orbits the sun. Hit play to watch the sun move across your sky."
+          : 'Drag to orbit · scroll to zoom · pan with right-mouse · ~60 sec per focal-planet orbit at 1×.'}
       </p>
       <p style={{ margin: '0.35rem 0 0', fontSize: '0.68rem', color: 'var(--fg-muted)', lineHeight: 1.4 }}>
-        <strong style={{ color: 'var(--fg-muted)' }}>Scale:</strong> orbits at true AU; bodies exaggerated ~{BODY_EXAG}× so they're visible.
+        <strong style={{ color: 'var(--fg-muted)' }}>Scale:</strong>{' '}
+        {isSurface
+          ? 'orbits at true AU, so the sun arcs across the sky at the true rate from your orbital position.'
+          : `orbits at true AU; bodies exaggerated ~${BODY_EXAG}× so they're visible.`}
       </p>
     </div>
   );
 }
 
+// ── surface view ─────────────────────────────────────────────────────────
+// "You're standing on the focal planet, riding it as it orbits."
+//
+// Architecture: the same SceneContents that powers system view ALSO powers
+// surface view. The only differences are:
+//   1) The camera follows the focal planet's animated position each frame
+//      (CameraFollowFocal).
+//   2) The focal planet body is hidden (you're on it).
+//   3) FirstPersonLook starts oriented toward the sun and lets the user
+//      drag-rotate from there.
+//
+// Net effect: hit play and you watch your planet revolve around its star,
+// with the sun's apparent direction in your sky changing as you go around.
+// Sibling planets continue their orbits — visible at their true angular
+// positions in your sky from this vantage.
+
+// Update the camera position to track the focal planet each frame. The
+// caller passes a Vector3 ref that SceneContents writes to; we read from
+// it and copy into the camera. A small Y offset puts the user "above" the
+// planet center (functionally, on its surface) rather than embedded in it.
+function CameraFollowFocal({
+  focalPosRef, surfaceOffset,
+}: {
+  focalPosRef: React.MutableRefObject<THREE.Vector3>;
+  surfaceOffset: number;
+}) {
+  const { camera } = useThree();
+  useFrame(() => {
+    camera.position.set(
+      focalPosRef.current.x,
+      focalPosRef.current.y + surfaceOffset,
+      focalPosRef.current.z,
+    );
+  });
+  return null;
+}
+
+// Default Three.js camera forward direction. Used by FirstPersonLook to
+// compute "look at this point" base orientation as a quaternion delta from
+// the default forward.
+const FORWARD = new THREE.Vector3(0, 0, -1);
+
+// First-person camera control: drag the canvas to rotate the camera in place
+// (yaw + pitch). Camera position stays controlled by parent (or static).
+//
+// When `trackTarget` is provided, the camera's BASE orientation each frame
+// is "look at this world-space point" — and the user's drag yaw/pitch are
+// interpreted as offsets RELATIVE to that. Effect: the user always faces
+// the target by default (a tidally-locked feeling for surface view, where
+// the planet rotates to keep the same face toward its sun), and they can
+// drag to look around the rest of the sky from there.
+function FirstPersonLook({
+  initialYaw = 0, initialPitch = 0, trackTarget,
+}: {
+  initialYaw?: number; initialPitch?: number;
+  trackTarget?: THREE.Vector3;
+}) {
+  const { camera, gl } = useThree();
+  const yaw = useRef(trackTarget ? 0 : initialYaw);
+  const pitch = useRef(trackTarget ? 0 : initialPitch);
+  const dragging = useRef(false);
+  const last = useRef({ x: 0, y: 0 });
+
+  // Per-frame: if tracking, recompute the orientation each frame so the
+  // base direction stays locked on the target as the camera moves through
+  // the world (e.g. while the focal planet orbits). When not tracking,
+  // orientation only changes on drag.
+  useFrame(() => {
+    if (!trackTarget) return;
+    const baseDir = new THREE.Vector3().subVectors(trackTarget, camera.position).normalize();
+    const baseQ = new THREE.Quaternion().setFromUnitVectors(FORWARD, baseDir);
+    const userQ = new THREE.Quaternion().setFromEuler(
+      new THREE.Euler(pitch.current, yaw.current, 0, 'YXZ'),
+    );
+    camera.quaternion.copy(baseQ).multiply(userQ);
+  });
+
+  useEffect(() => {
+    const canvas = gl.domElement;
+    const apply = () => {
+      // Static (non-tracking) case: directly set orientation from yaw/pitch.
+      // In tracking mode the useFrame above handles this every frame instead.
+      if (trackTarget) return;
+      const euler = new THREE.Euler(pitch.current, yaw.current, 0, 'YXZ');
+      camera.quaternion.setFromEuler(euler);
+    };
+    apply();   // initial orientation (only effective when not tracking)
+
+    const onDown = (e: PointerEvent) => {
+      dragging.current = true;
+      last.current = { x: e.clientX, y: e.clientY };
+      try { canvas.setPointerCapture(e.pointerId); } catch { /* ok */ }
+    };
+    const onMove = (e: PointerEvent) => {
+      if (!dragging.current) return;
+      const dx = e.clientX - last.current.x;
+      const dy = e.clientY - last.current.y;
+      last.current = { x: e.clientX, y: e.clientY };
+      yaw.current   -= dx * 0.004;
+      pitch.current -= dy * 0.004;
+      // Clamp pitch to just under straight up/down so we don't gimbal-flip
+      pitch.current = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, pitch.current));
+      apply();
+    };
+    const onUp = (e: PointerEvent) => {
+      dragging.current = false;
+      try { canvas.releasePointerCapture(e.pointerId); } catch { /* ok */ }
+    };
+    canvas.addEventListener('pointerdown', onDown);
+    canvas.addEventListener('pointermove', onMove);
+    canvas.addEventListener('pointerup', onUp);
+    canvas.addEventListener('pointercancel', onUp);
+    return () => {
+      canvas.removeEventListener('pointerdown', onDown);
+      canvas.removeEventListener('pointermove', onMove);
+      canvas.removeEventListener('pointerup', onUp);
+      canvas.removeEventListener('pointercancel', onUp);
+    };
+  }, [camera, gl]);
+
+  return null;
+}
+
 function SceneContents({
   scene, paused, speed,
+  hideFocal = false,
+  focalPosOut,
 }: {
   scene: SceneResponse;
   paused: boolean;
   speed: number;
+  /** When true, the focal planet body is not rendered (used in surface mode
+      where the camera is "standing on" the planet — no need to see it). */
+  hideFocal?: boolean;
+  /** When provided, the focal planet's animated world position is written
+      into this ref every frame so a parent component (the surface-view
+      camera follower) can read it. */
+  focalPosOut?: React.MutableRefObject<THREE.Vector3>;
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -503,11 +715,11 @@ function SceneContents({
   useFrame((_, delta) => {
     if (!paused) clock.current += delta * speed;
 
-    if (focalGroup.current) {
-      const M = (clock.current / FOCAL_SECS_PER_ORBIT) * 2 * Math.PI;
-      const [x, , z] = keplerPosition(focalOrbsmax, planet.pl_orbeccen ?? 0, M);
-      focalGroup.current.position.set(x, 0, z);
-    }
+    const M = (clock.current / FOCAL_SECS_PER_ORBIT) * 2 * Math.PI;
+    const [fx, , fz] = keplerPosition(focalOrbsmax, planet.pl_orbeccen ?? 0, M);
+    if (focalGroup.current) focalGroup.current.position.set(fx, 0, fz);
+    // Expose focal world position for surface-mode camera tracking
+    if (focalPosOut) focalPosOut.current.set(fx, 0, fz);
     siblingRefs.current.forEach((group, plName) => {
       const s = siblings.find((x) => x.pl_name === plName);
       if (!s || s.pl_orbsmax == null) return;
@@ -557,19 +769,24 @@ function SceneContents({
           />
         ))}
 
-      {/* Focal planet — animated; group wraps so useFrame can move it */}
+      {/* Focal planet — animated; group wraps so useFrame can move it.
+          Hidden in surface mode (we're standing on it). */}
       <group ref={focalGroup} position={[focalOrbsmax, 0, 0]}>
-        <PlanetBody
-          position={[0, 0, 0]}
-          radius={planetDisplayRadius(planet.pl_rade, focalOrbsmax)}
-          pl_eqt={planet.pl_eqt}
-          pl_dens={planet.pl_dens}
-          pl_rade={planet.pl_rade}
-          emphasized
-          name={planet.pl_name}
-          onHover={setHovered}
-        />
-        {hovered === planet.pl_name && <PlanetLabel name={planet.pl_name} subtitle="(focal)" />}
+        {!hideFocal && (
+          <>
+            <PlanetBody
+              position={[0, 0, 0]}
+              radius={planetDisplayRadius(planet.pl_rade, focalOrbsmax)}
+              pl_eqt={planet.pl_eqt}
+              pl_dens={planet.pl_dens}
+              pl_rade={planet.pl_rade}
+              emphasized
+              name={planet.pl_name}
+              onHover={setHovered}
+            />
+            {hovered === planet.pl_name && <PlanetLabel name={planet.pl_name} subtitle="(focal)" />}
+          </>
+        )}
       </group>
 
       {/* Siblings — clickable to jump perspective, hover shows name */}

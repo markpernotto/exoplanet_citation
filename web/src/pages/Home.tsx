@@ -45,7 +45,14 @@ export default function Home() {
     setLoading(true);
     try {
       const resp = await api.planetsRecent(PAGE_SIZE, offsetRef.current);
-      setItems((prev) => [...prev, ...resp.results]);
+      // Dedupe by pl_name when appending. Defends against duplicate appends
+      // from React StrictMode (which intentionally re-runs effects in dev),
+      // pagination boundary edge cases, or any future double-fire.
+      setItems((prev) => {
+        const seen = new Set(prev.map((p) => p.pl_name));
+        const fresh = resp.results.filter((p) => !seen.has(p.pl_name));
+        return [...prev, ...fresh];
+      });
       setTotal(resp.total);
       offsetRef.current += resp.results.length;
       if (resp.results.length === 0 || offsetRef.current >= resp.total) {

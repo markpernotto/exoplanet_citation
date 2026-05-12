@@ -7,8 +7,6 @@ these values; if they're wrong, every visualization is wrong.
 
 from __future__ import annotations
 
-import math
-
 import pytest
 
 from api.scene import (
@@ -20,7 +18,6 @@ from api.scene import (
     sun_angular_size_deg,
     teff_to_rgb_hex,
 )
-
 
 # ---------- sun color ------------------------------------------------------
 

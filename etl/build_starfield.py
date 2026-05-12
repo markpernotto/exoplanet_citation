@@ -71,7 +71,7 @@ def fetch_stars(mag_limit: float) -> list[dict[str, Any]]:
     # Gaia TAP JSON returns rows under either 'data' (positional) or as list of dicts.
     if isinstance(payload, dict) and "data" in payload:
         cols = [c["name"] for c in payload["metadata"]]
-        rows = [dict(zip(cols, r)) for r in payload["data"]]
+        rows = [dict(zip(cols, r, strict=True)) for r in payload["data"]]
     else:
         rows = payload
     log.info("Got %d stars", len(rows))

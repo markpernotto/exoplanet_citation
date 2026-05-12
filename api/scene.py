@@ -84,12 +84,16 @@ def body_type_from_density(pl_dens_gcc: float | None, pl_rade_earth: float | Non
     Density (when present) is the dominant signal; radius is a fallback.
     """
     if pl_dens_gcc is not None:
-        if pl_dens_gcc >= 4.0:   return "rocky"
-        if pl_dens_gcc >= 1.5:   return "icy"
+        if pl_dens_gcc >= 4.0:
+            return "rocky"
+        if pl_dens_gcc >= 1.5:
+            return "icy"
         return "gas_giant"
     if pl_rade_earth is not None:
-        if pl_rade_earth < 1.6:  return "rocky"
-        if pl_rade_earth < 4.0:  return "icy"
+        if pl_rade_earth < 1.6:
+            return "rocky"
+        if pl_rade_earth < 4.0:
+            return "icy"
         return "gas_giant"
     return "uncertain"
 
@@ -106,24 +110,35 @@ def death_seconds_estimate(pl_eqt_k: float | None, body_type: str) -> int | None
         return 1
     if pl_eqt_k is None:
         return None
-    if pl_eqt_k > 600:   return 2       # skin chars instantly
-    if pl_eqt_k > 400:   return 30      # severe burn in seconds
-    if pl_eqt_k > 320:   return 600     # heat exhaustion within ten minutes
-    if pl_eqt_k >= 273:  return None    # not lethal on temperature alone
-    if pl_eqt_k > 200:   return 1800    # half-hour from cold
-    if pl_eqt_k > 100:   return 60      # cold death within a minute
-    return 5                            # cryogenic — frostbite shock immediate
+    if pl_eqt_k > 600:
+        return 2       # skin chars instantly
+    if pl_eqt_k > 400:
+        return 30      # severe burn in seconds
+    if pl_eqt_k > 320:
+        return 600     # heat exhaustion within ten minutes
+    if pl_eqt_k >= 273:
+        return None    # not lethal on temperature alone
+    if pl_eqt_k > 200:
+        return 1800    # half-hour from cold
+    if pl_eqt_k > 100:
+        return 60      # cold death within a minute
+    return 5           # cryogenic — frostbite shock immediate
 
 
 def insolation_label(pl_insol_earth: float | None) -> str | None:
     """Single-line text label for daytime brightness vs Earth's noon."""
     if pl_insol_earth is None:
         return None
-    if pl_insol_earth > 100:  return "blinding (>100× Earth)"
-    if pl_insol_earth > 10:   return "intensely bright"
-    if pl_insol_earth > 2:    return "much brighter than Earth"
-    if pl_insol_earth > 0.5:  return "comparable to Earth"
-    if pl_insol_earth > 0.1:  return "dim"
+    if pl_insol_earth > 100:
+        return "blinding (>100× Earth)"
+    if pl_insol_earth > 10:
+        return "intensely bright"
+    if pl_insol_earth > 2:
+        return "much brighter than Earth"
+    if pl_insol_earth > 0.5:
+        return "comparable to Earth"
+    if pl_insol_earth > 0.1:
+        return "dim"
     return "dark"
 
 

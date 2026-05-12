@@ -77,7 +77,7 @@ def simbad_spatial(host_ra: float, host_dec: float) -> list[dict[str, Any]]:
     payload = resp.json()
     if isinstance(payload, dict) and "data" in payload:
         cols = [c["name"] for c in payload["metadata"]]
-        return [dict(zip(cols, r)) for r in payload["data"]]
+        return [dict(zip(cols, r, strict=True)) for r in payload["data"]]
     return payload or []
 
 
@@ -171,7 +171,7 @@ def process_hostname(hostname: str, ra: float, dec: float) -> list[dict[str, Any
     # Sort by separation; closest = B, next = C, etc.
     candidates.sort(key=lambda x: x[0])
     out: list[dict[str, Any]] = []
-    for letter, (sep, comp) in zip(COMPANION_LETTERS, candidates):
+    for letter, (sep, comp) in zip(COMPANION_LETTERS, candidates, strict=False):
         out.append({
             "hostname":   hostname,
             "component":  letter,

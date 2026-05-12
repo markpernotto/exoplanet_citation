@@ -148,6 +148,7 @@ export default function ScenePage() {
             the same store survives Canvas re-mounts on viewMode toggle. */}
         <XR store={xrStore}>
           <XRDepthFar />
+          <VRAutoPlay setPaused={setPaused} />
           <ambientLight intensity={0.04} />
           {viewMode === 'system' && (
             <OrbitControls
@@ -544,6 +545,18 @@ function PlaybackControls({
       <EnterVRButton />
     </div>
   );
+}
+
+// Auto-plays the orbital animation when an XR session starts. The HTML
+// playback controls (play/pause/speed) aren't reachable inside VR, so a
+// user entering with the default paused=true would see a frozen system.
+// Unpausing on session start makes the world come alive immediately.
+function VRAutoPlay({ setPaused }: { setPaused: (p: boolean) => void }) {
+  const session = useXR((s) => s.session);
+  useEffect(() => {
+    if (session) setPaused(false);
+  }, [session, setPaused]);
+  return null;
 }
 
 // Sets the WebXR session's render state so our scene doesn't get clipped.
@@ -1348,45 +1361,37 @@ function Starfield() {
     return () => { cancelled = true; };
   }, []);
 
-  // We render the starfield as an InstancedMesh of tiny camera-facing planes
-  // rather than THREE.Points. Reason: gl_PointSize behavior is inconsistent
-  // across XR pipelines (Quest 3's Adreno clamps or ignores it entirely),
-  // making points invisible in VR no matter what size we ask for. Instanced
-  // planes use real triangle geometry and always render.
+  // Starfield as an InstancedMesh of low-poly icosahedrons. We've tried
+  // gl_POINTS (clamped in Quest XR), camera-facing transparent planes
+  // (also invisible in VR for unclear reasons), and now: simple solid
+  // emissive 12-vertex spheres with no transparency, no blending, no
+  // orientation logic. If this doesn't render in VR, the issue is
+  // something fundamental in the XR rendering path we can't easily fix.
   //
-  // World-size math: stars sit on a sphere of radius STAR_SPHERE_AU=5000.
-  // To get a desired angular size θ from origin, plane width = 2*5000*tan(θ/2).
-  // ~0.1° looks right on both desktop and VR; we scale by the per-star size
-  // attribute and a VR boost.
+  // VR size is grossly inflated (sizeScale=50) so even the dimmest stars
+  // become unambiguous chunky dots — better to err toward "way too big
+  // and obvious" than "invisible specks" while we're still verifying the
+  // pipeline works at all.
   const mesh = useMemo(() => {
     if (!buffers) return null;
     const n = buffers.positions.length / 3;
-    const geometry = new THREE.PlaneGeometry(1, 1);
+    const geometry = new THREE.IcosahedronGeometry(1, 0);
     const material = new THREE.MeshBasicMaterial({
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      side: THREE.DoubleSide,
-      // toneMapped:false so star colors render at their packed Gaia tint
-      // rather than getting ACES-compressed toward white.
       toneMapped: false,
     });
     const instanced = new THREE.InstancedMesh(geometry, material, n);
-    instanced.frustumCulled = false;   // stars span the whole celestial sphere
+    instanced.frustumCulled = false;
     const dummy = new THREE.Object3D();
     const col = new THREE.Color();
-    // Scale factor calibrated so the brightest stars (size=4.5) end up
-    // ~0.2-0.3° from origin in VR and ~0.1° on desktop — comparable to
-    // the prior gl_PointSize=4.5 look but using real geometry.
-    const sizeScale = inXR ? 5.0 : 2.5;
+    const sizeScale = inXR ? 50.0 : 2.5;
     for (let i = 0; i < n; i++) {
       const x = buffers.positions[i * 3];
       const y = buffers.positions[i * 3 + 1];
       const z = buffers.positions[i * 3 + 2];
       dummy.position.set(x, y, z);
-      dummy.lookAt(0, 0, 0);   // face scene origin (close enough to camera-facing for distant stars)
       const s = buffers.sizes[i] * sizeScale;
       dummy.scale.set(s, s, s);
+      dummy.rotation.set(0, 0, 0);
       dummy.updateMatrix();
       instanced.setMatrixAt(i, dummy.matrix);
       col.setRGB(buffers.colors[i * 3], buffers.colors[i * 3 + 1], buffers.colors[i * 3 + 2]);

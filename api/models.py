@@ -275,7 +275,7 @@ class SceneHints(BaseModel):
 class SceneResponse(BaseModel):
     planet: PlanetDetail
     host_star: HostStarGaia | None
-    siblings: list[PlanetSummary]
+    siblings: list[PlanetDetail]
     binary_companions: list[BinaryCompanion]
     atmospheric_observations: list[AtmosphericObservation]
     atmospheric_detections: list[AtmosphericMolecule]

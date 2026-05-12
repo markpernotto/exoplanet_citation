@@ -243,6 +243,24 @@ const FEATURED_CATEGORIES: Record<string, FeaturedCategory> = {
       { name: 'HD 209458', representative: 'HD 209458 b', tagline: 'The prototype hot Jupiter. Also the first exoplanet with a detected atmosphere.' },
     ],
   },
+  'best-for-3d': {
+    label: 'Best for 3D scene',
+    description: 'Hand-picked planets where the 3D scene shines — multi-planet systems, dramatic suns, resolved binary companions, or just spectacular geometry. Open one and click "View in 3D" on the detail page; works on Quest 3 in WebXR.',
+    systems: [
+      { name: 'TRAPPIST-1',      representative: 'TRAPPIST-1 e',   tagline: '7 rocky planets packed inside Mercury\'s orbit around a deep-red M-dwarf. The dramatic flat system.' },
+      { name: 'Kepler-90',       representative: 'Kepler-90 i',    tagline: '8 planets — same count as our solar system. Coplanar, spread across true AU scale.' },
+      { name: 'Kepler-11',       representative: 'Kepler-11 g',    tagline: '6 sub-Neptunes in a famously flat configuration tighter than Venus\'s orbit.' },
+      { name: '55 Cnc',          representative: '55 Cnc e',       tagline: '5 planets including a 18-hour-year lava world; the M-dwarf companion star is visible at ~1000 AU.' },
+      { name: 'HR 8799',         representative: 'HR 8799 b',      tagline: '4 directly imaged super-Jupiters at 15-70 AU — the canonical "outer system" view.' },
+      { name: 'Kepler-16',       representative: 'Kepler-16 b',    tagline: 'Original Tatooine planet — circumbinary, two suns dancing at the system center.' },
+      { name: 'HD 80606',        representative: 'HD 80606 b',     tagline: 'Eccentricity 0.93 — press play and watch the planet whip through periastron, sun nearly doubling in size.' },
+      { name: 'WASP-12',         representative: 'WASP-12 b',      tagline: 'Hot Jupiter with the sun filling 36° of sky. Surface view here is the "stars are huge" wow.' },
+      { name: 'KELT-9',          representative: 'KELT-9 b',       tagline: 'Searing blue-white A-type star, the hottest known planet. Surface view is uncomfortable.' },
+      { name: 'Proxima Centauri', representative: 'Proxima Cen b', tagline: 'Closest exoplanet to Earth (4.2 ly), around the closest star to us. M-dwarf red sun.' },
+      { name: 'KOI-351 / Kepler-90', representative: 'Kepler-90 i', tagline: 'Same as Kepler-90 above — 8-planet flat system with measured orbital architecture.' },
+      { name: '51 Peg',          representative: '51 Peg b',       tagline: 'First exoplanet around a sun-like star. Single planet, but historically loaded.' },
+    ],
+  },
 };
 
 const CATEGORY_KEYS = Object.keys(FEATURED_CATEGORIES);

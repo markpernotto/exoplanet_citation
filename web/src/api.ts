@@ -240,7 +240,7 @@ export type SceneHints = {
 export type SceneResponse = {
   planet: PlanetDetail;
   host_star: HostStarGaia | null;
-  siblings: PlanetSummary[];
+  siblings: PlanetDetail[];
   binary_companions: BinaryCompanion[];
   atmospheric_observations: AtmosphericObservation[];
   atmospheric_detections: AtmosphericMolecule[];

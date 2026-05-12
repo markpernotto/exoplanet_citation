@@ -3,10 +3,21 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, OrbitControls } from '@react-three/drei';
 import { Bloom, EffectComposer } from '@react-three/postprocessing';
+import { createXRStore, XR } from '@react-three/xr';
 import * as THREE from 'three';
 import { api, type BinaryCompanion, type DiscoveryPaper, type SceneResponse } from '../api';
 import LoadingBar from '../components/LoadingBar';
 import { planetVisual } from '../procedural';
+
+// Single module-level XR store. Persists across viewMode toggles even when
+// the Canvas re-mounts (the store's session state lives in module scope).
+// Surfacing controllers but skipping hand-tracking — Quest 3 has both, but
+// the v0 experience is "look around with your head and use a controller
+// to point at planets to jump to them."
+const xrStore = createXRStore({
+  hand: false,
+  controller: true,
+});
 
 export default function ScenePage() {
   const { plName = '' } = useParams<{ plName: string }>();
@@ -132,42 +143,47 @@ export default function ScenePage() {
           toneMappingExposure: 1.0,
         }}
       >
-        <ambientLight intensity={0.04} />
-        {viewMode === 'system' ? (
-          <>
-            <OrbitControls
-              target={focalPos}
-              enablePan={true}
-              minDistance={focalRadius * 1.5}
-              maxDistance={maxOrbit * 4 + 5}
+        {/* <XR> wraps the whole scene so it can render in immersive mode
+            when the user enters VR. xrStore is a module-level singleton —
+            the same store survives Canvas re-mounts on viewMode toggle. */}
+        <XR store={xrStore}>
+          <ambientLight intensity={0.04} />
+          {viewMode === 'system' ? (
+            <>
+              <OrbitControls
+                target={focalPos}
+                enablePan={true}
+                minDistance={focalRadius * 1.5}
+                maxDistance={maxOrbit * 4 + 5}
+              />
+              <SceneContents scene={scene} paused={paused} speed={speed} />
+            </>
+          ) : (
+            <>
+              {/* Tracking the sun (origin) keeps the user oriented on the
+                  tidally-locked sun-facing side. Drag offset is preserved —
+                  if the user looks left 90°, they keep looking 90° from sun. */}
+              <FirstPersonLook trackTarget={sunWorldPos} />
+              <SceneContents
+                scene={scene} paused={paused} speed={speed}
+                hideFocal
+                focalPosOut={focalPosRef}
+              />
+              <CameraFollowFocal focalPosRef={focalPosRef} surfaceOffset={surfaceOffset} />
+            </>
+          )}
+          <Starfield />
+          <EffectComposer>
+            <Bloom
+              /* Bright halo + eclipse-dimming during transits. */
+              intensity={1.4}
+              luminanceThreshold={0.7}
+              luminanceSmoothing={0.35}
+              mipmapBlur
+              radius={0.8}
             />
-            <SceneContents scene={scene} paused={paused} speed={speed} />
-          </>
-        ) : (
-          <>
-            {/* Tracking the sun (origin) keeps the user oriented on the
-                tidally-locked sun-facing side. Drag offset is preserved —
-                if the user looks left 90°, they keep looking 90° from sun. */}
-            <FirstPersonLook trackTarget={sunWorldPos} />
-            <SceneContents
-              scene={scene} paused={paused} speed={speed}
-              hideFocal
-              focalPosOut={focalPosRef}
-            />
-            <CameraFollowFocal focalPosRef={focalPosRef} surfaceOffset={surfaceOffset} />
-          </>
-        )}
-        <Starfield />
-        <EffectComposer>
-          <Bloom
-            /* Bright halo + eclipse-dimming during transits. */
-            intensity={1.4}
-            luminanceThreshold={0.7}
-            luminanceSmoothing={0.35}
-            mipmapBlur
-            radius={0.8}
-          />
-        </EffectComposer>
+          </EffectComposer>
+        </XR>
       </Canvas>
     </>
   );
@@ -525,7 +541,42 @@ function PlaybackControls({
           ? 'orbits at true AU, so the sun arcs across the sky at the true rate from your orbital position.'
           : `orbits at true AU; bodies exaggerated ~${BODY_EXAG}× so they're visible.`}
       </p>
+      <EnterVRButton />
     </div>
+  );
+}
+
+// "Enter VR" button. Calls into the module-level xrStore. WebXR requires
+// HTTPS for non-localhost origins — on a Quest 3, this means the page must
+// be served over HTTPS (Vercel deploy works; local dev needs an HTTPS tunnel
+// like ngrok or vite-plugin-mkcert).
+function EnterVRButton() {
+  const [supported, setSupported] = useState<boolean | null>(null);
+  useEffect(() => {
+    const xr = (navigator as Navigator & { xr?: XRSystem }).xr;
+    if (!xr) { setSupported(false); return; }
+    xr.isSessionSupported('immersive-vr')
+      .then((ok) => setSupported(ok))
+      .catch(() => setSupported(false));
+  }, []);
+  if (supported === false) return null;   // hide entirely on non-XR browsers
+  return (
+    <button
+      onClick={() => xrStore.enterVR()}
+      disabled={supported === null}
+      title="Enter immersive VR (Quest 3, Vision Pro, etc.). Requires a WebXR-capable headset/browser."
+      style={{
+        marginTop: '0.6rem', width: '100%',
+        background: 'var(--accent)', color: '#0b0d12',
+        border: '1px solid var(--border)',
+        padding: '0.4rem 0.6rem', borderRadius: 3,
+        cursor: supported === null ? 'wait' : 'pointer',
+        fontWeight: 600, fontSize: '0.78rem',
+        letterSpacing: '0.04em',
+      }}
+    >
+      ⛶ Enter VR
+    </button>
   );
 }
 
@@ -770,7 +821,9 @@ function SceneContents({
         ))}
 
       {/* Focal planet — animated; group wraps so useFrame can move it.
-          Hidden in surface mode (we're standing on it). */}
+          Hidden in surface mode (we're standing on it). The focal gets the
+          atmospheric tint from curated molecule data; siblings don't (we
+          don't fetch per-sibling atmospheric data in the scene endpoint). */}
       <group ref={focalGroup} position={[focalOrbsmax, 0, 0]}>
         {!hideFocal && (
           <>
@@ -783,6 +836,7 @@ function SceneContents({
               emphasized
               name={planet.pl_name}
               onHover={setHovered}
+              atmosphereTint={atmosphereTintFromMolecules(scene.atmospheric_detections)}
             />
             {hovered === planet.pl_name && <PlanetLabel name={planet.pl_name} subtitle="(focal)" />}
           </>
@@ -801,7 +855,7 @@ function SceneContents({
               position={[0, 0, 0]}
               radius={planetDisplayRadius(s.pl_rade, s.pl_orbsmax!)}
               pl_eqt={s.pl_eqt}
-              pl_dens={null}
+              pl_dens={s.pl_dens}
               pl_rade={s.pl_rade}
               name={s.pl_name}
               onHover={setHovered}
@@ -1157,7 +1211,14 @@ function Starfield() {
   const material = useMemo(
     () =>
       new THREE.ShaderMaterial({
+        // Canvas runs with logarithmicDepthBuffer; custom shaders must opt
+        // into the log-depth chunks or their depth output will mismatch the
+        // buffer and cause z-test flicker (visible when zoomed out, where
+        // the linear/log gap widens with distance).
+        defines: { USE_LOGDEPTHBUF: '' },
         vertexShader: `
+          #include <common>
+          #include <logdepthbuf_pars_vertex>
           attribute float size;
           varying vec3 vColor;
           void main() {
@@ -1165,10 +1226,14 @@ function Starfield() {
             vec4 mv = modelViewMatrix * vec4(position, 1.0);
             gl_Position = projectionMatrix * mv;
             gl_PointSize = size;
+            #include <logdepthbuf_vertex>
           }`,
         fragmentShader: `
+          #include <common>
+          #include <logdepthbuf_pars_fragment>
           varying vec3 vColor;
           void main() {
+            #include <logdepthbuf_fragment>
             vec2 d = gl_PointCoord - vec2(0.5);
             float r = length(d);
             if (r > 0.5) discard;
@@ -1257,6 +1322,7 @@ function PlanetBody({
   name,
   onHover,
   onClick,
+  atmosphereTint,
 }: {
   position: [number, number, number];
   radius: number;
@@ -1267,21 +1333,37 @@ function PlanetBody({
   name?: string;
   onHover?: (n: string | null) => void;
   onClick?: () => void;
+  /** When provided, overrides the default atmospheric haze color for gas
+      giants. Driven by curated molecule detections — methane → blue,
+      water → pale blue, CO2 → tan, etc. Only meaningful for the focal planet
+      (siblings don't get per-planet atmosphere data fetched). */
+  atmosphereTint?: string;
 }) {
   const visual = useMemo(
     () => planetVisual(pl_eqt, pl_dens, pl_rade),
     [pl_eqt, pl_dens, pl_rade]
   );
-  const roughness = visual.bodyType === 'gas_giant' ? 0.5 : 0.92;
-  // Emissive must stay LOW or it washes out the lit/dark terminator (planet
-  // looks like a flat disc with no shading). Hot lava worlds glow thermally
-  // but shouldn't outshine the directional sun lighting.
-  const emissiveIntensity = visual.glow ? 0.15 : 0.0;
-  // Invisible larger sphere acts as a generous click/hover hitbox so tiny
-  // planets aren't impossible to target with the cursor.
+  const isGasGiant = visual.bodyType === 'gas_giant';
+  const isIcyOrCold = visual.bodyType === 'rocky' && (pl_eqt ?? 999) < 273;
+  // Hit-mesh: invisible larger sphere for generous click/hover targeting.
   const hitRadius = Math.max(radius * 2.5, radius + 0.005);
+
+  // Procedural body material: gas giants get faint latitude bands; cold rocky
+  // planets get polar ice caps; everything else stays flat-color (with
+  // emissive for hot lava worlds).
+  const bodyMaterial = useMemo(
+    () => buildPlanetBodyMaterial({
+      bodyType: visual.bodyType,
+      fillColor: visual.fillColor,
+      glow: visual.glow,
+      isCold: isIcyOrCold,
+    }),
+    [visual.bodyType, visual.fillColor, visual.glow, isIcyOrCold],
+  );
+
   return (
     <group position={position}>
+      {/* Hit mesh */}
       <mesh
         onPointerOver={(e) => { e.stopPropagation(); if (name && onHover) onHover(name); document.body.style.cursor = onClick ? 'pointer' : 'default'; }}
         onPointerOut={(e) => { e.stopPropagation(); if (onHover) onHover(null); document.body.style.cursor = 'default'; }}
@@ -1290,18 +1372,214 @@ function PlanetBody({
       >
         <sphereGeometry args={[hitRadius, 8, 8]} />
       </mesh>
-      <mesh>
-        <sphereGeometry args={[radius, emphasized ? 128 : 48, emphasized ? 128 : 48]} />
-        <meshStandardMaterial
-          color={visual.fillColor}
-          roughness={roughness}
-          metalness={0.0}
-          emissive={visual.glow ? visual.fillColor : '#000000'}
-          emissiveIntensity={emissiveIntensity}
-        />
+      {/* Planet body */}
+      <mesh material={bodyMaterial}>
+        <sphereGeometry args={[radius, emphasized ? 128 : 64, emphasized ? 128 : 64]} />
       </mesh>
+      {/* Gas giant atmospheric halo: a slightly-larger sphere with a fresnel
+          shader. Bright at the silhouette (where you'd see through more
+          atmosphere from outside), transparent toward the center (where you
+          look straight down through thin atmosphere). The atmospheric tint
+          color comes from molecule detections when available, otherwise the
+          planet's own color slightly desaturated. */}
+      {isGasGiant && (
+        <PlanetAtmosphere
+          radius={radius * 1.08}
+          color={atmosphereTint ?? visual.fillColor}
+        />
+      )}
     </group>
   );
+}
+
+// Shared cache so the same (bodyType, fillColor, ...) doesn't allocate a new
+// material per render. Each unique tuple gets one ShaderMaterial.
+const planetMaterialCache = new Map<string, THREE.ShaderMaterial>();
+
+function buildPlanetBodyMaterial({
+  bodyType, fillColor, glow, isCold,
+}: {
+  bodyType: string; fillColor: string; glow: boolean; isCold: boolean;
+}): THREE.ShaderMaterial {
+  const key = `${bodyType}|${fillColor}|${glow}|${isCold}`;
+  const cached = planetMaterialCache.get(key);
+  if (cached) return cached;
+
+  const isGasGiant = bodyType === 'gas_giant';
+  const showIceCaps = bodyType === 'rocky' && isCold;
+
+  const mat = new THREE.ShaderMaterial({
+    transparent: false,
+    depthWrite: true,
+    depthTest: true,
+    defines: { USE_LOGDEPTHBUF: '' },
+    uniforms: {
+      uColor:           { value: new THREE.Color(fillColor) },
+      uEmissive:        { value: glow ? 0.15 : 0.0 },
+      uShowBands:       { value: isGasGiant ? 1.0 : 0.0 },
+      uShowIceCaps:     { value: showIceCaps ? 1.0 : 0.0 },
+    },
+    vertexShader: `
+      #include <common>
+      #include <logdepthbuf_pars_vertex>
+      varying vec3 vNormal;
+      varying vec3 vWorldPos;
+      void main() {
+        // World-space normal — must match the world-space lightDir below
+        // (sun-at-origin). Using view-space normalMatrix here would mix
+        // coord spaces and the lit hemisphere would rotate with the camera.
+        vNormal = normalize(mat3(modelMatrix) * normal);
+        vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
+        vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
+        gl_Position = projectionMatrix * mvPos;
+        #include <logdepthbuf_vertex>
+      }
+    `,
+    fragmentShader: `
+      #include <common>
+      #include <logdepthbuf_pars_fragment>
+      uniform vec3 uColor;
+      uniform float uEmissive;
+      uniform float uShowBands;
+      uniform float uShowIceCaps;
+      varying vec3 vNormal;
+      varying vec3 vWorldPos;
+
+      void main() {
+        #include <logdepthbuf_fragment>
+
+        // Lighting: sun is at world origin. Direction from planet surface
+        // toward the sun is -normalize(worldPos). Both vectors are now in
+        // world space, so the dot product is camera-independent.
+        vec3 lightDir = normalize(-vWorldPos);
+        float diffuse = max(0.0, dot(vNormal, lightDir));
+        float ambient = 0.18;
+        float lighting = diffuse + ambient;
+
+        vec3 col = uColor;
+
+        // Latitude — for a unit sphere with normal pointing outward, the
+        // y-component of the world-frame normal IS the sine of the latitude.
+        // We approximate with the local normal's y component since planets
+        // aren't tilted in our scene.
+        float lat = vNormal.y;             // -1 (south pole) → 1 (north pole)
+        float absLat = abs(lat);
+
+        // Gas giant bands: subtle horizontal stripes from latitude. ~12 bands
+        // across the sphere. Modulation is small (±8%) so it reads as
+        // "differential rotation banding" without claiming specific colors.
+        if (uShowBands > 0.5) {
+          float bands = sin(lat * 12.0) * 0.5 + 0.5;
+          col *= mix(0.92, 1.08, bands);
+        }
+
+        // Ice caps: brighten and shift toward white near the poles. Only
+        // applied when the planet is rocky AND cold (eqt < 273K). The
+        // smoothstep gives a soft transition rather than a hard line.
+        if (uShowIceCaps > 0.5) {
+          float capStrength = smoothstep(0.55, 0.85, absLat);
+          col = mix(col, vec3(0.88, 0.92, 0.96), capStrength * 0.85);
+        }
+
+        col *= lighting;
+
+        // Emissive add for hot worlds (lava glow on rocky, hot-Jupiter glow)
+        col += uColor * uEmissive;
+
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `,
+  });
+  planetMaterialCache.set(key, mat);
+  return mat;
+}
+
+// Gas-giant atmospheric halo. A slightly larger sphere with a fresnel shader:
+// alpha is high at the silhouette (looking through atmosphere edge-on, more
+// scattering) and 0 toward the center (looking straight down, atmosphere is
+// thin). Front-side rendering, additive blending so it brightens the
+// silhouette against background space.
+function PlanetAtmosphere({ radius, color }: { radius: number; color: string }) {
+  const material = useMemo(() => new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    side: THREE.FrontSide,
+    defines: { USE_LOGDEPTHBUF: '' },
+    uniforms: { uColor: { value: new THREE.Color(color) } },
+    vertexShader: `
+      #include <common>
+      #include <logdepthbuf_pars_vertex>
+      varying vec3 vNormalView;
+      varying vec3 vViewDir;
+      varying vec3 vNormalWorld;
+      varying vec3 vWorldPos;
+      void main() {
+        vNormalView = normalize(normalMatrix * normal);
+        vNormalWorld = normalize(mat3(modelMatrix) * normal);
+        vec4 worldPos4 = modelMatrix * vec4(position, 1.0);
+        vWorldPos = worldPos4.xyz;
+        vec4 mvPos = viewMatrix * worldPos4;
+        vViewDir = normalize(-mvPos.xyz);
+        gl_Position = projectionMatrix * mvPos;
+        #include <logdepthbuf_vertex>
+      }
+    `,
+    fragmentShader: `
+      #include <common>
+      #include <logdepthbuf_pars_fragment>
+      uniform vec3 uColor;
+      varying vec3 vNormalView;
+      varying vec3 vViewDir;
+      varying vec3 vNormalWorld;
+      varying vec3 vWorldPos;
+      void main() {
+        #include <logdepthbuf_fragment>
+        float facing = max(0.0, dot(vNormalView, vViewDir));
+        // Thin atmospheric haze hugging the planet's limb. Shell sits at
+        // 1.08× planet radius (~realistic atmosphere fraction; Earth's
+        // is ~1%). Same gradient direction as the sun: transparent at
+        // the silhouette, fades up softly toward the planet body.
+        // Where the planet body would occlude the shell, depth test
+        // rejects the fragment and the planet's gradient stays clean.
+        float alpha = smoothstep(0.0, 0.6, facing) * 0.18;
+        // Sun-side modulation — atmosphere only glows where lit. Dark
+        // side fades to nothing so we don't get visible "ghost halos"
+        // when the parent planet body is hidden behind the sun.
+        vec3 lightDir = normalize(-vWorldPos);
+        float lit = max(dot(vNormalWorld, lightDir), 0.0);
+        float sunBoost = mix(0.0, 1.0, lit);
+        gl_FragColor = vec4(uColor, alpha * sunBoost);
+      }
+    `,
+  }), [color]);
+
+  return (
+    <mesh material={material} renderOrder={5}>
+      <sphereGeometry args={[radius, 64, 64]} />
+    </mesh>
+  );
+}
+
+// Compute an atmospheric tint color from detected molecule list. Defensible
+// per-molecule colors based on what each absorbs/reflects in the visible
+// spectrum. Only applies when the API returned curated molecule detections
+// for this planet (~30 planets currently).
+function atmosphereTintFromMolecules(
+  molecules: { molecule: string; detection: string }[] | undefined,
+): string | undefined {
+  if (!molecules || molecules.length === 0) return undefined;
+  const detected = molecules
+    .filter((m) => m.detection === 'detected')
+    .map((m) => m.molecule.toUpperCase());
+  if (detected.length === 0) return undefined;
+  // Priority: methane gives the strongest visible tint (Neptune-blue), then
+  // water (pale blue-cyan), then CO2 (tan), then sodium/potassium (yellow).
+  if (detected.includes('CH4')) return '#5b8aa8';
+  if (detected.includes('H2O')) return '#a8c4d8';
+  if (detected.includes('CO2')) return '#c8a878';
+  if (detected.some((m) => m === 'NA' || m === 'K')) return '#d8c468';
+  return undefined;
 }
 
 function PlanetLabel({ name, subtitle }: { name: string; subtitle?: string }) {

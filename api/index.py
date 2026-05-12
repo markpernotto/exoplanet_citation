@@ -748,10 +748,12 @@ def planet_scene(pl_name: str) -> SceneResponse:
             )
             host_row = cur.fetchone()
 
-            # Sibling planets in the same system
+            # Sibling planets in the same system — full detail so the scene
+            # renderer can classify body type (needs pl_dens), color stars,
+            # and apply per-planet visual treatments without extra round-trips.
             cur.execute(
                 f"""
-                SELECT {_PLANET_SUMMARY_COLS}
+                SELECT {_PLANET_DETAIL_COLS}
                 FROM planets_snapshots
                 WHERE hostname = %s
                   AND snapshot_date = (SELECT MAX(snapshot_date) FROM planets_snapshots)
@@ -816,7 +818,7 @@ def planet_scene(pl_name: str) -> SceneResponse:
     return SceneResponse(
         planet=PlanetDetail(**planet_row),
         host_star=HostStarGaia(**host_row) if host_row else None,
-        siblings=[PlanetSummary(**r) for r in sibling_rows],
+        siblings=[PlanetDetail(**r) for r in sibling_rows],
         binary_companions=[BinaryCompanion(**r) for r in companion_rows],
         atmospheric_observations=[AtmosphericObservation(**r) for r in atm_obs_rows],
         atmospheric_detections=[AtmosphericMolecule(**r) for r in atm_det_rows],

@@ -173,7 +173,20 @@ export default function ScenePage() {
             </>
           )}
           <Starfield />
-          <VRRig initialPos={camPos} speed={Math.min(5, Math.max(0.05, orbsmax))} />
+          <VRRig
+            /* Initial XR position: hug the focal planet's orbit so the
+               whole system reads as "right in front of you" in the
+               headset's ~110° FOV. The desktop camPos sits the user
+               1.8× the orbit out, which in VR (wider FOV than the
+               50° desktop camera) makes the system look small and far. */
+            initialPos={[orbsmax * 0.9, orbsmax * 0.35, orbsmax * 0.6]}
+            /* Speed in scene units per second. Scaled aggressively to the
+               focal orbit so inner systems (TRAPPIST: 0.06 AU traversed in
+               ~1 sec) and outer systems (HR 8799: 70 AU in ~7 sec) are
+               both navigable. Min 0.1 so very tight systems don't feel
+               stuck. */
+            speed={Math.max(0.1, orbsmax * 1.5)}
+          />
           <PostProcessing />
         </XR>
       </Canvas>
@@ -478,7 +491,7 @@ function PlaybackControls({
   return (
     <div
       style={{
-        position: 'fixed', bottom: 16, right: 16, zIndex: 10,
+        position: 'fixed', bottom: 56, right: 16, zIndex: 10,
         background: 'rgba(11, 13, 18, 0.85)', color: 'var(--fg)',
         padding: '0.7rem 0.9rem', borderRadius: 4, maxWidth: 360,
         border: '1px solid var(--border)', backdropFilter: 'blur(4px)',
@@ -1356,7 +1369,11 @@ function Starfield() {
   );
 
   useEffect(() => {
-    material.uniforms.uSizeBoost.value = inXR ? 4.0 : 1.0;
+    // 15× boost in VR: desktop sizes 0.6-4.5 px become 9-67 px in the
+    // headset, large enough to clearly read as stars on Quest 3's high-DPI
+    // display. Some XR pipelines also clamp gl_PointSize aggressively, so
+    // overshooting is safer than undershooting.
+    material.uniforms.uSizeBoost.value = inXR ? 15.0 : 1.0;
   }, [inXR, material]);
 
   if (!geometry) return null;

@@ -147,47 +147,41 @@ export default function ScenePage() {
             when the user enters VR. xrStore is a module-level singleton —
             the same store survives Canvas re-mounts on viewMode toggle. */}
         <XR store={xrStore}>
+          <XRDepthFar />
           <ambientLight intensity={0.04} />
-          {viewMode === 'system' ? (
+          {viewMode === 'system' && (
+            <OrbitControls
+              target={focalPos}
+              enablePan={true}
+              minDistance={focalRadius * 1.5}
+              maxDistance={maxOrbit * 4 + 5}
+            />
+          )}
+          {viewMode === 'surface' && (
             <>
-              <OrbitControls
-                target={focalPos}
-                enablePan={true}
-                minDistance={focalRadius * 1.5}
-                maxDistance={maxOrbit * 4 + 5}
-              />
-              <SceneContents scene={scene} paused={paused} speed={speed} />
-            </>
-          ) : (
-            <>
-              {/* Tracking the sun (origin) keeps the user oriented on the
-                  tidally-locked sun-facing side. Drag offset is preserved —
-                  if the user looks left 90°, they keep looking 90° from sun. */}
               <FirstPersonLook trackTarget={sunWorldPos} />
+              <CameraFollowFocal focalPosRef={focalPosRef} surfaceOffset={surfaceOffset} />
+            </>
+          )}
+          {/* Visual scene content sits inside VRSceneScale so it scales up
+              in VR (AU → meters mapping) without affecting the desktop view. */}
+          <VRSceneScale maxOrbit={maxOrbit}>
+            {viewMode === 'system' ? (
+              <SceneContents scene={scene} paused={paused} speed={speed} />
+            ) : (
               <SceneContents
                 scene={scene} paused={paused} speed={speed}
                 hideFocal
                 focalPosOut={focalPosRef}
               />
-              <CameraFollowFocal focalPosRef={focalPosRef} surfaceOffset={surfaceOffset} />
-            </>
-          )}
-          <Starfield />
-          <VRRig
-            /* Initial XR position: hug the focal planet's orbit so the
-               whole system reads as "right in front of you" in the
-               headset's ~110° FOV. Y is kept near-zero so the user
-               starts at orbital-plane level (not floating above it),
-               which makes forward-motion intuitively dive into the
-               system instead of skimming over it. */
-            initialPos={[orbsmax * 1.5, orbsmax * 0.05, orbsmax * 0.5]}
-            /* Speed in scene units per second. Bumped to 3× orbsmax so
-               motion is obviously perceptible — at the previous 1.5×
-               with thumbstick-deadzone fractional input you barely
-               registered any motion. Floor 0.5 AU/sec keeps even
-               very tight systems traversable in seconds. */
-            speed={Math.max(0.5, orbsmax * 3)}
-          />
+            )}
+            <Starfield />
+          </VRSceneScale>
+          {/* VRRig is OUTSIDE VRSceneScale — its position/speed are in
+              world meters, unaffected by scene scaling. 3m from origin
+              looks at a ~6m-wide scaled system; 1.5 m/sec is comfortable
+              walking pace inside VR. */}
+          <VRRig initialPos={[3, 0.5, 1.5]} speed={1.5} />
           <PostProcessing />
         </XR>
       </Canvas>
@@ -552,13 +546,38 @@ function PlaybackControls({
   );
 }
 
+// Sets the WebXR session's render state so our scene doesn't get clipped.
+// Defaults are depthNear=0.1m and depthFar=1000m — but our scene is at AU
+// scale (1 AU per unit; starfield sphere at 5000) and we wrap visual
+// content in <VRSceneScale> which multiplies further. depthFar=1e9 covers
+// the worst case; depthNear=0.01 lets the user get close to small planets
+// without them being clipped.
+function XRDepthFar() {
+  const session = useXR((s) => s.session);
+  useEffect(() => {
+    if (!session) return;
+    session.updateRenderState({ depthNear: 0.01, depthFar: 1e9 });
+  }, [session]);
+  return null;
+}
+
+// Scales the entire visual scene up while in VR so AU-scale units don't
+// render as sub-millimeter specks in the headset. WebXR treats scene units
+// as METERS, but our planets are sub-meter (TRAPPIST-1 b at 0.0008 AU is
+// literally 0.8mm wide). We map the focal system's extent to ~6m — a
+// comfortable "room-scale" view that fits the whole system in front of
+// the user. Outside VR, factor=1 (no scale change, desktop view unaffected).
+function VRSceneScale({ children, maxOrbit }: { children: React.ReactNode; maxOrbit: number }) {
+  const inXR = useXR((s) => s.session != null);
+  const factor = inXR ? Math.min(200, Math.max(2, 6 / maxOrbit)) : 1;
+  return <group scale={factor}>{children}</group>;
+}
+
 // VR locomotion: drops an XROrigin (the user's feet reference frame) at
-// the scene's normal desktop camera position, then wires the controller
-// thumbsticks to translate it. Speed is scaled to the focal orbital
-// distance — inner systems (TRAPPIST) get slow cruise so you can navigate
-// between tight orbits; outer systems (HR 8799) get fast cruise so the
-// system is actually traversable. Outside an XR session the XROrigin is
-// a passive group and the hook does nothing.
+// a comfortable viewing position in world meters, then wires the controller
+// thumbsticks to translate it. The XROrigin lives OUTSIDE VRSceneScale
+// (its position is in world meters, not scene-AU), so initialPos and speed
+// are in meters per second.
 function VRRig({ initialPos, speed }: { initialPos: [number, number, number]; speed: number }) {
   const originRef = useRef<THREE.Group>(null);
   // Callback form (instead of ref form) so we can apply the full XYZ velocity

@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, OrbitControls } from '@react-three/drei';
 import { Bloom, EffectComposer } from '@react-three/postprocessing';
-import { createXRStore, XR } from '@react-three/xr';
+import { createXRStore, useXR, XR } from '@react-three/xr';
 import * as THREE from 'three';
 import { api, type BinaryCompanion, type DiscoveryPaper, type SceneResponse } from '../api';
 import LoadingBar from '../components/LoadingBar';
@@ -173,27 +173,7 @@ export default function ScenePage() {
             </>
           )}
           <Starfield />
-          <EffectComposer>
-            <Bloom
-              /* mipmapBlur produces the wide, smooth Gaussian-pyramid halo
-                 that reads as a real stellar corona. levels={4} keeps the
-                 pyramid shallow to prevent the frame-spanning dome bug.
-                 Threshold 0.30 catches the full photosphere disc — cool
-                 stars and hot stars alike get a generous halo. Side effect:
-                 bright companion stars and well-lit planets get some bloom
-                 too. Separating those out cleanly would need selective bloom
-                 — tried it, the @react-three/postprocessing 2.19 + our
-                 logarithmicDepthBuffer/multi-Three-instance setup made it
-                 unworkable (Layer-out-of-range spam + glBlitFramebuffer
-                 conflict). Sticking with broad bloom for now. */
-              intensity={1.7}
-              luminanceThreshold={0.30}
-              luminanceSmoothing={0.25}
-              mipmapBlur
-              radius={0.9}
-              levels={4}
-            />
-          </EffectComposer>
+          <PostProcessing />
         </XR>
       </Canvas>
     </>
@@ -554,6 +534,34 @@ function PlaybackControls({
       </p>
       <EnterVRButton />
     </div>
+  );
+}
+
+// Bloom post-process pipeline, skipped while in VR. The EffectComposer
+// renders to a single 2D framebuffer, which black-screens stereo XR (the
+// composer doesn't multiplex over the left/right eye buffers). useXR is
+// only valid inside <XR>, which is why this component lives inside it.
+function PostProcessing() {
+  const inXR = useXR((s) => s.session != null);
+  if (inXR) return null;
+  return (
+    <EffectComposer>
+      <Bloom
+        /* mipmapBlur produces the wide, smooth Gaussian-pyramid halo
+           that reads as a real stellar corona. levels={4} keeps the
+           pyramid shallow to prevent the frame-spanning dome bug.
+           Threshold 0.30 catches the full photosphere disc — cool
+           stars and hot stars alike get a generous halo. Side effect:
+           bright companion stars and well-lit planets get some bloom
+           too. */
+        intensity={1.7}
+        luminanceThreshold={0.30}
+        luminanceSmoothing={0.25}
+        mipmapBlur
+        radius={0.9}
+        levels={4}
+      />
+    </EffectComposer>
   );
 }
 

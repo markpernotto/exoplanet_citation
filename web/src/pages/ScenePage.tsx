@@ -175,12 +175,22 @@ export default function ScenePage() {
           <Starfield />
           <EffectComposer>
             <Bloom
-              /* Bright halo + eclipse-dimming during transits. */
-              intensity={1.4}
-              luminanceThreshold={0.7}
-              luminanceSmoothing={0.35}
+              /* mipmapBlur produces the wide, smooth Gaussian-pyramid halo
+                 that reads as a real stellar corona — but if it runs across
+                 the full mipmap pyramid (default ~8 levels), the lowest
+                 mip is ~1 pixel and a single bright pixel domes across
+                 the whole frame. levels={4} keeps the pyramid shallow:
+                 enough mipmap stages for a soft wide halo, not so many that
+                 the smear reaches frame-spanning size.
+                 Threshold 0.30 catches the photosphere disc (cool-star
+                 luminance ~0.5, hot-star much higher) without picking up
+                 stray noisy starfield pixels. */
+              intensity={1.2}
+              luminanceThreshold={0.30}
+              luminanceSmoothing={0.25}
               mipmapBlur
-              radius={0.8}
+              radius={0.7}
+              levels={4}
             />
           </EffectComposer>
         </XR>
@@ -791,20 +801,38 @@ function SceneContents({
           their common barycenter at the origin. For everything else, one
           sun at origin. Bloom handles the glow for both cases the same way. */}
       {planet.cb_flag === 1
-        ? <BinaryPhotospheres radius={sunRadius} color={sun_color_hex} paused={paused} speed={speed} />
-        : <Photosphere radius={sunRadius} color={sun_color_hex} />
+        ? <BinaryPhotospheres radius={sunRadius} color={sun_color_hex} teff={planet.st_teff} paused={paused} speed={speed} />
+        : <Photosphere radius={sunRadius} color={sun_color_hex} teff={planet.st_teff} />
       }
       {/* Sun light: decay=1.7 (slightly less aggressive than physical 1/r²).
           Pure inverse-square crushes outer planets visually faster than the
           eye expects in a stylized 3D scene; 1.7 keeps the directional
-          lit/dark sense while extending visibility outward. Base intensity
-          calibrated so the focal planet's lit side reads bright but doesn't
-          saturate to white. */}
-      <pointLight position={[0, 0, 0]} intensity={focalOrbsmax * focalOrbsmax * 2.2} color={sun_color_hex} distance={0} decay={1.7} />
+          lit/dark sense while extending visibility outward.
+
+          Intensity scales with stellar temperature via (teff/Tsun)^2.5 —
+          a softened Stefan-Boltzmann proxy. Full L∝T⁴ would make TRAPPIST-1
+          planets effectively invisible (real luminosity ratio is ~1/2000);
+          the 2.5 exponent gives M-dwarf planets a believably dim lit-side
+          while keeping them readable, and hot stars like KELT-9 light their
+          planets ~4× brighter. Radius isn't folded in here — the visible
+          disc size already encodes that. */}
+      <pointLight
+        position={[0, 0, 0]}
+        intensity={focalOrbsmax * focalOrbsmax * 2.2 * Math.pow((planet.st_teff ?? 5778) / 5778, 2.5)}
+        color={sun_color_hex}
+        distance={0}
+        decay={1.7}
+      />
       {/* Hemisphere fill — provides ambient brightness so even the dark
           side of planets and far-out outer worlds remain readable in dark
-          space. Without this they sink into the void. */}
-      <hemisphereLight intensity={0.22} color="#475066" groundColor="#1f1f2a" />
+          space. Without this they sink into the void. Scaled (sqrt of the
+          luminosity factor) so cool-star planets aren't washed out by fill
+          that's now brighter than the sun itself. */}
+      <hemisphereLight
+        intensity={0.22 * Math.sqrt(Math.max(0.05, (planet.st_teff ?? 5778) / 5778))}
+        color="#475066"
+        groundColor="#1f1f2a"
+      />
 
       {/* Orbit rings — focal in accent color, siblings dimmer */}
       <OrbitRing orbsmax={focalOrbsmax} eccen={planet.pl_orbeccen ?? 0} color="#7ad6ff" opacity={0.55} />
@@ -944,15 +972,53 @@ function spectralTypeToColor(spectype: string | null): string {
 // atmospheric path) and subtle granulation noise. Result: a soft, alive
 // edge rather than a hard sharp circle.
 
-function Photosphere({ radius, color }: { radius: number; color: string }) {
+function Photosphere({ radius, color, teff }: { radius: number; color: string; teff: number | null }) {
   // Opaque shader — must write depth properly so orbit lines and planets
   // behind the sun get occluded. The "soft edge" is achieved by the corona
   // (drawn additively over and around the photosphere edge), not by making
   // the photosphere itself transparent.
+  //
+  // HDR brightness scales with stellar temperature so cool M-dwarfs stay
+  // deep-red instead of getting desaturated to yellow by ACES tone mapping
+  // (which compresses highlights toward white), and hot O/B stars look
+  // appropriately blinding. Loosely based on Stefan-Boltzmann (L ∝ T⁴) but
+  // softened so cool stars don't disappear and hot stars don't rocket past
+  // bloom budget.
+  const teffK = teff ?? 5778;
+  // Cool stars get a HDR BOOST, not a dampening — deep red against black
+  // has much lower perceived contrast than white against black at the same
+  // luminance (eye sensitivity to long wavelengths is ~10× lower than to
+  // green). So we push cool-star HDR up to ~2.8× to compensate, ensuring
+  // their bloom-halo is visually comparable to a hot star's white halo
+  // instead of looking like a dim red disc with no glow. The saturation
+  // push on uColor below keeps them red despite the extra brightness.
+  const cool = Math.max(0, Math.min(1, (5778 - teffK) / 3278));
+  const warmth = 1.0 + cool * 0.4;
+  // Hot stars get an additive multiplier on top of the base, CAPPED at 1.5
+  // so mipmapBlur can't dome out on extreme HDR values (the original dome
+  // bug was at uncapped hot * 0.0008 → KELT-9 reaching 4.5× by itself).
+  const hot = Math.max(0, teffK - 5778);
+  const bonus = 1.0 + Math.min(1.5, hot * 0.0006);
+  // Base 2.0 × warmth × bonus → uHdr range: ~2.8 (TRAPPIST-1) → 2.0 (Sun)
+  // → ~5.0 (KELT-9 and hotter). Cool stars get a generous red halo, hot
+  // stars stay intensely bright, and the range stays well below the
+  // mipmapBlur dome threshold.
+  const hdrScale = 2.0 * warmth * bonus;
+  // Saturation push for cool stars: suppress green and (more aggressively)
+  // blue so the photosphere reads as deep RED, not orange. The Tanner-Helland
+  // blackbody approximation gives a perceptually accurate "neutral-eye" color
+  // that's actually quite orange for M-dwarfs (#ffa24c at 2566K). Real M-dwarfs
+  // would look much redder to a human, and bloom over dark space turns the
+  // generic orange into muddy brown — neither is what we want. Pushing G/B
+  // down rebalances toward a hauntingly-red look that survives bloom.
+  const saturated = new THREE.Color(color);
+  saturated.g *= 1.0 - cool * 0.7;
+  saturated.b *= 1.0 - cool * 0.85;
   const material = useMemo(() => new THREE.ShaderMaterial({
     uniforms: {
-      uColor: { value: new THREE.Color(color) },
+      uColor: { value: saturated },
       uTime:  { value: 0 },
+      uHdr:   { value: hdrScale },
     },
     // Opt into three.js's logarithmic depth buffer. The renderer is
     // configured with logarithmicDepthBuffer=true (needed because our scene
@@ -985,6 +1051,7 @@ function Photosphere({ radius, color }: { radius: number; color: string }) {
 
       uniform vec3 uColor;
       uniform float uTime;
+      uniform float uHdr;
       varying vec3 vNormal;
       varying vec3 vViewDir;
       varying vec3 vWorldPos;
@@ -1004,25 +1071,33 @@ function Photosphere({ radius, color }: { radius: number; color: string }) {
       void main() {
         #include <logdepthbuf_fragment>
 
-        // Subtle granulation noise + slight limb darkening for solidity.
+        // Granulation noise + aggressive limb darkening. The limb floor of
+        // 0.15 (way past real-Sun ~0.4) is deliberately exaggerated so the
+        // photosphere edge fades almost to black before meeting the bloom
+        // corona, eliminating the hard-disc silhouette and making the
+        // sun read as a glow rather than a sharp circle. pow(mu, 0.7)
+        // makes the falloff gradual — most of the disc stays bright, but
+        // the outer ~30% darkens significantly.
         vec3 np = vWorldPos * 18.0 + vec3(uTime * 0.08, uTime * 0.04, 0.0);
         float granule = (noise(np) - 0.5) * 0.5 + (noise(np * 2.3) - 0.5) * 0.25;
-        float surf = 1.0 + granule * 0.06;
+        float surf = 1.0 + granule * 0.10;
 
         float mu = max(0.0, dot(vNormal, vViewDir));
-        float limb = mix(0.92, 1.0, pow(mu, 0.5));
+        float limb = mix(0.15, 1.0, pow(mu, 0.7));
 
-        // HDR (>1.0) so bloom catches it. ACES tone mapping (renderer-level)
-        // compresses to displayable range while preserving HUE so M-dwarf
-        // reds stay red.
-        gl_FragColor = vec4(uColor * surf * limb * 3.0, 1.0);
+        // HDR multiplier is per-star (computed JS-side from teff). Cool
+        // stars use a smaller boost so ACES doesn't desaturate their reds
+        // toward yellow; hot stars use a much larger boost so they read as
+        // blindingly bright. Pure ACES is famous for desaturating in the
+        // highlights — the prior comment claiming otherwise was wrong.
+        gl_FragColor = vec4(uColor * surf * limb * uHdr, 1.0);
       }
     `,
     transparent: false,
     depthWrite: true,
     depthTest: true,
     toneMapped: true,
-  }), [color]);
+  }), [color, hdrScale]);
 
   useFrame((state) => {
     material.uniforms.uTime.value = state.clock.getElapsedTime();
@@ -1080,9 +1155,9 @@ function Photosphere({ radius, color }: { radius: number; color: string }) {
 // secondary swings on a larger circle, the bigger primary stays closer in.
 
 function BinaryPhotospheres({
-  radius, color, paused, speed,
+  radius, color, teff, paused, speed,
 }: {
-  radius: number; color: string; paused: boolean; speed: number;
+  radius: number; color: string; teff: number | null; paused: boolean; speed: number;
 }) {
   const starA = useRef<THREE.Group>(null);
   const starB = useRef<THREE.Group>(null);
@@ -1108,10 +1183,12 @@ function BinaryPhotospheres({
   return (
     <>
       <group ref={starA}>
-        <Photosphere radius={primaryRadius} color={color} />
+        <Photosphere radius={primaryRadius} color={color} teff={teff} />
       </group>
       <group ref={starB}>
-        <Photosphere radius={secondaryRadius} color={secondaryColor} />
+        {/* Secondary uses a cooler-equivalent teff so its red-shifted
+            color reads correctly through the Stefan-Boltzmann scaling. */}
+        <Photosphere radius={secondaryRadius} color={secondaryColor} teff={teff != null ? teff * 0.65 : null} />
       </group>
     </>
   );

@@ -176,20 +176,21 @@ export default function ScenePage() {
           <EffectComposer>
             <Bloom
               /* mipmapBlur produces the wide, smooth Gaussian-pyramid halo
-                 that reads as a real stellar corona — but if it runs across
-                 the full mipmap pyramid (default ~8 levels), the lowest
-                 mip is ~1 pixel and a single bright pixel domes across
-                 the whole frame. levels={4} keeps the pyramid shallow:
-                 enough mipmap stages for a soft wide halo, not so many that
-                 the smear reaches frame-spanning size.
-                 Threshold 0.30 catches the photosphere disc (cool-star
-                 luminance ~0.5, hot-star much higher) without picking up
-                 stray noisy starfield pixels. */
-              intensity={1.2}
+                 that reads as a real stellar corona. levels={4} keeps the
+                 pyramid shallow to prevent the frame-spanning dome bug.
+                 Threshold 0.30 catches the full photosphere disc — cool
+                 stars and hot stars alike get a generous halo. Side effect:
+                 bright companion stars and well-lit planets get some bloom
+                 too. Separating those out cleanly would need selective bloom
+                 — tried it, the @react-three/postprocessing 2.19 + our
+                 logarithmicDepthBuffer/multi-Three-instance setup made it
+                 unworkable (Layer-out-of-range spam + glBlitFramebuffer
+                 conflict). Sticking with broad bloom for now. */
+              intensity={1.7}
               luminanceThreshold={0.30}
               luminanceSmoothing={0.25}
               mipmapBlur
-              radius={0.7}
+              radius={0.9}
               levels={4}
             />
           </EffectComposer>

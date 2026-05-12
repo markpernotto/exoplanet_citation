@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, OrbitControls } from '@react-three/drei';
 import { Bloom, EffectComposer } from '@react-three/postprocessing';
-import { createXRStore, useXR, XR } from '@react-three/xr';
+import { createXRStore, useXR, useXRControllerLocomotion, XR, XROrigin } from '@react-three/xr';
 import * as THREE from 'three';
 import { api, type BinaryCompanion, type DiscoveryPaper, type SceneResponse } from '../api';
 import LoadingBar from '../components/LoadingBar';
@@ -173,6 +173,7 @@ export default function ScenePage() {
             </>
           )}
           <Starfield />
+          <VRRig initialPos={camPos} speed={Math.min(5, Math.max(0.05, orbsmax))} />
           <PostProcessing />
         </XR>
       </Canvas>
@@ -535,6 +536,19 @@ function PlaybackControls({
       <EnterVRButton />
     </div>
   );
+}
+
+// VR locomotion: drops an XROrigin (the user's feet reference frame) at
+// the scene's normal desktop camera position, then wires the controller
+// thumbsticks to translate it. Speed is scaled to the focal orbital
+// distance — inner systems (TRAPPIST) get slow cruise so you can navigate
+// between tight orbits; outer systems (HR 8799) get fast cruise so the
+// system is actually traversable. Outside an XR session the XROrigin is
+// a passive group and the hook does nothing.
+function VRRig({ initialPos, speed }: { initialPos: [number, number, number]; speed: number }) {
+  const originRef = useRef<THREE.Group>(null);
+  useXRControllerLocomotion(originRef, { speed });
+  return <XROrigin ref={originRef} position={initialPos} />;
 }
 
 // Bloom post-process pipeline, skipped while in VR. The EffectComposer
@@ -1276,6 +1290,11 @@ type StarBuffers = { positions: Float32Array; colors: Float32Array; sizes: Float
 
 function Starfield() {
   const [buffers, setBuffers] = useState<StarBuffers | null>(null);
+  // Quest 3 has ~2000px-per-eye resolution, so the desktop-tuned 0.6-4.5px
+  // point sizes render as sub-mrad invisible specks. In an XR session we
+  // multiply the size uniform up so points actually have visible angular
+  // diameter on a headset display.
+  const inXR = useXR((s) => s.session != null);
   useEffect(() => {
     let cancelled = false;
     fetch('/starfield_basic.bin')
@@ -1302,16 +1321,18 @@ function Starfield() {
         // buffer and cause z-test flicker (visible when zoomed out, where
         // the linear/log gap widens with distance).
         defines: { USE_LOGDEPTHBUF: '' },
+        uniforms: { uSizeBoost: { value: 1.0 } },
         vertexShader: `
           #include <common>
           #include <logdepthbuf_pars_vertex>
           attribute float size;
+          uniform float uSizeBoost;
           varying vec3 vColor;
           void main() {
             vColor = color;
             vec4 mv = modelViewMatrix * vec4(position, 1.0);
             gl_Position = projectionMatrix * mv;
-            gl_PointSize = size;
+            gl_PointSize = size * uSizeBoost;
             #include <logdepthbuf_vertex>
           }`,
         fragmentShader: `
@@ -1333,6 +1354,10 @@ function Starfield() {
       }),
     [],
   );
+
+  useEffect(() => {
+    material.uniforms.uSizeBoost.value = inXR ? 4.0 : 1.0;
+  }, [inXR, material]);
 
   if (!geometry) return null;
   return <points geometry={geometry} material={material} />;

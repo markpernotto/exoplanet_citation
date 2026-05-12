@@ -176,16 +176,17 @@ export default function ScenePage() {
           <VRRig
             /* Initial XR position: hug the focal planet's orbit so the
                whole system reads as "right in front of you" in the
-               headset's ~110° FOV. The desktop camPos sits the user
-               1.8× the orbit out, which in VR (wider FOV than the
-               50° desktop camera) makes the system look small and far. */
-            initialPos={[orbsmax * 0.9, orbsmax * 0.35, orbsmax * 0.6]}
-            /* Speed in scene units per second. Scaled aggressively to the
-               focal orbit so inner systems (TRAPPIST: 0.06 AU traversed in
-               ~1 sec) and outer systems (HR 8799: 70 AU in ~7 sec) are
-               both navigable. Min 0.1 so very tight systems don't feel
-               stuck. */
-            speed={Math.max(0.1, orbsmax * 1.5)}
+               headset's ~110° FOV. Y is kept near-zero so the user
+               starts at orbital-plane level (not floating above it),
+               which makes forward-motion intuitively dive into the
+               system instead of skimming over it. */
+            initialPos={[orbsmax * 1.5, orbsmax * 0.05, orbsmax * 0.5]}
+            /* Speed in scene units per second. Bumped to 3× orbsmax so
+               motion is obviously perceptible — at the previous 1.5×
+               with thumbstick-deadzone fractional input you barely
+               registered any motion. Floor 0.5 AU/sec keeps even
+               very tight systems traversable in seconds. */
+            speed={Math.max(0.5, orbsmax * 3)}
           />
           <PostProcessing />
         </XR>
@@ -560,7 +561,22 @@ function PlaybackControls({
 // a passive group and the hook does nothing.
 function VRRig({ initialPos, speed }: { initialPos: [number, number, number]; speed: number }) {
   const originRef = useRef<THREE.Group>(null);
-  useXRControllerLocomotion(originRef, { speed });
+  // Callback form (instead of ref form) so we can apply the full XYZ velocity
+  // vector. The default hook implementation only adds velocity.x and velocity.z
+  // to target.position, dropping the Y component — which means if the user is
+  // above the orbital plane and pushes the thumbstick forward while looking
+  // down at the system, they slide horizontally instead of diving in.
+  useXRControllerLocomotion(
+    (velocity, rotationVelocityY, deltaTime) => {
+      const origin = originRef.current;
+      if (!origin) return;
+      origin.position.x += velocity.x * deltaTime;
+      origin.position.y += velocity.y * deltaTime;
+      origin.position.z += velocity.z * deltaTime;
+      if (rotationVelocityY) origin.rotation.y += rotationVelocityY;
+    },
+    { speed },
+  );
   return <XROrigin ref={originRef} position={initialPos} />;
 }
 
@@ -1303,10 +1319,6 @@ type StarBuffers = { positions: Float32Array; colors: Float32Array; sizes: Float
 
 function Starfield() {
   const [buffers, setBuffers] = useState<StarBuffers | null>(null);
-  // Quest 3 has ~2000px-per-eye resolution, so the desktop-tuned 0.6-4.5px
-  // point sizes render as sub-mrad invisible specks. In an XR session we
-  // multiply the size uniform up so points actually have visible angular
-  // diameter on a headset display.
   const inXR = useXR((s) => s.session != null);
   useEffect(() => {
     let cancelled = false;
@@ -1317,67 +1329,57 @@ function Starfield() {
     return () => { cancelled = true; };
   }, []);
 
-  const geometry = useMemo(() => {
+  // We render the starfield as an InstancedMesh of tiny camera-facing planes
+  // rather than THREE.Points. Reason: gl_PointSize behavior is inconsistent
+  // across XR pipelines (Quest 3's Adreno clamps or ignores it entirely),
+  // making points invisible in VR no matter what size we ask for. Instanced
+  // planes use real triangle geometry and always render.
+  //
+  // World-size math: stars sit on a sphere of radius STAR_SPHERE_AU=5000.
+  // To get a desired angular size θ from origin, plane width = 2*5000*tan(θ/2).
+  // ~0.1° looks right on both desktop and VR; we scale by the per-star size
+  // attribute and a VR boost.
+  const mesh = useMemo(() => {
     if (!buffers) return null;
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(buffers.positions, 3));
-    g.setAttribute('color',    new THREE.BufferAttribute(buffers.colors, 3));
-    g.setAttribute('size',     new THREE.BufferAttribute(buffers.sizes, 1));
-    return g;
-  }, [buffers]);
+    const n = buffers.positions.length / 3;
+    const geometry = new THREE.PlaneGeometry(1, 1);
+    const material = new THREE.MeshBasicMaterial({
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+      // toneMapped:false so star colors render at their packed Gaia tint
+      // rather than getting ACES-compressed toward white.
+      toneMapped: false,
+    });
+    const instanced = new THREE.InstancedMesh(geometry, material, n);
+    instanced.frustumCulled = false;   // stars span the whole celestial sphere
+    const dummy = new THREE.Object3D();
+    const col = new THREE.Color();
+    // Scale factor calibrated so the brightest stars (size=4.5) end up
+    // ~0.2-0.3° from origin in VR and ~0.1° on desktop — comparable to
+    // the prior gl_PointSize=4.5 look but using real geometry.
+    const sizeScale = inXR ? 5.0 : 2.5;
+    for (let i = 0; i < n; i++) {
+      const x = buffers.positions[i * 3];
+      const y = buffers.positions[i * 3 + 1];
+      const z = buffers.positions[i * 3 + 2];
+      dummy.position.set(x, y, z);
+      dummy.lookAt(0, 0, 0);   // face scene origin (close enough to camera-facing for distant stars)
+      const s = buffers.sizes[i] * sizeScale;
+      dummy.scale.set(s, s, s);
+      dummy.updateMatrix();
+      instanced.setMatrixAt(i, dummy.matrix);
+      col.setRGB(buffers.colors[i * 3], buffers.colors[i * 3 + 1], buffers.colors[i * 3 + 2]);
+      instanced.setColorAt(i, col);
+    }
+    instanced.instanceMatrix.needsUpdate = true;
+    if (instanced.instanceColor) instanced.instanceColor.needsUpdate = true;
+    return instanced;
+  }, [buffers, inXR]);
 
-  const material = useMemo(
-    () =>
-      new THREE.ShaderMaterial({
-        // Canvas runs with logarithmicDepthBuffer; custom shaders must opt
-        // into the log-depth chunks or their depth output will mismatch the
-        // buffer and cause z-test flicker (visible when zoomed out, where
-        // the linear/log gap widens with distance).
-        defines: { USE_LOGDEPTHBUF: '' },
-        uniforms: { uSizeBoost: { value: 1.0 } },
-        vertexShader: `
-          #include <common>
-          #include <logdepthbuf_pars_vertex>
-          attribute float size;
-          uniform float uSizeBoost;
-          varying vec3 vColor;
-          void main() {
-            vColor = color;
-            vec4 mv = modelViewMatrix * vec4(position, 1.0);
-            gl_Position = projectionMatrix * mv;
-            gl_PointSize = size * uSizeBoost;
-            #include <logdepthbuf_vertex>
-          }`,
-        fragmentShader: `
-          #include <common>
-          #include <logdepthbuf_pars_fragment>
-          varying vec3 vColor;
-          void main() {
-            #include <logdepthbuf_fragment>
-            vec2 d = gl_PointCoord - vec2(0.5);
-            float r = length(d);
-            if (r > 0.5) discard;
-            float a = 1.0 - smoothstep(0.25, 0.5, r);
-            gl_FragColor = vec4(vColor, a);
-          }`,
-        vertexColors: true,
-        transparent: true,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-      }),
-    [],
-  );
-
-  useEffect(() => {
-    // 15× boost in VR: desktop sizes 0.6-4.5 px become 9-67 px in the
-    // headset, large enough to clearly read as stars on Quest 3's high-DPI
-    // display. Some XR pipelines also clamp gl_PointSize aggressively, so
-    // overshooting is safer than undershooting.
-    material.uniforms.uSizeBoost.value = inXR ? 15.0 : 1.0;
-  }, [inXR, material]);
-
-  if (!geometry) return null;
-  return <points geometry={geometry} material={material} />;
+  if (!mesh) return null;
+  return <primitive object={mesh} />;
 }
 
 function parseStarfieldBin(buf: ArrayBuffer): StarBuffers {

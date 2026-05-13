@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, OrbitControls } from '@react-three/drei';
@@ -640,6 +640,19 @@ function VRRig({
 }: VRRigProps) {
   const originRef = useRef<THREE.Group>(null);
   const inXR = useXR((s) => s.session != null);
+  const syncToSurface = useCallback(() => {
+    if (!surfaceProps) return;
+    const origin = originRef.current;
+    if (!origin) return;
+    const { focalPosRef, surfaceOffset, maxOrbit } = surfaceProps;
+    const scale = vrScaleFactor(maxOrbit);
+    const yOffset = surfaceOffset * scale;
+    origin.position.set(
+      focalPosRef.current.x * scale,
+      focalPosRef.current.y * scale + yOffset,
+      focalPosRef.current.z * scale,
+    );
+  }, [surfaceProps]);
 
   // Callback form (instead of ref form) so we can apply the full XYZ velocity
   // vector. The default hook implementation only adds velocity.x and velocity.z
@@ -661,6 +674,13 @@ function VRRig({
     { speed },
   );
 
+  // Snap the user onto the focal planet as soon as an XR session starts, so
+  // the first immersive frame doesn't briefly render from the default spawn.
+  useLayoutEffect(() => {
+    if (!surfaceProps || !inXR) return;
+    syncToSurface();
+  }, [inXR, surfaceProps, syncToSurface]);
+
   // Surface mode + VR: drive the XROrigin to the focal planet's current
   // world-meter position each frame. focalPosRef is written in scene-AU by
   // SceneContents; vrScaleFactor converts to world meters using the same
@@ -669,17 +689,19 @@ function VRRig({
   // which is guaranteed because VRRig is mounted after SceneContents in JSX.
   useFrame(() => {
     if (!surfaceProps || !inXR) return;
-    const origin = originRef.current;
-    if (!origin) return;
-    const { focalPosRef, surfaceOffset, maxOrbit } = surfaceProps;
-    const scale = vrScaleFactor(maxOrbit);
-    const yOffset = surfaceOffset * scale;
-    origin.position.set(
-      focalPosRef.current.x * scale,
-      focalPosRef.current.y * scale + yOffset,
-      focalPosRef.current.z * scale,
-    );
+    syncToSurface();
   });
+
+  if (surfaceProps) {
+    const scale = vrScaleFactor(surfaceProps.maxOrbit);
+    const yOffset = surfaceProps.surfaceOffset * scale;
+    const surfacePos: [number, number, number] = [
+      surfaceProps.focalPosRef.current.x * scale,
+      surfaceProps.focalPosRef.current.y * scale + yOffset,
+      surfaceProps.focalPosRef.current.z * scale,
+    ];
+    return <XROrigin ref={originRef} position={surfacePos} />;
+  }
 
   return <XROrigin ref={originRef} position={initialPos} />;
 }

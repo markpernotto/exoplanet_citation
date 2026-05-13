@@ -165,7 +165,11 @@ export default function ScenePage() {
             </>
           )}
           {/* Visual scene content sits inside VRSceneScale so it scales up
-              in VR (AU → meters mapping) without affecting the desktop view. */}
+              in VR (AU → meters mapping) without affecting the desktop view.
+              Starfield lives OUTSIDE the scale group — its skydome follows
+              the camera each frame, and being outside the scale means we
+              can write camera.position directly to the mesh without having
+              to divide by the scale factor. */}
           <VRSceneScale maxOrbit={maxOrbit}>
             {viewMode === 'system' ? (
               <SceneContents scene={scene} paused={paused} speed={speed} />
@@ -176,8 +180,8 @@ export default function ScenePage() {
                 focalPosOut={focalPosRef}
               />
             )}
-            <Starfield />
           </VRSceneScale>
+          <Starfield />
           {/* VRRig is OUTSIDE VRSceneScale — its position/speed are in
               world meters, unaffected by scene scaling. 3m from origin
               looks at a ~6m-wide scaled system; 1.5 m/sec is comfortable
@@ -1388,6 +1392,7 @@ type StarBuffers = { positions: Float32Array; colors: Float32Array; sizes: Float
 function Starfield() {
   const [buffers, setBuffers] = useState<StarBuffers | null>(null);
   const { scene } = useThree();
+  const skydomeRef = useRef<THREE.Mesh>(null);
   useEffect(() => {
     let cancelled = false;
     fetch('/starfield_basic.bin')
@@ -1397,15 +1402,11 @@ function Starfield() {
     return () => { cancelled = true; };
   }, []);
 
-  // Pre-rasterize the Gaia stars into a 4096×2048 equirectangular canvas
-  // and use it as a texture for BOTH a skydome (inside-facing sphere) AND
-  // scene.background. This is fundamentally different from prior attempts
-  // (gl_POINTS, instanced quads, instanced icosahedrons) which all rendered
-  // stars as many small individual objects. The skydome renders stars as
-  // ONE big mesh — the same primitive that already works in VR for our
-  // planets and sun — with the dots baked into a texture instead of being
-  // geometry. scene.background provides a backup render path; whichever
-  // works in the headset's XR pipeline shows stars.
+  // Pre-rasterize the Gaia stars into an equirectangular canvas with a
+  // tight bright core + soft halo per star — closer to how real long-
+  // exposure astrophotography shows them. The prior "uniform solid disc
+  // per star" looked like polka dots; this gives sharp pinpoints for the
+  // dim majority and brighter, glowy stars for the few naked-eye standouts.
   const texture = useMemo(() => {
     if (!buffers) return null;
     const W = 4096;
@@ -1424,7 +1425,6 @@ function Starfield() {
       const z = buffers.positions[i * 3 + 2];
       const r = Math.sqrt(x * x + y * y + z * z);
       if (r === 0) continue;
-      // Cartesian → RA/Dec → equirectangular UV
       const dec = Math.asin(y / r);
       const ra = Math.atan2(z, x);
       const u = (ra + Math.PI) / (2 * Math.PI);
@@ -1434,15 +1434,27 @@ function Starfield() {
       const rr = (buffers.colors[i * 3] * 255) | 0;
       const gg = (buffers.colors[i * 3 + 1] * 255) | 0;
       const bb = (buffers.colors[i * 3 + 2] * 255) | 0;
+      const size = buffers.sizes[i];
+      // Halo first for brighter stars: soft radial gradient that fades to
+      // transparent, drawn UNDER the core so the core stays sharp on top.
+      if (size > 2.0) {
+        const haloR = size * 1.3;
+        const grad = ctx.createRadialGradient(px, py, 0, px, py, haloR);
+        grad.addColorStop(0, `rgba(${rr},${gg},${bb},0.55)`);
+        grad.addColorStop(0.4, `rgba(${rr},${gg},${bb},0.18)`);
+        grad.addColorStop(1, `rgba(${rr},${gg},${bb},0)`);
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(px, py, haloR, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Tight bright core — small enough to render as a pinpoint, not a
+      // solid disc. Subpixel-radius arcs get anti-aliased to a 1-2 px
+      // bright dot, which is what reads as a "star" on screen.
       ctx.fillStyle = `rgb(${rr},${gg},${bb})`;
-      // Slightly bigger dots than the prior pixel-based sizes — they're
-      // mapped onto a sphere at finite resolution, so a single pixel at
-      // 4096-wide ≈ 0.09° angular, which is still small in VR. Multiplier
-      // 1.6 lifts the brightest stars to ~7 px = ~0.6° (clearly visible
-      // even with headset DPI).
-      const dotR = Math.max(1, buffers.sizes[i] * 1.6);
+      const coreR = Math.max(0.5, size * 0.4);
       ctx.beginPath();
-      ctx.arc(px, py, dotR, 0, Math.PI * 2);
+      ctx.arc(px, py, coreR, 0, Math.PI * 2);
       ctx.fill();
     }
     const tex = new THREE.CanvasTexture(canvas);
@@ -1450,9 +1462,21 @@ function Starfield() {
     return tex;
   }, [buffers]);
 
-  // Method B: set the texture as scene.background. three.js renders this
-  // as an inside-facing equirectangular sphere automatically, per eye in
-  // XR. Cleaned up on unmount so we don't leak the texture between routes.
+  // Lock the skydome to the camera every frame. Without this the user
+  // translates AWAY from the sphere center when they walk in VR (or pan
+  // the desktop camera), and stars exhibit parallax — they slide past
+  // the user as if the sky were a finite-distance wall. Centering the
+  // mesh on the camera means stars always feel infinitely far. This is
+  // exactly what scene.background does internally for its own background
+  // pass; we replicate it for the mesh path.
+  useFrame((state) => {
+    if (skydomeRef.current) {
+      skydomeRef.current.position.copy(state.camera.position);
+    }
+  });
+
+  // Method B: also set as scene.background so we have a redundant render
+  // path. three.js renders this at infinity automatically (no parallax).
   useEffect(() => {
     if (!texture) return;
     const previous = scene.background;
@@ -1462,12 +1486,14 @@ function Starfield() {
 
   if (!texture) return null;
 
-  // Method A: explicit skydome mesh. depthTest:false + renderOrder:-1
-  // ensures it always draws first as background and never participates in
-  // depth tests with foreground objects. depthWrite:false keeps it from
-  // occluding anything (planets, the sun) that draws after.
+  // Method A: explicit skydome mesh, camera-following. depthTest:false
+  // means it always draws first as background; depthWrite:false keeps
+  // it from occluding planets, sun, etc. The radius (relative to camera)
+  // doesn't matter much because we're following the camera anyway — but
+  // we keep it large so it stays well past the far-plane of any logical
+  // content even if camera-follow misses one frame.
   return (
-    <mesh frustumCulled={false} renderOrder={-1}>
+    <mesh ref={skydomeRef} frustumCulled={false} renderOrder={-1}>
       <sphereGeometry args={[STAR_SPHERE_AU, 64, 32]} />
       <meshBasicMaterial
         map={texture}
@@ -1591,14 +1617,19 @@ function PlanetBody({
 
   return (
     <group position={position}>
-      {/* Hit mesh */}
+      {/* Hit mesh. Was visible={false} for "invisible" behavior, but R3F's
+          XR controller ray pointer skips invisible meshes for pointer
+          events on Quest — so VR clicks never registered. A transparent
+          material that draws nothing (opacity 0, no depth write) still
+          gets raycast hits because the mesh is actually visible to
+          three.js's traversal. Same effect on desktop. */}
       <mesh
         onPointerOver={(e) => { e.stopPropagation(); if (name && onHover) onHover(name); document.body.style.cursor = onClick ? 'pointer' : 'default'; }}
         onPointerOut={(e) => { e.stopPropagation(); if (onHover) onHover(null); document.body.style.cursor = 'default'; }}
         onClick={(e) => { if (onClick) { e.stopPropagation(); onClick(); } }}
-        visible={false}
       >
         <sphereGeometry args={[hitRadius, 8, 8]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
       {/* Planet body */}
       <mesh material={bodyMaterial}>

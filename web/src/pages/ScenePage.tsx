@@ -677,9 +677,9 @@ function VRRig({
   // Snap the user onto the focal planet as soon as an XR session starts, so
   // the first immersive frame doesn't briefly render from the default spawn.
   useLayoutEffect(() => {
-    if (!surfaceProps || !inXR) return;
+    if (!inXR) return;
     syncToSurface();
-  }, [inXR, surfaceProps, syncToSurface]);
+  }, [inXR, syncToSurface]);
 
   // Surface mode + VR: drive the XROrigin to the focal planet's current
   // world-meter position each frame. focalPosRef is written in scene-AU by
@@ -691,17 +691,6 @@ function VRRig({
     if (!surfaceProps || !inXR) return;
     syncToSurface();
   });
-
-  if (surfaceProps) {
-    const scale = vrScaleFactor(surfaceProps.maxOrbit);
-    const yOffset = surfaceProps.surfaceOffset * scale;
-    const surfacePos: [number, number, number] = [
-      surfaceProps.focalPosRef.current.x * scale,
-      surfaceProps.focalPosRef.current.y * scale + yOffset,
-      surfaceProps.focalPosRef.current.z * scale,
-    ];
-    return <XROrigin ref={originRef} position={surfacePos} />;
-  }
 
   return <XROrigin ref={originRef} position={initialPos} />;
 }

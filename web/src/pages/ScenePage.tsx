@@ -1229,20 +1229,19 @@ function Photosphere({ radius, color, teff }: { radius: number; color: string; t
   );
   // VR fallback: the custom shader renders incorrectly in XR (most likely
   // a log-depth uniform mismatch with per-eye projections), so we swap
-  // in a plain MeshBasicMaterial. To match the desktop look, we run the
-  // HDR-scaled color through the same ACES tone mapping the desktop
-  // shader uses (toneMapped: true), so the on-screen color matches what
-  // you'd see in flat-screen 3D mode. We lose the granulation noise,
-  // limb darkening, and animated boil — but the sun reads as the SAME
-  // bright colored disc in both modes, and bloom still catches it.
+  // in a plain MeshBasicMaterial. Use the saturated color DIRECTLY — no
+  // HDR multiplier. On desktop the HDR boost (2-5×) exists so the bloom
+  // pass can catch the disc; in XR we disable the EffectComposer entirely
+  // (no bloom), so HDR has no benefit and just pushes the color through
+  // ACES highlight desaturation toward white. The saturated cool-star
+  // red survives ACES at 1× multiplier and reads as the same red the
+  // desktop view shows (where limb darkening keeps half the disc in
+  // saturated range anyway).
   if (inXR) {
     return (
       <mesh>
         <sphereGeometry args={[radius, 64, 64]} />
-        <meshBasicMaterial
-          color={new THREE.Color(saturated).multiplyScalar(hdrScale)}
-          toneMapped={true}
-        />
+        <meshBasicMaterial color={saturated} toneMapped={true} />
       </mesh>
     );
   }
@@ -1489,15 +1488,15 @@ function Starfield() {
   // Method A: explicit skydome mesh, camera-following. depthTest:false
   // means it always draws first as background; depthWrite:false keeps
   // it from occluding planets, sun, etc.
-  // Radius is dramatically larger than STAR_SPHERE_AU (1e6 instead of
-  // 5000) precisely because the camera-follow has shown itself unreliable
-  // in XR — at this radius even if the follow drifts by 100m, the
-  // resulting parallax is 0.006° (below human detection). Visually
-  // identical because angular size of the texture is independent of
-  // sphere radius. Safe at our XR depthFar of 1e9.
+  // Radius is set back to STAR_SPHERE_AU (5000) — at this size the mesh
+  // is known to render in VR (we saw it render at this radius earlier in
+  // this session). At 1e6 it silently failed to render on Quest, likely
+  // because the XR session's actual depth-far is clamped well below the
+  // 1e9 we requested via updateRenderState. Camera-follow eliminates the
+  // parallax that 5000-radius would otherwise produce.
   return (
     <mesh ref={skydomeRef} frustumCulled={false} renderOrder={-1}>
-      <sphereGeometry args={[1_000_000, 64, 32]} />
+      <sphereGeometry args={[STAR_SPHERE_AU, 64, 32]} />
       <meshBasicMaterial
         map={texture}
         side={THREE.BackSide}

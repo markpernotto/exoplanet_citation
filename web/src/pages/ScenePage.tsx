@@ -1122,10 +1122,10 @@ function Photosphere({ radius, color, teff }: { radius: number; color: string; t
       uHdr:   { value: hdrScale },
       uLogDepthBufFC: { value: 0 },
     },
-    // Manual log-depth path for XR parity. three.js auto-updates logDepthBufFC
-    // for built-in materials, but this custom shader can see stale/inconsistent
-    // values across XR eye cameras. We compute the same factor in JS and pass
-    // it as a uniform every frame.
+    // Manual log-depth path for XR parity, scoped to Photosphere. This shader
+    // is custom and paired with a depth pre-pass; keeping depth math explicit
+    // here avoids eye-camera log-depth mismatch in XR while preserving pass
+    // parity. Planet body/atmosphere shaders continue using three.js chunks.
     vertexShader: `
       #include <common>
 
@@ -1224,9 +1224,10 @@ function Photosphere({ radius, color, teff }: { radius: number; color: string; t
   //      pre-pass depth without z-fighting.
   // Same geometry on both passes (64 segs) so the depth values match
   // identically between pre-pass and color pass. Both materials now use
-  // logarithmic depth (the color shader has the chunks above; MeshBasic
-  // gets it automatically when the renderer flag is on), so no precision
-  // mismatch that would cause z-fighting.
+  // logarithmic depth (the color shader writes gl_FragDepth manually with
+  // the same formula as three.js log-depth chunks; MeshBasic gets log-depth
+  // automatically when the renderer flag is on), so no precision mismatch
+  // that would cause z-fighting.
   const depthOnlyMaterial = useMemo(
     () => new THREE.MeshBasicMaterial({
       colorWrite: false,

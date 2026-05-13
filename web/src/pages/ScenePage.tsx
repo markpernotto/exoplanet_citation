@@ -1651,6 +1651,7 @@ function Starfield({
       uCompWeights: { value: new THREE.Vector3(1.0, 0.6, 8.0) },
     },
     vertexShader: `
+      #include <common>
       varying vec3 vLocalDir;
       varying vec2 vUv2;
       void main() {
@@ -1660,6 +1661,7 @@ function Starfield({
       }
     `,
     fragmentShader: `
+      #include <common>
       precision highp float;
       uniform sampler2D uStarMap;
       uniform vec3 uObsGalKpc;

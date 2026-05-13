@@ -34,20 +34,17 @@ log = logging.getLogger(__name__)
 DEFAULT_WIDTH = 4096
 DEFAULT_HEIGHT = 2048
 
-# Apparent G-magnitude cutoff for rendering. We're between dark-site
-# naked-eye (~6) and binocular territory (~9). The viewer is conceptually
-# in deep space — no city light pollution, perfect dark adaptation —
-# so the expectation is "more stars than from Earth" without going so
-# deep we reproduce the polka-dot uniform-noise of the v0 +12 cutoff.
-#   mag 12 (v0): ~300k stars — noise
-#   mag 9.5    : ~80k stars  — still noise
-#   mag 6.5    : ~10k stars  — too sparse for an immersive view
-#   mag 8.0    : ~40k stars  — dense without being uniform
-DEFAULT_MAG_CUTOFF = 8.0
+# Apparent G-magnitude cutoff for rendering. Maxed near the catalog's
+# own limit (build_gaia_xyz default ~10). The aesthetic goal: pure
+# pinpoint stars filling the absence of light — no glow, no halos,
+# just many small colored dots. Density does the work.
+DEFAULT_MAG_CUTOFF = 10.0
 
-# Halo overlay for the brightest standouts. Mag 3 ≈ top 100 stars by
-# brightness (Sirius -1.4, Vega 0, Polaris 2, etc.).
-HALO_MAG_CUTOFF = 3.0
+# Halo overlay disabled. Setting cutoff below the realistic-bright
+# threshold (-2 ≈ Sun's brightness from very close) means no star
+# in the catalog ever triggers the halo path. The bright stars are
+# just bigger and brighter pinpoints, not blooming UI dots.
+HALO_MAG_CUTOFF = -10.0
 
 # Treat stars closer than this to the host as "the host itself" and drop
 # them. 0.001 pc is ~200 AU — beyond any reasonable planet's orbit.
@@ -159,11 +156,14 @@ def rasterize_skytexture(
     py_f = v * height
 
     # ── Per-star intensity from apparent magnitude ────────────────────────
-    # x^1.5 falloff sits between linear (uniform-feeling) and squared
-    # (eats the dim majority). Dim stars stay perceptible but the
-    # brightest ones clearly dominate the visual hierarchy.
+    # Exponent 0.75: literal midpoint between linear (^1.0) and sqrt (^0.5).
+    # Brightness comparison at apparent mag 7 (intensity_linear = 0.25):
+    #   ^1.5  : 0.107   — original "too dim"
+    #   ^1.0  : 0.250   — linear, dialed-back-by-half from sqrt
+    #   ^0.75 : 0.354   — this, midpoint between linear and sqrt
+    #   ^0.5  : 0.500   — sqrt, was "DRAMATIC"
     intensity_linear = np.clip(1.0 - apparent / mag_cutoff, 0.0, 1.0)
-    intensity = intensity_linear ** 1.5
+    intensity = intensity_linear ** 0.75
 
     # ── Color from bp_rp, scaled by intensity, no minimum floor ───────────
     rgb = bprp_to_rgb(bp_rp)                                  # (N, 3) in [0, 1]
@@ -184,12 +184,13 @@ def rasterize_skytexture(
     intensity_o = intensity[order]
     color_o = color_u8[order]
     for i in range(len(order)):
-        # 0.35 px (faintest visible) → 2.8 px (brightest core, before halo).
-        # 8x dynamic range across the visible stars gives obvious
-        # variation between "just a pinprick" and "definitely a star"
-        # — the old 0.5→1.8 range (3.6x) was too flat and read as a
-        # uniform field of small discs even with color variation.
-        radius = 0.35 + intensity_o[i] * 2.45
+        # All-tiny: 0.25 px (microscopic) → 0.85 px (brightest is still
+        # only ~1.5 px wide on screen after GPU filtering). Per user
+        # feedback: more stars + smaller dots reads as "deep space" more
+        # than fewer-bigger ones; halos are over-represented on stars
+        # that wouldn't realistically appear as anything but pinpoints
+        # to a human observer from light-years away.
+        radius = 0.25 + intensity_o[i] * 0.6
         x, y = float(px_f_o[i]), float(py_f_o[i])
         r = float(radius)
         c = (int(color_o[i, 0]), int(color_o[i, 1]), int(color_o[i, 2]))
@@ -207,16 +208,19 @@ def rasterize_skytexture(
         halo_intensity = intensity[halo_mask]
         halo_color = color_u8[halo_mask]
         for i in range(len(halo_px)):
-            halo_r = 3.0 + halo_intensity[i] * 6.0  # 3 px → 9 px
+            # Smaller, dimmer halos than before. Only ~15 stars get
+            # these; they're meant to be subtly-glowing standouts, not
+            # blooming UI dots.
+            halo_r = 2.0 + halo_intensity[i] * 3.0  # 2 px → 5 px
             x, y = float(halo_px[i]), float(halo_py[i])
             r = float(halo_r)
             c = (
-                int(halo_color[i, 0] * 0.45),
-                int(halo_color[i, 1] * 0.45),
-                int(halo_color[i, 2] * 0.45),
+                int(halo_color[i, 0] * 0.25),
+                int(halo_color[i, 1] * 0.25),
+                int(halo_color[i, 2] * 0.25),
             )
             halo_draw.ellipse([x - r, y - r, x + r, y + r], fill=c)
-        halo_layer = halo_layer.filter(ImageFilter.GaussianBlur(radius=2.5))
+        halo_layer = halo_layer.filter(ImageFilter.GaussianBlur(radius=2.0))
         pil_arr = np.asarray(pil, dtype=np.int16)
         halo_arr = np.asarray(halo_layer, dtype=np.int16)
         combined = np.clip(pil_arr + halo_arr, 0, 255).astype(np.uint8)

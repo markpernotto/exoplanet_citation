@@ -1669,7 +1669,18 @@ function Starfield({
       varying vec3 vLocalDir;
       varying vec2 vUv2;
 
-      float sech2(float x) { float c = cosh(x); return 1.0 / (c * c); }
+      // sech²(x) without cosh() — cosh is GLSL ES 3.00-only and the
+      // ShaderMaterial defaults to ES 1.00, so desktop ANGLE accepted it
+      // silently but Quest 3 multiview rejected it. Factored form is also
+      // overflow-safe at large |x| (relevant for high galactic latitudes
+      // where az/h_z reaches double digits along the integration path).
+      float sech2(float x) {
+        float ax = abs(x);
+        if (ax > 10.0) return 0.0;
+        float e = exp(-ax);
+        float d = 1.0 + e * e;
+        return 4.0 * e * e / (d * d);
+      }
 
       float densityAt(vec3 p_kpc) {
         float R  = length(p_kpc.xy);

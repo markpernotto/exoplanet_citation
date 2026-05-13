@@ -1074,7 +1074,6 @@ function spectralTypeToColor(spectype: string | null): string {
 // edge rather than a hard sharp circle.
 
 function Photosphere({ radius, color, teff }: { radius: number; color: string; teff: number | null }) {
-  const inXR = useXR((s) => s.session != null);
   // Opaque shader — must write depth properly so orbit lines and planets
   // behind the sun get occluded. The "soft edge" is achieved by the corona
   // (drawn additively over and around the photosphere edge), not by making
@@ -1121,42 +1120,43 @@ function Photosphere({ radius, color, teff }: { radius: number; color: string; t
       uColor: { value: saturated },
       uTime:  { value: 0 },
       uHdr:   { value: hdrScale },
+      uLogDepthBufFC: { value: 0 },
     },
-    // Opt into three.js's logarithmic depth buffer. The renderer is
-    // configured with logarithmicDepthBuffer=true (needed because our scene
-    // spans 0.001 AU planet bodies to 5000 AU starfield). MeshStandardMaterial
-    // and MeshBasicMaterial pick up log depth automatically; custom
-    // ShaderMaterial does NOT — it has to include the chunks below or its
-    // depth output won't match the rest of the scene. (That mismatch is what
-    // turned the photosphere into a black disc.)
-    defines: { USE_LOGDEPTHBUF: '' },
+    // Manual log-depth path for XR parity, scoped to Photosphere. This shader
+    // is custom and paired with a depth pre-pass; keeping depth math explicit
+    // here avoids eye-camera log-depth mismatch in XR while preserving pass
+    // parity. Planet body/atmosphere shaders continue using three.js chunks.
     vertexShader: `
       #include <common>
-      #include <logdepthbuf_pars_vertex>
 
       varying vec3 vNormal;
       varying vec3 vViewDir;
       varying vec3 vWorldPos;
+      varying float vFragDepth;
+      varying float vIsPerspective;
       void main() {
         vNormal = normalize(normalMatrix * normal);
         vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
         vViewDir = normalize(-mvPos.xyz);
         vWorldPos = position;
         gl_Position = projectionMatrix * mvPos;
-
-        #include <logdepthbuf_vertex>
+        vFragDepth = 1.0 + gl_Position.w;
+        vIsPerspective = float(isPerspectiveMatrix(projectionMatrix));
       }
     `,
     fragmentShader: `
       #include <common>
-      #include <logdepthbuf_pars_fragment>
 
       uniform vec3 uColor;
       uniform float uTime;
       uniform float uHdr;
+      uniform float uLogDepthBufFC;
       varying vec3 vNormal;
       varying vec3 vViewDir;
       varying vec3 vWorldPos;
+      varying float vFragDepth;
+      varying float vIsPerspective;
+      const float LOG_DEPTH_EPSILON = 1e-6;
 
       float hash(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
       float noise(vec3 p) {
@@ -1171,7 +1171,9 @@ function Photosphere({ radius, color, teff }: { radius: number; color: string; t
       }
 
       void main() {
-        #include <logdepthbuf_fragment>
+        gl_FragDepth = vIsPerspective == 0.0
+          ? gl_FragCoord.z
+          : log2(max(LOG_DEPTH_EPSILON, vFragDepth)) * uLogDepthBufFC * 0.5;
 
         // Granulation noise + aggressive limb darkening. The limb floor of
         // 0.15 (way past real-Sun ~0.4) is deliberately exaggerated so the
@@ -1203,6 +1205,12 @@ function Photosphere({ radius, color, teff }: { radius: number; color: string; t
 
   useFrame((state) => {
     material.uniforms.uTime.value = state.clock.getElapsedTime();
+    const xrCamera = state.gl.xr.getCamera();
+    const xrFar = (xrCamera.isArrayCamera ? xrCamera.cameras[0]?.far : undefined) ?? xrCamera.far;
+    const activeFar = state.gl.xr.isPresenting ? xrFar : state.camera.far;
+    const fallbackFar = Number.isFinite(state.camera.far) && state.camera.far > 0 ? state.camera.far : 1000;
+    const safeFar = Number.isFinite(activeFar) && activeFar > 0 ? activeFar : fallbackFar;
+    material.uniforms.uLogDepthBufFC.value = 2.0 / (Math.log(safeFar + 1.0) / Math.LN2);
   });
 
   // Two-pass rendering to GUARANTEE the sun occludes anything behind it:
@@ -1216,9 +1224,10 @@ function Photosphere({ radius, color, teff }: { radius: number; color: string; t
   //      pre-pass depth without z-fighting.
   // Same geometry on both passes (64 segs) so the depth values match
   // identically between pre-pass and color pass. Both materials now use
-  // logarithmic depth (the color shader has the chunks above; MeshBasic
-  // gets it automatically when the renderer flag is on), so no precision
-  // mismatch that would cause z-fighting.
+  // logarithmic depth (the color shader writes gl_FragDepth manually with
+  // the same formula as three.js log-depth chunks; MeshBasic gets log-depth
+  // automatically when the renderer flag is on), so no precision mismatch
+  // that would cause z-fighting.
   const depthOnlyMaterial = useMemo(
     () => new THREE.MeshBasicMaterial({
       colorWrite: false,
@@ -1227,24 +1236,6 @@ function Photosphere({ radius, color, teff }: { radius: number; color: string; t
     }),
     [],
   );
-  // VR fallback: the custom shader renders incorrectly in XR (most likely
-  // a log-depth uniform mismatch with per-eye projections), so we swap
-  // in a plain MeshBasicMaterial. Use the saturated color DIRECTLY — no
-  // HDR multiplier. On desktop the HDR boost (2-5×) exists so the bloom
-  // pass can catch the disc; in XR we disable the EffectComposer entirely
-  // (no bloom), so HDR has no benefit and just pushes the color through
-  // ACES highlight desaturation toward white. The saturated cool-star
-  // red survives ACES at 1× multiplier and reads as the same red the
-  // desktop view shows (where limb darkening keeps half the disc in
-  // saturated range anyway).
-  if (inXR) {
-    return (
-      <mesh>
-        <sphereGeometry args={[radius, 64, 64]} />
-        <meshBasicMaterial color={saturated} toneMapped={true} />
-      </mesh>
-    );
-  }
   return (
     <>
       <mesh material={depthOnlyMaterial} renderOrder={-100}>
@@ -1905,4 +1896,3 @@ function PlanetLabel({ name, subtitle }: { name: string; subtitle?: string }) {
     </Html>
   );
 }
-

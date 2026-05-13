@@ -159,12 +159,11 @@ def rasterize_skytexture(
     py_f = v * height
 
     # ── Per-star intensity from apparent magnitude ────────────────────────
-    # Linear falloff (not squared, not sqrt). Squared makes dim stars
-    # invisible — bad when most stars are dim. Sqrt makes everything
-    # equally bright — bad because then it's a uniform field. Linear is
-    # the middle: clear hierarchy but the dim majority still contributes
-    # visible (if subtle) points to the sky.
-    intensity = np.clip(1.0 - apparent / mag_cutoff, 0.0, 1.0)
+    # x^1.5 falloff sits between linear (uniform-feeling) and squared
+    # (eats the dim majority). Dim stars stay perceptible but the
+    # brightest ones clearly dominate the visual hierarchy.
+    intensity_linear = np.clip(1.0 - apparent / mag_cutoff, 0.0, 1.0)
+    intensity = intensity_linear ** 1.5
 
     # ── Color from bp_rp, scaled by intensity, no minimum floor ───────────
     rgb = bprp_to_rgb(bp_rp)                                  # (N, 3) in [0, 1]
@@ -185,10 +184,12 @@ def rasterize_skytexture(
     intensity_o = intensity[order]
     color_o = color_u8[order]
     for i in range(len(order)):
-        # 0.5 px (dim majority) → 1.8 px (brightest core, before halo).
-        # Sub-pixel radius matters: at 0.5 the disc spans ~1 px with
-        # anti-aliased edge; at 1.5+ the core is a visible 2-3 px blob.
-        radius = 0.5 + intensity_o[i] * 1.3
+        # 0.35 px (faintest visible) → 2.8 px (brightest core, before halo).
+        # 8x dynamic range across the visible stars gives obvious
+        # variation between "just a pinprick" and "definitely a star"
+        # — the old 0.5→1.8 range (3.6x) was too flat and read as a
+        # uniform field of small discs even with color variation.
+        radius = 0.35 + intensity_o[i] * 2.45
         x, y = float(px_f_o[i]), float(py_f_o[i])
         r = float(radius)
         c = (int(color_o[i, 0]), int(color_o[i, 1]), int(color_o[i, 2]))

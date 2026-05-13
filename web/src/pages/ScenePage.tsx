@@ -1387,6 +1387,7 @@ type StarBuffers = { positions: Float32Array; colors: Float32Array; sizes: Float
 
 function Starfield() {
   const [buffers, setBuffers] = useState<StarBuffers | null>(null);
+  const { scene } = useThree();
   const skydomeRef = useRef<THREE.Mesh>(null);
   useEffect(() => {
     let cancelled = false;
@@ -1457,8 +1458,17 @@ function Starfield() {
     }
     const tex = new THREE.CanvasTexture(canvas);
     tex.colorSpace = THREE.SRGBColorSpace;
+    // CRITICAL for XR: scene.background renders a Texture with default
+    // UVMapping as a screen-aligned 2D quad — which is what was producing
+    // the "stars locked to head direction" symptom on Quest. With
+    // EquirectangularReflectionMapping, three.js renders scene.background
+    // as a proper spherical environment, sampled by view direction per eye.
+    // (The skydome mesh below uses geometry UVs and is unaffected by this
+    // setting either way, but the scene.background fallback path needs it.)
+    tex.mapping = THREE.EquirectangularReflectionMapping;
     return tex;
   }, [buffers]);
+
 
   // Lock the skydome to the camera every frame. In XR, state.camera does
   // NOT necessarily reflect the headset's live pose — three.js maintains
@@ -1466,22 +1476,49 @@ function Starfield() {
   // and even then the camera's `.position` field can be stale (its world
   // transform is composed of parent + matrix updates). getWorldPosition()
   // decomposes the matrixWorld so we always get the correct world point.
+  //
+  // The quaternion.identity() call clamps the mesh's LOCAL rotation only.
+  // It does NOT compensate for parent transforms — if <Starfield />'s
+  // ancestor chain ever included a rotating group (e.g., it was mounted
+  // inside XROrigin and the user snap-turned), the skydome's world
+  // rotation would still rotate with the parent. Today the component is
+  // a direct child of <XR> with no rotating ancestors, so local-identity
+  // is sufficient. Revisit if the scene graph changes.
   useFrame((state) => {
     if (!skydomeRef.current) return;
     const xr = state.gl.xr;
     const cam = (xr && xr.isPresenting) ? xr.getCamera() : state.camera;
     cam.getWorldPosition(skydomeRef.current.position);
+    skydomeRef.current.quaternion.identity();
   });
 
-  // (scene.background path intentionally disabled. Earlier we ran both
-  // skydome AND scene.background as redundant render paths, but in VR
-  // the parallax wouldn't go away — strongly suggesting scene.background
-  // was being rendered at a fixed scene position rather than properly
-  // at-infinity by three.js's XR pipeline. Skydome-only avoids that.
-  // If you're reading this and want to re-enable: useEffect on `texture`
-  // setting scene.background = texture, with cleanup that restores the
-  // previous value. Removing the side effect is what made VR stars
-  // hold their position.)
+  // scene.background fallback + GPU texture lifecycle. Combined into one
+  // effect so the cleanup order is guaranteed: unassign first, dispose
+  // second. (Disposing a texture that's still bound to a render target
+  // asserts in three.js debug builds.)
+  //
+  // Why the fallback exists: scene.background renders in three.js's
+  // dedicated background pass BEFORE any scene meshes. The skydome mesh
+  // below renders afterward and overwrites the background wherever it
+  // draws. If the mesh fails to render for any reason (some XR pipelines
+  // silently drop large meshes), the background still shows so the user
+  // sees a proper sky instead of empty space. renderOrder:-1 and
+  // depthTest:false on the skydome control mesh-vs-mesh ordering, NOT
+  // mesh-vs-background ordering.
+  //
+  // Why disposal matters: the Canvas re-mounts on viewMode change (system
+  // ↔ surface) via key={viewMode} on the parent — a new CanvasTexture
+  // (~33MB at 4096×2048 RGB) allocates each mount. Without dispose, GPU
+  // memory leaks per toggle.
+  useEffect(() => {
+    if (!texture) return;
+    const previous = scene.background;
+    scene.background = texture;
+    return () => {
+      scene.background = previous;
+      texture.dispose();
+    };
+  }, [texture, scene]);
 
   if (!texture) return null;
 
@@ -1494,12 +1531,17 @@ function Starfield() {
   // because the XR session's actual depth-far is clamped well below the
   // 1e9 we requested via updateRenderState. Camera-follow eliminates the
   // parallax that 5000-radius would otherwise produce.
+  // side: DoubleSide rather than BackSide as a defensive choice — if
+  // anything in the XR rendering pipeline is silently culling our
+  // BackSide-only faces (some multiview implementations have quirks
+  // with face culling), DoubleSide guarantees the inside-facing surface
+  // renders regardless. Negligible perf cost for a single 64×32 sphere.
   return (
     <mesh ref={skydomeRef} frustumCulled={false} renderOrder={-1}>
       <sphereGeometry args={[STAR_SPHERE_AU, 64, 32]} />
       <meshBasicMaterial
         map={texture}
-        side={THREE.BackSide}
+        side={THREE.DoubleSide}
         toneMapped={false}
         depthWrite={false}
         depthTest={false}

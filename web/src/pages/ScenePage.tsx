@@ -1647,7 +1647,7 @@ function Starfield({
       uStarMap:     { value: null as THREE.Texture | null },
       uObsGalKpc:   { value: new THREE.Vector3(-SOL_X_KPC, -SOL_Y_KPC, -SOL_Z_KPC) },
       uWorldToGal:  { value: WORLD_TO_GAL_MAT3 },
-      uDiffuseGain: { value: 0.08 },
+      uDiffuseGain: { value: 50.0 },  // TEMP DIAGNOSTIC — was 0.08; revert after VR test
       uCompWeights: { value: new THREE.Vector3(1.0, 0.6, 8.0) },
     },
     vertexShader: `

@@ -34,18 +34,19 @@ log = logging.getLogger(__name__)
 DEFAULT_WIDTH = 4096
 DEFAULT_HEIGHT = 2048
 
-# Apparent G-magnitude cutoff for rendering. Naked-eye is mag 6 at a
-# perfect dark site; we cut at 6.5 for a "real night sky" feel rather
-# than a noise field. Each tighter step has visible payoff:
-#   mag 12 (v0): ~300k stars — uniform polka-dot noise
-#   mag 9.5    : ~80k stars  — still reads as noise
-#   mag 6.5    : ~10k stars  — looks like a sky
-DEFAULT_MAG_CUTOFF = 6.5
+# Apparent G-magnitude cutoff for rendering. We're between dark-site
+# naked-eye (~6) and binocular territory (~9). The viewer is conceptually
+# in deep space — no city light pollution, perfect dark adaptation —
+# so the expectation is "more stars than from Earth" without going so
+# deep we reproduce the polka-dot uniform-noise of the v0 +12 cutoff.
+#   mag 12 (v0): ~300k stars — noise
+#   mag 9.5    : ~80k stars  — still noise
+#   mag 6.5    : ~10k stars  — too sparse for an immersive view
+#   mag 8.0    : ~40k stars  — dense without being uniform
+DEFAULT_MAG_CUTOFF = 8.0
 
-# Below this magnitude, stars get an additional halo overlay — the
-# "naked-eye standouts" that give a sky visual variety against the dim
-# majority. Mag 3 corresponds roughly to the brightest ~100 stars in
-# the night sky (Sirius is -1, Vega is 0, Polaris is 2, etc.).
+# Halo overlay for the brightest standouts. Mag 3 ≈ top 100 stars by
+# brightness (Sirius -1.4, Vega 0, Polaris 2, etc.).
 HALO_MAG_CUTOFF = 3.0
 
 # Treat stars closer than this to the host as "the host itself" and drop
@@ -158,33 +159,40 @@ def rasterize_skytexture(
     py_f = v * height
 
     # ── Per-star intensity from apparent magnitude ────────────────────────
-    # Brightest stars saturate; dimmest fade toward black. Squared
-    # falloff (not sqrt) is correct: a real magnitude scale is
-    # logarithmic, so an apparent-mag-6 star truly is ~100x dimmer to
-    # the eye than an apparent-mag-1 star. We want most stars on screen
-    # to be barely visible "background" with a small population of
-    # bright standouts, not a uniformly-lit field.
-    intensity_linear = np.clip(1.0 - apparent / mag_cutoff, 0.0, 1.0)
-    intensity = intensity_linear * intensity_linear
+    # Linear falloff (not squared, not sqrt). Squared makes dim stars
+    # invisible — bad when most stars are dim. Sqrt makes everything
+    # equally bright — bad because then it's a uniform field. Linear is
+    # the middle: clear hierarchy but the dim majority still contributes
+    # visible (if subtle) points to the sky.
+    intensity = np.clip(1.0 - apparent / mag_cutoff, 0.0, 1.0)
 
     # ── Color from bp_rp, scaled by intensity, no minimum floor ───────────
-    # No floor: dim stars truly fade toward black. The whole point of
-    # the visual is that the brightest few stand out.
     rgb = bprp_to_rgb(bp_rp)                                  # (N, 3) in [0, 1]
     color_u8 = (rgb * intensity[:, None] * 255).clip(0, 255).astype(np.uint8)
 
-    # ── Rasterize: single-pixel writes per star, no global blur ───────────
-    # Why no blur: the GPU's linear texture filtering on the frontend
-    # already spreads each texture pixel across a few screen pixels.
-    # Pre-blurring on the CPU compounded that into chunky 4-5 px blobs.
-    # Keep the texture sharp; let the GPU's bilinear interpolation
-    # produce the soft anti-aliased points.
-    px_i = np.clip(px_f.astype(np.int32), 0, width - 1)
-    py_i = np.clip(py_f.astype(np.int32), 0, height - 1)
-    img_arr = np.zeros((height, width, 3), dtype=np.uint8)
-    order = np.argsort(intensity)         # ascending → brightest written last
-    img_arr[py_i[order], px_i[order]] = color_u8[order]
-    pil = Image.fromarray(img_arr, mode="RGB")
+    # ── Rasterize: anti-aliased ellipse per star ──────────────────────────
+    # PIL's ellipse fill at fractional coords gives sub-pixel anti-
+    # aliasing for free — single-pixel writes look chunky on screen
+    # because of GPU bilinear magnification, but a 0.6 px disc with
+    # fractional center anti-aliases to a soft 2-pixel blob, exactly
+    # what reads as "a star" on display. Brighter stars get bigger
+    # discs proportional to intensity.
+    pil = Image.new("RGB", (width, height), (0, 0, 0))
+    draw = ImageDraw.Draw(pil)
+    order = np.argsort(intensity)         # ascending → brightest drawn last
+    px_f_o = px_f[order]
+    py_f_o = py_f[order]
+    intensity_o = intensity[order]
+    color_o = color_u8[order]
+    for i in range(len(order)):
+        # 0.5 px (dim majority) → 1.8 px (brightest core, before halo).
+        # Sub-pixel radius matters: at 0.5 the disc spans ~1 px with
+        # anti-aliased edge; at 1.5+ the core is a visible 2-3 px blob.
+        radius = 0.5 + intensity_o[i] * 1.3
+        x, y = float(px_f_o[i]), float(py_f_o[i])
+        r = float(radius)
+        c = (int(color_o[i, 0]), int(color_o[i, 1]), int(color_o[i, 2]))
+        draw.ellipse([x - r, y - r, x + r, y + r], fill=c)
 
     # ── Halo overlay for naked-eye-bright stars ───────────────────────────
     # The brightest few hundred get a soft radial halo drawn on top.

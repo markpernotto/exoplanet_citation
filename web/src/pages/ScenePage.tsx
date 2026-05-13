@@ -1156,6 +1156,7 @@ function Photosphere({ radius, color, teff }: { radius: number; color: string; t
       varying vec3 vWorldPos;
       varying float vFragDepth;
       varying float vIsPerspective;
+      const float LOG_DEPTH_EPSILON = 1e-6;
 
       float hash(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
       float noise(vec3 p) {
@@ -1172,7 +1173,7 @@ function Photosphere({ radius, color, teff }: { radius: number; color: string; t
       void main() {
         gl_FragDepth = vIsPerspective == 0.0
           ? gl_FragCoord.z
-          : log2(max(1e-6, vFragDepth)) * uLogDepthBufFC * 0.5;
+          : log2(max(LOG_DEPTH_EPSILON, vFragDepth)) * uLogDepthBufFC * 0.5;
 
         // Granulation noise + aggressive limb darkening. The limb floor of
         // 0.15 (way past real-Sun ~0.4) is deliberately exaggerated so the
@@ -1205,9 +1206,10 @@ function Photosphere({ radius, color, teff }: { radius: number; color: string; t
   useFrame((state) => {
     material.uniforms.uTime.value = state.clock.getElapsedTime();
     const xrCamera = state.gl.xr.getCamera();
-    const xrSubCameraFar = (xrCamera as THREE.ArrayCamera).cameras?.[0]?.far;
-    const far = state.gl.xr.isPresenting ? (xrSubCameraFar ?? xrCamera.far) : state.camera.far;
-    const safeFar = Number.isFinite(far) && far > 0 ? far : state.camera.far;
+    const xrFar = (xrCamera.isArrayCamera ? xrCamera.cameras[0]?.far : undefined) ?? xrCamera.far;
+    const activeFar = state.gl.xr.isPresenting ? xrFar : state.camera.far;
+    const fallbackFar = Number.isFinite(state.camera.far) && state.camera.far > 0 ? state.camera.far : 1000;
+    const safeFar = Number.isFinite(activeFar) && activeFar > 0 ? activeFar : fallbackFar;
     material.uniforms.uLogDepthBufFC.value = 2.0 / (Math.log(safeFar + 1.0) / Math.LN2);
   });
 

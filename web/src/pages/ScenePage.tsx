@@ -1488,13 +1488,16 @@ function Starfield() {
 
   // Method A: explicit skydome mesh, camera-following. depthTest:false
   // means it always draws first as background; depthWrite:false keeps
-  // it from occluding planets, sun, etc. The radius (relative to camera)
-  // doesn't matter much because we're following the camera anyway — but
-  // we keep it large so it stays well past the far-plane of any logical
-  // content even if camera-follow misses one frame.
+  // it from occluding planets, sun, etc.
+  // Radius is dramatically larger than STAR_SPHERE_AU (1e6 instead of
+  // 5000) precisely because the camera-follow has shown itself unreliable
+  // in XR — at this radius even if the follow drifts by 100m, the
+  // resulting parallax is 0.006° (below human detection). Visually
+  // identical because angular size of the texture is independent of
+  // sphere radius. Safe at our XR depthFar of 1e9.
   return (
     <mesh ref={skydomeRef} frustumCulled={false} renderOrder={-1}>
-      <sphereGeometry args={[STAR_SPHERE_AU, 64, 32]} />
+      <sphereGeometry args={[1_000_000, 64, 32]} />
       <meshBasicMaterial
         map={texture}
         side={THREE.BackSide}

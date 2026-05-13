@@ -241,7 +241,54 @@ The photosphere renders in two passes:
   only depth, ensures planets behind the sun are culled before drawing.
 - **Color pass** at `renderOrder=10` — the visible shader output.
 
-### Bloom (post-processing)
+### Geometric corona (`StellarCorona`)
+
+A camera-facing billboard (PlaneGeometry, `AdditiveBlending`, `depthWrite=false`)
+rendered at `renderOrder=20` — after the photosphere colour pass and before any
+transparent overlay.  This is the primary source of the star's visible "glow"
+halo in both desktop **and** stereo XR.
+
+**Why geometry instead of post-processing:**
+The `<Bloom>` pass (see below) is skipped in XR because `EffectComposer`
+renders to a single 2D framebuffer and black-screens stereo.  The geometric
+corona is ordinary scene geometry and works identically in both paths.  On
+desktop, Bloom composites on top — the two effects are complementary.
+
+**Billboard orientation:**
+Each frame, `meshRef.current.quaternion.copy(state.camera.quaternion)`.  In
+XR, `state.camera` is the parent `ArrayCamera` (head pose), so one quaternion
+copy correctly faces both the left and right eyes.
+
+**Size:** billboard half-extent = `3.5 × photosphere radius`.  In shader UV
+space `r = 1` equals that half-extent; the photosphere occupies `r ≈ 0–0.286`.
+
+**Radial alpha profile (GLSL):**
+```glsl
+float inner = smoothstep(0.0, 0.25, r);        // fade in from centre
+float outer = 1.0 - smoothstep(0.40, 1.0, r);  // halo tail decay
+float alpha  = inner * outer;
+```
+Peak at `r ≈ 0.25–0.40` (just outside the photosphere edge), smooth tail to
+zero at `r = 1.0`.  The centre (`r < 0.25`) fades to transparent; the opaque
+photosphere sphere covers that region anyway.
+
+**Color / intensity:**
+Uniforms `uColor` and `uHdr` mirror the photosphere's saturated colour and
+`hdrScale` so cool M-dwarfs get a deep-red halo and hot O/B stars get a
+blinding white one — matching the Stefan-Boltzmann-inspired scaling at
+`Photosphere` line ~1188 in `ScenePage.tsx`.
+
+**Binary systems:**
+`BinaryPhotospheres` calls `Photosphere` twice (once per star), so each
+photosphere automatically includes its own `StellarCorona`.  No extra wiring
+needed.
+
+**z-fighting avoidance:**
+`depthWrite=false` ensures the corona never interferes with the photosphere
+depth pre-pass at `renderOrder=-100`.  `depthTest=true` means the corona is
+correctly occluded by planets in front of the star.
+
+### Bloom (post-processing, desktop only)
 
 Bloom is configured for "stellar corona" — the wide soft halo around
 each photosphere that gives stars visual presence. Tuned config:
@@ -254,6 +301,10 @@ each photosphere that gives stars visual presence. Tuned config:
   (including the limb-darkened edge ~0.5 luminance for cool stars,
   much higher for hot stars).
 - `intensity={1.7}` + `radius={0.9}` — the wide intense corona look.
+
+**Skipped in XR:** `PostProcessing` returns `null` when an XR session is
+active (`useXR(s => s.session != null)`).  The `StellarCorona` geometric
+billboard fills the glow gap in VR.
 
 **Side effect:** companion stars (rendered via `meshBasicMaterial` with
 `toneMapped:false`) and very-bright sunlit planets can also clear the

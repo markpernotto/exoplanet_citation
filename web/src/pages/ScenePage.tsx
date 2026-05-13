@@ -974,14 +974,17 @@ function SceneContents({
 
   return (
     <>
-      {/* Host star: photosphere sphere + animated billboard glow.
-          The glow is a camera-facing plane with a custom radial-gradient
-          shader — smooth multi-stop falloff (core, corona, halo) plus
-          time-driven rim flicker for "boiling" stellar edge animation. */}
+      {/* Host star: photosphere sphere + geometric corona billboard.
+          The corona is a StellarCorona camera-facing plane with a custom
+          radial-gradient shader (AdditiveBlending, depthWrite=false) that
+          works in both desktop and stereo XR — unlike the post-process Bloom
+          pass which is skipped in XR because EffectComposer renders to a
+          single 2D framebuffer and black-screens stereo. Desktop gets Bloom
+          layered on top as well; the additive corona doesn't fight bloom. */}
       {/* Photosphere(s). For circumbinary planets (cb_flag=1) the planet
           orbits a tight binary pair, so we render TWO suns rotating around
-          their common barycenter at the origin. For everything else, one
-          sun at origin. Bloom handles the glow for both cases the same way. */}
+          their common barycenter at the origin. Each Photosphere includes
+          its own StellarCorona so both stars in a binary get a halo. */}
       {planet.cb_flag === 1
         ? <BinaryPhotospheres radius={sunRadius} color={sun_color_hex} teff={planet.st_teff} paused={paused} speed={speed} />
         : <Photosphere radius={sunRadius} color={sun_color_hex} teff={planet.st_teff} />
@@ -1325,7 +1328,101 @@ function Photosphere({ radius, color, teff }: { radius: number; color: string; t
       <mesh material={material} renderOrder={10}>
         <sphereGeometry args={[radius, 64, 64]} />
       </mesh>
+      <StellarCorona radius={radius} color={saturated} hdrScale={hdrScale} />
     </>
+  );
+}
+
+// ── geometric corona / star halo ─────────────────────────────────────────
+// Camera-facing billboard rendered with AdditiveBlending.  Works in stereo
+// XR because it is ordinary scene geometry — no post-process compositor
+// needed.  On desktop the Bloom pass adds more glow on top; the two are
+// complementary (Bloom amplifies the bright centre, corona provides the
+// wide soft halo that Bloom would otherwise supply on its own).
+//
+// Size: billboard half-extent = 3.5 × photosphere radius so the halo
+// extends well beyond the disc.  In shader UV space r = 1 corresponds to
+// that half-extent, meaning the photosphere occupies r ≈ 0 – 0.286.
+//
+// Radial profile (alpha):
+//   r < 0.25   — fade in from centre (photosphere covers this region)
+//   r ≈ 0.25–0.40 — corona peak just outside photosphere edge
+//   r > 0.40   — smooth halo decay, reaches 0 at r = 1.0
+//
+// renderOrder=20 — draws after the photosphere colour pass (renderOrder=10)
+// so the transparent additive layer composites correctly on top.
+function StellarCorona({
+  radius, color, hdrScale,
+}: {
+  radius: number; color: THREE.Color; hdrScale: number;
+}) {
+  const meshRef = useRef<THREE.Mesh>(null);
+  // Billboard half-extent: corona extends to 3.5× the photosphere radius.
+  const billboardHalf = radius * 3.5;
+
+  const material = useMemo(() => new THREE.ShaderMaterial({
+    uniforms: {
+      uColor: { value: color.clone() },
+      uHdr:   { value: hdrScale },
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3  uColor;
+      uniform float uHdr;
+      varying vec2  vUv;
+
+      void main() {
+        // Signed distance from billboard centre, normalised so r = 1 at edge.
+        vec2  c = vUv * 2.0 - 1.0;
+        float r = length(c);
+        if (r > 1.0) discard;
+
+        // Multi-stop radial profile:
+        //   r = 0       → fade-in begins (photosphere sphere covers this region)
+        //   r ≈ 0.25    → corona onset, alpha reaches 1.0
+        //   r ≈ 0.25–0.40 → broad peak zone (inner corona)
+        //   r > 0.40    → smooth halo tail decaying to 0 at r = 1.0
+        float inner = smoothstep(0.0, 0.25, r);
+        float outer = 1.0 - smoothstep(0.40, 1.0, r);
+        float alpha  = inner * outer;
+
+        // Additive: bright fragments add light to whatever is behind them.
+        // uHdr mirrors the photosphere's HDR multiplier so cool stars get a
+        // rich deep-red halo and hot stars get a blinding white one.
+        gl_FragColor = vec4(uColor * uHdr * alpha, alpha);
+      }
+    `,
+    blending:    THREE.AdditiveBlending,
+    depthWrite:  false,
+    depthTest:   true,
+    transparent: true,
+    side:        THREE.DoubleSide,
+  // Depend on colour channels because the THREE.Color object reference
+  // is recreated each render but the channel values only change when the
+  // star changes.  hdrScale captures the temperature-driven brightness.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [color.r, color.g, color.b, hdrScale]);
+
+  // Orient the billboard to face the camera every frame.  In XR,
+  // state.camera is the parent ArrayCamera (head pose quaternion), so a
+  // single quaternion copy correctly faces both the left and right eye
+  // without separate per-eye updates.
+  useFrame((state) => {
+    if (meshRef.current) {
+      meshRef.current.quaternion.copy(state.camera.quaternion);
+    }
+  });
+
+  return (
+    <mesh ref={meshRef} renderOrder={20} material={material}>
+      <planeGeometry args={[billboardHalf * 2, billboardHalf * 2]} />
+    </mesh>
   );
 }
 

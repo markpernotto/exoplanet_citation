@@ -24,7 +24,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFilter
 
 log = logging.getLogger(__name__)
 
@@ -34,10 +34,15 @@ log = logging.getLogger(__name__)
 DEFAULT_WIDTH = 4096
 DEFAULT_HEIGHT = 2048
 
-# Apparent G-magnitude cutoff for rendering. Naked-eye is ~+6; deep-sky
-# astrophotography reaches +12-14. We use 12 so the Milky Way's dense
-# regions are reasonably populated without making every pixel a star.
-DEFAULT_MAG_CUTOFF = 12.0
+# Apparent G-magnitude cutoff for rendering. Naked-eye is ~+6; we go a
+# little deeper for visual density without making every texture pixel
+# a star (the v0 cutoff of +12 produced a uniform polka-dot field).
+DEFAULT_MAG_CUTOFF = 9.5
+
+# Below this magnitude, stars get an additional halo overlay drawn as
+# a soft radial gradient — the "naked-eye standouts" that give a sky
+# visual variety against the dim majority.
+HALO_MAG_CUTOFF = 4.0
 
 # Treat stars closer than this to the host as "the host itself" and drop
 # them. 0.001 pc is ~200 AU — beyond any reasonable planet's orbit.
@@ -142,11 +147,11 @@ def rasterize_skytexture(
     ra = np.arctan2(dy * inv_d, dx * inv_d)                  # [-π, π]
     dec = np.arcsin(np.clip(dz * inv_d, -1.0, 1.0))          # [-π/2, π/2]
 
-    # ── Equirectangular UV → pixel coordinates ────────────────────────────
+    # ── Equirectangular UV → FLOAT pixel coordinates (sub-pixel) ──────────
     u = (ra + np.pi) / (2.0 * np.pi)
     v = 1.0 - (dec + np.pi / 2.0) / np.pi
-    px = np.clip((u * width).astype(np.int32), 0, width - 1)
-    py = np.clip((v * height).astype(np.int32), 0, height - 1)
+    px_f = u * width
+    py_f = v * height
 
     # ── Per-star intensity from apparent magnitude ────────────────────────
     # Brightest stars saturate; dimmest fade toward black. sqrt(linear)
@@ -157,16 +162,66 @@ def rasterize_skytexture(
 
     # ── Color from bp_rp ──────────────────────────────────────────────────
     rgb = bprp_to_rgb(bp_rp)                                  # (N, 3) in [0, 1]
-    pixel_color = (rgb * intensity[:, None] * 255).clip(0, 255).astype(np.uint8)
+    # 8-bit RGB scaled by per-star intensity. Floor at 8 (vs 0) so even
+    # the dimmest visible stars produce a perceptible pixel after PIL's
+    # anti-aliased disc fill spreads the value over 1-4 pixels.
+    color_u8 = np.clip(rgb * intensity[:, None] * 255, 8, 255).astype(np.uint8)
 
-    # ── Rasterize: paint each star at its pixel coord ─────────────────────
-    # When multiple stars project to the same pixel (common in dense regions
-    # like the galactic plane), the brighter one wins by drawing last.
-    img = np.zeros((height, width, 3), dtype=np.uint8)
-    order = np.argsort(intensity)         # ascending → brightest written last
-    img[py[order], px[order]] = pixel_color[order]
+    # ── Render: PIL ellipse per star at fractional coords ─────────────────
+    # Each star draws as a tiny anti-aliased disc instead of a single
+    # texel write. This is the fix for the "polka-dot field" look the
+    # numpy-direct version produced: at radius ≈0.6 the dim majority
+    # render as soft single-pixel-ish dots; brighter stars get bigger
+    # discs proportional to intensity. PIL's ellipse fill is sub-pixel
+    # anti-aliased natively.
+    pil = Image.new("RGB", (width, height), (0, 0, 0))
+    draw = ImageDraw.Draw(pil)
+    # Sort by intensity so brighter stars draw last and visually dominate.
+    order = np.argsort(intensity)
+    px_f_o = px_f[order]
+    py_f_o = py_f[order]
+    intensity_o = intensity[order]
+    color_o = color_u8[order]
+    for i in range(len(order)):
+        radius = 0.4 + intensity_o[i] * 0.9         # 0.4 px (dim) → 1.3 px (bright)
+        x, y = float(px_f_o[i]), float(py_f_o[i])
+        r = float(radius)
+        c = (int(color_o[i, 0]), int(color_o[i, 1]), int(color_o[i, 2]))
+        draw.ellipse([x - r, y - r, x + r, y + r], fill=c)
 
-    return Image.fromarray(img, mode="RGB")
+    # ── Halo overlay for naked-eye-bright stars ───────────────────────────
+    # The brightest few hundred get a soft radial gradient on top of their
+    # pinpoint core. Drawn as a separate layer with additive blend so it
+    # adds glow without saturating the core color. Gives the sky visual
+    # standouts instead of uniform points everywhere.
+    halo_mask = apparent < HALO_MAG_CUTOFF
+    if halo_mask.any():
+        halo_layer = Image.new("RGB", (width, height), (0, 0, 0))
+        halo_draw = ImageDraw.Draw(halo_layer)
+        halo_px = px_f[halo_mask]
+        halo_py = py_f[halo_mask]
+        halo_intensity = intensity[halo_mask]
+        halo_color = color_u8[halo_mask]
+        for i in range(len(halo_px)):
+            halo_r = 2.0 + halo_intensity[i] * 4.0  # 2 px (just-bright) → 6 px (Sirius)
+            x, y = float(halo_px[i]), float(halo_py[i])
+            r = float(halo_r)
+            # Dimmer than the core color so the halo reads as a soft glow.
+            c = (
+                int(halo_color[i, 0] * 0.35),
+                int(halo_color[i, 1] * 0.35),
+                int(halo_color[i, 2] * 0.35),
+            )
+            halo_draw.ellipse([x - r, y - r, x + r, y + r], fill=c)
+        # Blur the halos so they're soft glows, not hard discs.
+        halo_layer = halo_layer.filter(ImageFilter.GaussianBlur(radius=1.5))
+        # Additive composite onto the star canvas.
+        pil_arr = np.asarray(pil, dtype=np.int16)
+        halo_arr = np.asarray(halo_layer, dtype=np.int16)
+        combined = np.clip(pil_arr + halo_arr, 0, 255).astype(np.uint8)
+        pil = Image.fromarray(combined, mode="RGB")
+
+    return pil
 
 
 def render_png(

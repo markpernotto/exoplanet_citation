@@ -42,7 +42,7 @@ def test_bprp_handles_empty():
 
 # ── geometry: a star at known direction lands at the right pixel ──────────
 
-def _single_star_catalog(x, y, z, abs_mag=5.0, bp_rp=0.8) -> pd.DataFrame:
+def _single_star_catalog(x, y, z, abs_mag=2.0, bp_rp=0.8) -> pd.DataFrame:
     return pd.DataFrame({
         "x_pc": [x],
         "y_pc": [y],
@@ -58,6 +58,18 @@ def _single_star_catalog(x, y, z, abs_mag=5.0, bp_rp=0.8) -> pd.DataFrame:
     })
 
 
+def _brightest_pixel(arr: np.ndarray) -> tuple[int, int]:
+    """Return (py, px) of the pixel with the highest RGB sum.
+
+    Stars are now drawn as anti-aliased discs spanning ~4 pixels each
+    (plus optional halo overlay for bright stars), so we can't just
+    look for "the one lit pixel" — we find the brightest one.
+    """
+    luminance = arr.sum(axis=2)
+    py, px = np.unravel_index(int(luminance.argmax()), luminance.shape)
+    return int(py), int(px)
+
+
 def test_star_at_ra0_dec0_lands_at_left_edge():
     """A star at RA=0, Dec=0 maps to u=0.5 (center horizontal), v=0.5
     (equator).
@@ -67,11 +79,7 @@ def test_star_at_ra0_dec0_lands_at_left_edge():
     """
     catalog = _single_star_catalog(x=100.0, y=0.0, z=0.0)
     img = rasterize_skytexture(catalog, host_xyz_pc=(0.0, 0.0, 0.0))
-    arr = np.array(img)
-    # Find the lit pixel.
-    lit = np.where(arr.sum(axis=2) > 0)
-    assert len(lit[0]) == 1
-    py, px = lit[0][0], lit[1][0]
+    py, px = _brightest_pixel(np.array(img))
     assert px == pytest.approx(DEFAULT_WIDTH // 2, abs=1)
     assert py == pytest.approx(DEFAULT_HEIGHT // 2, abs=1)
 
@@ -80,22 +88,16 @@ def test_star_at_dec_plus_90_lands_at_top():
     """North celestial pole → top of texture (v=0)."""
     catalog = _single_star_catalog(x=0.0, y=0.0, z=100.0)
     img = rasterize_skytexture(catalog, host_xyz_pc=(0.0, 0.0, 0.0))
-    arr = np.array(img)
-    lit = np.where(arr.sum(axis=2) > 0)
-    assert len(lit[0]) == 1
-    py = lit[0][0]
-    assert py == 0   # very top row
+    py, _ = _brightest_pixel(np.array(img))
+    assert py == pytest.approx(0, abs=1)   # very top row (allow 1px for disc spread)
 
 
 def test_star_at_dec_minus_90_lands_at_bottom():
     """South celestial pole → bottom of texture (v=1)."""
     catalog = _single_star_catalog(x=0.0, y=0.0, z=-100.0)
     img = rasterize_skytexture(catalog, host_xyz_pc=(0.0, 0.0, 0.0))
-    arr = np.array(img)
-    lit = np.where(arr.sum(axis=2) > 0)
-    assert len(lit[0]) == 1
-    py = lit[0][0]
-    assert py == DEFAULT_HEIGHT - 1   # very bottom row
+    py, _ = _brightest_pixel(np.array(img))
+    assert py == pytest.approx(DEFAULT_HEIGHT - 1, abs=1)   # very bottom row
 
 
 # ── per-vantage reprojection: a star looks different from a different host ─
@@ -104,20 +106,16 @@ def test_same_star_different_vantage_lands_at_different_pixel():
     """Move the host; the star should land in a different direction.
 
     Star at (100, 0, 0). From Sol (0,0,0): direction is +X (RA=0, Dec=0).
-    From a host at (50, 0, 0): direction is also +X but distance is half.
     From a host at (0, 100, 0): direction is now (100, -100, 0) — angle
-    has changed substantially.
+    has changed substantially → different texture pixel.
     """
     catalog = _single_star_catalog(x=100.0, y=0.0, z=0.0)
     img_sol = rasterize_skytexture(catalog, host_xyz_pc=(0.0, 0.0, 0.0))
     img_host = rasterize_skytexture(catalog, host_xyz_pc=(0.0, 100.0, 0.0))
-    sol_lit = np.where(np.array(img_sol).sum(axis=2) > 0)
-    host_lit = np.where(np.array(img_host).sum(axis=2) > 0)
-    assert len(sol_lit[0]) == 1
-    assert len(host_lit[0]) == 1
-    # Pixel position must differ — the star is in a different direction
-    # from the new vantage.
-    assert (sol_lit[0][0], sol_lit[1][0]) != (host_lit[0][0], host_lit[1][0])
+    sol_brightest = _brightest_pixel(np.array(img_sol))
+    host_brightest = _brightest_pixel(np.array(img_host))
+    # Brightest pixel from the two vantages should land in DIFFERENT places.
+    assert sol_brightest != host_brightest
 
 
 # ── apparent magnitude cutoff ──────────────────────────────────────────────
@@ -189,9 +187,8 @@ def test_red_star_pixel_is_red():
     catalog = _single_star_catalog(x=10.0, y=0.0, z=0.0, abs_mag=2.0, bp_rp=2.0)
     img = rasterize_skytexture(catalog, host_xyz_pc=(0.0, 0.0, 0.0))
     arr = np.array(img)
-    lit_py, lit_px = np.where(arr.sum(axis=2) > 0)
-    assert len(lit_py) == 1
-    r, g, b = arr[lit_py[0], lit_px[0]]
+    py, px = _brightest_pixel(arr)
+    r, g, b = arr[py, px]
     assert r > g > b   # M-dwarf: red dominates
 
 
@@ -200,29 +197,27 @@ def test_blue_star_pixel_is_blue():
     catalog = _single_star_catalog(x=10.0, y=0.0, z=0.0, abs_mag=2.0, bp_rp=-0.3)
     img = rasterize_skytexture(catalog, host_xyz_pc=(0.0, 0.0, 0.0))
     arr = np.array(img)
-    lit_py, lit_px = np.where(arr.sum(axis=2) > 0)
-    assert len(lit_py) == 1
-    r, g, b = arr[lit_py[0], lit_px[0]]
+    py, px = _brightest_pixel(arr)
+    r, g, b = arr[py, px]
     assert b > r   # O/B: blue dominates
 
 
 # ── distance modulus integration ───────────────────────────────────────────
 
 def test_apparent_mag_formula_matches_distance_modulus():
-    """Spot-check: same star, observed from 10 pc vs 100 pc.
+    """Spot-check: same star, observed from 10 pc vs 30 pc.
 
-    At 10 pc, apparent mag = absolute mag (by definition).
-    At 100 pc, apparent mag = absolute mag + 5.
-    With abs_mag = 5, at 10 pc the star is visible (m=5 < 12);
-    at 100 pc it's still visible (m=10 < 12). Both render.
+    At 10 pc, m = M (by definition).
+    At 30 pc, m = M + 5*log10(3) ≈ M + 2.4.
+    With abs_mag = 3, near apparent ≈ 3, far apparent ≈ 5.4 — both
+    well under the 9.5 cutoff. Near should render brighter than far.
     """
-    catalog_near = _single_star_catalog(x=10.0, y=0.0, z=0.0, abs_mag=5.0)
-    catalog_far = _single_star_catalog(x=100.0, y=0.0, z=0.0, abs_mag=5.0)
+    catalog_near = _single_star_catalog(x=10.0, y=0.0, z=0.0, abs_mag=3.0)
+    catalog_far = _single_star_catalog(x=30.0, y=0.0, z=0.0, abs_mag=3.0)
     near_img = rasterize_skytexture(catalog_near, host_xyz_pc=(0.0, 0.0, 0.0))
     far_img = rasterize_skytexture(catalog_far, host_xyz_pc=(0.0, 0.0, 0.0))
     near_brightness = np.array(near_img).sum()
     far_brightness = np.array(far_img).sum()
-    # Both render, but near is brighter.
     assert near_brightness > 0
     assert far_brightness > 0
     assert near_brightness > far_brightness

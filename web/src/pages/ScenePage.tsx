@@ -1473,28 +1473,6 @@ const SOL_X_KPC = 8.122;
 const SOL_Y_KPC = 0.0;
 const SOL_Z_KPC = 0.025;
 
-// World (three.js scene) → galactic frame, precomputed once.
-// Skydome conventions (see Phase 4 design notes): the equirectangular star
-// PNG uses u=(ra+π)/(2π), v=1-(dec+π/2)/π, and three.js sphereGeometry's
-// default UVs place u=0 at local -X, v=0 at local +Y. Cross-referencing
-// gives an implicit world→ICRS mapping: world +X = ICRS +X, world +Y =
-// ICRS +Z (NGP), world +Z = ICRS -Y. Then ICRS → galactic via _GAL_TO_ICRS
-// transposed (column-vector convention). Pure rotation, no translation.
-const WORLD_TO_GAL_MAT3 = (() => {
-  const W2I = new THREE.Matrix3().set(
-    1, 0,  0,
-    0, 0, -1,
-    0, 1,  0,
-  );
-  const M = GAL_TO_ICRS_ROWS;
-  const I2G = new THREE.Matrix3().set(
-    M[0][0], M[1][0], M[2][0],
-    M[0][1], M[1][1], M[2][1],
-    M[0][2], M[1][2], M[2][2],
-  );
-  return new THREE.Matrix3().multiplyMatrices(I2G, W2I);
-})();
-
 // Heliocentric ICRS RA/Dec/distance → host's galactocentric galactic kpc.
 // Mirrors api/host_xyz.py::equatorial_to_xyz_pc plus the inverse of
 // etl/build_galactic_particles.py::galactocentric_to_heliocentric_icrs.
@@ -1642,7 +1620,6 @@ function Starfield({
   //                    let the disk dominate even toward Sgr A*.
   const uniformsRef = useRef({
     uObsGalKpc:   { value: new THREE.Vector3(-SOL_X_KPC, -SOL_Y_KPC, -SOL_Z_KPC) },
-    uWorldToGal:  { value: WORLD_TO_GAL_MAT3 },
     uDiffuseGain: { value: 0.08 },
     uCompWeights: { value: new THREE.Vector3(1.0, 0.6, 8.0) },
   });
@@ -1650,6 +1627,16 @@ function Starfield({
   // Material is recreated when texture changes — needed because map is set
   // at construction so the USE_MAP define is correct on first compile,
   // which means onBeforeCompile sees the right base chunks to splice into.
+  //
+  // Direction-from-UV trick: instead of adding a custom `varying vec3 vLocalDir`
+  // (which appears to silently break the @react-three/xr multiview pipeline
+  // — the entire mesh stops rendering on Quest 3 when a custom varying is
+  // declared via onBeforeCompile, even though desktop is fine), we derive
+  // the line-of-sight direction inside the fragment from the built-in
+  // `vMapUv` varying that map_fragment already wires up. Conversion matches
+  // api/starfield.py's PNG layout (u=(ra+π)/(2π), v=1-(dec+π/2)/π) → unit
+  // ICRS vector → galactic frame via a hard-coded ICRS→galactic mat3
+  // (which is _GAL_TO_ICRS.T from etl/build_galactic_particles.py).
   const material = useMemo(() => {
     if (!texture) return null;
     const mat = new THREE.MeshBasicMaterial({
@@ -1661,18 +1648,17 @@ function Starfield({
     });
     mat.onBeforeCompile = (shader) => {
       Object.assign(shader.uniforms, uniformsRef.current);
-      shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', `#include <common>
-          varying vec3 vLocalDir;`)
-        .replace('#include <project_vertex>', `#include <project_vertex>
-          vLocalDir = normalize(position);`);
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', `#include <common>
-          varying vec3 vLocalDir;
           uniform vec3 uObsGalKpc;
-          uniform mat3 uWorldToGal;
           uniform float uDiffuseGain;
           uniform vec3 uCompWeights;
+
+          const mat3 ICRS_TO_GAL = mat3(
+            -0.0548755604, -0.8734370902, -0.4838350155,
+             0.4941094279, -0.4448296300,  0.7469822445,
+            -0.8676661490, -0.1980763734,  0.4559837762
+          );
 
           float sech2(float x) {
             float ax = min(abs(x), 10.0);
@@ -1702,7 +1688,11 @@ function Starfield({
           }`)
         .replace('#include <map_fragment>', `#include <map_fragment>
           {
-            vec3 d_gal = normalize(uWorldToGal * vLocalDir);
+            float ra  = vMapUv.x * 6.2831853 - 3.1415927;
+            float dec = (0.5 - vMapUv.y) * 3.1415927;
+            float cd  = cos(dec);
+            vec3 d_icrs = vec3(cd * cos(ra), cd * sin(ra), sin(dec));
+            vec3 d_gal  = normalize(ICRS_TO_GAL * d_icrs);
             float diffI = marchDiffuse(d_gal);
             diffuseColor.rgb += vec3(diffI * uDiffuseGain);
           }`);

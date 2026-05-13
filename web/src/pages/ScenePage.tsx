@@ -1669,14 +1669,13 @@ function Starfield({
       varying vec3 vLocalDir;
       varying vec2 vUv2;
 
-      // sech²(x) without cosh() — cosh is GLSL ES 3.00-only and the
-      // ShaderMaterial defaults to ES 1.00, so desktop ANGLE accepted it
-      // silently but Quest 3 multiview rejected it. Factored form is also
-      // overflow-safe at large |x| (relevant for high galactic latitudes
-      // where az/h_z reaches double digits along the integration path).
+      // sech²(x) without cosh (GLSL ES 3.00-only; ShaderMaterial defaults
+      // to ES 1.00, so desktop ANGLE accepted cosh silently while Quest 3
+      // multiview rejected it). Branchless and overflow-safe: clamp |x|
+      // to a value past which sech² is sub-perceptible (~3e-9 at x=10),
+      // then use the e^-|x| factored form so the denominator stays in [1,2].
       float sech2(float x) {
-        float ax = abs(x);
-        if (ax > 10.0) return 0.0;
+        float ax = min(abs(x), 10.0);
         float e = exp(-ax);
         float d = 1.0 + e * e;
         return 4.0 * e * e / (d * d);
@@ -1685,28 +1684,29 @@ function Starfield({
       float densityAt(vec3 p_kpc) {
         float R  = length(p_kpc.xy);
         float az = abs(p_kpc.z);
-        float thin  = exp(-R / 2.6) * sech2(az / 0.3);
-        float thick = exp(-R / 2.0) * sech2(az / 0.9);
-        vec3  ax    = vec3(1.0, 0.4, 0.3);
-        float r_eff = length(p_kpc / ax);
-        float bulge = exp(-r_eff / 0.7);
+        float thin  = exp(-R * 0.3846153846) * sech2(az * 3.3333333);
+        float thick = exp(-R * 0.5)          * sech2(az * 1.1111111);
+        float r_eff = length(p_kpc * vec3(1.0, 2.5, 3.3333333));
+        float bulge = exp(-r_eff * 1.4285714);
         return dot(vec3(thin, thick, bulge), uCompWeights);
       }
 
+      // Manually unrolled 16-step log-spaced march. Loop body is heavy
+      // (3 exps, 2 sech²s, several length()s), and Quest 3 / Adreno's
+      // shader compiler appears to balk at the iteration × per-step ALU
+      // budget when nested in a for-loop with a uniform-derived body.
+      // Constant per-iteration t values precomputed from
+      //   t = T_MAX · (exp(u·K) - 1) / (e^K - 1)
+      // with T_MAX=30, K=3, STEPS=16, u=(i+0.5)/STEPS.
       float marchDiffuse(vec3 d_gal) {
-        const int   STEPS = 24;
-        const float T_MAX = 30.0;
-        const float K     = 3.0;
-        float denom = exp(K) - 1.0;
         float I = 0.0;
         float prevT = 0.0;
-        for (int i = 0; i < STEPS; i++) {
-          float u  = (float(i) + 0.5) / float(STEPS);
-          float t  = T_MAX * (exp(u * K) - 1.0) / denom;
-          float dt = t - prevT;
-          I += densityAt(uObsGalKpc + d_gal * t) * dt;
-          prevT = t;
-        }
+        #define STEP(T) { float t = T; I += densityAt(uObsGalKpc + d_gal * t) * (t - prevT); prevT = t; }
+        STEP(0.155);  STEP(0.510);  STEP(0.940);  STEP(1.458);
+        STEP(2.083);  STEP(2.836);  STEP(3.747);  STEP(4.844);
+        STEP(6.168);  STEP(7.766);  STEP(9.694);  STEP(12.020);
+        STEP(14.824); STEP(18.207); STEP(22.288); STEP(27.211);
+        #undef STEP
         return I;
       }
 

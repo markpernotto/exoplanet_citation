@@ -1351,7 +1351,7 @@ type StarBuffers = { positions: Float32Array; colors: Float32Array; sizes: Float
 
 function Starfield() {
   const [buffers, setBuffers] = useState<StarBuffers | null>(null);
-  const inXR = useXR((s) => s.session != null);
+  const { scene } = useThree();
   useEffect(() => {
     let cancelled = false;
     fetch('/starfield_basic.bin')
@@ -1361,49 +1361,87 @@ function Starfield() {
     return () => { cancelled = true; };
   }, []);
 
-  // Starfield as an InstancedMesh of low-poly icosahedrons. We've tried
-  // gl_POINTS (clamped in Quest XR), camera-facing transparent planes
-  // (also invisible in VR for unclear reasons), and now: simple solid
-  // emissive 12-vertex spheres with no transparency, no blending, no
-  // orientation logic. If this doesn't render in VR, the issue is
-  // something fundamental in the XR rendering path we can't easily fix.
-  //
-  // VR size is grossly inflated (sizeScale=50) so even the dimmest stars
-  // become unambiguous chunky dots — better to err toward "way too big
-  // and obvious" than "invisible specks" while we're still verifying the
-  // pipeline works at all.
-  const mesh = useMemo(() => {
+  // Pre-rasterize the Gaia stars into a 4096×2048 equirectangular canvas
+  // and use it as a texture for BOTH a skydome (inside-facing sphere) AND
+  // scene.background. This is fundamentally different from prior attempts
+  // (gl_POINTS, instanced quads, instanced icosahedrons) which all rendered
+  // stars as many small individual objects. The skydome renders stars as
+  // ONE big mesh — the same primitive that already works in VR for our
+  // planets and sun — with the dots baked into a texture instead of being
+  // geometry. scene.background provides a backup render path; whichever
+  // works in the headset's XR pipeline shows stars.
+  const texture = useMemo(() => {
     if (!buffers) return null;
+    const W = 4096;
+    const H = 2048;
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
     const n = buffers.positions.length / 3;
-    const geometry = new THREE.IcosahedronGeometry(1, 0);
-    const material = new THREE.MeshBasicMaterial({
-      toneMapped: false,
-    });
-    const instanced = new THREE.InstancedMesh(geometry, material, n);
-    instanced.frustumCulled = false;
-    const dummy = new THREE.Object3D();
-    const col = new THREE.Color();
-    const sizeScale = inXR ? 50.0 : 2.5;
     for (let i = 0; i < n; i++) {
       const x = buffers.positions[i * 3];
       const y = buffers.positions[i * 3 + 1];
       const z = buffers.positions[i * 3 + 2];
-      dummy.position.set(x, y, z);
-      const s = buffers.sizes[i] * sizeScale;
-      dummy.scale.set(s, s, s);
-      dummy.rotation.set(0, 0, 0);
-      dummy.updateMatrix();
-      instanced.setMatrixAt(i, dummy.matrix);
-      col.setRGB(buffers.colors[i * 3], buffers.colors[i * 3 + 1], buffers.colors[i * 3 + 2]);
-      instanced.setColorAt(i, col);
+      const r = Math.sqrt(x * x + y * y + z * z);
+      if (r === 0) continue;
+      // Cartesian → RA/Dec → equirectangular UV
+      const dec = Math.asin(y / r);
+      const ra = Math.atan2(z, x);
+      const u = (ra + Math.PI) / (2 * Math.PI);
+      const v = 1 - (dec + Math.PI / 2) / Math.PI;
+      const px = u * W;
+      const py = v * H;
+      const rr = (buffers.colors[i * 3] * 255) | 0;
+      const gg = (buffers.colors[i * 3 + 1] * 255) | 0;
+      const bb = (buffers.colors[i * 3 + 2] * 255) | 0;
+      ctx.fillStyle = `rgb(${rr},${gg},${bb})`;
+      // Slightly bigger dots than the prior pixel-based sizes — they're
+      // mapped onto a sphere at finite resolution, so a single pixel at
+      // 4096-wide ≈ 0.09° angular, which is still small in VR. Multiplier
+      // 1.6 lifts the brightest stars to ~7 px = ~0.6° (clearly visible
+      // even with headset DPI).
+      const dotR = Math.max(1, buffers.sizes[i] * 1.6);
+      ctx.beginPath();
+      ctx.arc(px, py, dotR, 0, Math.PI * 2);
+      ctx.fill();
     }
-    instanced.instanceMatrix.needsUpdate = true;
-    if (instanced.instanceColor) instanced.instanceColor.needsUpdate = true;
-    return instanced;
-  }, [buffers, inXR]);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }, [buffers]);
 
-  if (!mesh) return null;
-  return <primitive object={mesh} />;
+  // Method B: set the texture as scene.background. three.js renders this
+  // as an inside-facing equirectangular sphere automatically, per eye in
+  // XR. Cleaned up on unmount so we don't leak the texture between routes.
+  useEffect(() => {
+    if (!texture) return;
+    const previous = scene.background;
+    scene.background = texture;
+    return () => { scene.background = previous; };
+  }, [texture, scene]);
+
+  if (!texture) return null;
+
+  // Method A: explicit skydome mesh. depthTest:false + renderOrder:-1
+  // ensures it always draws first as background and never participates in
+  // depth tests with foreground objects. depthWrite:false keeps it from
+  // occluding anything (planets, the sun) that draws after.
+  return (
+    <mesh frustumCulled={false} renderOrder={-1}>
+      <sphereGeometry args={[STAR_SPHERE_AU, 64, 32]} />
+      <meshBasicMaterial
+        map={texture}
+        side={THREE.BackSide}
+        toneMapped={false}
+        depthWrite={false}
+        depthTest={false}
+      />
+    </mesh>
+  );
 }
 
 function parseStarfieldBin(buf: ArrayBuffer): StarBuffers {

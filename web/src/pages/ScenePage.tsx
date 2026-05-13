@@ -1387,6 +1387,7 @@ type StarBuffers = { positions: Float32Array; colors: Float32Array; sizes: Float
 
 function Starfield() {
   const [buffers, setBuffers] = useState<StarBuffers | null>(null);
+  const { scene } = useThree();
   const skydomeRef = useRef<THREE.Mesh>(null);
   useEffect(() => {
     let cancelled = false;
@@ -1466,22 +1467,36 @@ function Starfield() {
   // and even then the camera's `.position` field can be stale (its world
   // transform is composed of parent + matrix updates). getWorldPosition()
   // decomposes the matrixWorld so we always get the correct world point.
+  //
+  // Explicit rotation clamp to identity is defensive: if the user is
+  // experiencing "stars rotate with my head," the only way that could
+  // happen for a fixed-rotation mesh is if something in the scene graph
+  // or the XR pipeline is injecting rotation into the mesh's matrix.
+  // Re-asserting identity each frame can't hurt and would catch that.
   useFrame((state) => {
     if (!skydomeRef.current) return;
     const xr = state.gl.xr;
     const cam = (xr && xr.isPresenting) ? xr.getCamera() : state.camera;
     cam.getWorldPosition(skydomeRef.current.position);
+    skydomeRef.current.quaternion.identity();
   });
 
-  // (scene.background path intentionally disabled. Earlier we ran both
-  // skydome AND scene.background as redundant render paths, but in VR
-  // the parallax wouldn't go away — strongly suggesting scene.background
-  // was being rendered at a fixed scene position rather than properly
-  // at-infinity by three.js's XR pipeline. Skydome-only avoids that.
-  // If you're reading this and want to re-enable: useEffect on `texture`
-  // setting scene.background = texture, with cleanup that restores the
-  // previous value. Removing the side effect is what made VR stars
-  // hold their position.)
+  // scene.background as a fallback render path. Previously disabled
+  // because removing it during testing seemed to "fix" head-locked stars
+  // in VR — but disabling it also removed ALL stars on Quest, which
+  // suggests the skydome mesh wasn't rendering and scene.background was
+  // doing all the work (possibly head-locked, possibly fine, hard to
+  // tell without ground truth). Re-enabling as a safety net: if the
+  // skydome mesh below renders properly, it occludes scene.background
+  // (depthTest:false + renderOrder:-1 means it draws first as the
+  // background layer); if the mesh fails to render, scene.background
+  // still shows so the user sees SOME stars instead of empty space.
+  useEffect(() => {
+    if (!texture) return;
+    const previous = scene.background;
+    scene.background = texture;
+    return () => { scene.background = previous; };
+  }, [texture, scene]);
 
   if (!texture) return null;
 
@@ -1494,12 +1509,17 @@ function Starfield() {
   // because the XR session's actual depth-far is clamped well below the
   // 1e9 we requested via updateRenderState. Camera-follow eliminates the
   // parallax that 5000-radius would otherwise produce.
+  // side: DoubleSide rather than BackSide as a defensive choice — if
+  // anything in the XR rendering pipeline is silently culling our
+  // BackSide-only faces (some multiview implementations have quirks
+  // with face culling), DoubleSide guarantees the inside-facing surface
+  // renders regardless. Negligible perf cost for a single 64×32 sphere.
   return (
     <mesh ref={skydomeRef} frustumCulled={false} renderOrder={-1}>
       <sphereGeometry args={[STAR_SPHERE_AU, 64, 32]} />
       <meshBasicMaterial
         map={texture}
-        side={THREE.BackSide}
+        side={THREE.DoubleSide}
         toneMapped={false}
         depthWrite={false}
         depthTest={false}

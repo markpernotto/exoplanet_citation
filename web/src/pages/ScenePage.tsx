@@ -1388,7 +1388,6 @@ type StarBuffers = { positions: Float32Array; colors: Float32Array; sizes: Float
 
 function Starfield() {
   const [buffers, setBuffers] = useState<StarBuffers | null>(null);
-  const { scene } = useThree();
   const skydomeRef = useRef<THREE.Mesh>(null);
   useEffect(() => {
     let cancelled = false;
@@ -1475,14 +1474,15 @@ function Starfield() {
     cam.getWorldPosition(skydomeRef.current.position);
   });
 
-  // Method B: also set as scene.background so we have a redundant render
-  // path. three.js renders this at infinity automatically (no parallax).
-  useEffect(() => {
-    if (!texture) return;
-    const previous = scene.background;
-    scene.background = texture;
-    return () => { scene.background = previous; };
-  }, [texture, scene]);
+  // (scene.background path intentionally disabled. Earlier we ran both
+  // skydome AND scene.background as redundant render paths, but in VR
+  // the parallax wouldn't go away — strongly suggesting scene.background
+  // was being rendered at a fixed scene position rather than properly
+  // at-infinity by three.js's XR pipeline. Skydome-only avoids that.
+  // If you're reading this and want to re-enable: useEffect on `texture`
+  // setting scene.background = texture, with cleanup that restores the
+  // previous value. Removing the side effect is what made VR stars
+  // hold their position.)
 
   if (!texture) return null;
 

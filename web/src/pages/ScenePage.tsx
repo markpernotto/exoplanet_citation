@@ -181,7 +181,12 @@ export default function ScenePage() {
               />
             )}
           </VRSceneScale>
-          <Starfield plName={plName} />
+          <Starfield
+            plName={plName}
+            hostRaDeg={scene.planet.ra}
+            hostDecDeg={scene.planet.dec}
+            hostDistPc={scene.host_star?.distance_gspphot_pc ?? scene.planet.sy_dist ?? null}
+          />
           {/* VRRig is OUTSIDE VRSceneScale — its position/speed are in
               world meters, unaffected by scene scaling. 3m from origin
               looks at a ~6m-wide scaled system; 1.5 m/sec is comfortable
@@ -1455,7 +1460,74 @@ function OrbitRing({
 // produced by etl/build_starfield.py, and renders ~62k stars as a single
 // Points draw call on a sphere of radius STAR_SPHERE_AU around the origin.
 
-function Starfield({ plName }: { plName: string }) {
+// IAU 2009 galactic ↔ ICRS rotation. Must match etl/build_galactic_particles.py
+// and api/host_xyz.py — those use the column-vector form
+// helio_icrs = M @ helio_galactic, with M's rows below.
+const GAL_TO_ICRS_ROWS: readonly [readonly [number, number, number], readonly [number, number, number], readonly [number, number, number]] = [
+  [-0.0548755604162154,  0.4941094278755837, -0.8676661490190047],
+  [-0.8734370902348850, -0.4448296299600112, -0.1980763734312015],
+  [-0.4838350155487132,  0.7469822444972189,  0.4559837761750669],
+];
+// Sol's galactocentric position in galactic kpc — matches etl SOL_*_KPC.
+const SOL_X_KPC = 8.122;
+const SOL_Y_KPC = 0.0;
+const SOL_Z_KPC = 0.025;
+
+// World (three.js scene) → galactic frame, precomputed once.
+// Skydome conventions (see Phase 4 design notes): the equirectangular star
+// PNG uses u=(ra+π)/(2π), v=1-(dec+π/2)/π, and three.js sphereGeometry's
+// default UVs place u=0 at local -X, v=0 at local +Y. Cross-referencing
+// gives an implicit world→ICRS mapping: world +X = ICRS +X, world +Y =
+// ICRS +Z (NGP), world +Z = ICRS -Y. Then ICRS → galactic via _GAL_TO_ICRS
+// transposed (column-vector convention). Pure rotation, no translation.
+const WORLD_TO_GAL_MAT3 = (() => {
+  const W2I = new THREE.Matrix3().set(
+    1, 0,  0,
+    0, 0, -1,
+    0, 1,  0,
+  );
+  const M = GAL_TO_ICRS_ROWS;
+  const I2G = new THREE.Matrix3().set(
+    M[0][0], M[1][0], M[2][0],
+    M[0][1], M[1][1], M[2][1],
+    M[0][2], M[1][2], M[2][2],
+  );
+  return new THREE.Matrix3().multiplyMatrices(I2G, W2I);
+})();
+
+// Heliocentric ICRS RA/Dec/distance → host's galactocentric galactic kpc.
+// Mirrors api/host_xyz.py::equatorial_to_xyz_pc plus the inverse of
+// etl/build_galactic_particles.py::galactocentric_to_heliocentric_icrs.
+// Returns null when ra/dec/dist are missing — caller falls back to Sol.
+function resolveHostGalKpc(
+  raDeg: number | null, decDeg: number | null, distPc: number | null,
+): THREE.Vector3 | null {
+  if (raDeg == null || decDeg == null || distPc == null || distPc <= 0) return null;
+  const ra = THREE.MathUtils.degToRad(raDeg);
+  const dec = THREE.MathUtils.degToRad(decDeg);
+  const cosDec = Math.cos(dec);
+  const xi = distPc * cosDec * Math.cos(ra);
+  const yi = distPc * cosDec * Math.sin(ra);
+  const zi = distPc * Math.sin(dec);
+  const M = GAL_TO_ICRS_ROWS;
+  const xg = M[0][0] * xi + M[1][0] * yi + M[2][0] * zi;
+  const yg = M[0][1] * xi + M[1][1] * yi + M[2][1] * zi;
+  const zg = M[0][2] * xi + M[1][2] * yi + M[2][2] * zi;
+  return new THREE.Vector3(
+    xg / 1000 - SOL_X_KPC,
+    yg / 1000 - SOL_Y_KPC,
+    zg / 1000 - SOL_Z_KPC,
+  );
+}
+
+function Starfield({
+  plName, hostRaDeg, hostDecDeg, hostDistPc,
+}: {
+  plName: string;
+  hostRaDeg: number | null;
+  hostDecDeg: number | null;
+  hostDistPc: number | null;
+}) {
   const [texture, setTexture] = useState<THREE.Texture | null>(null);
   const { scene } = useThree();
   const skydomeRef = useRef<THREE.Mesh>(null);
@@ -1543,32 +1615,136 @@ function Starfield({ plName }: { plName: string }) {
     };
   }, [texture, scene]);
 
+  // Phase 4: diffuse galaxy shader. Composites the per-vantage star PNG
+  // (sampled via the sphere geometry's default equirectangular UVs — exact
+  // pixel parity with the prior meshBasicMaterial path) with a 24-step
+  // line-of-sight integration through the procedural Milky Way density
+  // profiles from etl/build_galactic_particles.py (thin disk + thick disk
+  // + bulge; halo omitted as visually negligible from inside the galaxy
+  // and the most expensive per-step op).
+  //
+  // Frame: vertex passes local-space sphere direction (= world direction
+  // since the skydome rotation is identity). Fragment rotates into the
+  // galactic frame via uWorldToGal and marches outward from uObsGalKpc.
+  // Density-only emissivity (single channel) — no warmth tinting in v1.
+  //
+  // Tuning knobs:
+  //   uDiffuseGain   — master brightness; tuned so Sol-vantage galactic
+  //                    plane adds ~0.05 to RGB on top of the texture.
+  //   uCompWeights   — (thin, thick, bulge) relative weights. Bulge gets
+  //                    a heavy boost because the procedural particles are
+  //                    unnormalized across components — the disk's per-kpc
+  //                    density is much higher than the bulge's at any
+  //                    given galactocentric radius, so equal weights would
+  //                    let the disk dominate even toward Sgr A*.
+  //
+  // No XR log-depth math needed: skydome uses depthTest:false/depthWrite:false
+  // so it sits at "infinity" regardless of camera. toneMapped:false keeps the
+  // shader output in the same encoding as the PNG (renderer still encodes
+  // linear → sRGB on canvas output; that's separate from ACES tone-mapping).
+  const material = useMemo(() => new THREE.ShaderMaterial({
+    uniforms: {
+      uStarMap:     { value: null as THREE.Texture | null },
+      uObsGalKpc:   { value: new THREE.Vector3(-SOL_X_KPC, -SOL_Y_KPC, -SOL_Z_KPC) },
+      uWorldToGal:  { value: WORLD_TO_GAL_MAT3 },
+      uDiffuseGain: { value: 0.08 },
+      uCompWeights: { value: new THREE.Vector3(1.0, 0.6, 8.0) },
+    },
+    vertexShader: `
+      varying vec3 vLocalDir;
+      varying vec2 vUv2;
+      void main() {
+        vUv2 = uv;
+        vLocalDir = normalize(position);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      precision highp float;
+      uniform sampler2D uStarMap;
+      uniform vec3 uObsGalKpc;
+      uniform mat3 uWorldToGal;
+      uniform float uDiffuseGain;
+      uniform vec3 uCompWeights;
+      varying vec3 vLocalDir;
+      varying vec2 vUv2;
+
+      float sech2(float x) { float c = cosh(x); return 1.0 / (c * c); }
+
+      float densityAt(vec3 p_kpc) {
+        float R  = length(p_kpc.xy);
+        float az = abs(p_kpc.z);
+        float thin  = exp(-R / 2.6) * sech2(az / 0.3);
+        float thick = exp(-R / 2.0) * sech2(az / 0.9);
+        vec3  ax    = vec3(1.0, 0.4, 0.3);
+        float r_eff = length(p_kpc / ax);
+        float bulge = exp(-r_eff / 0.7);
+        return dot(vec3(thin, thick, bulge), uCompWeights);
+      }
+
+      float marchDiffuse(vec3 d_gal) {
+        const int   STEPS = 24;
+        const float T_MAX = 30.0;
+        const float K     = 3.0;
+        float denom = exp(K) - 1.0;
+        float I = 0.0;
+        float prevT = 0.0;
+        for (int i = 0; i < STEPS; i++) {
+          float u  = (float(i) + 0.5) / float(STEPS);
+          float t  = T_MAX * (exp(u * K) - 1.0) / denom;
+          float dt = t - prevT;
+          I += densityAt(uObsGalKpc + d_gal * t) * dt;
+          prevT = t;
+        }
+        return I;
+      }
+
+      void main() {
+        vec3 stars   = texture2D(uStarMap, vUv2).rgb;
+        vec3 d_gal   = normalize(uWorldToGal * vLocalDir);
+        float diffI  = marchDiffuse(d_gal);
+        vec3 diffuse = vec3(diffI * uDiffuseGain);
+        gl_FragColor = vec4(stars + diffuse, 1.0);
+      }
+    `,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+    depthTest: false,
+    toneMapped: false,
+  }), []);
+
+  // Resolve host galactocentric position once per host change. Falls back
+  // to Sol's vantage (initial uniform value) if the host lacks ra/dec/dist.
+  useEffect(() => {
+    const p = resolveHostGalKpc(hostRaDeg, hostDecDeg, hostDistPc);
+    if (p) material.uniforms.uObsGalKpc.value.copy(p);
+  }, [hostRaDeg, hostDecDeg, hostDistPc, material]);
+
+  // Wire the loaded texture into the shader. Kept separate from the
+  // material useMemo so the material isn't recreated on every fetch.
+  useEffect(() => {
+    material.uniforms.uStarMap.value = texture;
+  }, [texture, material]);
+
   if (!texture) return null;
 
   // Method A: explicit skydome mesh, camera-following. depthTest:false
   // means it always draws first as background; depthWrite:false keeps
   // it from occluding planets, sun, etc.
-  // Radius is set back to STAR_SPHERE_AU (5000) — at this size the mesh
-  // is known to render in VR (we saw it render at this radius earlier in
-  // this session). At 1e6 it silently failed to render on Quest, likely
-  // because the XR session's actual depth-far is clamped well below the
-  // 1e9 we requested via updateRenderState. Camera-follow eliminates the
-  // parallax that 5000-radius would otherwise produce.
-  // side: DoubleSide rather than BackSide as a defensive choice — if
-  // anything in the XR rendering pipeline is silently culling our
-  // BackSide-only faces (some multiview implementations have quirks
-  // with face culling), DoubleSide guarantees the inside-facing surface
-  // renders regardless. Negligible perf cost for a single 64×32 sphere.
+  // Radius is STAR_SPHERE_AU (5000) — at this size the mesh is known to
+  // render in VR. At 1e6 it silently failed on Quest, likely because the
+  // XR session's actual depth-far is clamped well below the 1e9 we
+  // requested via updateRenderState. Camera-follow eliminates parallax.
+  // side: DoubleSide as a defensive choice for XR multiview face-culling
+  // quirks. Negligible perf cost for a single 64×32 sphere.
   return (
-    <mesh ref={skydomeRef} frustumCulled={false} renderOrder={-1}>
+    <mesh
+      ref={skydomeRef}
+      frustumCulled={false}
+      renderOrder={-1}
+      material={material}
+    >
       <sphereGeometry args={[STAR_SPHERE_AU, 64, 32]} />
-      <meshBasicMaterial
-        map={texture}
-        side={THREE.DoubleSide}
-        toneMapped={false}
-        depthWrite={false}
-        depthTest={false}
-      />
     </mesh>
   );
 }

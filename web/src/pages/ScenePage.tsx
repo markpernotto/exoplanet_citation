@@ -186,16 +186,14 @@ export default function ScenePage() {
               world meters, unaffected by scene scaling. 3m from origin
               looks at a ~6m-wide scaled system; 1.5 m/sec is comfortable
               walking pace inside VR.
-              In surface mode, focalPosRef/surfaceOffset/maxOrbit are passed
-              so the rig tracks the focal planet each frame and locomotion
-              is disabled — the user rides the planet, not walks around. */}
+              In surface mode, surfaceProps is passed so the rig tracks the
+              focal planet each frame and locomotion is disabled — the user
+              rides the planet, not walks around. */}
           {viewMode === 'surface' ? (
             <VRRig
               initialPos={[3, 0.5, 1.5]}
               speed={1.5}
-              focalPosRef={focalPosRef}
-              surfaceOffset={surfaceOffset}
-              maxOrbit={maxOrbit}
+              surfaceProps={{ focalPosRef, surfaceOffset, maxOrbit }}
             />
           ) : (
             <VRRig initialPos={[3, 0.5, 1.5]} speed={1.5} />
@@ -591,6 +589,15 @@ function XRDepthFar() {
   return null;
 }
 
+// Compute the VR scene scale factor: maps the system's max-orbit extent to
+// ~6 world-meters so the whole system fits comfortably in the headset.
+// Clamped [2, 200] to avoid degenerate values for very tight or very wide
+// systems. Factor is 1 outside XR (no scale change for the desktop view).
+// Shared by VRSceneScale and VRRig so they always use the same mapping.
+function vrScaleFactor(maxOrbit: number): number {
+  return Math.min(200, Math.max(2, 6 / maxOrbit));
+}
+
 // Scales the entire visual scene up while in VR so AU-scale units don't
 // render as sub-millimeter specks in the headset. WebXR treats scene units
 // as METERS, but our planets are sub-meter (TRAPPIST-1 b at 0.0008 AU is
@@ -599,7 +606,7 @@ function XRDepthFar() {
 // the user. Outside VR, factor=1 (no scale change, desktop view unaffected).
 function VRSceneScale({ children, maxOrbit }: { children: React.ReactNode; maxOrbit: number }) {
   const inXR = useXR((s) => s.session != null);
-  const factor = inXR ? Math.min(200, Math.max(2, 6 / maxOrbit)) : 1;
+  const factor = inXR ? vrScaleFactor(maxOrbit) : 1;
   return <group scale={factor}>{children}</group>;
 }
 
@@ -609,26 +616,28 @@ function VRSceneScale({ children, maxOrbit }: { children: React.ReactNode; maxOr
 // (its position is in world meters, not scene-AU), so initialPos and speed
 // are in meters per second.
 //
-// Surface mode: when focalPosRef is provided, the rig tracks the focal
-// planet's animated world position each frame instead of allowing free
+// Surface mode: when the surfaceProps bundle is provided, the rig tracks the
+// focal planet's animated world position each frame instead of allowing free
 // locomotion. XR owns the camera transform, so we must move the XROrigin
 // (the user's "feet" reference frame) to keep the user standing on the
-// planet as it orbits. focalPosRef is in scene-AU; multiply by the same
-// scale factor VRSceneScale applies so the XROrigin ends up in world meters.
+// planet as it orbits. focalPosRef is in scene-AU; vrScaleFactor converts
+// to world meters using the same mapping VRSceneScale applies.
+// All three surface props must be supplied together — they form a matched set.
+type VRRigProps = {
+  initialPos: [number, number, number];
+  speed: number;
+  surfaceProps?: {
+    focalPosRef: React.MutableRefObject<THREE.Vector3>;
+    surfaceOffset: number;  // in scene-AU
+    maxOrbit: number;       // system's max orbit in AU (drives VR scale factor)
+  };
+};
+
 function VRRig({
   initialPos,
   speed,
-  focalPosRef,
-  surfaceOffset,
-  maxOrbit: maxOrbitProp,
-}: {
-  initialPos: [number, number, number];
-  speed: number;
-  // If provided, the rig locks to the focal planet in VR (surface mode).
-  focalPosRef?: React.MutableRefObject<THREE.Vector3>;
-  surfaceOffset?: number;  // in scene-AU
-  maxOrbit?: number;       // system's max orbit in AU (drives VR scale factor)
-}) {
+  surfaceProps,
+}: VRRigProps) {
   const originRef = useRef<THREE.Group>(null);
   const inXR = useXR((s) => s.session != null);
   // Keep inXR accessible from inside useFrame without stale-closure issues.
@@ -640,11 +649,11 @@ function VRRig({
   // to target.position, dropping the Y component — which means if the user is
   // above the orbital plane and pushes the thumbstick forward while looking
   // down at the system, they slide horizontally instead of diving in.
-  // In surface mode (focalPosRef provided), locomotion is disabled: the user
+  // In surface mode (surfaceProps provided), locomotion is disabled: the user
   // is locked to the planet's position and should not drift away from it.
   useXRControllerLocomotion(
     (velocity, rotationVelocityY, deltaTime) => {
-      if (focalPosRef) return; // surface mode: planet tracking overrides locomotion
+      if (surfaceProps) return; // surface mode: planet tracking overrides locomotion
       const origin = originRef.current;
       if (!origin) return;
       origin.position.x += velocity.x * deltaTime;
@@ -657,21 +666,21 @@ function VRRig({
 
   // Surface mode + VR: drive the XROrigin to the focal planet's current
   // world-meter position each frame. focalPosRef is written in scene-AU by
-  // SceneContents; scale up by the same factor VRSceneScale applies so the
-  // user's standing position follows the planet's orbit in world space.
+  // SceneContents; vrScaleFactor converts to world meters using the same
+  // mapping VRSceneScale applies.
   // This must run after SceneContents' useFrame (which writes focalPosRef),
   // which is guaranteed because VRRig is mounted after SceneContents in JSX.
   useFrame(() => {
-    if (!focalPosRef || !inXRRef.current) return;
+    if (!surfaceProps || !inXRRef.current) return;
     const origin = originRef.current;
     if (!origin) return;
-    // Match the scale factor from VRSceneScale exactly.
-    const scaleFactor = Math.min(200, Math.max(2, 6 / (maxOrbitProp ?? 1)));
-    const yOffset = (surfaceOffset ?? 0) * scaleFactor;
+    const { focalPosRef, surfaceOffset, maxOrbit } = surfaceProps;
+    const scale = vrScaleFactor(maxOrbit);
+    const yOffset = surfaceOffset * scale;
     origin.position.set(
-      focalPosRef.current.x * scaleFactor,
-      focalPosRef.current.y * scaleFactor + yOffset,
-      focalPosRef.current.z * scaleFactor,
+      focalPosRef.current.x * scale,
+      focalPosRef.current.y * scale + yOffset,
+      focalPosRef.current.z * scale,
     );
   });
 

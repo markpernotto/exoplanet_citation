@@ -823,7 +823,20 @@ function SceneContents({
   const { planet, siblings } = scene;
 
   function jumpTo(plName: string) {
-    navigate(`/planets/${encodeURIComponent(plName)}/scene${themeQuery}`, { replace: true });
+    // If we're inside an XR session, end it gracefully before navigating.
+    // Otherwise the route change unmounts the Canvas mid-frame and the
+    // active WebXR session crashes the headset. The user is dropped back
+    // to flat-screen view; they can re-enter VR on the new planet's page.
+    const session = xrStore.getState().session;
+    const go = () => navigate(
+      `/planets/${encodeURIComponent(plName)}/scene${themeQuery}`,
+      { replace: true },
+    );
+    if (session) {
+      session.end().then(go).catch(go);
+    } else {
+      go();
+    }
   }
 
   const focalOrbsmax = planet.pl_orbsmax ?? 1;
@@ -1057,6 +1070,7 @@ function spectralTypeToColor(spectype: string | null): string {
 // edge rather than a hard sharp circle.
 
 function Photosphere({ radius, color, teff }: { radius: number; color: string; teff: number | null }) {
+  const inXR = useXR((s) => s.session != null);
   // Opaque shader — must write depth properly so orbit lines and planets
   // behind the sun get occluded. The "soft edge" is achieved by the corona
   // (drawn additively over and around the photosphere edge), not by making
@@ -1209,6 +1223,28 @@ function Photosphere({ radius, color, teff }: { radius: number; color: string; t
     }),
     [],
   );
+  // VR fallback: the custom shader (USE_LOGDEPTHBUF + per-fragment limb
+  // darkening + ACES tone mapping interactions) renders incorrectly in
+  // XR — root cause is most likely that the log-depth uniform isn't
+  // synced cleanly across the per-eye projection matrices, so the
+  // photosphere's depth output mismatches the rest of the scene. The
+  // standard MeshBasicMaterial below picks up log-depth automatically
+  // from the renderer flag and renders reliably in both modes. We lose
+  // the granulation noise, limb darkening, and the animated boil — but
+  // the sun reads as a bright emissive disc and bloom still catches it.
+  // HDR is applied via the color scalar so the disc clears the bloom
+  // threshold the same way the shader path does.
+  if (inXR) {
+    return (
+      <mesh>
+        <sphereGeometry args={[radius, 64, 64]} />
+        <meshBasicMaterial
+          color={new THREE.Color(saturated).multiplyScalar(hdrScale)}
+          toneMapped={false}
+        />
+      </mesh>
+    );
+  }
   return (
     <>
       <mesh material={depthOnlyMaterial} renderOrder={-100}>

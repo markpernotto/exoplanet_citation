@@ -1615,20 +1615,23 @@ function Starfield({
     };
   }, [texture, scene]);
 
-  // Phase 4: diffuse galaxy shader. Composites the per-vantage star PNG
-  // (sampled via the sphere geometry's default equirectangular UVs — exact
-  // pixel parity with the prior meshBasicMaterial path) with a 24-step
-  // line-of-sight integration through the procedural Milky Way density
-  // profiles from etl/build_galactic_particles.py (thin disk + thick disk
-  // + bulge; halo omitted as visually negligible from inside the galaxy
-  // and the most expensive per-step op).
+  // Phase 4: diffuse galaxy via MeshBasicMaterial + onBeforeCompile. The
+  // earlier ShaderMaterial approach worked on desktop but silently failed
+  // to compile under Quest 3 / @react-three/xr multiview — the mesh
+  // disappeared and scene.background's stars-only texture took over,
+  // hiding the diffuse layer in VR. onBeforeCompile lets us splice the
+  // diffuse math into three.js's built-in MeshBasic shader skeleton,
+  // inheriting the multiview directive injection, log-depth handling, and
+  // uniform setup that the working Phase 3 skydome already proved compatible
+  // with the headset's shader pipeline.
   //
   // Frame: vertex passes local-space sphere direction (= world direction
   // since the skydome rotation is identity). Fragment rotates into the
   // galactic frame via uWorldToGal and marches outward from uObsGalKpc.
   // Density-only emissivity (single channel) — no warmth tinting in v1.
   //
-  // Tuning knobs:
+  // Tuning knobs (kept in uniformsRef so onBeforeCompile and the per-host
+  // useEffect share the same uniform objects):
   //   uDiffuseGain   — master brightness; tuned so Sol-vantage galactic
   //                    plane adds ~0.05 to RGB on top of the texture.
   //   uCompWeights   — (thin, thick, bulge) relative weights. Bulge gets
@@ -1637,109 +1640,85 @@ function Starfield({
   //                    density is much higher than the bulge's at any
   //                    given galactocentric radius, so equal weights would
   //                    let the disk dominate even toward Sgr A*.
-  //
-  // No XR log-depth math needed: skydome uses depthTest:false/depthWrite:false
-  // so it sits at "infinity" regardless of camera. toneMapped:false keeps the
-  // shader output in the same encoding as the PNG (renderer still encodes
-  // linear → sRGB on canvas output; that's separate from ACES tone-mapping).
-  const material = useMemo(() => new THREE.ShaderMaterial({
-    uniforms: {
-      uStarMap:     { value: null as THREE.Texture | null },
-      uObsGalKpc:   { value: new THREE.Vector3(-SOL_X_KPC, -SOL_Y_KPC, -SOL_Z_KPC) },
-      uWorldToGal:  { value: WORLD_TO_GAL_MAT3 },
-      uDiffuseGain: { value: 50.0 },  // TEMP DIAGNOSTIC — was 0.08; revert after VR test
-      uCompWeights: { value: new THREE.Vector3(1.0, 0.6, 8.0) },
-    },
-    vertexShader: `
-      #include <common>
-      varying vec3 vLocalDir;
-      varying vec2 vUv2;
-      void main() {
-        vUv2 = uv;
-        vLocalDir = normalize(position);
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-    `,
-    fragmentShader: `
-      #include <common>
-      precision highp float;
-      uniform sampler2D uStarMap;
-      uniform vec3 uObsGalKpc;
-      uniform mat3 uWorldToGal;
-      uniform float uDiffuseGain;
-      uniform vec3 uCompWeights;
-      varying vec3 vLocalDir;
-      varying vec2 vUv2;
+  const uniformsRef = useRef({
+    uObsGalKpc:   { value: new THREE.Vector3(-SOL_X_KPC, -SOL_Y_KPC, -SOL_Z_KPC) },
+    uWorldToGal:  { value: WORLD_TO_GAL_MAT3 },
+    uDiffuseGain: { value: 0.08 },
+    uCompWeights: { value: new THREE.Vector3(1.0, 0.6, 8.0) },
+  });
 
-      // sech²(x) without cosh (GLSL ES 3.00-only; ShaderMaterial defaults
-      // to ES 1.00, so desktop ANGLE accepted cosh silently while Quest 3
-      // multiview rejected it). Branchless and overflow-safe: clamp |x|
-      // to a value past which sech² is sub-perceptible (~3e-9 at x=10),
-      // then use the e^-|x| factored form so the denominator stays in [1,2].
-      float sech2(float x) {
-        float ax = min(abs(x), 10.0);
-        float e = exp(-ax);
-        float d = 1.0 + e * e;
-        return 4.0 * e * e / (d * d);
-      }
+  // Material is recreated when texture changes — needed because map is set
+  // at construction so the USE_MAP define is correct on first compile,
+  // which means onBeforeCompile sees the right base chunks to splice into.
+  const material = useMemo(() => {
+    if (!texture) return null;
+    const mat = new THREE.MeshBasicMaterial({
+      map: texture,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      depthTest: false,
+      toneMapped: false,
+    });
+    mat.onBeforeCompile = (shader) => {
+      Object.assign(shader.uniforms, uniformsRef.current);
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', `#include <common>
+          varying vec3 vLocalDir;`)
+        .replace('#include <project_vertex>', `#include <project_vertex>
+          vLocalDir = normalize(position);`);
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', `#include <common>
+          varying vec3 vLocalDir;
+          uniform vec3 uObsGalKpc;
+          uniform mat3 uWorldToGal;
+          uniform float uDiffuseGain;
+          uniform vec3 uCompWeights;
 
-      float densityAt(vec3 p_kpc) {
-        float R  = length(p_kpc.xy);
-        float az = abs(p_kpc.z);
-        float thin  = exp(-R * 0.3846153846) * sech2(az * 3.3333333);
-        float thick = exp(-R * 0.5)          * sech2(az * 1.1111111);
-        float r_eff = length(p_kpc * vec3(1.0, 2.5, 3.3333333));
-        float bulge = exp(-r_eff * 1.4285714);
-        return dot(vec3(thin, thick, bulge), uCompWeights);
-      }
+          float sech2(float x) {
+            float ax = min(abs(x), 10.0);
+            float e = exp(-ax);
+            float d = 1.0 + e * e;
+            return 4.0 * e * e / (d * d);
+          }
+          float densityAt(vec3 p_kpc) {
+            float R  = length(p_kpc.xy);
+            float az = abs(p_kpc.z);
+            float thin  = exp(-R * 0.3846153846) * sech2(az * 3.3333333);
+            float thick = exp(-R * 0.5)          * sech2(az * 1.1111111);
+            float r_eff = length(p_kpc * vec3(1.0, 2.5, 3.3333333));
+            float bulge = exp(-r_eff * 1.4285714);
+            return dot(vec3(thin, thick, bulge), uCompWeights);
+          }
+          float marchDiffuse(vec3 d_gal) {
+            float I = 0.0;
+            float prevT = 0.0;
+            #define STEP(T) { float t = T; I += densityAt(uObsGalKpc + d_gal * t) * (t - prevT); prevT = t; }
+            STEP(0.155);  STEP(0.510);  STEP(0.940);  STEP(1.458);
+            STEP(2.083);  STEP(2.836);  STEP(3.747);  STEP(4.844);
+            STEP(6.168);  STEP(7.766);  STEP(9.694);  STEP(12.020);
+            STEP(14.824); STEP(18.207); STEP(22.288); STEP(27.211);
+            #undef STEP
+            return I;
+          }`)
+        .replace('#include <map_fragment>', `#include <map_fragment>
+          {
+            vec3 d_gal = normalize(uWorldToGal * vLocalDir);
+            float diffI = marchDiffuse(d_gal);
+            diffuseColor.rgb += vec3(diffI * uDiffuseGain);
+          }`);
+    };
+    return mat;
+  }, [texture]);
 
-      // Manually unrolled 16-step log-spaced march. Loop body is heavy
-      // (3 exps, 2 sech²s, several length()s), and Quest 3 / Adreno's
-      // shader compiler appears to balk at the iteration × per-step ALU
-      // budget when nested in a for-loop with a uniform-derived body.
-      // Constant per-iteration t values precomputed from
-      //   t = T_MAX · (exp(u·K) - 1) / (e^K - 1)
-      // with T_MAX=30, K=3, STEPS=16, u=(i+0.5)/STEPS.
-      float marchDiffuse(vec3 d_gal) {
-        float I = 0.0;
-        float prevT = 0.0;
-        #define STEP(T) { float t = T; I += densityAt(uObsGalKpc + d_gal * t) * (t - prevT); prevT = t; }
-        STEP(0.155);  STEP(0.510);  STEP(0.940);  STEP(1.458);
-        STEP(2.083);  STEP(2.836);  STEP(3.747);  STEP(4.844);
-        STEP(6.168);  STEP(7.766);  STEP(9.694);  STEP(12.020);
-        STEP(14.824); STEP(18.207); STEP(22.288); STEP(27.211);
-        #undef STEP
-        return I;
-      }
-
-      void main() {
-        vec3 stars   = texture2D(uStarMap, vUv2).rgb;
-        vec3 d_gal   = normalize(uWorldToGal * vLocalDir);
-        float diffI  = marchDiffuse(d_gal);
-        vec3 diffuse = vec3(diffI * uDiffuseGain);
-        gl_FragColor = vec4(stars + diffuse, 1.0);
-      }
-    `,
-    side: THREE.DoubleSide,
-    depthWrite: false,
-    depthTest: false,
-    toneMapped: false,
-  }), []);
-
-  // Resolve host galactocentric position once per host change. Falls back
-  // to Sol's vantage (initial uniform value) if the host lacks ra/dec/dist.
+  // Push host galactocentric position into the shared uniform object.
+  // onBeforeCompile uses the same uniformsRef.current.uObsGalKpc reference,
+  // so this .copy() propagates without re-compiling the shader.
   useEffect(() => {
     const p = resolveHostGalKpc(hostRaDeg, hostDecDeg, hostDistPc);
-    if (p) material.uniforms.uObsGalKpc.value.copy(p);
-  }, [hostRaDeg, hostDecDeg, hostDistPc, material]);
+    if (p) uniformsRef.current.uObsGalKpc.value.copy(p);
+  }, [hostRaDeg, hostDecDeg, hostDistPc]);
 
-  // Wire the loaded texture into the shader. Kept separate from the
-  // material useMemo so the material isn't recreated on every fetch.
-  useEffect(() => {
-    material.uniforms.uStarMap.value = texture;
-  }, [texture, material]);
-
-  if (!texture) return null;
+  if (!texture || !material) return null;
 
   // Method A: explicit skydome mesh, camera-following. depthTest:false
   // means it always draws first as background; depthWrite:false keeps

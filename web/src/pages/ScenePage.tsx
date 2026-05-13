@@ -1458,6 +1458,14 @@ function Starfield() {
     }
     const tex = new THREE.CanvasTexture(canvas);
     tex.colorSpace = THREE.SRGBColorSpace;
+    // CRITICAL for XR: scene.background renders a Texture with default
+    // UVMapping as a screen-aligned 2D quad — which is what was producing
+    // the "stars locked to head direction" symptom on Quest. With
+    // EquirectangularReflectionMapping, three.js renders scene.background
+    // as a proper spherical environment, sampled by view direction per eye.
+    // (The skydome mesh below uses geometry UVs and is unaffected by this
+    // setting either way, but the scene.background fallback path needs it.)
+    tex.mapping = THREE.EquirectangularReflectionMapping;
     return tex;
   }, [buffers]);
 

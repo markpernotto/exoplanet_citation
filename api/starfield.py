@@ -34,15 +34,19 @@ log = logging.getLogger(__name__)
 DEFAULT_WIDTH = 4096
 DEFAULT_HEIGHT = 2048
 
-# Apparent G-magnitude cutoff for rendering. Naked-eye is ~+6; we go a
-# little deeper for visual density without making every texture pixel
-# a star (the v0 cutoff of +12 produced a uniform polka-dot field).
-DEFAULT_MAG_CUTOFF = 9.5
+# Apparent G-magnitude cutoff for rendering. Naked-eye is mag 6 at a
+# perfect dark site; we cut at 6.5 for a "real night sky" feel rather
+# than a noise field. Each tighter step has visible payoff:
+#   mag 12 (v0): ~300k stars — uniform polka-dot noise
+#   mag 9.5    : ~80k stars  — still reads as noise
+#   mag 6.5    : ~10k stars  — looks like a sky
+DEFAULT_MAG_CUTOFF = 6.5
 
-# Below this magnitude, stars get an additional halo overlay drawn as
-# a soft radial gradient — the "naked-eye standouts" that give a sky
-# visual variety against the dim majority.
-HALO_MAG_CUTOFF = 4.0
+# Below this magnitude, stars get an additional halo overlay — the
+# "naked-eye standouts" that give a sky visual variety against the dim
+# majority. Mag 3 corresponds roughly to the brightest ~100 stars in
+# the night sky (Sirius is -1, Vega is 0, Polaris is 2, etc.).
+HALO_MAG_CUTOFF = 3.0
 
 # Treat stars closer than this to the host as "the host itself" and drop
 # them. 0.001 pc is ~200 AU — beyond any reasonable planet's orbit.
@@ -154,46 +158,37 @@ def rasterize_skytexture(
     py_f = v * height
 
     # ── Per-star intensity from apparent magnitude ────────────────────────
-    # Brightest stars saturate; dimmest fade toward black. sqrt(linear)
-    # is a gamma-like compression that keeps faint stars visible without
-    # making the brightest blow out the entire sky.
-    intensity = np.clip(1.0 - apparent / mag_cutoff, 0.0, 1.0)
-    intensity = np.sqrt(intensity)
+    # Brightest stars saturate; dimmest fade toward black. Squared
+    # falloff (not sqrt) is correct: a real magnitude scale is
+    # logarithmic, so an apparent-mag-6 star truly is ~100x dimmer to
+    # the eye than an apparent-mag-1 star. We want most stars on screen
+    # to be barely visible "background" with a small population of
+    # bright standouts, not a uniformly-lit field.
+    intensity_linear = np.clip(1.0 - apparent / mag_cutoff, 0.0, 1.0)
+    intensity = intensity_linear * intensity_linear
 
-    # ── Color from bp_rp ──────────────────────────────────────────────────
+    # ── Color from bp_rp, scaled by intensity, no minimum floor ───────────
+    # No floor: dim stars truly fade toward black. The whole point of
+    # the visual is that the brightest few stand out.
     rgb = bprp_to_rgb(bp_rp)                                  # (N, 3) in [0, 1]
-    # 8-bit RGB scaled by per-star intensity. Floor at 8 (vs 0) so even
-    # the dimmest visible stars produce a perceptible pixel after PIL's
-    # anti-aliased disc fill spreads the value over 1-4 pixels.
-    color_u8 = np.clip(rgb * intensity[:, None] * 255, 8, 255).astype(np.uint8)
+    color_u8 = (rgb * intensity[:, None] * 255).clip(0, 255).astype(np.uint8)
 
-    # ── Render: PIL ellipse per star at fractional coords ─────────────────
-    # Each star draws as a tiny anti-aliased disc instead of a single
-    # texel write. This is the fix for the "polka-dot field" look the
-    # numpy-direct version produced: at radius ≈0.6 the dim majority
-    # render as soft single-pixel-ish dots; brighter stars get bigger
-    # discs proportional to intensity. PIL's ellipse fill is sub-pixel
-    # anti-aliased natively.
-    pil = Image.new("RGB", (width, height), (0, 0, 0))
-    draw = ImageDraw.Draw(pil)
-    # Sort by intensity so brighter stars draw last and visually dominate.
-    order = np.argsort(intensity)
-    px_f_o = px_f[order]
-    py_f_o = py_f[order]
-    intensity_o = intensity[order]
-    color_o = color_u8[order]
-    for i in range(len(order)):
-        radius = 0.4 + intensity_o[i] * 0.9         # 0.4 px (dim) → 1.3 px (bright)
-        x, y = float(px_f_o[i]), float(py_f_o[i])
-        r = float(radius)
-        c = (int(color_o[i, 0]), int(color_o[i, 1]), int(color_o[i, 2]))
-        draw.ellipse([x - r, y - r, x + r, y + r], fill=c)
+    # ── Rasterize: single-pixel writes per star, no global blur ───────────
+    # Why no blur: the GPU's linear texture filtering on the frontend
+    # already spreads each texture pixel across a few screen pixels.
+    # Pre-blurring on the CPU compounded that into chunky 4-5 px blobs.
+    # Keep the texture sharp; let the GPU's bilinear interpolation
+    # produce the soft anti-aliased points.
+    px_i = np.clip(px_f.astype(np.int32), 0, width - 1)
+    py_i = np.clip(py_f.astype(np.int32), 0, height - 1)
+    img_arr = np.zeros((height, width, 3), dtype=np.uint8)
+    order = np.argsort(intensity)         # ascending → brightest written last
+    img_arr[py_i[order], px_i[order]] = color_u8[order]
+    pil = Image.fromarray(img_arr, mode="RGB")
 
     # ── Halo overlay for naked-eye-bright stars ───────────────────────────
-    # The brightest few hundred get a soft radial gradient on top of their
-    # pinpoint core. Drawn as a separate layer with additive blend so it
-    # adds glow without saturating the core color. Gives the sky visual
-    # standouts instead of uniform points everywhere.
+    # The brightest few hundred get a soft radial halo drawn on top.
+    # Layered onto a separate canvas, blurred, then additively composited.
     halo_mask = apparent < HALO_MAG_CUTOFF
     if halo_mask.any():
         halo_layer = Image.new("RGB", (width, height), (0, 0, 0))
@@ -203,19 +198,16 @@ def rasterize_skytexture(
         halo_intensity = intensity[halo_mask]
         halo_color = color_u8[halo_mask]
         for i in range(len(halo_px)):
-            halo_r = 2.0 + halo_intensity[i] * 4.0  # 2 px (just-bright) → 6 px (Sirius)
+            halo_r = 3.0 + halo_intensity[i] * 6.0  # 3 px → 9 px
             x, y = float(halo_px[i]), float(halo_py[i])
             r = float(halo_r)
-            # Dimmer than the core color so the halo reads as a soft glow.
             c = (
-                int(halo_color[i, 0] * 0.35),
-                int(halo_color[i, 1] * 0.35),
-                int(halo_color[i, 2] * 0.35),
+                int(halo_color[i, 0] * 0.45),
+                int(halo_color[i, 1] * 0.45),
+                int(halo_color[i, 2] * 0.45),
             )
             halo_draw.ellipse([x - r, y - r, x + r, y + r], fill=c)
-        # Blur the halos so they're soft glows, not hard discs.
-        halo_layer = halo_layer.filter(ImageFilter.GaussianBlur(radius=1.5))
-        # Additive composite onto the star canvas.
+        halo_layer = halo_layer.filter(ImageFilter.GaussianBlur(radius=2.5))
         pil_arr = np.asarray(pil, dtype=np.int16)
         halo_arr = np.asarray(halo_layer, dtype=np.int16)
         combined = np.clip(pil_arr + halo_arr, 0, 255).astype(np.uint8)

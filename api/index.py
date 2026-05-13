@@ -588,7 +588,12 @@ def planet_starfield(pl_name: str) -> Response:
     return Response(
         content=png_bytes,
         media_type="image/png",
-        headers={"Cache-Control": "public, max-age=31536000, immutable"},
+        # Short cache while the rasterizer is being iterated on. Bump back
+        # to `public, max-age=31536000, immutable` once the visual is final
+        # — the per-vantage texture for a given host doesn't otherwise
+        # change. Keeping it short during dev means iterating on
+        # api/starfield.py rasterization actually shows up to users.
+        headers={"Cache-Control": "public, max-age=60, must-revalidate"},
     )
 
 

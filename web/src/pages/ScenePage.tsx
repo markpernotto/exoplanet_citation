@@ -185,8 +185,19 @@ export default function ScenePage() {
           {/* VRRig is OUTSIDE VRSceneScale — its position/speed are in
               world meters, unaffected by scene scaling. 3m from origin
               looks at a ~6m-wide scaled system; 1.5 m/sec is comfortable
-              walking pace inside VR. */}
-          <VRRig initialPos={[3, 0.5, 1.5]} speed={1.5} />
+              walking pace inside VR.
+              In surface mode, surfaceProps is passed so the rig tracks the
+              focal planet each frame and locomotion is disabled — the user
+              rides the planet, not walks around. */}
+          {viewMode === 'surface' ? (
+            <VRRig
+              initialPos={[3, 0.5, 1.5]}
+              speed={1.5}
+              surfaceProps={{ focalPosRef, surfaceOffset, maxOrbit }}
+            />
+          ) : (
+            <VRRig initialPos={[3, 0.5, 1.5]} speed={1.5} />
+          )}
           <PostProcessing />
         </XR>
       </Canvas>
@@ -578,6 +589,15 @@ function XRDepthFar() {
   return null;
 }
 
+// Compute the VR scene scale factor: maps the system's max-orbit extent to
+// ~6 world-meters so the whole system fits comfortably in the headset.
+// Clamped [2, 200] to avoid degenerate values for very tight or very wide
+// systems. Factor is 1 outside XR (no scale change for the desktop view).
+// Shared by VRSceneScale and VRRig so they always use the same mapping.
+function vrScaleFactor(maxOrbit: number): number {
+  return Math.min(200, Math.max(2, 6 / maxOrbit));
+}
+
 // Scales the entire visual scene up while in VR so AU-scale units don't
 // render as sub-millimeter specks in the headset. WebXR treats scene units
 // as METERS, but our planets are sub-meter (TRAPPIST-1 b at 0.0008 AU is
@@ -586,7 +606,7 @@ function XRDepthFar() {
 // the user. Outside VR, factor=1 (no scale change, desktop view unaffected).
 function VRSceneScale({ children, maxOrbit }: { children: React.ReactNode; maxOrbit: number }) {
   const inXR = useXR((s) => s.session != null);
-  const factor = inXR ? Math.min(200, Math.max(2, 6 / maxOrbit)) : 1;
+  const factor = inXR ? vrScaleFactor(maxOrbit) : 1;
   return <group scale={factor}>{children}</group>;
 }
 
@@ -595,15 +615,42 @@ function VRSceneScale({ children, maxOrbit }: { children: React.ReactNode; maxOr
 // thumbsticks to translate it. The XROrigin lives OUTSIDE VRSceneScale
 // (its position is in world meters, not scene-AU), so initialPos and speed
 // are in meters per second.
-function VRRig({ initialPos, speed }: { initialPos: [number, number, number]; speed: number }) {
+//
+// Surface mode: when the surfaceProps bundle is provided, the rig tracks the
+// focal planet's animated world position each frame instead of allowing free
+// locomotion. XR owns the camera transform, so we must move the XROrigin
+// (the user's "feet" reference frame) to keep the user standing on the
+// planet as it orbits. focalPosRef is in scene-AU; vrScaleFactor converts
+// to world meters using the same mapping VRSceneScale applies.
+// All three surface props must be supplied together — they form a matched set.
+type VRRigProps = {
+  initialPos: [number, number, number];
+  speed: number;
+  surfaceProps?: {
+    focalPosRef: React.MutableRefObject<THREE.Vector3>;
+    surfaceOffset: number;  // in scene-AU
+    maxOrbit: number;       // system's max orbit in AU (drives VR scale factor)
+  };
+};
+
+function VRRig({
+  initialPos,
+  speed,
+  surfaceProps,
+}: VRRigProps) {
   const originRef = useRef<THREE.Group>(null);
+  const inXR = useXR((s) => s.session != null);
+
   // Callback form (instead of ref form) so we can apply the full XYZ velocity
   // vector. The default hook implementation only adds velocity.x and velocity.z
   // to target.position, dropping the Y component — which means if the user is
   // above the orbital plane and pushes the thumbstick forward while looking
   // down at the system, they slide horizontally instead of diving in.
+  // In surface mode (surfaceProps provided), locomotion is disabled: the user
+  // is locked to the planet's position and should not drift away from it.
   useXRControllerLocomotion(
     (velocity, rotationVelocityY, deltaTime) => {
+      if (surfaceProps) return; // surface mode: planet tracking overrides locomotion
       const origin = originRef.current;
       if (!origin) return;
       origin.position.x += velocity.x * deltaTime;
@@ -613,6 +660,27 @@ function VRRig({ initialPos, speed }: { initialPos: [number, number, number]; sp
     },
     { speed },
   );
+
+  // Surface mode + VR: drive the XROrigin to the focal planet's current
+  // world-meter position each frame. focalPosRef is written in scene-AU by
+  // SceneContents; vrScaleFactor converts to world meters using the same
+  // mapping VRSceneScale applies.
+  // This must run after SceneContents' useFrame (which writes focalPosRef),
+  // which is guaranteed because VRRig is mounted after SceneContents in JSX.
+  useFrame(() => {
+    if (!surfaceProps || !inXR) return;
+    const origin = originRef.current;
+    if (!origin) return;
+    const { focalPosRef, surfaceOffset, maxOrbit } = surfaceProps;
+    const scale = vrScaleFactor(maxOrbit);
+    const yOffset = surfaceOffset * scale;
+    origin.position.set(
+      focalPosRef.current.x * scale,
+      focalPosRef.current.y * scale + yOffset,
+      focalPosRef.current.z * scale,
+    );
+  });
+
   return <XROrigin ref={originRef} position={initialPos} />;
 }
 
@@ -698,6 +766,8 @@ function EnterVRButton() {
 // caller passes a Vector3 ref that SceneContents writes to; we read from
 // it and copy into the camera. A small Y offset puts the user "above" the
 // planet center (functionally, on its surface) rather than embedded in it.
+// In VR, the XR session owns camera.matrix so writes here are no-ops — planet
+// tracking is handled instead by VRRig's useFrame (which moves the XROrigin).
 function CameraFollowFocal({
   focalPosRef, surfaceOffset,
 }: {
@@ -705,7 +775,9 @@ function CameraFollowFocal({
   surfaceOffset: number;
 }) {
   const { camera } = useThree();
+  const inXR = useXR((s) => s.session != null);
   useFrame(() => {
+    if (inXR) return; // XR session owns the camera; VRRig drives XROrigin instead
     camera.position.set(
       focalPosRef.current.x,
       focalPosRef.current.y + surfaceOffset,
@@ -729,6 +801,13 @@ const FORWARD = new THREE.Vector3(0, 0, -1);
 // the target by default (a tidally-locked feeling for surface view, where
 // the planet rotates to keep the same face toward its sun), and they can
 // drag to look around the rest of the sky from there.
+//
+// VR note: in VR the headset owns camera.quaternion, so this component's
+// writes are no-ops once a session is active. That's intentional: in VR the
+// user physically rotates their head to look at the sun, and the sun naturally
+// drifts through their sky as the planet orbits — a "real planetary surface"
+// experience. Desktop surface mode instead auto-tracks the sun each frame
+// (tidally-locked default feel); these are deliberate diverging UX choices.
 function FirstPersonLook({
   initialYaw = 0, initialPitch = 0, trackTarget,
 }: {
@@ -736,6 +815,7 @@ function FirstPersonLook({
   trackTarget?: THREE.Vector3;
 }) {
   const { camera, gl } = useThree();
+  const inXR = useXR((s) => s.session != null);
   const yaw = useRef(trackTarget ? 0 : initialYaw);
   const pitch = useRef(trackTarget ? 0 : initialPitch);
   const dragging = useRef(false);
@@ -745,8 +825,9 @@ function FirstPersonLook({
   // base direction stays locked on the target as the camera moves through
   // the world (e.g. while the focal planet orbits). When not tracking,
   // orientation only changes on drag.
+  // In VR, the XR session owns camera.quaternion — skip the write.
   useFrame(() => {
-    if (!trackTarget) return;
+    if (!trackTarget || inXR) return;
     const baseDir = new THREE.Vector3().subVectors(trackTarget, camera.position).normalize();
     const baseQ = new THREE.Quaternion().setFromUnitVectors(FORWARD, baseDir);
     const userQ = new THREE.Quaternion().setFromEuler(

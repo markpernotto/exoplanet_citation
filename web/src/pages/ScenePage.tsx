@@ -1349,8 +1349,10 @@ function Photosphere({ radius, color, teff }: { radius: number; color: string; t
 //   r ≈ 0.25–0.40 — corona peak just outside photosphere edge
 //   r > 0.40   — smooth halo decay, reaches 0 at r = 1.0
 //
-// renderOrder=20 — draws after the photosphere colour pass (renderOrder=10)
-// so the transparent additive layer composites correctly on top.
+// renderOrder=20 — draws after the photosphere colour pass (renderOrder=10).
+// AdditiveBlending is commutative so pixel order doesn't change the final
+// colour value; renderOrder here gives deterministic draw ordering vs. r3f's
+// default depth-sorted transparent pass.
 function StellarCorona({
   radius, color, hdrScale,
 }: {
@@ -1402,20 +1404,25 @@ function StellarCorona({
     depthWrite:  false,
     depthTest:   true,
     transparent: true,
-    side:        THREE.DoubleSide,
+    side:        THREE.FrontSide,
   // Depend on colour channels because the THREE.Color object reference
   // is recreated each render but the channel values only change when the
   // star changes.  hdrScale captures the temperature-driven brightness.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [color.r, color.g, color.b, hdrScale]);
 
-  // Orient the billboard to face the camera every frame.  In XR,
-  // state.camera is the parent ArrayCamera (head pose quaternion), so a
-  // single quaternion copy correctly faces both the left and right eye
-  // without separate per-eye updates.
+  // Orient the billboard to face the camera every frame using lookAt, which
+  // resolves through the full parent-transform chain.  Prefer this over
+  // quaternion.copy(camera.quaternion): the latter copies a world-space
+  // value as if it were local, which works today because no ancestor of
+  // Photosphere rotates, but would silently break if one ever did.
+  // In XR, state.camera is the parent ArrayCamera (head pose), so both eyes
+  // share one billboard orientation.  The IPD-induced per-eye angular
+  // difference is negligible at any realistic star-viewing distance, so the
+  // head-pose approximation is visually indistinguishable.
   useFrame((state) => {
     if (meshRef.current) {
-      meshRef.current.quaternion.copy(state.camera.quaternion);
+      meshRef.current.lookAt(state.camera.position);
     }
   });
 

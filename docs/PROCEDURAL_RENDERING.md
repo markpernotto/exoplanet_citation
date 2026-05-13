@@ -244,8 +244,10 @@ The photosphere renders in two passes:
 ### Geometric corona (`StellarCorona`)
 
 A camera-facing billboard (PlaneGeometry, `AdditiveBlending`, `depthWrite=false`)
-rendered at `renderOrder=20` — after the photosphere colour pass and before any
-transparent overlay.  This is the primary source of the star's visible "glow"
+rendered at `renderOrder=20`.  `AdditiveBlending` is commutative so the final
+pixel value is the same regardless of draw order; `renderOrder=20` gives
+deterministic ordering relative to r3f's default transparent-object depth sort,
+not a correctness requirement.  This is the primary source of the star's visible "glow"
 halo in both desktop **and** stereo XR.
 
 **Why geometry instead of post-processing:**
@@ -255,9 +257,13 @@ corona is ordinary scene geometry and works identically in both paths.  On
 desktop, Bloom composites on top — the two effects are complementary.
 
 **Billboard orientation:**
-Each frame, `meshRef.current.quaternion.copy(state.camera.quaternion)`.  In
-XR, `state.camera` is the parent `ArrayCamera` (head pose), so one quaternion
-copy correctly faces both the left and right eyes.
+Each frame, `meshRef.current.lookAt(state.camera.position)` — resolves through
+the full parent-transform chain, so the billboard remains correct even if a
+rotating ancestor is ever added.  In XR, `state.camera` is the parent
+`ArrayCamera` (head pose), so both eyes share one billboard orientation.  The
+IPD-induced per-eye angular difference is negligible at any realistic
+star-viewing distance, so the head-pose approximation is visually
+indistinguishable from a true per-eye update.
 
 **Size:** billboard half-extent = `3.5 × photosphere radius`.  In shader UV
 space `r = 1` equals that half-extent; the photosphere occupies `r ≈ 0–0.286`.
@@ -275,8 +281,8 @@ photosphere sphere covers that region anyway.
 **Color / intensity:**
 Uniforms `uColor` and `uHdr` mirror the photosphere's saturated colour and
 `hdrScale` so cool M-dwarfs get a deep-red halo and hot O/B stars get a
-blinding white one — matching the Stefan-Boltzmann-inspired scaling at
-`Photosphere` line ~1188 in `ScenePage.tsx`.
+blinding white one — matching the Stefan-Boltzmann-inspired scaling in
+`Photosphere` (`hdrScale` in `ScenePage.tsx`).
 
 **Binary systems:**
 `BinaryPhotospheres` calls `Photosphere` twice (once per star), so each

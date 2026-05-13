@@ -38,7 +38,13 @@ from fastapi import FastAPI, HTTPException, Path, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from psycopg.rows import dict_row
 
-from api.host_xyz import resolve_host_xyz
+# NOTE: api.host_xyz and api.starfield imports temporarily disabled
+# pending a Phase 2 deploy strategy — those modules require numpy,
+# pandas, pyarrow, and pillow, which aren't in api/requirements.txt yet
+# (and pushing them straight in risks tripping the Vercel hobby tier
+# 50MB function size limit). Re-enable along with the requirements.txt
+# update once we have a tested-and-deployed size budget.
+# from api.host_xyz import resolve_host_xyz
 from api.models import (
     AtmosphericMolecule,
     AtmosphericObservation,
@@ -68,7 +74,7 @@ from api.models import (
     TopAuthorsResponse,
 )
 from api.scene import derive_scene_hints
-from api.starfield import load_catalog, render_png
+# from api.starfield import load_catalog, render_png   # see note above
 
 load_dotenv()
 
@@ -532,68 +538,13 @@ def planet_host_star(pl_name: str) -> HostStarGaia:
 
 
 # ---------- Starfield (per-vantage sky texture) ----------
-
-@app.get(
-    "/api/starfield/{pl_name}.png",
-    response_class=Response,
-    tags=["scene"],
-    summary="Per-vantage equirectangular sky texture as seen from this planet's host system",
-)
-def planet_starfield(pl_name: str) -> Response:
-    """Reproject the Gaia DR3 starfield from this host system's vantage and
-    return the result as a 4096×2048 equirectangular PNG.
-
-    Used by the frontend skydome in `web/src/pages/ScenePage.tsx`: the PNG
-    is mapped onto the inside of a sphere around the camera, sampled by view
-    direction per eye in WebXR. Each star's apparent magnitude is recomputed
-    from the host's distance, so nearby stars get visibly shifted while
-    distant stars stay roughly fixed — Phase 2 of `docs/STARFIELD_PLAN.md`.
-
-    Response is `Cache-Control: public, max-age=31536000, immutable` because
-    the texture for a given host system is fully determined by its galactic
-    position, which doesn't change. Re-running `etl/build_gaia_xyz.py` and
-    deploying a new catalog will invalidate via a new file hash transparently.
-    """
-    pl_name = unquote(pl_name)
-    with _connect() as conn:
-        with conn.cursor(row_factory=dict_row) as cur:
-            # Pull the host's ra/dec/distance from the latest snapshot,
-            # preferring Gaia photogeometric distance over the literature
-            # aggregate `sy_dist`.
-            cur.execute(
-                """
-                SELECT p.ra, p.dec, p.sy_dist, h.distance_gspphot_pc
-                FROM planets_current p
-                LEFT JOIN host_stars_gaia h ON h.hostname = p.hostname
-                WHERE p.pl_name = %s
-                LIMIT 1
-                """,
-                (pl_name,),
-            )
-            row = cur.fetchone()
-
-    if row is None:
-        raise HTTPException(404, detail=f"Planet {pl_name!r} not found")
-
-    host_xyz = resolve_host_xyz(row)
-    if host_xyz is None:
-        raise HTTPException(
-            422,
-            detail=(
-                f"Planet {pl_name!r} has insufficient astrometric data "
-                "(no usable ra/dec/distance) for per-vantage reprojection."
-            ),
-        )
-
-    catalog = load_catalog()   # cached after first call
-    png_bytes = render_png(catalog, host_xyz_pc=host_xyz)
-
-    return Response(
-        content=png_bytes,
-        media_type="image/png",
-        headers={"Cache-Control": "public, max-age=31536000, immutable"},
-    )
-
+# Endpoint temporarily disabled pending deploy strategy. See note at top of
+# this file about the missing requirements.txt entries for numpy/pandas/
+# pyarrow/pillow. The full implementation lives in api/starfield.py and
+# api/host_xyz.py; gating the route registration here means importing this
+# module no longer transitively imports the heavy deps. Re-enable by
+# uncommenting both the imports and the @app.get block once the deploy
+# size budget is sorted.
 
 _BIBCODE_SQL = "replace(substring(disc_refname FROM 'abs/([^/]+)/abstract'), '%%26', '&')"
 

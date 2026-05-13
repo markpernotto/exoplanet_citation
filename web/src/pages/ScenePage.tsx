@@ -1227,24 +1227,21 @@ function Photosphere({ radius, color, teff }: { radius: number; color: string; t
     }),
     [],
   );
-  // VR fallback: the custom shader (USE_LOGDEPTHBUF + per-fragment limb
-  // darkening + ACES tone mapping interactions) renders incorrectly in
-  // XR — root cause is most likely that the log-depth uniform isn't
-  // synced cleanly across the per-eye projection matrices, so the
-  // photosphere's depth output mismatches the rest of the scene. The
-  // standard MeshBasicMaterial below picks up log-depth automatically
-  // from the renderer flag and renders reliably in both modes. We lose
-  // the granulation noise, limb darkening, and the animated boil — but
-  // the sun reads as a bright emissive disc and bloom still catches it.
-  // HDR is applied via the color scalar so the disc clears the bloom
-  // threshold the same way the shader path does.
+  // VR fallback: the custom shader renders incorrectly in XR (most likely
+  // a log-depth uniform mismatch with per-eye projections), so we swap
+  // in a plain MeshBasicMaterial. To match the desktop look, we run the
+  // HDR-scaled color through the same ACES tone mapping the desktop
+  // shader uses (toneMapped: true), so the on-screen color matches what
+  // you'd see in flat-screen 3D mode. We lose the granulation noise,
+  // limb darkening, and animated boil — but the sun reads as the SAME
+  // bright colored disc in both modes, and bloom still catches it.
   if (inXR) {
     return (
       <mesh>
         <sphereGeometry args={[radius, 64, 64]} />
         <meshBasicMaterial
           color={new THREE.Color(saturated).multiplyScalar(hdrScale)}
-          toneMapped={false}
+          toneMapped={true}
         />
       </mesh>
     );
@@ -1435,24 +1432,30 @@ function Starfield() {
       const gg = (buffers.colors[i * 3 + 1] * 255) | 0;
       const bb = (buffers.colors[i * 3 + 2] * 255) | 0;
       const size = buffers.sizes[i];
-      // Halo first for brighter stars: soft radial gradient that fades to
-      // transparent, drawn UNDER the core so the core stays sharp on top.
-      if (size > 2.0) {
-        const haloR = size * 1.3;
+      // Brightness varies with size — fades dim stars toward black so
+      // they don't look uniform in density. Real night sky has 1-2
+      // visually-dominant stars per FOV with the rest much dimmer; we
+      // approximate that with alpha scaling on the core.
+      const alpha = Math.min(1.0, 0.3 + size * 0.2);
+      // Halo only for the brightest few (size > 3 = naked-eye stars),
+      // so most stars stay as pinpoints and the halos read as "those
+      // are the bright ones" instead of "every star has a halo."
+      if (size > 3.0) {
+        const haloR = size * 1.6;
         const grad = ctx.createRadialGradient(px, py, 0, px, py, haloR);
-        grad.addColorStop(0, `rgba(${rr},${gg},${bb},0.55)`);
-        grad.addColorStop(0.4, `rgba(${rr},${gg},${bb},0.18)`);
+        grad.addColorStop(0, `rgba(${rr},${gg},${bb},0.5)`);
+        grad.addColorStop(0.3, `rgba(${rr},${gg},${bb},0.12)`);
         grad.addColorStop(1, `rgba(${rr},${gg},${bb},0)`);
         ctx.fillStyle = grad;
         ctx.beginPath();
         ctx.arc(px, py, haloR, 0, Math.PI * 2);
         ctx.fill();
       }
-      // Tight bright core — small enough to render as a pinpoint, not a
-      // solid disc. Subpixel-radius arcs get anti-aliased to a 1-2 px
-      // bright dot, which is what reads as a "star" on screen.
-      ctx.fillStyle = `rgb(${rr},${gg},${bb})`;
-      const coreR = Math.max(0.5, size * 0.4);
+      // Tight pinpoint core. Smaller than before — most stars now render
+      // as anti-aliased single-pixel dots, which is what "pinpoint star"
+      // actually looks like on a digital display.
+      ctx.fillStyle = `rgba(${rr},${gg},${bb},${alpha})`;
+      const coreR = Math.max(0.35, size * 0.22);
       ctx.beginPath();
       ctx.arc(px, py, coreR, 0, Math.PI * 2);
       ctx.fill();
@@ -1462,17 +1465,17 @@ function Starfield() {
     return tex;
   }, [buffers]);
 
-  // Lock the skydome to the camera every frame. Without this the user
-  // translates AWAY from the sphere center when they walk in VR (or pan
-  // the desktop camera), and stars exhibit parallax — they slide past
-  // the user as if the sky were a finite-distance wall. Centering the
-  // mesh on the camera means stars always feel infinitely far. This is
-  // exactly what scene.background does internally for its own background
-  // pass; we replicate it for the mesh path.
+  // Lock the skydome to the camera every frame. In XR, state.camera does
+  // NOT necessarily reflect the headset's live pose — three.js maintains
+  // an internal ArrayCamera that's only available via gl.xr.getCamera().
+  // Falling back to state.camera when not in an active XR session covers
+  // the desktop path. Without camera-follow the user translates AWAY from
+  // the sphere center as they walk, and stars exhibit parallax.
   useFrame((state) => {
-    if (skydomeRef.current) {
-      skydomeRef.current.position.copy(state.camera.position);
-    }
+    if (!skydomeRef.current) return;
+    const xr = state.gl.xr;
+    const cam = (xr && xr.isPresenting) ? xr.getCamera() : state.camera;
+    skydomeRef.current.position.copy(cam.position);
   });
 
   // Method B: also set as scene.background so we have a redundant render

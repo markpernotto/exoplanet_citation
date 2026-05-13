@@ -181,7 +181,7 @@ export default function ScenePage() {
               />
             )}
           </VRSceneScale>
-          <Starfield />
+          <Starfield plName={plName} />
           {/* VRRig is OUTSIDE VRSceneScale — its position/speed are in
               world meters, unaffected by scene scaling. 3m from origin
               looks at a ~6m-wide scaled system; 1.5 m/sec is comfortable
@@ -1455,91 +1455,42 @@ function OrbitRing({
 // produced by etl/build_starfield.py, and renders ~62k stars as a single
 // Points draw call on a sphere of radius STAR_SPHERE_AU around the origin.
 
-type StarBuffers = { positions: Float32Array; colors: Float32Array; sizes: Float32Array };
-
-function Starfield() {
-  const [buffers, setBuffers] = useState<StarBuffers | null>(null);
+function Starfield({ plName }: { plName: string }) {
+  const [texture, setTexture] = useState<THREE.Texture | null>(null);
   const { scene } = useThree();
   const skydomeRef = useRef<THREE.Mesh>(null);
+
+  // Phase 2: fetch the per-vantage starfield PNG from the server. The
+  // texture is rendered for THIS specific host system — stars are
+  // reprojected from the host's heliocentric ICRS position, so
+  // TRAPPIST-1's sky differs from Earth's, OGLE microlensing-bulge
+  // worlds get a galactic-center-dominated sky, etc. The server caches
+  // by host position (Cache-Control: immutable for a year); the
+  // browser caches by URL. Two distinct planets in the same system
+  // pull the same PNG bytes from the browser cache.
+  //
+  // EquirectangularReflectionMapping is set so the texture renders as a
+  // proper spherical environment in both the scene.background fallback
+  // path and on the skydome mesh — critical for VR (without it, the
+  // background renders as a head-locked 2D quad). See the XR gotcha
+  // section of docs/PROCEDURAL_RENDERING.md.
   useEffect(() => {
     let cancelled = false;
-    fetch('/starfield_basic.bin')
-      .then((r) => r.arrayBuffer())
-      .then((buf) => { if (!cancelled) setBuffers(parseStarfieldBin(buf)); })
-      .catch(() => { /* silent fail — scene still works without stars */ });
+    const loader = new THREE.TextureLoader();
+    const url = `/api/starfield/${encodeURIComponent(plName)}.png`;
+    loader.load(
+      url,
+      (tex) => {
+        if (cancelled) { tex.dispose(); return; }
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.mapping = THREE.EquirectangularReflectionMapping;
+        setTexture(tex);
+      },
+      undefined,
+      () => { /* silent fail — scene still works without stars */ },
+    );
     return () => { cancelled = true; };
-  }, []);
-
-  // Pre-rasterize the Gaia stars into an equirectangular canvas with a
-  // tight bright core + soft halo per star — closer to how real long-
-  // exposure astrophotography shows them. The prior "uniform solid disc
-  // per star" looked like polka dots; this gives sharp pinpoints for the
-  // dim majority and brighter, glowy stars for the few naked-eye standouts.
-  const texture = useMemo(() => {
-    if (!buffers) return null;
-    const W = 4096;
-    const H = 2048;
-    const canvas = document.createElement('canvas');
-    canvas.width = W;
-    canvas.height = H;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, W, H);
-    const n = buffers.positions.length / 3;
-    for (let i = 0; i < n; i++) {
-      const x = buffers.positions[i * 3];
-      const y = buffers.positions[i * 3 + 1];
-      const z = buffers.positions[i * 3 + 2];
-      const r = Math.sqrt(x * x + y * y + z * z);
-      if (r === 0) continue;
-      const dec = Math.asin(y / r);
-      const ra = Math.atan2(z, x);
-      const u = (ra + Math.PI) / (2 * Math.PI);
-      const v = 1 - (dec + Math.PI / 2) / Math.PI;
-      const px = u * W;
-      const py = v * H;
-      const rr = (buffers.colors[i * 3] * 255) | 0;
-      const gg = (buffers.colors[i * 3 + 1] * 255) | 0;
-      const bb = (buffers.colors[i * 3 + 2] * 255) | 0;
-      const size = buffers.sizes[i];
-      // Halo only for the brightest few (size > 3 = naked-eye stars),
-      // so most stars stay as pinpoints and the halos read as "those
-      // are the bright ones" instead of "every star has a halo."
-      if (size > 3.0) {
-        const haloR = size * 1.6;
-        const grad = ctx.createRadialGradient(px, py, 0, px, py, haloR);
-        grad.addColorStop(0, `rgba(${rr},${gg},${bb},0.5)`);
-        grad.addColorStop(0.3, `rgba(${rr},${gg},${bb},0.12)`);
-        grad.addColorStop(1, `rgba(${rr},${gg},${bb},0)`);
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(px, py, haloR, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      // Tight pinpoint core at full alpha — the size-driven core radius
-      // (0.35-1.0 px) already handles brightness variation through
-      // anti-aliasing: sub-pixel cores AA to gray dim dots, near-pixel
-      // cores AA to bright sharp dots. No need to also alpha-modulate,
-      // which dropped the visible star count too aggressively last time.
-      ctx.fillStyle = `rgb(${rr},${gg},${bb})`;
-      const coreR = Math.max(0.4, size * 0.22);
-      ctx.beginPath();
-      ctx.arc(px, py, coreR, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    // CRITICAL for XR: scene.background renders a Texture with default
-    // UVMapping as a screen-aligned 2D quad — which is what was producing
-    // the "stars locked to head direction" symptom on Quest. With
-    // EquirectangularReflectionMapping, three.js renders scene.background
-    // as a proper spherical environment, sampled by view direction per eye.
-    // (The skydome mesh below uses geometry UVs and is unaffected by this
-    // setting either way, but the scene.background fallback path needs it.)
-    tex.mapping = THREE.EquirectangularReflectionMapping;
-    return tex;
-  }, [buffers]);
+  }, [plName]);
 
 
   // Lock the skydome to the camera every frame. In XR, state.camera does
@@ -1620,48 +1571,6 @@ function Starfield() {
       />
     </mesh>
   );
-}
-
-function parseStarfieldBin(buf: ArrayBuffer): StarBuffers {
-  const view = new DataView(buf);
-  // 8-byte magic ("STARV0\0\0") + uint32 count + uint32 fields
-  const n = view.getUint32(8, true);
-  const positions = new Float32Array(n * 3);
-  const colors    = new Float32Array(n * 3);
-  const sizes     = new Float32Array(n);
-  let off = 16;
-  for (let i = 0; i < n; i++) {
-    const ra    = view.getFloat32(off,      true);
-    const dec   = view.getFloat32(off + 4,  true);
-    const mag   = view.getFloat32(off + 8,  true);
-    const bp_rp = view.getFloat32(off + 12, true);
-    off += 16;
-
-    // Spherical (RA/Dec, radians) → cartesian on the star sphere
-    const cosDec = Math.cos(dec);
-    positions[i * 3 + 0] = STAR_SPHERE_AU * cosDec * Math.cos(ra);
-    positions[i * 3 + 1] = STAR_SPHERE_AU * Math.sin(dec);
-    positions[i * 3 + 2] = STAR_SPHERE_AU * cosDec * Math.sin(ra);
-
-    const [r, g, b] = bpRpToRgb(bp_rp);
-    colors[i * 3 + 0] = r;
-    colors[i * 3 + 1] = g;
-    colors[i * 3 + 2] = b;
-
-    // Brighter stars (lower magnitude) → larger point size in pixels
-    sizes[i] = Math.max(0.6, 4.5 - mag * 0.45);
-  }
-  return { positions, colors, sizes };
-}
-
-// BP-RP color index → naive RGB. Hot stars: blue. Cool stars: red.
-function bpRpToRgb(bp_rp: number): [number, number, number] {
-  if (bp_rp < 0)   return [0.62, 0.78, 1.00];   // O/B
-  if (bp_rp < 0.5) return [0.86, 0.92, 1.00];   // A
-  if (bp_rp < 1.0) return [1.00, 0.97, 0.85];   // F/G
-  if (bp_rp < 1.5) return [1.00, 0.83, 0.60];   // K
-  if (bp_rp < 3.0) return [1.00, 0.61, 0.42];   // M
-  return                [0.81, 0.31, 0.25];      // late M / brown dwarf
 }
 
 function estimateStarRadiusRsun(spectype: string | null): number {

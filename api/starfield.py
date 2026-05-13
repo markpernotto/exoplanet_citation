@@ -50,21 +50,54 @@ HALO_MAG_CUTOFF = -10.0
 # them. 0.001 pc is ~200 AU — beyond any reasonable planet's orbit.
 HOST_PROXIMITY_CUTOFF_PC = 0.001
 
-# Canonical location of the catalog. The endpoint can override per env.
-DEFAULT_CATALOG_PATH = Path("data/gaia_xyz.parquet")
+# Catalog locations. Both parquets share the same schema; the endpoint
+# concatenates them into one in-memory DataFrame.
+DEFAULT_GAIA_PATH = Path("data/gaia_xyz.parquet")
+DEFAULT_PARTICLES_PATH = Path("data/galactic_particles.parquet")
+# Backward compat with the original Phase 2 API:
+DEFAULT_CATALOG_PATH = DEFAULT_GAIA_PATH
 
 
 @lru_cache(maxsize=1)
-def load_catalog(path: str = str(DEFAULT_CATALOG_PATH)) -> pd.DataFrame:
-    """Load the Gaia XYZ catalog. Cached for the process lifetime.
+def load_catalog(
+    gaia_path: str = str(DEFAULT_GAIA_PATH),
+    particles_path: str = str(DEFAULT_PARTICLES_PATH),
+) -> pd.DataFrame:
+    """Load both star catalogs and concatenate into a single DataFrame.
 
-    The first request pays the parquet read (~100ms for 300k rows);
-    subsequent requests get the in-memory DataFrame for free.
+    The two sources play complementary roles (see docs/STARFIELD_PLAN.md):
+      - gaia_xyz.parquet: real Gaia DR3 stars in the solar neighborhood
+        (~2 kpc), positions from measured parallax. Sol is row 0.
+      - galactic_particles.parquet: procedurally-sampled Milky Way
+        density (~1M particles) covering disk/bulge/halo out to ~30 kpc.
+        Statistically matches galactic structure, doesn't correspond to
+        named stars.
+
+    The galactic-particles file is OPTIONAL; if missing (older deploys),
+    we fall back to Gaia-only. This keeps the endpoint working through
+    Phase 3 rollout without requiring the parquet be present everywhere
+    on day one.
+
+    Cached for the process lifetime — the first request pays the parquet
+    read (~200ms for ~1.3M total rows); subsequent requests reuse the
+    in-memory DataFrame.
     """
-    log.info("Loading Gaia XYZ catalog from %s ...", path)
-    df = pd.read_parquet(path)
-    log.info("  → %d stars in catalog", len(df))
-    return df
+    log.info("Loading Gaia XYZ catalog from %s ...", gaia_path)
+    gaia_df = pd.read_parquet(gaia_path)
+    log.info("  → %d Gaia stars", len(gaia_df))
+
+    particles_file = Path(particles_path)
+    if not particles_file.exists():
+        log.info("Galactic particle catalog not found at %s; using Gaia only", particles_path)
+        return gaia_df
+
+    log.info("Loading galactic-particle catalog from %s ...", particles_path)
+    particles_df = pd.read_parquet(particles_path)
+    log.info("  → %d procedural particles", len(particles_df))
+
+    combined = pd.concat([gaia_df, particles_df], ignore_index=True)
+    log.info("Combined catalog: %d total rows", len(combined))
+    return combined
 
 
 def bprp_to_rgb(bp_rp: np.ndarray) -> np.ndarray:
@@ -156,14 +189,19 @@ def rasterize_skytexture(
     py_f = v * height
 
     # ── Per-star intensity from apparent magnitude ────────────────────────
-    # Exponent 0.75: literal midpoint between linear (^1.0) and sqrt (^0.5).
-    # Brightness comparison at apparent mag 7 (intensity_linear = 0.25):
-    #   ^1.5  : 0.107   — original "too dim"
-    #   ^1.0  : 0.250   — linear, dialed-back-by-half from sqrt
-    #   ^0.75 : 0.354   — this, midpoint between linear and sqrt
-    #   ^0.5  : 0.500   — sqrt, was "DRAMATIC"
+    # Exponent 1.2: dims the faint end (apparent ~mag 7-10 near the cutoff)
+    # without touching the bright end (apparent < 0 saturates at 1.0
+    # regardless of exponent). The procedural galactic-particles catalog
+    # adds ~half a million mag-7-to-10 stars to Sol's view that weren't in
+    # Gaia-only; pushing this exponent up surgically thins that haze while
+    # leaving SWEEPS-4 b's bright bulge giants (apparent ~-2 to 0) at full
+    # brightness. Brightness at apparent mag 7 (intensity_linear = 0.3):
+    #   ^0.5  : 0.548   — sqrt, "DRAMATIC"
+    #   ^0.75 : 0.405   — previous, tuned for Sol-only Gaia density
+    #   ^1.0  : 0.300   — linear
+    #   ^1.2  : 0.236   — this, tuned for Gaia + procedural combined density
     intensity_linear = np.clip(1.0 - apparent / mag_cutoff, 0.0, 1.0)
-    intensity = intensity_linear ** 0.75
+    intensity = intensity_linear ** 1.2
 
     # ── Color from bp_rp, scaled by intensity, no minimum floor ───────────
     rgb = bprp_to_rgb(bp_rp)                                  # (N, 3) in [0, 1]

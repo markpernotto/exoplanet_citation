@@ -1469,6 +1469,7 @@ function Starfield() {
     return tex;
   }, [buffers]);
 
+
   // Lock the skydome to the camera every frame. In XR, state.camera does
   // NOT necessarily reflect the headset's live pose — three.js maintains
   // an internal ArrayCamera that's only available via gl.xr.getCamera(),
@@ -1476,11 +1477,13 @@ function Starfield() {
   // transform is composed of parent + matrix updates). getWorldPosition()
   // decomposes the matrixWorld so we always get the correct world point.
   //
-  // Explicit rotation clamp to identity is defensive: if the user is
-  // experiencing "stars rotate with my head," the only way that could
-  // happen for a fixed-rotation mesh is if something in the scene graph
-  // or the XR pipeline is injecting rotation into the mesh's matrix.
-  // Re-asserting identity each frame can't hurt and would catch that.
+  // The quaternion.identity() call clamps the mesh's LOCAL rotation only.
+  // It does NOT compensate for parent transforms — if <Starfield />'s
+  // ancestor chain ever included a rotating group (e.g., it was mounted
+  // inside XROrigin and the user snap-turned), the skydome's world
+  // rotation would still rotate with the parent. Today the component is
+  // a direct child of <XR> with no rotating ancestors, so local-identity
+  // is sufficient. Revisit if the scene graph changes.
   useFrame((state) => {
     if (!skydomeRef.current) return;
     const xr = state.gl.xr;
@@ -1489,21 +1492,32 @@ function Starfield() {
     skydomeRef.current.quaternion.identity();
   });
 
-  // scene.background as a fallback render path. Previously disabled
-  // because removing it during testing seemed to "fix" head-locked stars
-  // in VR — but disabling it also removed ALL stars on Quest, which
-  // suggests the skydome mesh wasn't rendering and scene.background was
-  // doing all the work (possibly head-locked, possibly fine, hard to
-  // tell without ground truth). Re-enabling as a safety net: if the
-  // skydome mesh below renders properly, it occludes scene.background
-  // (depthTest:false + renderOrder:-1 means it draws first as the
-  // background layer); if the mesh fails to render, scene.background
-  // still shows so the user sees SOME stars instead of empty space.
+  // scene.background fallback + GPU texture lifecycle. Combined into one
+  // effect so the cleanup order is guaranteed: unassign first, dispose
+  // second. (Disposing a texture that's still bound to a render target
+  // asserts in three.js debug builds.)
+  //
+  // Why the fallback exists: scene.background renders in three.js's
+  // dedicated background pass BEFORE any scene meshes. The skydome mesh
+  // below renders afterward and overwrites the background wherever it
+  // draws. If the mesh fails to render for any reason (some XR pipelines
+  // silently drop large meshes), the background still shows so the user
+  // sees a proper sky instead of empty space. renderOrder:-1 and
+  // depthTest:false on the skydome control mesh-vs-mesh ordering, NOT
+  // mesh-vs-background ordering.
+  //
+  // Why disposal matters: the Canvas re-mounts on viewMode change (system
+  // ↔ surface) via key={viewMode} on the parent — a new CanvasTexture
+  // (~33MB at 4096×2048 RGB) allocates each mount. Without dispose, GPU
+  // memory leaks per toggle.
   useEffect(() => {
     if (!texture) return;
     const previous = scene.background;
     scene.background = texture;
-    return () => { scene.background = previous; };
+    return () => {
+      scene.background = previous;
+      texture.dispose();
+    };
   }, [texture, scene]);
 
   if (!texture) return null;

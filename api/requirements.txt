@@ -2,3 +2,7 @@ fastapi>=0.115
 psycopg[binary]>=3.2
 python-dotenv>=1.0
 pydantic>=2.8
+numpy>=2.0
+pandas>=2.2
+pyarrow>=17.0
+pillow>=10.4

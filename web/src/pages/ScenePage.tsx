@@ -1432,11 +1432,6 @@ function Starfield() {
       const gg = (buffers.colors[i * 3 + 1] * 255) | 0;
       const bb = (buffers.colors[i * 3 + 2] * 255) | 0;
       const size = buffers.sizes[i];
-      // Brightness varies with size — fades dim stars toward black so
-      // they don't look uniform in density. Real night sky has 1-2
-      // visually-dominant stars per FOV with the rest much dimmer; we
-      // approximate that with alpha scaling on the core.
-      const alpha = Math.min(1.0, 0.3 + size * 0.2);
       // Halo only for the brightest few (size > 3 = naked-eye stars),
       // so most stars stay as pinpoints and the halos read as "those
       // are the bright ones" instead of "every star has a halo."
@@ -1451,11 +1446,13 @@ function Starfield() {
         ctx.arc(px, py, haloR, 0, Math.PI * 2);
         ctx.fill();
       }
-      // Tight pinpoint core. Smaller than before — most stars now render
-      // as anti-aliased single-pixel dots, which is what "pinpoint star"
-      // actually looks like on a digital display.
-      ctx.fillStyle = `rgba(${rr},${gg},${bb},${alpha})`;
-      const coreR = Math.max(0.35, size * 0.22);
+      // Tight pinpoint core at full alpha — the size-driven core radius
+      // (0.35-1.0 px) already handles brightness variation through
+      // anti-aliasing: sub-pixel cores AA to gray dim dots, near-pixel
+      // cores AA to bright sharp dots. No need to also alpha-modulate,
+      // which dropped the visible star count too aggressively last time.
+      ctx.fillStyle = `rgb(${rr},${gg},${bb})`;
+      const coreR = Math.max(0.4, size * 0.22);
       ctx.beginPath();
       ctx.arc(px, py, coreR, 0, Math.PI * 2);
       ctx.fill();
@@ -1467,15 +1464,15 @@ function Starfield() {
 
   // Lock the skydome to the camera every frame. In XR, state.camera does
   // NOT necessarily reflect the headset's live pose — three.js maintains
-  // an internal ArrayCamera that's only available via gl.xr.getCamera().
-  // Falling back to state.camera when not in an active XR session covers
-  // the desktop path. Without camera-follow the user translates AWAY from
-  // the sphere center as they walk, and stars exhibit parallax.
+  // an internal ArrayCamera that's only available via gl.xr.getCamera(),
+  // and even then the camera's `.position` field can be stale (its world
+  // transform is composed of parent + matrix updates). getWorldPosition()
+  // decomposes the matrixWorld so we always get the correct world point.
   useFrame((state) => {
     if (!skydomeRef.current) return;
     const xr = state.gl.xr;
     const cam = (xr && xr.isPresenting) ? xr.getCamera() : state.camera;
-    skydomeRef.current.position.copy(cam.position);
+    cam.getWorldPosition(skydomeRef.current.position);
   });
 
   // Method B: also set as scene.background so we have a redundant render

@@ -94,9 +94,21 @@ from a stock-image library.
   same Vercel project — search bar (planet + author), infinite-scroll
   catalog, planet detail page with procedurally-rendered planet card,
   multi-planet discovery paper affordance ("this paper also announced X,
-  Y, Z"), full change history, system orbital view with true AU scaling
-  and scroll-to-zoom, and six optional retro display themes (P1 Phosphor,
-  P3 Phosphor, CGA, EGA, HGC, Plasma) activated via `?theme=` URL param.
+  Y, Z"), full change history, and six optional retro display themes (P1
+  Phosphor, P3 Phosphor, CGA, EGA, HGC, Plasma) activated via `?theme=`
+  URL param.
+- **Three.js 3D scene** (`/planets/{name}/scene`) with three view modes:
+  - **System view** — top-down orbital animation, sun + planets at true AU
+    scale (bodies exaggerated for visibility), drag to orbit, scroll to
+    zoom.
+  - **Surface view** — first-person, standing on the focal planet, riding
+    its orbit. Sun arcs across the sky as the planet orbits — particularly
+    dramatic for high-eccentricity worlds.
+  - **VR view** (WebXR via `@react-three/xr`) — enter immersive VR from
+    any planet page on a Quest 3 / Quest 2 / other WebXR headset. Scene
+    auto-scales to a comfortable room-scale view; 6-DOF locomotion via
+    controller thumbsticks. See [`docs/PROCEDURAL_RENDERING.md`](docs/PROCEDURAL_RENDERING.md)
+    for the rendering pipeline and the per-vantage starfield direction.
 - **78 unit tests + 13 dbt tests** all green; CI workflow with ruff lint
 
 ---
@@ -165,7 +177,13 @@ make help        # list all targets
 - **[docs/DATA_CATALOG.md](docs/DATA_CATALOG.md)** — pscomppars column
   families decoded, our tier mapping, source provenance, known quirks
 - **[docs/PROCEDURAL_RENDERING.md](docs/PROCEDURAL_RENDERING.md)** —
-  temperature / density / insolation → visual mapping for the planet UI
+  temperature / density / insolation → visual mapping for the planet UI,
+  full rendering-pipeline reference for the 3D scene (photosphere shader,
+  bloom, VR fallbacks), and an XR gotcha file
+- **[docs/STARFIELD_PLAN.md](docs/STARFIELD_PLAN.md)** — canonical plan
+  for the per-vantage sky / Milky Way rendering. Four-layer architecture
+  (Gaia reprojection, procedural galactic particles, diffuse galaxy
+  fragment shader, extragalactic anchors)
 - **[docs/THEMING.md](docs/THEMING.md)** — retro display themes: design
   rationale, technical implementation, theme catalog, self-hosted fonts
 

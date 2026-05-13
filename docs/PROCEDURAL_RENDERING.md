@@ -40,18 +40,20 @@ The dominant signals for visible appearance are equilibrium temperature and bulk
 Use bulk density to classify the planet's gross structure. This is the standard astrophysical taxonomy.
 
 ```
-density >= 3.0 g/cc        →  ROCKY     (Mercury, Venus, Earth, Mars range; ~5.5 g/cc for Earth)
-0.5 <= density < 3.0       →  ICE/WATER (mini-Neptunes, water worlds, sub-Neptunes; ~1.6 g/cc for Neptune)
-density < 0.5              →  GAS GIANT (Saturn, Jupiter, hot Jupiters; ~0.7 g/cc for Saturn, ~1.3 g/cc for Jupiter)
+density >= 4.0 g/cc        →  ROCKY     (Mercury, Venus, Earth, Mars range; ~5.5 g/cc for Earth)
+1.5 <= density < 4.0       →  ICY       (mini-Neptunes, water worlds, sub-Neptunes; ~1.6 g/cc for Neptune)
+density < 1.5              →  GAS GIANT (Saturn, Jupiter, hot Jupiters; ~0.7 g/cc for Saturn, ~1.3 g/cc for Jupiter)
 density NULL or unknown    →  UNCERTAIN (render with a marker indicating "not enough data")
 ```
 
 If density is unknown but we have radius:
-- `pl_rade < 1.6` Earth radii is *probably* rocky (Earth-Venus regime)
-- `pl_rade > 4` Earth radii is *probably* gas giant
-- In between: genuinely uncertain — render as UNCERTAIN
+- `pl_rade < 1.6` Earth radii → ROCKY
+- `1.6 <= pl_rade < 4.0` Earth radii → ICY
+- `pl_rade >= 4.0` Earth radii → GAS GIANT
+- All inputs NULL → UNCERTAIN
 
-These thresholds aren't sharp; they're widely accepted as defensible cuts in the exoplanet-population literature.
+These thresholds aren't sharp; they're defensible cuts from the exoplanet-population
+literature. Authoritative source: [`body_type_from_density()`](../api/scene.py).
 
 ---
 
@@ -135,15 +137,21 @@ The host star's apparent size on a planet detail page can be scaled by `st_rad` 
 
 ---
 
-## Galactic positioning ("Here we are / Here this planet is")
+## Galactic positioning and the per-vantage sky
 
-This view places Earth and the selected host star on a top-down rendering of the Milky Way. Inputs:
-
-- Earth's position is fixed (~26,000 light-years from galactic center, in the Orion Spur — coordinates well-established in the literature).
-- Host star's position is computed from `ra` (right ascension), `dec` (declination), and `sy_dist` (or `distance_gspphot_pc` from Gaia for higher precision).
-- The standard ICRS → galactic Cartesian transformation is one matrix multiplication. `astropy.coordinates` does this in two lines of Python; equivalent JavaScript libraries exist for the frontend.
-
-The Milky Way background image: a public-domain artist's rendering of the galaxy seen from above is fine here, because we're not claiming "this is what the galaxy looks like to a viewer" — we're using it as a reference frame. NASA/JPL-Caltech's "Artist's Concept of the Milky Way" by Robert Hurt is the canonical version and is in the public domain via NASA's image-use policy.
+See [STARFIELD_PLAN.md](STARFIELD_PLAN.md) for the canonical plan covering
+the starfield rendering, per-vantage Gaia reprojection, the diffuse Milky
+Way fragment shader, and extragalactic anchors (LMC, SMC, M31). That doc
+supersedes earlier sketches of the "here we are / here this planet is"
+view: instead of placing the user on a top-down artist's-rendering of the
+galaxy, we render the sky **from the planet's vantage point** — a
+star-by-star equirectangular projection with the host star's galactic
+XYZ as origin. From bulge-microlensing hosts this surrounds the user
+with the galactic center; from solar-neighborhood hosts it's a slightly-
+shifted Earth sky. The principle of procedural-from-data carries through:
+no artist's renderings, all positions and brightnesses derived from
+Gaia DR3 plus a published Milky-Way density model for the procedural
+galactic-star layer.
 
 ---
 
@@ -166,11 +174,167 @@ This kind of transparency is a portfolio asset, not a weakness. It demonstrates 
 
 ## Implementation notes
 
-- **Rendering technology**: SVG for static planet visuals (lightweight, scalable, accessible); `<canvas>` or three.js for the system view and galactic view (need animation / 3D).
-- **Color computation**: precompute color hex codes per body-type-and-temperature bucket; cache as a static lookup table. Keeps the frontend computation cheap.
-- **Fallbacks**: any planet with insufficient data (no density, no radius, no temperature) renders as a "data sparse" indicator — a gray sphere with a question mark. **Never invent values.**
-- **Color-blindness**: the temperature → color mapping has natural luminance variation (hot = bright, cold = dark) that should preserve information for color-blind users; verify with simulation tools before shipping.
-- **Performance**: rendering 6,300 planets simultaneously in a list view requires batching. Single planet detail page is unconstrained.
+- **Rendering technology**: three.js (via `@react-three/fiber`) for all planet/star visuals. Originally planned around SVG for static visuals but consolidated on three.js once the system view, surface view, and VR view were all on the books — same shader code drives the photosphere across all three modes. WebXR via `@react-three/xr` for the VR path.
+- **Color computation**: per-fragment color happens in custom GLSL ShaderMaterials. The blackbody-temperature-to-RGB approximation (Tanner-Helland-derived) runs in JS for star colors (`teff_to_rgb_hex` in [api/scene.py](../api/scene.py)); per-planet body color from `bodyTypeToFillColor` lookup with temperature bucketing.
+- **Fallbacks**: planets with insufficient data render via the `UNCERTAIN` body type — a flat gray with a low-contrast indicator. **Never invent values.**
+- **Color-blindness**: temperature → color mapping has natural luminance variation (hot = bright, cold = dark) preserving information for color-blind users; verify with simulation tools before shipping.
+- **Performance**: rendering ~6,300 planets simultaneously is not a current case (only system-view siblings render together, max ~8 planets); a future "all planets in the galaxy" view would require instanced rendering.
+
+---
+
+## The rendering pipeline (implementation reference)
+
+This section documents the actual rendering code as it stands, since the
+shaders and material configurations grew complex enough that the conceptual
+mappings above don't capture all the choices. Authoritative source: every
+component referenced is in [web/src/pages/ScenePage.tsx](../web/src/pages/ScenePage.tsx).
+
+### View modes
+
+The scene component supports three view modes off the same data:
+
+- **System view (`viewMode === 'system'`).** Top-level overview. The host
+  star sits at scene origin, planets orbit around it. `OrbitControls`
+  for desktop drag-to-orbit; scroll-to-zoom. Animated when paused = false.
+- **Surface view (`viewMode === 'surface'`).** "You are standing on the
+  focal planet." `CameraFollowFocal` rides the focal planet's animated
+  position; `FirstPersonLook` lets the user drag-rotate. Focal planet
+  body is hidden (`hideFocal`). Sun arcs across the sky as the planet
+  orbits.
+- **VR view (immersive XR session).** Either system or surface mode plus
+  an active WebXR session. The scene is uniformly scaled up by
+  `<VRSceneScale>` (factor ≈ `6 / maxOrbit`, clamped to [2, 200]) so the
+  host system fits comfortably in a room-scale VR view. User position
+  comes from `<VRRig>` (an `<XROrigin>` group) at world position
+  `[3, 0.5, 1.5]` meters; locomotion via `useXRControllerLocomotion`
+  with speed `max(0.5, orbsmax * 3) AU/sec`.
+
+### Star photosphere shader
+
+The custom `Photosphere` material is what gives stars their "alive" look
+rather than rendering as a flat colored disc. Composition per-fragment:
+
+1. **HDR color base** — `uColor` is the star's blackbody color from
+   `teff_to_rgb_hex`, with a **saturation push** for cool stars
+   (G and B channels suppressed proportionally to a `cool` factor
+   derived from `(5778 - teff) / 3278`) so M-dwarfs read as a deep
+   saturated red rather than a wishy-washy orange.
+2. **HDR boost** — `uHdr` is a per-star multiplier in roughly the range
+   2.0× (Sun) to 5.0× (KELT-9 and hotter). Cool stars get a `warmth`
+   bonus (up to ~2.8× for TRAPPIST-class M-dwarfs) because deep red has
+   ~10× lower perceived contrast than white against black, so we need
+   to push their HDR higher to get a visually comparable bloom-halo.
+   Hot-star bonus is capped at `1.5×` (so KELT-9 hits ~5.0× total, not
+   ~9×) to keep mipmapBlur from "doming" the entire frame.
+3. **Granulation noise** — a 3D Perlin-like noise function sampled in
+   world space, animated by `uTime`, produces the "boiling photosphere"
+   surface. Modulation amplitude 0.10 — visible motion without bright
+   peaks that bloom-smear into the corona.
+4. **Limb darkening** — `mix(0.15, 1.0, pow(mu, 0.7))` where `mu` is the
+   cosine of the angle between the surface normal and view direction.
+   Floor of 0.15 (well past real-Sun ~0.4) is exaggerated so the
+   photosphere edge fades almost to black before meeting the bloom
+   corona, eliminating the hard-disc silhouette.
+
+The photosphere renders in two passes:
+- **Depth pre-pass** at `renderOrder=-100` with `colorWrite=false` — writes
+  only depth, ensures planets behind the sun are culled before drawing.
+- **Color pass** at `renderOrder=10` — the visible shader output.
+
+### Bloom (post-processing)
+
+Bloom is configured for "stellar corona" — the wide soft halo around
+each photosphere that gives stars visual presence. Tuned config:
+
+- `mipmapBlur` enabled for Gaussian-pyramid spread.
+- `levels={4}` — caps the pyramid depth. At the default ~8 levels, the
+  lowest mip is ~1 pixel and a single bright pixel domes the whole
+  frame. Four levels gives a wide soft halo without that artifact.
+- `luminanceThreshold={0.30}` — catches the full photosphere disc
+  (including the limb-darkened edge ~0.5 luminance for cool stars,
+  much higher for hot stars).
+- `intensity={1.7}` + `radius={0.9}` — the wide intense corona look.
+
+**Side effect:** companion stars (rendered via `meshBasicMaterial` with
+`toneMapped:false`) and very-bright sunlit planets can also clear the
+bloom threshold. Acceptable tradeoff for v1. Cleanly excluding them
+would require selective bloom (a layer-based render-pass refactor that
+the `@react-three/postprocessing` 2.19 + multi-Three-instance pipeline
+makes difficult).
+
+### Planet body shader
+
+`buildPlanetBodyMaterial` produces per-planet ShaderMaterials cached by
+`(bodyType, fillColor, glow, isCold)` tuple. Per-fragment:
+
+- **Body color** from `uColor` (bucketed by temperature per the mappings
+  above).
+- **Latitude bands** for gas giants — three sinusoidal layers in latitude
+  produce subtle horizontal banding without claiming specific patterns.
+- **Polar ice caps** for cold rocky planets (`isCold && bodyType==='rocky'`)
+  — smoothstep on `|sin(latitude)|` whitens the poles.
+- **Emissive** for `glow=true` (hot lava worlds, hot Jupiters) — uniform
+  emission baked into the body color so they read as "thermally bright"
+  rather than just reflecting sunlight.
+
+Gas giants additionally render a `PlanetAtmosphere` — a slightly larger
+sphere (1.08× radius) with a fresnel-shader: alpha is high at the
+silhouette (where you'd see through more atmospheric path) and 0 toward
+the center (looking straight down through thin atmosphere). Sun-side
+modulation darkens the far hemisphere.
+
+### Scaling system
+
+- `RSUN_IN_AU = 0.00465` — 1 solar radius in AU.
+- `REARTH_IN_AU = 0.0000426` — 1 Earth radius in AU.
+- `BODY_EXAG = 500` — all bodies (sun, planets, companions) are scaled
+  up by this factor. Without it, true-to-scale planets at AU orbital
+  distances are sub-pixel from any reasonable zoom.
+- `MIN_PLANET_AU = 0.0008` — visibility floor; sub-Earth rocks need this
+  or they vanish.
+- `ORBIT_CAP_FRAC = 1 / 25` — a planet's display radius can't exceed
+  this fraction of its orbital distance; prevents large planets from
+  overlapping the sun in tight orbits.
+- `SUN_PERIAPSIS_FRAC = 1 / 4` — sun display radius is capped at this
+  fraction of the focal planet's periapsis distance; prevents the sun
+  from engulfing inner planets at periapsis.
+
+### VR-specific quirks (gotcha file)
+
+WebXR + three.js + Quest 3 has a handful of quirks that aren't obvious
+from the docs. Codified here so the next person doesn't relearn them:
+
+- **`<EffectComposer>` black-screens XR sessions.** The post-process
+  pipeline renders to a single 2D framebuffer; WebXR needs per-eye
+  rendering. The `<PostProcessing>` component returns `null` while in
+  an XR session, falling back to direct rendering (no bloom in VR).
+- **`gl_PointSize` is unreliable in Quest's XR pipeline.** Some
+  implementations clamp it aggressively or ignore it entirely. Use
+  `InstancedMesh` or textured spheres instead of `<points>`.
+- **Custom `ShaderMaterial` with `USE_LOGDEPTHBUF` renders incorrectly
+  in XR.** The `logDepthBufFC` uniform isn't synced cleanly across
+  per-eye projections. The Photosphere's VR fallback uses a plain
+  `MeshBasicMaterial` to avoid this (loses granulation noise, limb
+  darkening, and animated boil; tracked as a separate ticket to fix).
+- **`scene.background = texture` requires
+  `texture.mapping = THREE.EquirectangularReflectionMapping`.** Without
+  it, three.js renders the background as a screen-aligned 2D quad
+  that's head-locked in XR (looks like a wall of stars that follows
+  the headset). With it, three.js treats the texture as a proper
+  spherical environment sampled by view direction.
+- **WebXR's default `depthFar` is 1000 meters.** `<XRDepthFar>` calls
+  `session.updateRenderState({ depthNear: 0.01, depthFar: 1e9 })` on
+  session start. Without it, anything past 1km is silently clipped.
+  Quest's actual depth-far appears clamped below `1e9` despite the
+  request (large meshes silently fail to render), so keep meshes
+  under ~10,000 scene units.
+- **`useXRControllerLocomotion`'s default target-Object path only
+  translates X and Z**, not Y. For 6-DOF locomotion (flying down toward
+  the orbital plane), use the callback form and apply `velocity.y` too.
+- **`state.camera` in R3F may not reflect the XR camera's live pose.**
+  For per-frame camera-following, use `gl.xr.getCamera()` when
+  `gl.xr.isPresenting`, and call `getWorldPosition(target)` rather
+  than reading `.position` directly.
 
 ---
 

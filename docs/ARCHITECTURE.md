@@ -166,9 +166,12 @@ classification.
 | `etl/inspect.py` | Local-dev tool for browsing raw_row by planet | dev |
 | `etl/check_setup.py` | Connectivity smoke test (Neon + R2) | dev |
 | `etl/smoke_gaia.py` | One-shot Gaia DR3 client smoke test | dev |
+| `etl/build_starfield.py` | One-shot Gaia DR3 starfield binary builder (`starfield_basic.bin`, `starfield_rich.bin`) for the 3D scene | 2 |
 | `api/index.py` | FastAPI app (22 endpoints + OpenAPI/Swagger), Vercel serverless | 1+2 |
 | `api/models.py` | Pydantic response models | 1+2 |
-| `web/` | Vite + React + TypeScript SPA — search, catalog, procedural planet detail with multi-planet citation affordance, system orbital view, retro themes | 1+2 |
+| `api/scene.py` | Per-planet scene_hints derivation (body type, day length, sun angular size, insolation label, survival estimate) | 2 |
+| `web/` | Vite + React + TypeScript SPA — search, catalog, procedural planet detail with multi-planet citation affordance, system view (3D), surface view, VR view, retro themes | 1+2 |
+| `web/src/pages/ScenePage.tsx` | Three.js + WebXR scene; system/surface/VR view modes (see `docs/PROCEDURAL_RENDERING.md`) | 2 |
 | `web/src/components/ThemeSwitcher.tsx` | URL-param retro theme switcher (six themes; see `docs/THEMING.md`) | 1 |
 | `web/src/procedural.ts` | Body-type/temperature → color mapping (see `docs/PROCEDURAL_RENDERING.md`) | 1 |
 | `vocabularies/` | Controlled vocabularies (SKOS-lite YAML) | 1 |
@@ -188,11 +191,29 @@ from measured astrophysical properties — no stock imagery. Color, size, and
 orbital shape are computed from `pl_eqt`, `pl_dens`, `pl_rade`, and
 `pl_orbsmax`. See [PROCEDURAL_RENDERING.md](PROCEDURAL_RENDERING.md).
 
-**System orbital view.** Planet detail pages include a full-screen modal
-showing all sibling planets in their correct relative AU positions (true
-linear scale, not log-compressed). Scroll-to-zoom and drag-to-pan are
-implemented on a `<canvas>`. An "actual size" mode scales stars and planets
-by true stellar and planetary radii.
+**Three view modes for the scene** (planet detail's `/scene` route, in
+[web/src/pages/ScenePage.tsx](../web/src/pages/ScenePage.tsx)):
+
+- **System view** — top-down 3D of the host system. Sun at origin,
+  planets on their elliptical orbits at true AU scale, body sizes
+  exaggerated for visibility. OrbitControls for desktop. Default mode.
+- **Surface view** — first-person, standing on the focal planet.
+  Camera rides the planet's animated orbital position; sun arcs across
+  the sky as the planet orbits. Useful for high-eccentricity planets
+  where the sun's apparent size changes dramatically through the orbit.
+- **VR view** — either system or surface mode plus an active WebXR
+  session. Six-DOF locomotion via controller thumbsticks; the entire
+  scene is uniformly scaled (factor ≈ `6 / maxOrbit`) so that any
+  host system — from TRAPPIST-1's 0.06 AU outer orbit to HR 8799's
+  70 AU outer orbit — fits a comfortable room-scale view. Tested on
+  Quest 3; Quest 2 supported as a fallback. See the "VR / XR
+  architecture" section below.
+
+**Procedural starfield (current) → per-vantage starfield (planned).**
+Today the sky in all three view modes is rasterized from a static Gaia
+DR3 subset on the client. Phase 2 moves this to a server endpoint that
+reprojects the stars from the host system's vantage, returning a per-
+system PNG. See [STARFIELD_PLAN.md](STARFIELD_PLAN.md).
 
 **Retro display themes.** Six optional CRT/early-digital themes (P1
 Phosphor, P3 Phosphor, CGA, EGA, HGC, Plasma) switchable via `?theme=` URL
@@ -200,12 +221,80 @@ parameter. Implemented via CSS custom properties and `html[data-theme]`
 selectors. No cookies or localStorage — the URL is the complete state.
 Self-hosted woff2 fonts under OFL license; no CDN dependency. See
 [THEMING.md](THEMING.md). Planet visuals are intentionally immune to theming
-(SVG fills are hardcoded, not driven by CSS variables).
+(planet/star colors come from procedural data-driven mappings, not from
+CSS variables).
 
 **URL-first state.** Search (`?q=`), theme (`?theme=`), and navigation
 history are all encoded in the URL. This makes views shareable and keeps
-React state minimal. Both parameters coexist and are preserved across all
+React state minimal. All parameters coexist and are preserved across all
 in-app navigation.
+
+---
+
+## VR / XR architecture
+
+The VR path uses `@react-three/xr` (v6) on top of `@react-three/fiber`.
+The scene tree inside `<Canvas>` for both desktop and VR (XR-specific
+pieces only fire while a session is active):
+
+```
+<Canvas gl={{ logarithmicDepthBuffer: true, toneMapping: ACES }}>
+  <XR store={xrStore}>
+    <XRDepthFar />                  # session.updateRenderState
+                                    # (depthNear=0.01, depthFar=1e9)
+    <VRAutoPlay setPaused={...} />  # unpauses animation on session start
+    <ambientLight />
+    {viewMode === 'system'
+      ? <OrbitControls />
+      : <FirstPersonLook /> + <CameraFollowFocal />}
+    <VRSceneScale maxOrbit={maxOrbit}>
+      <SceneContents />             # sun, planets, orbits, companions
+    </VRSceneScale>
+    <Starfield />                   # OUTSIDE VRSceneScale: skydome at
+                                    # world (not scaled) coordinates
+    <VRRig initialPos={[3,0.5,1.5]} speed={...} />   # XROrigin + locomotion
+    <PostProcessing />              # bloom; returns null in active XR session
+  </XR>
+</Canvas>
+```
+
+Key XR-only helper components, all in [`ScenePage.tsx`](../web/src/pages/ScenePage.tsx):
+
+- **`<XRDepthFar>`** — overrides WebXR's default depthFar of 1000m via
+  `session.updateRenderState({ depthNear: 0.01, depthFar: 1e9 })`. Without
+  this, anything past 1km in scene units is silently clipped.
+- **`<VRAutoPlay>`** — flips `paused` to `false` when an XR session
+  starts. The HTML playback controls aren't reachable inside VR, so a
+  user entering with the default paused=true would see a frozen system.
+- **`<VRSceneScale>`** — wraps the visual scene contents in a `<group>`
+  that scales by `min(200, max(2, 6 / maxOrbit))` while in XR, mapping
+  AU-scale units to meters so the system reads at room scale. Outside
+  XR, factor = 1 (no scaling).
+- **`<VRRig>`** — drops an `<XROrigin>` at a comfortable starting world
+  position and wires `useXRControllerLocomotion` to translate it. Uses
+  a callback form so we get full XYZ free-flight (the default hook
+  ignores Y, restricting users to the horizontal plane).
+- **`<PostProcessing>`** — wraps `<EffectComposer><Bloom>...`. Returns
+  `null` while in an active XR session because EffectComposer renders
+  to a single 2D framebuffer, which black-screens stereo XR rendering.
+
+The starfield (`<Starfield />`) sits OUTSIDE `<VRSceneScale>` deliberately,
+so its skydome mesh's position can be updated each frame to follow the
+XR camera in world coordinates without dividing by the scale factor.
+The texture is an equirectangular `CanvasTexture` (4096×2048) rasterized
+from Gaia DR3 data; the texture's `mapping = THREE.EquirectangularReflectionMapping`
+is **required** for the `scene.background` fallback path to render as a
+spherical environment instead of a head-locked 2D quad. (This was a
+subtle XR-specific gotcha; see the gotcha file in
+[PROCEDURAL_RENDERING.md](PROCEDURAL_RENDERING.md#vr-specific-quirks-gotcha-file).)
+
+**Click handling.** Planet meshes have a transparent hit-mesh (oversized
+sphere with `opacity:0` `MeshBasicMaterial`, NOT `visible:false` — R3F's
+XR controller pointer filters out invisible meshes). Trigger-pull in VR
+routes through R3F's onClick handler. The `jumpTo()` callback calls
+`xrStore.getState().session?.end()` before navigating, since route
+changes unmount the Canvas and would crash an active XR session
+mid-frame.
 
 ---
 
@@ -404,10 +493,11 @@ exoplanet_citation/
 ├── public/                  # generated static feeds (nightly)
 ├── tests/                   # pytest unit tests (78 currently)
 ├── docs/
-│   ├── ARCHITECTURE.md      # this file
-│   ├── DATA_CATALOG.md
-│   ├── PROCEDURAL_RENDERING.md
-│   └── THEMING.md
+│   ├── ARCHITECTURE.md         # this file
+│   ├── DATA_CATALOG.md         # column-by-column data dictionary
+│   ├── PROCEDURAL_RENDERING.md # rendering pipeline (planets, stars, VR)
+│   ├── STARFIELD_PLAN.md       # canonical plan for the per-vantage sky
+│   └── THEMING.md              # retro CRT themes
 ├── infra/                   # Terraform (TBD)
 ├── Dockerfile
 ├── docker-compose.yml       # local Postgres for dev

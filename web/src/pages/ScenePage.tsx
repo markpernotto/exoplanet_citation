@@ -5,7 +5,7 @@ import { Html, OrbitControls } from '@react-three/drei';
 import { Bloom, EffectComposer } from '@react-three/postprocessing';
 import { createXRStore, useXR, useXRControllerLocomotion, XR, XROrigin } from '@react-three/xr';
 import * as THREE from 'three';
-import { api, type BinaryCompanion, type DiscoveryPaper, type SceneResponse } from '../api';
+import { api, type BinaryCompanion, type DiscoveryPaper, type OrbitalGeometryRecord, type SceneResponse } from '../api';
 import LoadingBar from '../components/LoadingBar';
 import { planetVisual } from '../procedural';
 
@@ -92,7 +92,28 @@ export default function ScenePage() {
   // logarithmicDepthBuffer keeps depth precision sane across the 0.001-AU
   // planet body to 5000-AU starfield range (would otherwise z-fight badly).
   const maxOrbit = Math.max(orbsmax, ...scene.siblings.map((s) => s.pl_orbsmax ?? 0));
-  const farPlane = STAR_SPHERE_AU * 1.2;
+  // Wide-binary / triple-star systems: companions are placed at their true
+  // projected separation in AU (separation_arcsec × system distance pc). For
+  // 16 Cyg B that's 815 AU; for GJ 667 C, 290 AU; for GJ 229, 27/53 AU.
+  // The default OrbitControls maxDistance caps zoom-out at maxOrbit×4+5
+  // — about 1.5 AU for a TRAPPIST-1-class system, way short of any wide
+  // companion. Computing the maximum companion separation and folding it
+  // into the zoom-out limit lets the user pull back far enough to see
+  // those second/third suns instead of having them silently off-frame.
+  const systemDistancePc = scene.host_star?.distance_gspphot_pc ?? scene.planet.sy_dist ?? null;
+  const maxCompanionSepAU = systemDistancePc != null
+    ? Math.max(0, ...scene.binary_companions.map(
+        (c) => (c.separation_arcsec ?? 0) * systemDistancePc,
+      ))
+    : 0;
+  const maxOrbitOrCompanion = Math.max(maxOrbit, maxCompanionSepAU);
+  // Far plane normally just needs to cover the starfield skydome (5000 AU).
+  // For ultra-wide-orbit systems like 2MASS J0249-0557 c (orbsmax 1950 AU,
+  // OrbitControls maxDistance 7800 AU) the orbit ellipse extends well past
+  // the skydome, and zoom-out would chop off the far half of the orbit
+  // ring against the camera's far plane. Push the far plane to cover both
+  // the skydome and the camera-to-orbit-far-side distance.
+  const farPlane = Math.max(STAR_SPHERE_AU * 1.2, maxOrbitOrCompanion * 8);
 
   const backTo = `/planets/${encodeURIComponent(plName)}${themeQuery}`;
   // Initialize the shared position to the focal planet's t=0 location so the
@@ -155,7 +176,7 @@ export default function ScenePage() {
               target={focalPos}
               enablePan={true}
               minDistance={focalRadius * 1.5}
-              maxDistance={maxOrbit * 4 + 5}
+              maxDistance={maxOrbitOrCompanion * 4 + 5}
             />
           )}
           {viewMode === 'surface' && (
@@ -249,11 +270,61 @@ function keplerPosition(a: number, e: number, M: number): [number, number, numbe
   return [x, 0, z];
 }
 
+// Per-planet orbit tilts from measured mutual inclinations. Each row in
+// scene.orbital_geometry says "planet X is tilted θ° relative to reference
+// planet Y." The reference planet is treated as the system's flat plane
+// (i=0) and every other planet with a measurement is tilted by its θ.
+// Longitude of ascending node Ω isn't usually measured (RV/transit can
+// only get the inclination, not the orientation), so we derive a
+// deterministic Ω per planet from a hash of its name — that spreads
+// multiple tilted planets to visually distinct orientations instead of
+// stacking their tilts along a single shared line of nodes.
+function buildOrbitTiltMap(
+  geometry: OrbitalGeometryRecord[],
+): Map<string, { inc: number; omega: number }> {
+  const map = new Map<string, { inc: number; omega: number }>();
+  for (const g of geometry) {
+    if (g.mutual_inclination_deg == null || g.mutual_inclination_deg === 0) continue;
+    const inc = (g.mutual_inclination_deg * Math.PI) / 180;
+    // FNV-1a hash of the planet name → Ω in [0, 2π). Deterministic per name.
+    let h = 2166136261;
+    for (let i = 0; i < g.pl_name.length; i++) {
+      h = Math.imul(h ^ g.pl_name.charCodeAt(i), 16777619);
+    }
+    const omega = (((h >>> 0) % 360) * Math.PI) / 180;
+    map.set(g.pl_name, { inc, omega });
+  }
+  return map;
+}
+
+// Tilt a position originally in the (x, 0, z) orbital plane by inclination i
+// around a line of nodes oriented at angle Ω from +X (measured around Y).
+// Applies R = Ry(Ω) · Rx(i) (Y-up convention).
+function applyOrbitTilt(
+  x: number, z: number, inc: number, omega: number,
+): [number, number, number] {
+  if (inc === 0) return [x, 0, z];
+  const cosI = Math.cos(inc), sinI = Math.sin(inc);
+  const cosO = Math.cos(omega), sinO = Math.sin(omega);
+  return [
+    x * cosO + z * cosI * sinO,
+    -z * sinI,
+    -x * sinO + z * cosI * cosO,
+  ];
+}
+
 function planetDisplayRadius(pl_rade: number | null, pl_orbsmax: number | null): number {
   const truthAU = (pl_rade ?? 1) * REARTH_IN_AU;
   const exaggerated = truthAU * BODY_EXAG;
-  const orbitCap = (pl_orbsmax ?? 1) * ORBIT_CAP_FRAC;
-  return Math.max(MIN_PLANET_AU, Math.min(exaggerated, orbitCap));
+  const orbsmax = pl_orbsmax ?? 1;
+  const orbitCap = orbsmax * ORBIT_CAP_FRAC;
+  // Visibility floor for ultra-wide-orbit imaged planets (2MASS J0249-0557 c at
+  // 1950 AU, etc.). Default camera distance is ~2.4 × orbsmax; without a floor
+  // a Jupiter-class body at 1950 AU shrinks to ~0.005° apparent diameter and
+  // disappears below sub-pixel even on a 4K screen. Floor at ~0.5° apparent
+  // ensures the planet renders as at least a small visible disc.
+  const visibilityFloor = orbsmax * 0.007;
+  return Math.max(MIN_PLANET_AU, Math.min(Math.max(exaggerated, visibilityFloor), orbitCap));
 }
 
 // Smallest periapsis (closest approach to the star) across all planets in the
@@ -272,12 +343,20 @@ function innermostPeriapsis(scene: SceneResponse): number {
 // Sun gets the same exaggeration so it stays proportionally huge vs planets,
 // but capped so EVERY planet in the system — not just the focal one — stays
 // comfortably outside the photosphere at periapsis. Floor at true radius;
-// never shrink a star.
-function sunDisplayRadius(st_rad_solar: number | null, innermostPeriapsisAu: number): number {
+// never shrink a star. For ultra-wide-orbit systems (2MASS J0249-0557 c at
+// 1950 AU, b Cen AB b, etc.) the camera sits at ~2.4 × focalOrbsmax from
+// origin, and the default exaggerated solar disc becomes sub-pixel from
+// there — bump the floor so the host is always at least ~1° apparent.
+function sunDisplayRadius(
+  st_rad_solar: number | null,
+  innermostPeriapsisAu: number,
+  focalOrbsmaxAu: number,
+): number {
   const truthAU = (st_rad_solar ?? 1) * RSUN_IN_AU;
   const exaggerated = truthAU * BODY_EXAG;
   const periapsisCap = innermostPeriapsisAu * SUN_PERIAPSIS_FRAC;
-  return Math.max(truthAU, Math.min(exaggerated, periapsisCap));
+  const visibilityFloor = focalOrbsmaxAu * 0.022;
+  return Math.max(truthAU, Math.min(Math.max(exaggerated, visibilityFloor), periapsisCap));
 }
 
 
@@ -379,6 +458,57 @@ function InfoPanel({
           </p>
         )}
       </Section>
+
+      {/* Companions — wide-binary / triple-star components from WDS etc.
+          Only shown when the catalog records at least one companion. */}
+      {scene.binary_companions.length > 0 && (
+        <Section
+          label={`Companions · ${scene.binary_companions.length}`}
+          open={openSections.has('comp')}
+          onToggle={() => toggle('comp')}
+        >
+          <p style={{ margin: '0 0 0.4rem', fontSize: '0.74rem', color: 'var(--fg-muted)' }}>
+            {planet.pl_name} orbits the primary only. Other components are
+            shown in the scene at their projected positions.
+          </p>
+          {scene.binary_companions.map((c, i) => {
+            const sepAU = c.separation_arcsec != null && distance_pc != null
+              ? c.separation_arcsec * distance_pc
+              : null;
+            const kind = companionKind(c.component_spectype);
+            const insideOrbit = sepAU != null && planet.pl_orbsmax != null
+              && sepAU < planet.pl_orbsmax;
+            return (
+              <div
+                key={c.component_designation}
+                style={{ marginTop: i === 0 ? 0 : '0.45rem', fontSize: '0.78rem' }}
+              >
+                <div style={{ fontWeight: 600 }}>
+                  {c.component_designation}
+                  {(c.component_spectype || kind) && (
+                    <span style={{ fontWeight: 400, color: 'var(--fg-muted)', marginLeft: '0.4rem' }}>
+                      {[c.component_spectype, kind].filter(Boolean).join(' · ')}
+                    </span>
+                  )}
+                </div>
+                <div style={{ color: 'var(--fg-muted)', fontSize: '0.74rem' }}>
+                  {sepAU != null ? (
+                    <>~{sepAU >= 10 ? sepAU.toFixed(0) : sepAU.toFixed(1)} AU projected
+                      {c.position_angle_deg != null && <> · PA {c.position_angle_deg.toFixed(0)}°</>}
+                    </>
+                  ) : 'separation unknown'}
+                  {c.source_catalog && <> · {c.source_catalog}</>}
+                </div>
+                {insideOrbit && (
+                  <div style={{ color: 'var(--tier-b)', fontSize: '0.72rem', marginTop: '0.15rem' }}>
+                    inside {planet.pl_name}'s orbit — look toward the host, not past it
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </Section>
+      )}
 
       {/* Discovery */}
       <Section
@@ -937,7 +1067,18 @@ function SceneContents({
 
   const focalOrbsmax = planet.pl_orbsmax ?? 1;
   const innermost = innermostPeriapsis(scene);
-  const sunRadius = sunDisplayRadius(planet.st_rad, innermost);
+  const sunRadius = sunDisplayRadius(planet.st_rad, innermost, focalOrbsmax);
+
+  // Mutual-inclination map keyed by planet name. ups And d (30° vs c),
+  // 55 Cnc e (17° vs b), and Kepler-419 c (9° vs b) are the visible
+  // standouts; most other measured rows are sub-degree fine structure.
+  // Planets without an entry default to the system's reference plane
+  // (i=0). Built once per scene response; cheap.
+  const tiltMap = useMemo(
+    () => buildOrbitTiltMap(scene.orbital_geometry),
+    [scene.orbital_geometry],
+  );
+  const focalTilt = tiltMap.get(planet.pl_name) ?? { inc: 0, omega: 0 };
 
   // Animation clock — accumulates real seconds × speed when not paused.
   // Each planet derives its current orbital angle from this single shared time.
@@ -970,16 +1111,19 @@ function SceneContents({
     if (!paused) clock.current += delta * speed;
 
     const M = (clock.current / FOCAL_SECS_PER_ORBIT) * 2 * Math.PI;
-    const [fx, , fz] = keplerPosition(focalOrbsmax, planet.pl_orbeccen ?? 0, M);
-    if (focalGroup.current) focalGroup.current.position.set(fx, 0, fz);
+    const [fx0, , fz0] = keplerPosition(focalOrbsmax, planet.pl_orbeccen ?? 0, M);
+    const [fx, fy, fz] = applyOrbitTilt(fx0, fz0, focalTilt.inc, focalTilt.omega);
+    if (focalGroup.current) focalGroup.current.position.set(fx, fy, fz);
     // Expose focal world position for surface-mode camera tracking
-    if (focalPosOut) focalPosOut.current.set(fx, 0, fz);
+    if (focalPosOut) focalPosOut.current.set(fx, fy, fz);
     siblingRefs.current.forEach((group, plName) => {
       const s = siblings.find((x) => x.pl_name === plName);
       if (!s || s.pl_orbsmax == null) return;
       const M = meanAnomaly(s.pl_orbper, s.pl_name);
-      const [x, , z] = keplerPosition(s.pl_orbsmax, s.pl_orbeccen ?? 0, M);
-      group.position.set(x, 0, z);
+      const [x0, , z0] = keplerPosition(s.pl_orbsmax, s.pl_orbeccen ?? 0, M);
+      const tilt = tiltMap.get(plName) ?? { inc: 0, omega: 0 };
+      const [x, y, z] = applyOrbitTilt(x0, z0, tilt.inc, tilt.omega);
+      group.position.set(x, y, z);
     });
   });
 
@@ -1030,19 +1174,35 @@ function SceneContents({
         groundColor="#1f1f2a"
       />
 
-      {/* Orbit rings — focal in accent color, siblings dimmer */}
-      <OrbitRing orbsmax={focalOrbsmax} eccen={planet.pl_orbeccen ?? 0} color="#7ad6ff" opacity={0.55} />
+      {/* Orbit rings — focal in accent color, siblings dimmer. Tilt is
+          applied per-vertex inside OrbitRing based on the planet's
+          measured mutual inclination (from tiltMap). Visible standouts:
+          ups And d (30° from c), 55 Cnc e (17° from b), Kepler-419 c
+          (9° from b). Planets without measured geometry stay coplanar. */}
+      <OrbitRing
+        orbsmax={focalOrbsmax}
+        eccen={planet.pl_orbeccen ?? 0}
+        color="#7ad6ff"
+        opacity={0.55}
+        inc={focalTilt.inc}
+        omega={focalTilt.omega}
+      />
       {siblings
         .filter((s) => s.pl_name !== planet.pl_name && s.pl_orbsmax != null)
-        .map((s) => (
-          <OrbitRing
-            key={`ring-${s.pl_name}`}
-            orbsmax={s.pl_orbsmax!}
-            eccen={s.pl_orbeccen ?? 0}
-            color="#888"
-            opacity={0.45}
-          />
-        ))}
+        .map((s) => {
+          const t = tiltMap.get(s.pl_name) ?? { inc: 0, omega: 0 };
+          return (
+            <OrbitRing
+              key={`ring-${s.pl_name}`}
+              orbsmax={s.pl_orbsmax!}
+              eccen={s.pl_orbeccen ?? 0}
+              color="#888"
+              opacity={0.45}
+              inc={t.inc}
+              omega={t.omega}
+            />
+          );
+        })}
 
       {/* Focal planet — animated; group wraps so useFrame can move it.
           Hidden in surface mode (we're standing on it). The focal gets the
@@ -1096,6 +1256,10 @@ function SceneContents({
           key={c.component_designation}
           companion={c}
           systemDistancePc={scene.host_star?.distance_gspphot_pc ?? scene.planet.sy_dist ?? null}
+          hostname={planet.hostname}
+          onHover={setHovered}
+          hoveredKey={hovered}
+          focalOrbsmaxAu={focalOrbsmax}
         />
       ))}
     </>
@@ -1105,9 +1269,20 @@ function SceneContents({
 function CompanionStar({
   companion,
   systemDistancePc,
+  hostname,
+  onHover,
+  hoveredKey,
+  focalOrbsmaxAu,
 }: {
   companion: BinaryCompanion;
   systemDistancePc: number | null;
+  hostname: string;
+  onHover?: (name: string | null) => void;
+  hoveredKey?: string | null;
+  // Focal planet's orbsmax in AU — sets the scene's overall scale and so
+  // determines how big a companion has to be to remain visibly more than a
+  // pixel from the default camera vantage (~2.4 × orbsmax from origin).
+  focalOrbsmaxAu: number;
 }) {
   // 1 AU subtends 1 arcsec at 1 pc — so projected separation in AU is just
   // sep_arcsec * distance_pc. We have no information on the line-of-sight
@@ -1131,21 +1306,86 @@ function CompanionStar({
   ];
 
   const color = spectralTypeToColor(companion.component_spectype);
+  const teff = estimateStarTeff(companion.component_spectype);
   // Companion-star physical radius isn't in our data; estimate from spectral
-  // type (M ~0.3 R_sun, K ~0.7, G ~1, etc.). True angular size from inner
-  // planets will be tiny — but we emphasize emissive intensity to make sure
-  // it reads as a "bright second sun in the sky."
-  const radiusAU = estimateStarRadiusRsun(companion.component_spectype) * RSUN_IN_AU;
+  // type (M ~0.3 R_sun, K ~0.7, G ~1, etc.). Apply BODY_EXAG so the
+  // companion has a VISIBLE disc at scene scale — the same exaggeration the
+  // primary photosphere uses. Without it the companion is ~0.005 AU radius
+  // at hundreds-of-AU separation, sub-pixel from any camera vantage and
+  // effectively invisible (one of the reasons triple-star systems looked
+  // like single-star systems before this fix).
+  //
+  // Cap at 1/8 of the separation to the primary so very close companions
+  // (GJ 229's 27 AU B) don't visually engulf the primary or eclipse the
+  // planet's orbit. The cap kicks in when sepAU < ~12 AU for solar-radius
+  // companions — none of our currently-curated triples hit that.
+  //
+  // Floor at 0.05 AU so even white dwarfs and ultra-cool brown dwarfs
+  // (sub-R_sun bodies) still render large enough to read as actual stars
+  // at typical zoom levels — without this floor, a D-type companion is a
+  // 0.028-AU pinprick easily lost against the starfield.
+  //
+  // Additional scene-scale floor at 1% of focal orbsmax: the default camera
+  // sits ~2.4 × focalOrbsmax from origin, so on the largest-orbit imaged
+  // systems (VHS J125601 at 350 AU, ITG 15 at 435 AU, 2MASS J0249-0557 at
+  // 1950 AU) the BODY_EXAG=500 exaggerated radius shrinks to 1–2 pixels at
+  // default vantage. Floor needs to be aggressive enough that the solid
+  // photosphere disc — not just its corona — is visually dominant; the
+  // corona renders with additive blending and doesn't occlude orbit lines
+  // behind it, so a "mostly corona" companion appears to have the back
+  // half of the orbit shining through it.
+  const MIN_COMPANION_RADIUS_AU = Math.max(0.05, focalOrbsmaxAu * 0.01);
+  const trueRadiusAU = estimateStarRadiusRsun(companion.component_spectype) * RSUN_IN_AU;
+  const exaggerated = trueRadiusAU * BODY_EXAG;
+  const radiusAU = Math.max(MIN_COMPANION_RADIUS_AU, Math.min(exaggerated, sepAU / 8));
 
+  // Render companions with the SAME shader treatment as the primary host —
+  // Photosphere (limb darkening + granulation + teff-driven HDR) plus the
+  // StellarCorona halo it carries internally. Dwarfs (brown / white / red)
+  // are stars too; they should glow with a corona, not appear as flat discs.
+  //
+  // Hover behaviour mirrors PlanetBody: an invisible hit-test sphere a few
+  // times larger than the visible disc reports its label up to the parent
+  // (SceneContents) which manages the shared `hovered` state. Distinct keys
+  // ("VHS J125601.92-125723.9 B" vs the planet's "VHS J125601.92-125723.9 b")
+  // prevent collisions between companion designations and planet names.
+  const labelName = `${hostname} ${companion.component_designation}`;
+  const kindLabel = companionKind(companion.component_spectype);
+  const subtitleParts = [companion.component_spectype, kindLabel].filter(Boolean) as string[];
+  const subtitle = subtitleParts.length > 0 ? subtitleParts.join(' · ') : 'companion star';
   return (
-    <group>
-      <mesh position={position}>
-        <sphereGeometry args={[radiusAU, 32, 32]} />
-        <meshBasicMaterial color={color} toneMapped={false} />
+    <group position={position}>
+      <Photosphere radius={radiusAU} color={color} teff={teff} />
+      <pointLight intensity={0.4} color={color} distance={0} decay={0} />
+      <mesh
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          if (onHover) onHover(labelName);
+          document.body.style.cursor = 'default';
+        }}
+        onPointerOut={(e) => {
+          e.stopPropagation();
+          if (onHover) onHover(null);
+          document.body.style.cursor = 'default';
+        }}
+      >
+        <sphereGeometry args={[Math.max(radiusAU * 4, 0.2), 16, 16]} />
+        <meshBasicMaterial visible={false} />
       </mesh>
-      <pointLight position={position} intensity={0.4} color={color} distance={0} decay={0} />
+      {hoveredKey === labelName && (
+        <PlanetLabel name={labelName} subtitle={subtitle} yOffset={radiusAU * 1.6} />
+      )}
     </group>
   );
+}
+
+function companionKind(spectype: string | null): string | null {
+  if (!spectype) return null;
+  const letter = spectype.trim().charAt(0).toUpperCase();
+  if (letter === 'L' || letter === 'T' || letter === 'Y') return 'brown dwarf';
+  if (letter === 'D') return 'white dwarf';
+  if (letter === 'M') return 'red dwarf';
+  return null;
 }
 
 function spectralTypeToColor(spectype: string | null): string {
@@ -1538,31 +1778,41 @@ function shiftTowardRed(hex: string): string {
 // even at extreme zoom.
 
 function OrbitRing({
-  orbsmax, eccen, color, opacity,
+  orbsmax, eccen, color, opacity, inc = 0, omega = 0,
 }: {
   orbsmax: number; eccen: number; color: string; opacity: number;
+  inc?: number; omega?: number;
 }) {
   // Native three.js Line (gl_LINES, 1px width) instead of drei's Line2
   // wrapper. Line2 renders thick lines as instanced quad strips and its
   // depth output doesn't reliably occlude against custom shaders, which
   // caused orbit rings to draw on top of the photosphere. Native lines
   // depth-test correctly per fragment.
+  //
+  // Inclination + Ω tilt the entire ellipse out of the xz plane using
+  // the same applyOrbitTilt rotation as the planet position calc, so
+  // the rendered planet sits exactly on its rendered orbital path
+  // even when both are tilted.
   const geometry = useMemo(() => {
     const a = orbsmax;
     const e = Math.max(0, Math.min(0.99, eccen));
     const b = a * Math.sqrt(1 - e * e);
     const N = 256;
     const positions = new Float32Array((N + 1) * 3);
+    const cosI = Math.cos(inc), sinI = Math.sin(inc);
+    const cosO = Math.cos(omega), sinO = Math.sin(omega);
     for (let i = 0; i <= N; i++) {
       const t = (i / N) * Math.PI * 2;
-      positions[i * 3 + 0] = a * Math.cos(t) - a * e;
-      positions[i * 3 + 1] = 0;
-      positions[i * 3 + 2] = b * Math.sin(t);
+      const x0 = a * Math.cos(t) - a * e;
+      const z0 = b * Math.sin(t);
+      positions[i * 3 + 0] = x0 * cosO + z0 * cosI * sinO;
+      positions[i * 3 + 1] = -z0 * sinI;
+      positions[i * 3 + 2] = -x0 * sinO + z0 * cosI * cosO;
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     return g;
-  }, [orbsmax, eccen]);
+  }, [orbsmax, eccen, inc, omega]);
 
   const material = useMemo(
     () => new THREE.LineBasicMaterial({
@@ -1717,6 +1967,28 @@ function estimateStarRadiusRsun(spectype: string | null): number {
     case 'L': case 'T': case 'Y': return 0.1;
     case 'D': return 0.012;   // white dwarf
     default:  return 0.7;
+  }
+}
+
+// Median effective temperature for a spectral class — feeds the Photosphere
+// shader's HDR ramp so a K-companion glows orange-yellow, an M-companion red,
+// a T brown dwarf deep crimson, etc. Falls back to Sun-like 5778 K.
+function estimateStarTeff(spectype: string | null): number {
+  if (!spectype) return 5778;
+  const letter = spectype.trim().charAt(0).toUpperCase();
+  switch (letter) {
+    case 'O': return 35000;
+    case 'B': return 18000;
+    case 'A': return 8500;
+    case 'F': return 6700;
+    case 'G': return 5800;
+    case 'K': return 4500;
+    case 'M': return 3200;
+    case 'L': return 1800;
+    case 'T': return 1000;
+    case 'Y': return 500;
+    case 'D': return 20000;   // typical white dwarf
+    default:  return 5778;
   }
 }
 
@@ -1995,9 +2267,9 @@ function atmosphereTintFromMolecules(
   return undefined;
 }
 
-function PlanetLabel({ name, subtitle }: { name: string; subtitle?: string }) {
+function PlanetLabel({ name, subtitle, yOffset = 0.012 }: { name: string; subtitle?: string; yOffset?: number }) {
   return (
-    <Html position={[0, 0.012, 0]} center distanceFactor={undefined} style={{ pointerEvents: 'none' }}>
+    <Html position={[0, yOffset, 0]} center distanceFactor={undefined} style={{ pointerEvents: 'none' }}>
       <div style={{
         background: 'rgba(11, 13, 18, 0.85)',
         color: 'var(--fg)',

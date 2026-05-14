@@ -1,9 +1,62 @@
 import { useEffect, useRef, useState } from 'react';
-import type { PlanetDetail, PlanetSummary } from '../api';
+import type { BinaryCompanion, PlanetDetail, PlanetSummary } from '../api';
 import { planetVisual, starColor } from '../procedural';
 import { useSvgZoomPan, type ViewBox } from '../lib/useSvgZoomPan';
 
-type Props = { planet: PlanetDetail; siblings?: PlanetSummary[] | null; bp_rp?: number | null };
+type Props = {
+  planet: PlanetDetail;
+  siblings?: PlanetSummary[] | null;
+  bp_rp?: number | null;
+  companions?: BinaryCompanion[];
+  // System distance in parsecs (from Gaia or planet.sy_dist) — needed to
+  // convert each companion's separation_arcsec into AU so we can decide
+  // whether to draw it inside or outside the planet's orbit ellipse.
+  distancePc?: number | null;
+};
+
+// Companion star color from spectral type. L/T/Y are brown dwarfs, D is a
+// white dwarf — both render in the deep-red range; OBAFGKM follow the usual
+// hot-blue → cool-red gradient. Mirrors the 3D scene's CompanionStar coloring.
+function companionColor(spectype: string | null): string {
+  if (!spectype) return '#ffe6c0';
+  const letter = spectype.trim().charAt(0).toUpperCase();
+  switch (letter) {
+    case 'O': case 'B': return '#a4c8ff';
+    case 'A':           return '#dce6ff';
+    case 'F': case 'G': return '#fff7d2';
+    case 'K':           return '#ffd49a';
+    case 'M':           return '#ff9b6a';
+    case 'L': case 'T': case 'Y': case 'D': return '#cf5040';
+    default:            return '#ffe6c0';
+  }
+}
+
+// Recover a semi-major axis when only the orbital period is recorded. Some
+// catalog rows (NY Vir c, Kepler-451 c/d, ...) carry a period but no AU value,
+// which used to disable the multi-orbit modal entirely. Kepler's third law for
+// a 1 M_sun host: a (AU) = (T_years)^(2/3). The multi-orbit view is a
+// relative-scale picture, so the 1 M_sun assumption is good enough for layout.
+function effectiveOrbsmaxAU(
+  a: number | null | undefined,
+  periodDays: number | null | undefined,
+): number | null {
+  if (a != null && a > 0) return a;
+  if (periodDays == null || periodDays <= 0) return null;
+  const periodYears = periodDays / 365.25;
+  return Math.cbrt(periodYears * periodYears);
+}
+
+// Plain-English kind for the companion-label suffix. Defaults to "star" so the
+// user can never confuse an uppercase companion letter ("B", "C") with the
+// lowercase planet letter ("b", "c") in the same system.
+function companionKind(spectype: string | null): string {
+  if (!spectype) return 'star';
+  const letter = spectype.trim().charAt(0).toUpperCase();
+  if (letter === 'L' || letter === 'T' || letter === 'Y') return 'brown dwarf';
+  if (letter === 'D') return 'white dwarf';
+  if (letter === 'M') return 'red dwarf';
+  return 'star';
+}
 
 // AU conversions for real-size mode (1 solar radius = 0.00465 AU;
 // 1 Earth radius = 4.259×10⁻⁵ AU).
@@ -64,7 +117,7 @@ function formatPeriod(days: number): string {
   return `${(days / 365.25).toFixed(2)} yr`;
 }
 
-export default function PlanetCard({ planet, siblings, bp_rp }: Props) {
+export default function PlanetCard({ planet, siblings, bp_rp, companions, distancePc }: Props) {
   const [paused, setPaused] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [realSize, setRealSize] = useState(false);
@@ -143,10 +196,20 @@ export default function PlanetCard({ planet, siblings, bp_rp }: Props) {
   const periapsisDistance = orbitSemiMajor * (1 - eccentricity);
 
   // ViewBox: focus on right-of-center, apoapsis fits to its left, periapsis
-  // to its right, equal padding both sides.
-  const viewBoxWidth = Math.max(320, apoapsisDistance + periapsisDistance + 2 * xPadding);
-  const viewBoxHeight = Math.max(340, 2 * orbitSemiMinor + 100);
-  const focusX = apoapsisDistance + xPadding;
+  // to its right, equal padding both sides. When wide-binary companions are
+  // recorded for this system, expand the canvas so they have a ring of space
+  // just outside the orbit ellipse to sit in (with room for labels below).
+  const hasCompanions = (companions ?? []).length > 0;
+  const COMPANION_BUFFER = 35;
+  const COMPANION_LABEL_PAD = 36;
+  const companionR = apoapsisDistance + COMPANION_BUFFER;
+  const companionReach = hasCompanions ? companionR + COMPANION_LABEL_PAD : 0;
+  const reachLeft = Math.max(apoapsisDistance + xPadding, companionReach);
+  const reachRight = Math.max(periapsisDistance + xPadding, companionReach);
+  const reachVert = Math.max(170, orbitSemiMinor + 50, companionReach);
+  const viewBoxWidth = Math.max(320, reachLeft + reachRight);
+  const viewBoxHeight = Math.max(340, 2 * reachVert);
+  const focusX = reachLeft;
   const focusY = viewBoxHeight / 2 - 5;
   const ellipseCx = focusX - orbitSemiMajor * eccentricity;
   const ellipseCy = focusY;
@@ -237,6 +300,20 @@ export default function PlanetCard({ planet, siblings, bp_rp }: Props) {
           <clipPath id={`planet-clip-${id}`}>
             <circle cx={planetX} cy={planetY} r={displayPlanetRadius} />
           </clipPath>
+
+          {/* One corona gradient per companion — its color depends on spectral
+              type so brown dwarfs glow red, M-companions orange, etc. */}
+          {hasCompanions && (companions ?? []).map((c, i) => (
+            <radialGradient
+              key={`comp-corona-def-${i}`}
+              id={`comp-corona-${id}-${i}`}
+              cx="50%" cy="50%"
+            >
+              <stop offset="0%" stopColor={companionColor(c.component_spectype)} stopOpacity="0.55" />
+              <stop offset="45%" stopColor={companionColor(c.component_spectype)} stopOpacity="0.18" />
+              <stop offset="100%" stopColor={companionColor(c.component_spectype)} stopOpacity="0" />
+            </radialGradient>
+          ))}
         </defs>
 
         {/* The orbit ellipse — Kepler's first law: ellipse with star at one focus.
@@ -260,6 +337,55 @@ export default function PlanetCard({ planet, siblings, bp_rp }: Props) {
             no orbital data — orbit shape is symbolic
           </text>
         )}
+
+        {/* Wide-binary / triple-star companions. The planet orbits the primary
+            only. Two placement regimes:
+            • When the companion's projected separation is INSIDE the planet's
+              orbit (sepAU < pl_orbsmax — VHS J125601, ITG 15) we draw it at
+              its true proportional radius inside the ellipse.
+            • Otherwise (the typical wide-binary case where companions are at
+              tens-to-hundreds of AU vs sub-AU planet orbits), we park them
+              just outside the orbit ring at a symbolic fixed offset.
+            Direction always follows the catalog position angle (north = up).
+            Each companion gets a soft corona halo + "· kind" suffix label. */}
+        {hasCompanions && (companions ?? []).map((c, i) => {
+          const paDeg = c.position_angle_deg;
+          const paRad = paDeg != null
+            ? (paDeg * Math.PI) / 180
+            : (i / Math.max(1, (companions ?? []).length)) * 2 * Math.PI;
+          const sepAU = c.separation_arcsec != null && distancePc != null
+            ? c.separation_arcsec * distancePc
+            : null;
+          const insideOrbit = sepAU != null && planet.pl_orbsmax != null
+            && sepAU < planet.pl_orbsmax;
+          // Floor for inside-orbit placement: keep companion clear of the
+          // host star's visual disc (starRadius) + its own corona (radius 15).
+          // For VHS J125601.92-125723.9 b the true proportional position is
+          // 26px from focus — well inside the host's ~26px starRadius — so
+          // the companion would visually melt into the host without this.
+          const insideOrbitFloor = displayStarRadius + 18;
+          const compR = insideOrbit
+            ? Math.max(insideOrbitFloor, (sepAU! / planet.pl_orbsmax!) * orbitSemiMajor)
+            : companionR;
+          const cx = focusX + compR * Math.sin(paRad);
+          const cy = focusY - compR * Math.cos(paRad);
+          const color = companionColor(c.component_spectype);
+          const kind = companionKind(c.component_spectype);
+          const titleSuffix = c.component_spectype ? ` (${c.component_spectype})` : '';
+          return (
+            <g key={c.component_designation}>
+              <circle cx={cx} cy={cy} r={15} fill={`url(#comp-corona-${id}-${i})`} />
+              <circle cx={cx} cy={cy} r={5.5} fill={color} opacity={0.95}>
+                <title>{c.component_designation}{titleSuffix} — {kind}; {planet.pl_name} orbits the primary only{insideOrbit ? ' — companion is inside the orbit' : ''}</title>
+              </circle>
+              <text x={cx} y={cy + 22} textAnchor="middle" fill="#9099aa"
+                    fontSize="10" fontFamily="-apple-system, sans-serif">
+                {c.component_designation}
+                <tspan fill="#7d8595"> · {kind}</tspan>
+              </text>
+            </g>
+          );
+        })}
 
         {/* Host star — single or circumbinary pair orbiting their common focus */}
         {isBinary ? (
@@ -323,9 +449,16 @@ export default function PlanetCard({ planet, siblings, bp_rp }: Props) {
   // really does become a dot next to a cold Jupiter at 5 AU. The user can
   // scroll to zoom in on the inner system in the modal.
   const multiOrbit = (() => {
-    const sibsWithOrbits = (siblings ?? []).filter((s) => s.pl_orbsmax != null);
-    if (sibsWithOrbits.length === 0) return null;
-    if (planet.pl_orbsmax == null) return null;
+    // A "sibling with an orbit" used to mean only those carrying pl_orbsmax;
+    // now also accepts pl_orbper-only rows (we derive AU via Kepler's third
+    // law). Same for the focal planet — its multi-orbit early-return no longer
+    // fires for period-only catalog entries like NY Vir c or Kepler-451 c/d.
+    const focalA = effectiveOrbsmaxAU(planet.pl_orbsmax, planet.pl_orbper);
+    if (focalA == null) return null;
+    const sibsWithEff = (siblings ?? [])
+      .map((s) => ({ s, eff: effectiveOrbsmaxAU(s.pl_orbsmax, s.pl_orbper) }))
+      .filter((x): x is { s: PlanetSummary; eff: number } => x.eff != null);
+    if (sibsWithEff.length === 0) return null;
 
     type Orbiter = {
       key: string;
@@ -344,18 +477,18 @@ export default function PlanetCard({ planet, siblings, bp_rp }: Props) {
         key: id,
         name: planet.pl_name,
         isPrimary: true,
-        a: planet.pl_orbsmax,
+        a: focalA,
         e: Math.max(0, Math.min(0.95, planet.pl_orbeccen ?? 0)),
         period: planet.pl_orbper,
         eqt: planet.pl_eqt,
         dens: planet.pl_dens,
         rade: planet.pl_rade,
       },
-      ...sibsWithOrbits.map((s) => ({
+      ...sibsWithEff.map(({ s, eff }) => ({
         key: s.pl_name.replace(/[^a-zA-Z0-9]/g, '_'),
         name: s.pl_name,
         isPrimary: false,
-        a: s.pl_orbsmax as number,
+        a: eff,
         e: Math.max(0, Math.min(0.95, s.pl_orbeccen ?? 0)),
         period: s.pl_orbper,
         eqt: s.pl_eqt,
@@ -372,12 +505,16 @@ export default function PlanetCard({ planet, siblings, bp_rp }: Props) {
     const maxMinorAU = Math.max(...orbiters.map((o) => o.a * Math.sqrt(1 - o.e * o.e)));
 
     const targetWidth = 1400;
-    const xPad = 60;
-    const yPad = 60;
+    // When wide companions exist, reserve a ~60px ring of empty space outside
+    // the outermost orbit so they have somewhere to sit + room for labels.
+    const compExtraPad = hasCompanions ? 60 : 0;
+    const xPad = 60 + compExtraPad;
+    const yPad = 60 + compExtraPad;
     const pxPerAU = (targetWidth - 2 * xPad) / (maxApoAU + maxPeriAU);
     const focusX = xPad + maxApoAU * pxPerAU;
     const viewBoxHeight = Math.max(420, 2 * maxMinorAU * pxPerAU + 2 * yPad);
     const focusY = viewBoxHeight / 2;
+    const multiCompanionR = maxApoAU * pxPerAU + 35;
 
     // Star radius for this view — real AU scale when realSize is on.
     const multiStarRadius = realSize
@@ -444,6 +581,17 @@ export default function PlanetCard({ planet, siblings, bp_rp }: Props) {
               <stop offset="25%" stopColor={d.vis.fillColor} stopOpacity="1" />
               <stop offset="75%" stopColor={d.vis.fillColor} stopOpacity="0.95" />
               <stop offset="100%" stopColor="rgba(0,0,0,0.55)" />
+            </radialGradient>
+          ))}
+          {hasCompanions && (companions ?? []).map((c, i) => (
+            <radialGradient
+              key={`comp-corona-multi-def-${i}`}
+              id={`comp-corona-multi-${id}-${i}`}
+              cx="50%" cy="50%"
+            >
+              <stop offset="0%" stopColor={companionColor(c.component_spectype)} stopOpacity="0.55" />
+              <stop offset="45%" stopColor={companionColor(c.component_spectype)} stopOpacity="0.18" />
+              <stop offset="100%" stopColor={companionColor(c.component_spectype)} stopOpacity="0" />
             </radialGradient>
           ))}
         </defs>
@@ -515,6 +663,45 @@ export default function PlanetCard({ planet, siblings, bp_rp }: Props) {
               fill="#9099aa" fontSize="11" fontFamily="-apple-system, sans-serif">
           {planet.hostname}{isBinary ? ' AB' : ''}
         </text>
+
+        {/* Wide-binary / triple-star companions — same proportional vs
+            fixed-offset placement logic as the embedded card. In this view
+            orbits are at true AU scale (pxPerAU), so an inside-orbit
+            companion's pixel radius is simply sepAU * pxPerAU. */}
+        {hasCompanions && (companions ?? []).map((c, i) => {
+          const paDeg = c.position_angle_deg;
+          const paRad = paDeg != null
+            ? (paDeg * Math.PI) / 180
+            : (i / Math.max(1, (companions ?? []).length)) * 2 * Math.PI;
+          const sepAU = c.separation_arcsec != null && distancePc != null
+            ? c.separation_arcsec * distancePc
+            : null;
+          const insideOrbit = sepAU != null && planet.pl_orbsmax != null
+            && sepAU < planet.pl_orbsmax;
+          // Same host-disc clearance floor as the single-orbit view.
+          const insideOrbitFloorMulti = multiStarRadius + 18;
+          const compR = insideOrbit
+            ? Math.max(insideOrbitFloorMulti, sepAU! * pxPerAU)
+            : multiCompanionR;
+          const cx = focusX + compR * Math.sin(paRad);
+          const cy = focusY - compR * Math.cos(paRad);
+          const color = companionColor(c.component_spectype);
+          const kind = companionKind(c.component_spectype);
+          const titleSuffix = c.component_spectype ? ` (${c.component_spectype})` : '';
+          return (
+            <g key={`comp-multi-${c.component_designation}`}>
+              <circle cx={cx} cy={cy} r={15} fill={`url(#comp-corona-multi-${id}-${i})`} />
+              <circle cx={cx} cy={cy} r={5.5} fill={color} opacity={0.95}>
+                <title>{c.component_designation}{titleSuffix} — {kind}; {planet.pl_name} orbits the primary only{insideOrbit ? ' — companion is inside the orbit' : ''}</title>
+              </circle>
+              <text x={cx} y={cy + 22} textAnchor="middle" fill="#9099aa"
+                    fontSize="10" fontFamily="-apple-system, sans-serif">
+                {c.component_designation}
+                <tspan fill="#7d8595"> · {kind}</tspan>
+              </text>
+            </g>
+          );
+        })}
       </>
     );
     return { naturalVB, content, count: orbiters.length };

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { api, type DiscoveryPaper, type HostStarGaia, type PlanetDetail as PlanetDetailType, type PlanetHistoryResponse, type PlanetPublication, type PlanetsListResponse } from '../api';
+import { api, type BinaryCompanion, type DiscoveryPaper, type HostStarGaia, type PlanetDetail as PlanetDetailType, type PlanetHistoryResponse, type PlanetPublication, type PlanetsListResponse } from '../api';
 import GalaxyMap from '../components/GalaxyMap';
 import LoadingBar from '../components/LoadingBar';
 import PlanetCard from '../components/PlanetCard';
@@ -22,6 +22,7 @@ export default function PlanetDetail() {
   const [siblings, setSiblings] = useState<PlanetsListResponse | null>(null);
   const [paper, setPaper] = useState<DiscoveryPaper | null>(null);
   const [publications, setPublications] = useState<PlanetPublication[] | null>(null);
+  const [companions, setCompanions] = useState<BinaryCompanion[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   function goBack(e: React.MouseEvent) {
@@ -41,12 +42,14 @@ export default function PlanetDetail() {
     setHostStar(null);
     setPaper(null);
     setPublications(null);
+    setCompanions(null);
     setError(null);
     api.planetDetail(plName).then(setPlanet).catch((e) => setError(e.message));
     api.planetHistory(plName).then(setHistory).catch(() => {});
     api.planetHostStar(plName).then(setHostStar).catch(() => {});
     api.planetPaper(plName).then(setPaper).catch(() => {});
     api.planetPublications(plName).then((r) => setPublications(r.publications)).catch(() => {});
+    api.planetCompanions(plName).then(setCompanions).catch(() => {});
   }, [plName]);
 
   // Once we have the planet, fetch siblings (other planets with same hostname)
@@ -91,7 +94,7 @@ export default function PlanetDetail() {
       </p>
       <h1 style={{ margin: '0 0 0.25rem', display: 'flex', alignItems: 'baseline', gap: '0.6rem', flexWrap: 'wrap' }}>
         {planet.pl_name}
-        {planet.ra != null && planet.dec != null && planet.sy_dist != null && (
+        {planet.ra != null && planet.dec != null && (
           <Link
             to={`/planets/${encodeURIComponent(plName)}/scene${themeQuery}`}
             style={{ fontSize: '0.7rem', fontWeight: 600, padding: '0.15rem 0.5rem', borderRadius: 3, background: 'var(--accent)', color: '#0b0d12', textDecoration: 'none', letterSpacing: '0.04em', textTransform: 'uppercase' }}
@@ -118,7 +121,13 @@ export default function PlanetDetail() {
 
       <div className="planet-detail">
         <div className="planet-detail-left">
-          <PlanetCard planet={planet} siblings={siblings?.results.filter((s) => s.pl_name !== planet.pl_name) ?? null} bp_rp={hostStar?.bp_rp} />
+          <PlanetCard
+            planet={planet}
+            siblings={siblings?.results.filter((s) => s.pl_name !== planet.pl_name) ?? null}
+            bp_rp={hostStar?.bp_rp}
+            companions={companions ?? undefined}
+            distancePc={hostStar?.distance_gspphot_pc ?? planet.sy_dist ?? null}
+          />
           <HostStarCard planet={planet} sectionDelay={4000} />
         </div>
 
@@ -148,6 +157,8 @@ export default function PlanetDetail() {
           <BeyondBasicsCard planet={planet} sectionDelay={2200} />
 
           <SystemSiblingsSection planet={planet} siblings={siblings} />
+
+          <CompanionsSection planet={planet} companions={companions} hostStar={hostStar} />
 
           <section>
             <h2>Sky position</h2>
@@ -528,6 +539,63 @@ function BeyondBasicsCard({ planet, sectionDelay = 0 }: { planet: PlanetDetailTy
             );
           })}
         </div>
+      </div>
+    </section>
+  );
+}
+
+function CompanionsSection({
+  planet, companions, hostStar,
+}: {
+  planet: PlanetDetailType;
+  companions: BinaryCompanion[] | null;
+  hostStar: HostStarGaia | null;
+}) {
+  if (!companions || companions.length === 0) return null;
+  const distance_pc = hostStar?.distance_gspphot_pc ?? planet.sy_dist ?? null;
+  return (
+    <section>
+      <h2>System stars</h2>
+      <div className="card">
+        <p style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', color: 'var(--fg-muted)' }}>
+          <strong>{planet.pl_name}</strong> orbits the primary star <strong>{planet.hostname}</strong> only.
+          {' '}{companions.length === 1
+            ? 'One additional stellar component is recorded'
+            : `${companions.length} additional stellar components are recorded`}
+          {' '}in this system — they sit far enough from the planet's orbit not to disturb it,
+          but they're part of the same gravitationally bound family.
+        </p>
+        <ul className="siblings-list">
+          {companions.map((c) => {
+            const sepAU = c.separation_arcsec != null && distance_pc != null
+              ? c.separation_arcsec * distance_pc
+              : null;
+            const desc = describeSpectralClass(c.component_spectype);
+            const insideOrbit = sepAU != null && planet.pl_orbsmax != null
+              && sepAU < planet.pl_orbsmax;
+            return (
+              <li key={c.component_designation}>
+                <strong>{planet.hostname} {c.component_designation}</strong>
+                <span className="muted">
+                  {c.component_spectype && <> · {c.component_spectype}</>}
+                  {sepAU != null && <> · ~{sepAU >= 10 ? sepAU.toFixed(0) : sepAU.toFixed(1)} AU projected</>}
+                  {c.position_angle_deg != null && <> · PA {c.position_angle_deg.toFixed(0)}°</>}
+                  {c.source_catalog && <> · {c.source_catalog}</>}
+                  {insideOrbit && <> · <span style={{ color: 'var(--tier-b)' }}>inside {planet.pl_name}'s orbit</span></>}
+                </span>
+                {desc?.summary && (
+                  <p style={{ margin: '0.25rem 0 0', fontSize: '0.78rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+                    {desc.summary}
+                  </p>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+        <p style={{ margin: '0.75rem 0 0', fontSize: '0.75rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+          "Projected" separation is what we measure on the sky (angular separation × system distance).
+          The true 3D distance is at least this — possibly more, depending on the unknown line-of-sight component.
+        </p>
       </div>
     </section>
   );

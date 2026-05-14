@@ -498,6 +498,44 @@ def planet_history(pl_name: str) -> PlanetHistoryResponse:
 
 
 @app.get(
+    "/api/planets/{pl_name}/companions",
+    response_model=list[BinaryCompanion],
+    tags=["planets"],
+)
+def planet_companions(pl_name: str) -> list[BinaryCompanion]:
+    """Wide-binary / triple-star components recorded for this planet's host system.
+
+    Filters out optical doubles — WDS entries where projected separation
+    (arcsec × system distance in pc) exceeds 25,000 AU. Above that range,
+    physical binding becomes statistically vanishing (typical wide binaries
+    cap around 20,000 AU; the loosest known reach ~30,000), so wider catalog
+    pairs are almost always chance line-of-sight coincidences from crowded
+    Kepler-field stars. They render absurdly far from the scene anyway.
+    """
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT bc.component_designation, bc.primary_designation,
+                       bc.separation_arcsec, bc.position_angle_deg,
+                       bc.component_mag_v, bc.component_spectype, bc.source_catalog
+                FROM planets_current p
+                JOIN binary_companions bc ON bc.hostname = p.hostname
+                WHERE p.pl_name = %s
+                  AND (
+                    bc.separation_arcsec IS NULL
+                    OR p.sy_dist IS NULL
+                    OR bc.separation_arcsec * p.sy_dist <= 25000
+                  )
+                ORDER BY bc.separation_arcsec NULLS LAST
+                """,
+                (pl_name,),
+            )
+            rows = cur.fetchall()
+    return [BinaryCompanion(**r) for r in rows]
+
+
+@app.get(
     "/api/planets/{pl_name}/host_star",
     response_model=HostStarGaia,
     tags=["planets"],
@@ -831,7 +869,11 @@ def planet_scene(pl_name: str) -> SceneResponse:
             )
             sibling_rows = cur.fetchall()
 
-            # Binary companions (Milestone 1 data)
+            # Binary companions (Milestone 1 data). Apply the same optical-
+            # double filter as /api/planets/{pl_name}/companions — drop rows
+            # whose projected separation (arcsec × sy_dist pc) exceeds 25,000
+            # AU, well past the statistical limit for physically-bound pairs.
+            sy_dist = planet_row.get("sy_dist")
             cur.execute(
                 """
                 SELECT component_designation, primary_designation,
@@ -839,9 +881,14 @@ def planet_scene(pl_name: str) -> SceneResponse:
                        component_mag_v, component_spectype, source_catalog
                 FROM binary_companions
                 WHERE hostname = %s
+                  AND (
+                    separation_arcsec IS NULL
+                    OR %s IS NULL
+                    OR separation_arcsec * %s <= 25000
+                  )
                 ORDER BY separation_arcsec NULLS LAST
                 """,
-                (hostname,),
+                (hostname, sy_dist, sy_dist),
             )
             companion_rows = cur.fetchall()
 

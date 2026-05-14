@@ -69,6 +69,21 @@ _SOL_OFFSET_KPC = np.array([8.122, 0.0, 0.025], dtype=np.float32)
 # dominate even toward Sgr A*.
 _COMP_WEIGHTS = np.array([1.0, 0.6, 8.0], dtype=np.float32)
 
+# Per-component LINEAR-LIGHT tints (R, G, B). Composited additively so the
+# diffuse layer takes on a population-appropriate color. Chosen to roughly
+# match the dominant stellar populations of each component (cf. the
+# luminosity-and-color samplers in etl/build_galactic_particles.py):
+#   - Thin disk : Sun-like G/F mix + young blue stars + HII → warm white.
+#   - Thick disk: older redder F/K population → cream/tan.
+#   - Bulge     : old K/M giant dominated → warm orange-red, the visible
+#                 hallmark of bulge photos like the Sgr A* region.
+# Values stay ≤1.0 in linear space so saturation only happens via the
+# uDiffuseGain × density product at the top end (where it desaturates
+# toward white — the standard linear-blending limitation, acceptable for v1).
+_THIN_COLOR  = np.array([1.00, 0.95, 0.85], dtype=np.float32)
+_THICK_COLOR = np.array([1.00, 0.80, 0.60], dtype=np.float32)
+_BULGE_COLOR = np.array([1.00, 0.55, 0.30], dtype=np.float32)
+
 # Master diffuse brightness in LINEAR light space (sRGB-decoded). The same
 # 0.08 the GLSL used pre-pivot — composited via the proper linear-space
 # add below so the visual result matches the desktop shader's calibration.
@@ -232,13 +247,14 @@ def _sech2(x: np.ndarray) -> np.ndarray:
     return (4.0 * e * e / (d * d)).astype(np.float32)
 
 
-def _density_at(p_kpc: np.ndarray) -> np.ndarray:
-    """Procedural Milky Way density at galactocentric points.
+def _component_densities(p_kpc: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Per-component density (thin, thick, bulge) at galactocentric points.
 
     Args: p_kpc shape (..., 3) in galactocentric galactic kpc.
-    Returns: shape (...) float32 weighted density (thin + thick + bulge).
+    Returns: three (...) float32 arrays — thin, thick, bulge — each
+    already multiplied by _COMP_WEIGHTS so the caller can tint and sum.
 
-    Density parameters match etl/build_galactic_particles.py sample_*:
+    Parameters match etl/build_galactic_particles.py sample_*:
       - thin disk : h_R=2.6, h_z=0.3 (1/h pre-multiplied as 0.3846, 3.333)
       - thick disk: h_R=2.0, h_z=0.9 (1/h pre-multiplied as 0.5,    1.111)
       - bulge     : exp(-r_eff/0.7) with triaxial axes (1.0, 0.4, 0.3)
@@ -246,43 +262,68 @@ def _density_at(p_kpc: np.ndarray) -> np.ndarray:
     """
     R = np.sqrt(p_kpc[..., 0] ** 2 + p_kpc[..., 1] ** 2)
     az = np.abs(p_kpc[..., 2])
-    thin = np.exp(-R * 0.3846153846, dtype=np.float32) * _sech2(az * 3.3333333)
-    thick = np.exp(-R * 0.5, dtype=np.float32) * _sech2(az * 1.1111111)
+    thin = (
+        np.exp(-R * 0.3846153846, dtype=np.float32)
+        * _sech2(az * 3.3333333)
+        * _COMP_WEIGHTS[0]
+    )
+    thick = (
+        np.exp(-R * 0.5, dtype=np.float32)
+        * _sech2(az * 1.1111111)
+        * _COMP_WEIGHTS[1]
+    )
     r_eff = np.sqrt(
         (p_kpc[..., 0]) ** 2
         + (p_kpc[..., 1] * 2.5) ** 2
         + (p_kpc[..., 2] * 3.3333333) ** 2
     )
-    bulge = np.exp(-r_eff * 1.4285714, dtype=np.float32)
-    return (
-        thin * _COMP_WEIGHTS[0]
-        + thick * _COMP_WEIGHTS[1]
-        + bulge * _COMP_WEIGHTS[2]
-    ).astype(np.float32)
+    bulge = np.exp(-r_eff * 1.4285714, dtype=np.float32) * _COMP_WEIGHTS[2]
+    return thin.astype(np.float32), thick.astype(np.float32), bulge.astype(np.float32)
 
 
-def rasterize_diffuse_intensity(
+def rasterize_diffuse_rgb(
     host_xyz_pc: tuple[float, float, float],
     width: int = _DIFFUSE_GEN_WIDTH,
     height: int = _DIFFUSE_GEN_HEIGHT,
 ) -> np.ndarray:
-    """Per-pixel diffuse Milky Way emissivity (line-of-sight integral).
+    """Per-pixel diffuse Milky Way RGB emissivity (line-of-sight integral).
 
-    Returns: (H, W) float32 in linear-light units, pre-gain. Caller
-    multiplies by _DIFFUSE_GAIN and composites in linear space.
+    Each component (thin disk / thick disk / bulge) is tinted with a
+    population-appropriate linear-light color, then summed along the
+    line of sight. Result is in linear-light units, pre-gain — the
+    caller multiplies by _DIFFUSE_GAIN and composites onto the star
+    canvas in linear space.
+
+    Returns: (H, W, 3) float32.
     """
     dirs_gal = _direction_grid_galactic(width, height)        # (H, W, 3)
     obs = _host_galactocentric_kpc(host_xyz_pc)               # (3,)
-    intensity = np.zeros((height, width), dtype=np.float32)
+    rgb = np.zeros((height, width, 3), dtype=np.float32)
     prev_t = 0.0
     for t_val in _DIFFUSE_T_STEPS:
         t = float(t_val)
         dt = t - prev_t
-        # Broadcast (3,) obs + (H,W,3) * scalar → (H,W,3)
         p = obs + dirs_gal * t
-        intensity += _density_at(p) * dt
+        thin, thick, bulge = _component_densities(p)
+        # Tint each component, sum into the integrated RGB. Broadcast the
+        # (H, W) scalar densities against the (3,) tint vectors.
+        rgb[..., 0] += (
+            thin * _THIN_COLOR[0]
+            + thick * _THICK_COLOR[0]
+            + bulge * _BULGE_COLOR[0]
+        ) * dt
+        rgb[..., 1] += (
+            thin * _THIN_COLOR[1]
+            + thick * _THICK_COLOR[1]
+            + bulge * _BULGE_COLOR[1]
+        ) * dt
+        rgb[..., 2] += (
+            thin * _THIN_COLOR[2]
+            + thick * _THICK_COLOR[2]
+            + bulge * _BULGE_COLOR[2]
+        ) * dt
         prev_t = t
-    return intensity
+    return rgb
 
 
 def _srgb_to_linear(c: np.ndarray) -> np.ndarray:
@@ -308,21 +349,27 @@ def composite_diffuse_onto(
 ) -> Image.Image:
     """Add the diffuse galaxy layer to the star canvas in linear-light space.
 
-    Generates the diffuse intensity at low resolution (smooth function →
-    no aliasing), bilinearly upsamples to the star canvas size, decodes
+    Generates the diffuse RGB at low resolution (smooth function → no
+    aliasing), bilinearly upsamples to the star canvas size, decodes
     star sRGB → linear, adds gain × diffuse, re-encodes → sRGB.
     """
     width, height = star_pil.size
-    diffuse_intensity = rasterize_diffuse_intensity(host_xyz_pc)        # (h_gen, w_gen)
-    # Upsample to canvas size via PIL (LANCZOS for a smooth field). PIL
-    # operates on uint8/float32 single-channel images; convert via numpy.
-    diffuse_img = Image.fromarray(diffuse_intensity, mode="F")          # 32-bit float
-    diffuse_img = diffuse_img.resize((width, height), Image.Resampling.LANCZOS)
-    diffuse_full = np.asarray(diffuse_img, dtype=np.float32)            # (H, W)
+    diffuse_rgb = rasterize_diffuse_rgb(host_xyz_pc)                    # (h_gen, w_gen, 3)
+    # Upsample. PIL's float-image resize handles one channel at a time,
+    # so split-resize-stack each channel. Three single-channel LANCZOS
+    # resizes is still cheaper than a single RGB resize at the larger
+    # output size and avoids any byte-range clamping (intensity > 1.0
+    # values must survive the upsample to stay in linear-light).
+    channels_up: list[np.ndarray] = []
+    for c in range(3):
+        ch_img = Image.fromarray(diffuse_rgb[..., c], mode="F")
+        ch_img = ch_img.resize((width, height), Image.Resampling.LANCZOS)
+        channels_up.append(np.asarray(ch_img, dtype=np.float32))
+    diffuse_full = np.stack(channels_up, axis=-1)                       # (H, W, 3)
 
-    star_srgb = np.asarray(star_pil, dtype=np.float32) / 255.0          # (H, W, 3)
+    star_srgb = np.asarray(star_pil, dtype=np.float32) / 255.0
     star_linear = _srgb_to_linear(star_srgb)
-    combined_linear = star_linear + (diffuse_full * _DIFFUSE_GAIN)[..., None]
+    combined_linear = star_linear + diffuse_full * _DIFFUSE_GAIN
     combined_srgb = _linear_to_srgb(combined_linear)
     combined_u8 = (np.clip(combined_srgb, 0.0, 1.0) * 255.0).astype(np.uint8)
     return Image.fromarray(combined_u8, mode="RGB")

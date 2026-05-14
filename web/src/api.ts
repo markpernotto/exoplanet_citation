@@ -297,6 +297,8 @@ export const api = {
     get<PlanetHistoryResponse>(`/api/planets/${encodeURIComponent(plName)}/history`),
   planetHostStar: (plName: string) =>
     get<HostStarGaia>(`/api/planets/${encodeURIComponent(plName)}/host_star`),
+  planetCompanions: (plName: string) =>
+    get<BinaryCompanion[]>(`/api/planets/${encodeURIComponent(plName)}/companions`),
   planetPaper: (plName: string) =>
     get<DiscoveryPaper>(`/api/planets/${encodeURIComponent(plName)}/paper`),
   planetPublications: (plName: string) =>

@@ -19,6 +19,7 @@ v = 1 - (dec + π/2) / π (0 at the north celestial pole, 1 at the south).
 from __future__ import annotations
 
 import logging
+import math
 from functools import lru_cache
 from pathlib import Path
 
@@ -83,6 +84,66 @@ _COMP_WEIGHTS = np.array([1.0, 0.6, 8.0], dtype=np.float32)
 _THIN_COLOR  = np.array([1.00, 0.95, 0.85], dtype=np.float32)
 _THICK_COLOR = np.array([1.00, 0.80, 0.60], dtype=np.float32)
 _BULGE_COLOR = np.array([1.00, 0.55, 0.30], dtype=np.float32)
+
+# Dust extinction. Real-world Milky Way: A_V ≈ 1.5 mag/kpc in the local
+# midplane, which is τ ≈ 1.4 per kpc (A_V = 1.086 · τ). Cranking that all
+# the way up would black out the galactic center from Sol's vantage — which
+# is actually correct astrophysically (the visible bulge is invisible naked-
+# eye through 8 kpc of disk dust), but kills the headline bulge view. We
+# turn it down ~10× to a level that produces visible dust lanes through the
+# plane without completely obscuring the bulge. Dust profile is an
+# exponential disk like the stars but thinner (h_z = 100 pc — dust settles
+# to the midplane more than stars), slightly more extended radially.
+_DUST_OPACITY = 1.0           # τ per kpc at midplane × density-normalization
+_DUST_H_R_KPC = 4.0           # dust radial scale length (kpc)
+_DUST_H_Z_KPC = 0.1           # dust vertical scale height (kpc) — thinner than stars
+
+# Extragalactic anchors (Phase 5 / Layer 4 of docs/STARFIELD_PLAN.md).
+# Hand-curated catalog of the visually significant nearby galaxies — the
+# ones a naked-eye observer would recognize. Per-anchor:
+#   - ra_deg/dec_deg : ICRS, from SIMBAD / NED
+#   - distance_pc    : Cepheid or TRGB measurement (best modern values)
+#   - ang_size_deg   : major-axis angular size as seen from Sol
+#   - linear_color   : population-appropriate tint (linear RGB)
+#   - peak_intensity : Gaussian-peak brightness in linear-light units;
+#                      tuned so naked-eye-mag-2 LMC dominates and
+#                      naked-eye-mag-5 M33 is a faint smudge
+# 3D positions are recomputed per host so bulge-vantage planets (where
+# the 8-kpc displacement matters relative to ~24 kpc Sgr-DEG) see them
+# in the correct direction. M31/M33 are far enough that the shift is
+# subpixel.
+_EXTRAGALACTIC_ANCHORS = [
+    {
+        "name": "LMC", "ra_deg": 80.894, "dec_deg": -69.756,
+        "distance_pc": 49_970, "ang_size_deg": 10.0,
+        "linear_color": (0.85, 0.92, 1.00),
+        "peak_intensity": 0.30,
+    },
+    {
+        "name": "SMC", "ra_deg": 13.158, "dec_deg": -72.800,
+        "distance_pc": 62_440, "ang_size_deg": 5.0,
+        "linear_color": (0.92, 0.95, 1.00),
+        "peak_intensity": 0.18,
+    },
+    {
+        "name": "M31", "ra_deg": 10.685, "dec_deg": 41.269,
+        "distance_pc": 778_000, "ang_size_deg": 3.2,
+        "linear_color": (0.95, 0.92, 0.85),
+        "peak_intensity": 0.20,
+    },
+    {
+        "name": "M33", "ra_deg": 23.462, "dec_deg": 30.660,
+        "distance_pc": 840_000, "ang_size_deg": 1.2,
+        "linear_color": (0.90, 0.95, 1.00),
+        "peak_intensity": 0.08,
+    },
+    {
+        "name": "SagDEG", "ra_deg": 283.838, "dec_deg": -30.545,
+        "distance_pc": 24_000, "ang_size_deg": 7.0,
+        "linear_color": (1.00, 0.75, 0.55),
+        "peak_intensity": 0.05,
+    },
+]
 
 # Master diffuse brightness in LINEAR light space (sRGB-decoded). The same
 # 0.08 the GLSL used pre-pivot — composited via the proper linear-space
@@ -247,6 +308,21 @@ def _sech2(x: np.ndarray) -> np.ndarray:
     return (4.0 * e * e / (d * d)).astype(np.float32)
 
 
+def _dust_density(p_kpc: np.ndarray) -> np.ndarray:
+    """Interstellar dust density (relative, unitless).
+
+    Exponential disk model — same form as the thin stellar disk but with
+    a thinner vertical scale height (dust settles further toward the
+    midplane than stars). Args: p_kpc shape (..., 3). Returns: (...) float32.
+    """
+    R = np.sqrt(p_kpc[..., 0] ** 2 + p_kpc[..., 1] ** 2)
+    az = np.abs(p_kpc[..., 2])
+    return (
+        np.exp(-R / _DUST_H_R_KPC, dtype=np.float32)
+        * _sech2(az / _DUST_H_Z_KPC)
+    ).astype(np.float32)
+
+
 def _component_densities(p_kpc: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Per-component density (thin, thick, bulge) at galactocentric points.
 
@@ -299,29 +375,40 @@ def rasterize_diffuse_rgb(
     dirs_gal = _direction_grid_galactic(width, height)        # (H, W, 3)
     obs = _host_galactocentric_kpc(host_xyz_pc)               # (3,)
     rgb = np.zeros((height, width, 3), dtype=np.float32)
+    # Cumulative dust optical depth from observer outward, per pixel. Each
+    # step accumulates dust column for that step's slice; emission at the
+    # step is attenuated by exp(-tau) so dust between observer and the
+    # emitter dims its contribution. Result: dark lanes through the plane
+    # plus partial obscuration of the bulge by foreground disk dust —
+    # the iconic Milky Way photo look.
+    tau = np.zeros((height, width), dtype=np.float32)
     prev_t = 0.0
     for t_val in _DIFFUSE_T_STEPS:
         t = float(t_val)
         dt = t - prev_t
         p = obs + dirs_gal * t
+        # Update optical depth before emission this step. Including this
+        # step's dust in tau slightly overcounts (the emitter at point p
+        # isn't attenuated by dust at p itself, only dust closer to the
+        # observer), but the discretization smooths it out.
+        tau += _dust_density(p) * (_DUST_OPACITY * dt)
+        attenuation = np.exp(-tau)                            # (H, W)
         thin, thick, bulge = _component_densities(p)
-        # Tint each component, sum into the integrated RGB. Broadcast the
-        # (H, W) scalar densities against the (3,) tint vectors.
         rgb[..., 0] += (
             thin * _THIN_COLOR[0]
             + thick * _THICK_COLOR[0]
             + bulge * _BULGE_COLOR[0]
-        ) * dt
+        ) * dt * attenuation
         rgb[..., 1] += (
             thin * _THIN_COLOR[1]
             + thick * _THICK_COLOR[1]
             + bulge * _BULGE_COLOR[1]
-        ) * dt
+        ) * dt * attenuation
         rgb[..., 2] += (
             thin * _THIN_COLOR[2]
             + thick * _THICK_COLOR[2]
             + bulge * _BULGE_COLOR[2]
-        ) * dt
+        ) * dt * attenuation
         prev_t = t
     return rgb
 
@@ -341,6 +428,88 @@ def _linear_to_srgb(c: np.ndarray) -> np.ndarray:
     low = c * 12.92
     high = 1.055 * (c ** (1.0 / 2.4)) - 0.055
     return np.where(c <= threshold, low, high).astype(np.float32)
+
+
+def composite_extragalactic_onto(
+    star_pil: Image.Image,
+    host_xyz_pc: tuple[float, float, float],
+) -> Image.Image:
+    """Paint LMC/SMC/M31/M33/SagDEG soft blobs at their per-vantage positions.
+
+    Each anchor is reprojected to the host's frame (so a bulge-vantage
+    planet sees Sgr-DEG in a noticeably different direction than Earth
+    does — the dwarf is only ~24 kpc away). Anchor angular size scales
+    with `dist_sol / dist_host`; physical size is fixed. Blob is a 2D
+    Gaussian, with x-axis sigma stretched by 1/cos(dec) so the blob
+    appears circular on the sphere despite equirectangular distortion.
+    Composited additively in linear-light space, same convention as the
+    diffuse layer; placed BEFORE the diffuse so our Milky Way's haze
+    veils distant galaxies (cheap stand-in for atmospheric perspective).
+    """
+    width, height = star_pil.size
+    hx, hy, hz = host_xyz_pc
+
+    overlay = np.zeros((height, width, 3), dtype=np.float32)
+    deg_per_px_x = 360.0 / width
+
+    for anchor in _EXTRAGALACTIC_ANCHORS:
+        ra_a = math.radians(anchor["ra_deg"])
+        dec_a = math.radians(anchor["dec_deg"])
+        cos_dec_a = math.cos(dec_a)
+        d_sol = float(anchor["distance_pc"])
+        ax = d_sol * cos_dec_a * math.cos(ra_a)
+        ay = d_sol * cos_dec_a * math.sin(ra_a)
+        az = d_sol * math.sin(dec_a)
+
+        dx, dy, dz = ax - hx, ay - hy, az - hz
+        d_host = math.sqrt(dx * dx + dy * dy + dz * dz)
+        if d_host < 1.0:
+            continue  # host is inside the anchor (don't render)
+
+        ra_h = math.atan2(dy, dx)
+        dec_h = math.asin(max(-1.0, min(1.0, dz / d_host)))
+        u = (ra_h + math.pi) / (2.0 * math.pi)
+        v = 1.0 - (dec_h + math.pi / 2.0) / math.pi
+        cx_px = u * width
+        cy_px = v * height
+
+        # Apparent angular size scales inversely with distance.
+        ang_size_deg = anchor["ang_size_deg"] * (d_sol / d_host)
+        # FWHM ≈ angular size; sigma = FWHM / 2.355.
+        sigma_y_px = ang_size_deg / deg_per_px_x / 2.355
+        # cos(dec) stretch keeps the blob looking circular on the sphere.
+        sigma_x_px = sigma_y_px / max(0.05, math.cos(dec_h))
+
+        radius_x = max(2, int(3 * sigma_x_px))
+        radius_y = max(2, int(3 * sigma_y_px))
+        x0 = max(0, int(cx_px) - radius_x)
+        x1 = min(width, int(cx_px) + radius_x + 1)
+        y0 = max(0, int(cy_px) - radius_y)
+        y1 = min(height, int(cy_px) + radius_y + 1)
+        if x0 >= x1 or y0 >= y1:
+            continue
+
+        xs = np.arange(x0, x1, dtype=np.float32)
+        ys = np.arange(y0, y1, dtype=np.float32)
+        xx, yy = np.meshgrid(xs, ys)
+        gauss = np.exp(
+            -0.5 * (
+                ((xx - cx_px) / sigma_x_px) ** 2
+                + ((yy - cy_px) / sigma_y_px) ** 2
+            )
+        ).astype(np.float32)
+        gauss *= float(anchor["peak_intensity"])
+        cr, cg, cb = anchor["linear_color"]
+        overlay[y0:y1, x0:x1, 0] += gauss * cr
+        overlay[y0:y1, x0:x1, 1] += gauss * cg
+        overlay[y0:y1, x0:x1, 2] += gauss * cb
+
+    star_srgb = np.asarray(star_pil, dtype=np.float32) / 255.0
+    star_linear = _srgb_to_linear(star_srgb)
+    combined_linear = star_linear + overlay
+    combined_srgb = _linear_to_srgb(combined_linear)
+    combined_u8 = (np.clip(combined_srgb, 0.0, 1.0) * 255.0).astype(np.uint8)
+    return Image.fromarray(combined_u8, mode="RGB")
 
 
 def composite_diffuse_onto(
@@ -473,6 +642,11 @@ def rasterize_skytexture(
         r = float(radius)
         c = (int(color_o[i, 0]), int(color_o[i, 1]), int(color_o[i, 2]))
         draw.ellipse([x - r, y - r, x + r, y + r], fill=c)
+
+    # ── Extragalactic anchors (Phase 5, Layer 4) ─────────────────────────
+    # Placed before the diffuse so our own Milky Way's haze veils distant
+    # galaxies (cheap atmospheric-perspective stand-in).
+    pil = composite_extragalactic_onto(pil, host_xyz_pc)
 
     # ── Diffuse galaxy layer (Phase 4) ────────────────────────────────────
     # Composited in linear-light space so the additive math matches the

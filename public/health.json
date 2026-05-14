@@ -1,10 +1,10 @@
 {
   "status": "ok",
-  "checked_at": "2026-05-13T07:00:02.250853+00:00",
+  "checked_at": "2026-05-14T06:58:54.948263+00:00",
   "freshness": {
-    "snapshot_date": "2026-05-13",
-    "source_retrieved_at": "2026-05-13T06:55:32.856547+00:00",
-    "freshness_hours": 0.07,
+    "snapshot_date": "2026-05-14",
+    "source_retrieved_at": "2026-05-14T06:54:24.109276+00:00",
+    "freshness_hours": 0.08,
     "slo_freshness_hours": 26,
     "status": "ok",
     "clock": "A (time since last extract)",

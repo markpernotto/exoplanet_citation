@@ -1339,7 +1339,20 @@ function Photosphere({ radius, color, teff }: { radius: number; color: string; t
       <mesh material={material} renderOrder={10}>
         <sphereGeometry args={[radius, 64, 64]} />
       </mesh>
-      <StellarCorona radius={radius} color={saturated} hdrScale={hdrScale} />
+      {/* Corona uses a TAMER hdr than the photosphere disc. The disc's
+          hdrScale ramps up to 2.78 for the coolest M-dwarfs (perceptual
+          compensation — deep red has low eye sensitivity, so the disc
+          needs the boost to read as a glowing star rather than a brown
+          smudge). The corona is additive on top of the disc, and on
+          desktop it blends with Bloom into a soft glow regardless of
+          amplitude — but Bloom is off in XR (single 2D framebuffer
+          black-screens stereo), so the same 2.78 corona renders as a
+          hard oversaturated red ring around a TRAPPIST-1-class M-dwarf.
+          Capping the corona's uHdr at Sun-level (2.0) keeps cool-star
+          halos subtle in VR without altering the disc's perceptual
+          brightness, and tames hot-star halos (KELT-9 was hitting 5.0)
+          to a saner additive contribution. */}
+      <StellarCorona radius={radius} color={saturated} hdrScale={Math.min(hdrScale, 2.0)} />
     </>
   );
 }

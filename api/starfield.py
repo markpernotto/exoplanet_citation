@@ -34,6 +34,61 @@ log = logging.getLogger(__name__)
 DEFAULT_WIDTH = 4096
 DEFAULT_HEIGHT = 2048
 
+# ── Diffuse galaxy (Phase 4) ─────────────────────────────────────────────
+# The original plan compiled a GLSL fragment shader to do per-pixel line-
+# of-sight integration through the procedural Milky Way density profiles
+# at draw time. That worked on desktop but silently failed inside Quest 3 /
+# @react-three/xr 6 multiview after five different shader iterations — the
+# pattern matched the original VR-stars debugging session's lesson that
+# there's a class of WebGL operations the headset rejects without error.
+# Server-side rasterization sidesteps the whole problem: pre-bake the
+# diffuse layer into the per-vantage PNG, ship it as part of a single
+# textured sphere (which definitively works in VR). Costs ~300ms per
+# cold cache-miss, cached forever after.
+#
+# Math mirrors the GLSL marchDiffuse + densityAt that briefly worked on
+# desktop, so the resulting look is identical. Density profiles are
+# the same Bland-Hawthorn & Gerhard 2016 parameters used by
+# etl/build_galactic_particles.py (thin disk + thick disk + bulge; halo
+# omitted as visually negligible from inside the galaxy).
+
+# IAU 2009 galactic ↔ ICRS rotation. Must match etl/build_galactic_particles.py
+# and api/host_xyz.py — column-vector convention helio_icrs = M @ helio_galactic.
+_GAL_TO_ICRS = np.array([
+    [-0.0548755604162154,  0.4941094278755837, -0.8676661490190047],
+    [-0.8734370902348850, -0.4448296299600112, -0.1980763734312015],
+    [-0.4838350155487132,  0.7469822444972189,  0.4559837761750669],
+], dtype=np.float32)
+# Sol's galactocentric position in galactic kpc.
+_SOL_OFFSET_KPC = np.array([8.122, 0.0, 0.025], dtype=np.float32)
+
+# Per-component relative weights (thin, thick, bulge). Bulge gets the heavy
+# boost because the procedural density profiles aren't normalized across
+# components — at any galactocentric radius the disk's per-kpc density is
+# much higher than the bulge's, so equal weights would let the disk
+# dominate even toward Sgr A*.
+_COMP_WEIGHTS = np.array([1.0, 0.6, 8.0], dtype=np.float32)
+
+# Master diffuse brightness in LINEAR light space (sRGB-decoded). The same
+# 0.08 the GLSL used pre-pivot — composited via the proper linear-space
+# add below so the visual result matches the desktop shader's calibration.
+_DIFFUSE_GAIN = 0.08
+
+# Log-spaced sample points for the line-of-sight integration in kpc.
+# Identical to the manual unroll in the prior GLSL marchDiffuse:
+#   t = T_MAX · (exp(u·K) - 1) / (e^K - 1)
+# with T_MAX=30, K=3, STEPS=16, u=(i+0.5)/STEPS.
+_DIFFUSE_T_STEPS = np.array([
+    0.155, 0.510, 0.940, 1.458, 2.083, 2.836, 3.747, 4.844,
+    6.168, 7.766, 9.694, 12.020, 14.824, 18.207, 22.288, 27.211,
+], dtype=np.float32)
+
+# Generate the diffuse pass at reduced resolution and upsample. The
+# diffuse layer is a smooth function of direction — there's nothing
+# above the Nyquist of 1024×512 to alias. Cuts gen time ~16×.
+_DIFFUSE_GEN_WIDTH = 1024
+_DIFFUSE_GEN_HEIGHT = 512
+
 # Apparent G-magnitude cutoff for rendering. Maxed near the catalog's
 # own limit (build_gaia_xyz default ~10). The aesthetic goal: pure
 # pinpoint stars filling the absence of light — no glow, no halos,
@@ -135,6 +190,144 @@ def bprp_to_rgb(bp_rp: np.ndarray) -> np.ndarray:
     return rgb
 
 
+@lru_cache(maxsize=4)
+def _direction_grid_galactic(width: int, height: int) -> np.ndarray:
+    """Per-pixel galactic-frame unit direction for an equirectangular grid.
+
+    The mapping is fixed by the equirectangular UV convention shared with
+    the rasterizer (u = (ra+π)/(2π), v = 1-(dec+π/2)/π) and the IAU 2009
+    ICRS → galactic rotation. Cached because only (width, height) matters.
+    Returned shape: (H, W, 3) float32 galactic unit vectors.
+    """
+    u = (np.arange(width, dtype=np.float32) + 0.5) / width
+    v = (np.arange(height, dtype=np.float32) + 0.5) / height
+    ra = u * (2.0 * np.pi) - np.pi
+    dec = (0.5 - v) * np.pi
+    cos_dec = np.cos(dec)
+    dx = (cos_dec[:, None] * np.cos(ra)[None, :]).astype(np.float32)
+    dy = (cos_dec[:, None] * np.sin(ra)[None, :]).astype(np.float32)
+    dz = np.broadcast_to(np.sin(dec)[:, None], (height, width)).astype(np.float32)
+    dirs_icrs = np.stack([dx, dy, dz], axis=-1)
+    # ICRS → galactic. Column-vector convention: d_gal = M^T · d_icrs.
+    # For row-vector arrays: d_gal_row = d_icrs_row @ M, since
+    # (M^T · v)^T = v^T · M.
+    return dirs_icrs @ _GAL_TO_ICRS
+
+
+def _host_galactocentric_kpc(host_xyz_pc: tuple[float, float, float]) -> np.ndarray:
+    """Heliocentric ICRS pc → galactocentric galactic kpc.
+
+    Inverse of etl/build_galactic_particles.py::galactocentric_to_heliocentric_icrs.
+    """
+    helio_icrs_kpc = np.array(host_xyz_pc, dtype=np.float32) / 1000.0
+    helio_galactic_kpc = helio_icrs_kpc @ _GAL_TO_ICRS  # row-vector: v @ M = M^T · v^T
+    return helio_galactic_kpc - _SOL_OFFSET_KPC
+
+
+def _sech2(x: np.ndarray) -> np.ndarray:
+    """sech²(x), branchless and overflow-safe. Matches the GLSL impl."""
+    ax = np.minimum(np.abs(x), 10.0)
+    e = np.exp(-ax)
+    d = 1.0 + e * e
+    return (4.0 * e * e / (d * d)).astype(np.float32)
+
+
+def _density_at(p_kpc: np.ndarray) -> np.ndarray:
+    """Procedural Milky Way density at galactocentric points.
+
+    Args: p_kpc shape (..., 3) in galactocentric galactic kpc.
+    Returns: shape (...) float32 weighted density (thin + thick + bulge).
+
+    Density parameters match etl/build_galactic_particles.py sample_*:
+      - thin disk : h_R=2.6, h_z=0.3 (1/h pre-multiplied as 0.3846, 3.333)
+      - thick disk: h_R=2.0, h_z=0.9 (1/h pre-multiplied as 0.5,    1.111)
+      - bulge     : exp(-r_eff/0.7) with triaxial axes (1.0, 0.4, 0.3)
+                    → 1/ax pre-multiplied as (1.0, 2.5, 3.333)
+    """
+    R = np.sqrt(p_kpc[..., 0] ** 2 + p_kpc[..., 1] ** 2)
+    az = np.abs(p_kpc[..., 2])
+    thin = np.exp(-R * 0.3846153846, dtype=np.float32) * _sech2(az * 3.3333333)
+    thick = np.exp(-R * 0.5, dtype=np.float32) * _sech2(az * 1.1111111)
+    r_eff = np.sqrt(
+        (p_kpc[..., 0]) ** 2
+        + (p_kpc[..., 1] * 2.5) ** 2
+        + (p_kpc[..., 2] * 3.3333333) ** 2
+    )
+    bulge = np.exp(-r_eff * 1.4285714, dtype=np.float32)
+    return (
+        thin * _COMP_WEIGHTS[0]
+        + thick * _COMP_WEIGHTS[1]
+        + bulge * _COMP_WEIGHTS[2]
+    ).astype(np.float32)
+
+
+def rasterize_diffuse_intensity(
+    host_xyz_pc: tuple[float, float, float],
+    width: int = _DIFFUSE_GEN_WIDTH,
+    height: int = _DIFFUSE_GEN_HEIGHT,
+) -> np.ndarray:
+    """Per-pixel diffuse Milky Way emissivity (line-of-sight integral).
+
+    Returns: (H, W) float32 in linear-light units, pre-gain. Caller
+    multiplies by _DIFFUSE_GAIN and composites in linear space.
+    """
+    dirs_gal = _direction_grid_galactic(width, height)        # (H, W, 3)
+    obs = _host_galactocentric_kpc(host_xyz_pc)               # (3,)
+    intensity = np.zeros((height, width), dtype=np.float32)
+    prev_t = 0.0
+    for t_val in _DIFFUSE_T_STEPS:
+        t = float(t_val)
+        dt = t - prev_t
+        # Broadcast (3,) obs + (H,W,3) * scalar → (H,W,3)
+        p = obs + dirs_gal * t
+        intensity += _density_at(p) * dt
+        prev_t = t
+    return intensity
+
+
+def _srgb_to_linear(c: np.ndarray) -> np.ndarray:
+    """sRGB display values in [0,1] → linear-light. IEC 61966-2-1."""
+    threshold = 0.04045
+    low = c / 12.92
+    high = ((c + 0.055) / 1.055) ** 2.4
+    return np.where(c <= threshold, low, high).astype(np.float32)
+
+
+def _linear_to_srgb(c: np.ndarray) -> np.ndarray:
+    """Linear-light → sRGB display values in [0,1]. IEC 61966-2-1."""
+    c = np.clip(c, 0.0, None)
+    threshold = 0.0031308
+    low = c * 12.92
+    high = 1.055 * (c ** (1.0 / 2.4)) - 0.055
+    return np.where(c <= threshold, low, high).astype(np.float32)
+
+
+def composite_diffuse_onto(
+    star_pil: Image.Image,
+    host_xyz_pc: tuple[float, float, float],
+) -> Image.Image:
+    """Add the diffuse galaxy layer to the star canvas in linear-light space.
+
+    Generates the diffuse intensity at low resolution (smooth function →
+    no aliasing), bilinearly upsamples to the star canvas size, decodes
+    star sRGB → linear, adds gain × diffuse, re-encodes → sRGB.
+    """
+    width, height = star_pil.size
+    diffuse_intensity = rasterize_diffuse_intensity(host_xyz_pc)        # (h_gen, w_gen)
+    # Upsample to canvas size via PIL (LANCZOS for a smooth field). PIL
+    # operates on uint8/float32 single-channel images; convert via numpy.
+    diffuse_img = Image.fromarray(diffuse_intensity, mode="F")          # 32-bit float
+    diffuse_img = diffuse_img.resize((width, height), Image.Resampling.LANCZOS)
+    diffuse_full = np.asarray(diffuse_img, dtype=np.float32)            # (H, W)
+
+    star_srgb = np.asarray(star_pil, dtype=np.float32) / 255.0          # (H, W, 3)
+    star_linear = _srgb_to_linear(star_srgb)
+    combined_linear = star_linear + (diffuse_full * _DIFFUSE_GAIN)[..., None]
+    combined_srgb = _linear_to_srgb(combined_linear)
+    combined_u8 = (np.clip(combined_srgb, 0.0, 1.0) * 255.0).astype(np.uint8)
+    return Image.fromarray(combined_u8, mode="RGB")
+
+
 def rasterize_skytexture(
     catalog: pd.DataFrame,
     host_xyz_pc: tuple[float, float, float],
@@ -233,6 +426,12 @@ def rasterize_skytexture(
         r = float(radius)
         c = (int(color_o[i, 0]), int(color_o[i, 1]), int(color_o[i, 2]))
         draw.ellipse([x - r, y - r, x + r, y + r], fill=c)
+
+    # ── Diffuse galaxy layer (Phase 4) ────────────────────────────────────
+    # Composited in linear-light space so the additive math matches the
+    # GLSL pipeline that worked on desktop. Done before the halo overlay
+    # so naked-eye-bright halos shine through any bright bulge regions.
+    pil = composite_diffuse_onto(pil, host_xyz_pc)
 
     # ── Halo overlay for naked-eye-bright stars ───────────────────────────
     # The brightest few hundred get a soft radial halo drawn on top.

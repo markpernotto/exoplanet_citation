@@ -181,12 +181,7 @@ export default function ScenePage() {
               />
             )}
           </VRSceneScale>
-          <Starfield
-            plName={plName}
-            hostRaDeg={scene.planet.ra}
-            hostDecDeg={scene.planet.dec}
-            hostDistPc={scene.host_star?.distance_gspphot_pc ?? scene.planet.sy_dist ?? null}
-          />
+          <Starfield plName={plName} />
           {/* VRRig is OUTSIDE VRSceneScale — its position/speed are in
               world meters, unaffected by scene scaling. 3m from origin
               looks at a ~6m-wide scaled system; 1.5 m/sec is comfortable
@@ -1570,57 +1565,18 @@ function OrbitRing({
   return <primitive object={new THREE.Line(geometry, material)} />;
 }
 
-// ── Gaia starfield ────────────────────────────────────────────────────────
-// Loads /starfield_basic.bin once on mount, parses the packed-float format
-// produced by etl/build_starfield.py, and renders ~62k stars as a single
-// Points draw call on a sphere of radius STAR_SPHERE_AU around the origin.
+// ── Per-vantage starfield + diffuse galaxy skydome ─────────────────────
+// Phase 2/3/4: fetches a server-rendered equirectangular PNG from
+// /api/starfield/:plName.png that contains both the per-vantage star
+// rasterization (Gaia + procedural Milky Way particles, all in one
+// textured layer) and the line-of-sight integrated diffuse galaxy glow
+// composited in linear-light space (api/starfield.py:composite_diffuse_onto).
+// The frontend just paints it on a camera-following skydome sphere — one
+// textured primitive is the only thing the @react-three/xr 6 + Quest 3
+// multiview pipeline reliably renders, so all the per-pixel math lives
+// server-side. See docs/STARFIELD_PLAN.md for the architectural rationale.
 
-// IAU 2009 galactic ↔ ICRS rotation. Must match etl/build_galactic_particles.py
-// and api/host_xyz.py — those use the column-vector form
-// helio_icrs = M @ helio_galactic, with M's rows below.
-const GAL_TO_ICRS_ROWS: readonly [readonly [number, number, number], readonly [number, number, number], readonly [number, number, number]] = [
-  [-0.0548755604162154,  0.4941094278755837, -0.8676661490190047],
-  [-0.8734370902348850, -0.4448296299600112, -0.1980763734312015],
-  [-0.4838350155487132,  0.7469822444972189,  0.4559837761750669],
-];
-// Sol's galactocentric position in galactic kpc — matches etl SOL_*_KPC.
-const SOL_X_KPC = 8.122;
-const SOL_Y_KPC = 0.0;
-const SOL_Z_KPC = 0.025;
-
-// Heliocentric ICRS RA/Dec/distance → host's galactocentric galactic kpc.
-// Mirrors api/host_xyz.py::equatorial_to_xyz_pc plus the inverse of
-// etl/build_galactic_particles.py::galactocentric_to_heliocentric_icrs.
-// Returns null when ra/dec/dist are missing — caller falls back to Sol.
-function resolveHostGalKpc(
-  raDeg: number | null, decDeg: number | null, distPc: number | null,
-): THREE.Vector3 | null {
-  if (raDeg == null || decDeg == null || distPc == null || distPc <= 0) return null;
-  const ra = THREE.MathUtils.degToRad(raDeg);
-  const dec = THREE.MathUtils.degToRad(decDeg);
-  const cosDec = Math.cos(dec);
-  const xi = distPc * cosDec * Math.cos(ra);
-  const yi = distPc * cosDec * Math.sin(ra);
-  const zi = distPc * Math.sin(dec);
-  const M = GAL_TO_ICRS_ROWS;
-  const xg = M[0][0] * xi + M[1][0] * yi + M[2][0] * zi;
-  const yg = M[0][1] * xi + M[1][1] * yi + M[2][1] * zi;
-  const zg = M[0][2] * xi + M[1][2] * yi + M[2][2] * zi;
-  return new THREE.Vector3(
-    xg / 1000 - SOL_X_KPC,
-    yg / 1000 - SOL_Y_KPC,
-    zg / 1000 - SOL_Z_KPC,
-  );
-}
-
-function Starfield({
-  plName, hostRaDeg, hostDecDeg, hostDistPc,
-}: {
-  plName: string;
-  hostRaDeg: number | null;
-  hostDecDeg: number | null;
-  hostDistPc: number | null;
-}) {
+function Starfield({ plName }: { plName: string }) {
   const [texture, setTexture] = useState<THREE.Texture | null>(null);
   const { scene } = useThree();
   const skydomeRef = useRef<THREE.Mesh>(null);
@@ -1708,122 +1664,7 @@ function Starfield({
     };
   }, [texture, scene]);
 
-  // Phase 4: diffuse galaxy via MeshBasicMaterial + onBeforeCompile. The
-  // earlier ShaderMaterial approach worked on desktop but silently failed
-  // to compile under Quest 3 / @react-three/xr multiview — the mesh
-  // disappeared and scene.background's stars-only texture took over,
-  // hiding the diffuse layer in VR. onBeforeCompile lets us splice the
-  // diffuse math into three.js's built-in MeshBasic shader skeleton,
-  // inheriting the multiview directive injection, log-depth handling, and
-  // uniform setup that the working Phase 3 skydome already proved compatible
-  // with the headset's shader pipeline.
-  //
-  // Frame: vertex passes local-space sphere direction (= world direction
-  // since the skydome rotation is identity). Fragment rotates into the
-  // galactic frame via uWorldToGal and marches outward from uObsGalKpc.
-  // Density-only emissivity (single channel) — no warmth tinting in v1.
-  //
-  // Tuning knobs (kept in uniformsRef so onBeforeCompile and the per-host
-  // useEffect share the same uniform objects):
-  //   uDiffuseGain   — master brightness; tuned so Sol-vantage galactic
-  //                    plane adds ~0.05 to RGB on top of the texture.
-  //   uCompWeights   — (thin, thick, bulge) relative weights. Bulge gets
-  //                    a heavy boost because the procedural particles are
-  //                    unnormalized across components — the disk's per-kpc
-  //                    density is much higher than the bulge's at any
-  //                    given galactocentric radius, so equal weights would
-  //                    let the disk dominate even toward Sgr A*.
-  const uniformsRef = useRef({
-    uObsGalKpc:   { value: new THREE.Vector3(-SOL_X_KPC, -SOL_Y_KPC, -SOL_Z_KPC) },
-    uDiffuseGain: { value: 0.08 },
-    uCompWeights: { value: new THREE.Vector3(1.0, 0.6, 8.0) },
-  });
-
-  // Material is recreated when texture changes — needed because map is set
-  // at construction so the USE_MAP define is correct on first compile,
-  // which means onBeforeCompile sees the right base chunks to splice into.
-  //
-  // Direction-from-UV trick: instead of adding a custom `varying vec3 vLocalDir`
-  // (which appears to silently break the @react-three/xr multiview pipeline
-  // — the entire mesh stops rendering on Quest 3 when a custom varying is
-  // declared via onBeforeCompile, even though desktop is fine), we derive
-  // the line-of-sight direction inside the fragment from the built-in
-  // `vMapUv` varying that map_fragment already wires up. Conversion matches
-  // api/starfield.py's PNG layout (u=(ra+π)/(2π), v=1-(dec+π/2)/π) → unit
-  // ICRS vector → galactic frame via a hard-coded ICRS→galactic mat3
-  // (which is _GAL_TO_ICRS.T from etl/build_galactic_particles.py).
-  const material = useMemo(() => {
-    if (!texture) return null;
-    const mat = new THREE.MeshBasicMaterial({
-      map: texture,
-      side: THREE.DoubleSide,
-      depthWrite: false,
-      depthTest: false,
-      toneMapped: false,
-    });
-    mat.onBeforeCompile = (shader) => {
-      Object.assign(shader.uniforms, uniformsRef.current);
-      shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', `#include <common>
-          uniform vec3 uObsGalKpc;
-          uniform float uDiffuseGain;
-          uniform vec3 uCompWeights;
-
-          const mat3 ICRS_TO_GAL = mat3(
-            -0.0548755604, -0.8734370902, -0.4838350155,
-             0.4941094279, -0.4448296300,  0.7469822445,
-            -0.8676661490, -0.1980763734,  0.4559837762
-          );
-
-          float sech2(float x) {
-            float ax = min(abs(x), 10.0);
-            float e = exp(-ax);
-            float d = 1.0 + e * e;
-            return 4.0 * e * e / (d * d);
-          }
-          float densityAt(vec3 p_kpc) {
-            float R  = length(p_kpc.xy);
-            float az = abs(p_kpc.z);
-            float thin  = exp(-R * 0.3846153846) * sech2(az * 3.3333333);
-            float thick = exp(-R * 0.5)          * sech2(az * 1.1111111);
-            float r_eff = length(p_kpc * vec3(1.0, 2.5, 3.3333333));
-            float bulge = exp(-r_eff * 1.4285714);
-            return dot(vec3(thin, thick, bulge), uCompWeights);
-          }
-          float marchDiffuse(vec3 d_gal) {
-            float I = 0.0;
-            float prevT = 0.0;
-            #define STEP(T) { float t = T; I += densityAt(uObsGalKpc + d_gal * t) * (t - prevT); prevT = t; }
-            STEP(0.155);  STEP(0.510);  STEP(0.940);  STEP(1.458);
-            STEP(2.083);  STEP(2.836);  STEP(3.747);  STEP(4.844);
-            STEP(6.168);  STEP(7.766);  STEP(9.694);  STEP(12.020);
-            STEP(14.824); STEP(18.207); STEP(22.288); STEP(27.211);
-            #undef STEP
-            return I;
-          }`)
-        .replace('#include <map_fragment>', `#include <map_fragment>
-          {
-            float ra  = vMapUv.x * 6.2831853 - 3.1415927;
-            float dec = (0.5 - vMapUv.y) * 3.1415927;
-            float cd  = cos(dec);
-            vec3 d_icrs = vec3(cd * cos(ra), cd * sin(ra), sin(dec));
-            vec3 d_gal  = normalize(ICRS_TO_GAL * d_icrs);
-            float diffI = marchDiffuse(d_gal);
-            diffuseColor.rgb += vec3(diffI * uDiffuseGain);
-          }`);
-    };
-    return mat;
-  }, [texture]);
-
-  // Push host galactocentric position into the shared uniform object.
-  // onBeforeCompile uses the same uniformsRef.current.uObsGalKpc reference,
-  // so this .copy() propagates without re-compiling the shader.
-  useEffect(() => {
-    const p = resolveHostGalKpc(hostRaDeg, hostDecDeg, hostDistPc);
-    if (p) uniformsRef.current.uObsGalKpc.value.copy(p);
-  }, [hostRaDeg, hostDecDeg, hostDistPc]);
-
-  if (!texture || !material) return null;
+  if (!texture) return null;
 
   // Method A: explicit skydome mesh, camera-following. depthTest:false
   // means it always draws first as background; depthWrite:false keeps
@@ -1835,13 +1676,15 @@ function Starfield({
   // side: DoubleSide as a defensive choice for XR multiview face-culling
   // quirks. Negligible perf cost for a single 64×32 sphere.
   return (
-    <mesh
-      ref={skydomeRef}
-      frustumCulled={false}
-      renderOrder={-1}
-      material={material}
-    >
+    <mesh ref={skydomeRef} frustumCulled={false} renderOrder={-1}>
       <sphereGeometry args={[STAR_SPHERE_AU, 64, 32]} />
+      <meshBasicMaterial
+        map={texture}
+        side={THREE.DoubleSide}
+        toneMapped={false}
+        depthWrite={false}
+        depthTest={false}
+      />
     </mesh>
   );
 }

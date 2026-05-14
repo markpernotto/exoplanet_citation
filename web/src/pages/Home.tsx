@@ -245,14 +245,15 @@ const FEATURED_CATEGORIES: Record<string, FeaturedCategory> = {
   },
   'galactic-tour': {
     label: 'Different skies',
-    description: 'Hand-picked vantages that span the galaxy. Open the 3D scene on each — the per-host star projection, Milky Way band, dust lanes, spiral arms, and even Andromeda all shift with distance from Earth. From Proxima the sky is almost ours; from the bulge it\'s a different universe.',
+    description: 'Hand-picked vantages that span the galaxy. Open the 3D scene on each — the per-host star projection, Milky Way band, dust lanes, spiral arms, and even Andromeda all shift with distance and direction from Earth. From Proxima the sky is almost ours; from the bulge it\'s a different universe.',
     systems: [
-      { name: 'Proxima Centauri', representative: 'Proxima Cen b',        tagline: '4.2 light-years from Earth — virtually identical to our night sky, just with Sol added as another bright star.' },
-      { name: 'TRAPPIST-1',       representative: 'TRAPPIST-1 e',         tagline: '40 light-years from Earth — subtle bright-star shifts; Sol becomes a barely-naked-eye dot in the constellation Gemini.' },
-      { name: 'Kepler-186',       representative: 'Kepler-186 f',         tagline: '579 light-years into the Kepler field — local stars rearrange visibly, the Milky Way band tilts to a different angle.' },
-      { name: 'Kepler-22',        representative: 'Kepler-22 b',          tagline: '638 light-years out — a noticeably different patch of disk overhead, plus the first habitable-zone Kepler confirmation.' },
-      { name: 'SWEEPS-4',         representative: 'SWEEPS-4 b',           tagline: '28,000 light-years — inside the galactic bulge. The galactic center fills a hemisphere with warm haze and spiral arms loop overhead.' },
-      { name: 'OGLE-2005-BLG-390L', representative: 'OGLE-2005-BLG-390L b', tagline: '21,500 light-years — a different bulge vantage. Dust lanes carve the sky in a different orientation than SWEEPS.' },
+      { name: 'Proxima Centauri',    representative: 'Proxima Cen b',         tagline: '4.2 light-years from Earth, near the galactic plane — virtually our sky, just with Sol added as another bright star.' },
+      { name: '51 Pegasi',           representative: '51 Peg b',              tagline: '50 light-years from Earth at high galactic latitude — the Milky Way band tilts and Sol becomes a faint dot. Also: first exoplanet ever found around a sun-like star (1995).' },
+      { name: 'Kepler-186',          representative: 'Kepler-186 f',          tagline: '579 light-years into the Kepler field, near the galactic plane — local stars rearrange, the Milky Way runs in a different direction.' },
+      { name: 'WASP-12',             representative: 'WASP-12 b',             tagline: '1,394 light-years toward the galactic anti-center, well off the plane — Milky Way band hangs on one side of the sky; the host star is being tidally torn apart.' },
+      { name: 'MOA-2007-BLG-192L',   representative: 'MOA-2007-BLG-192L b',   tagline: '7,046 light-years toward the galactic bulge — disk-to-bulge transition. Galactic center is now bright in foreground.' },
+      { name: 'OGLE-2005-BLG-390L',  representative: 'OGLE-2005-BLG-390L b',  tagline: '21,500 light-years — on the bulge edge. The nickname "Hoth" suggests the vibe: cold, distant, surrounded by dense stars.' },
+      { name: 'SWEEPS-4',            representative: 'SWEEPS-4 b',            tagline: '28,000 light-years — deep inside the galactic bulge. The galactic center fills a hemisphere with warm haze and spiral arms loop overhead.' },
     ],
   },
   'best-for-3d': {

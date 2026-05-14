@@ -243,6 +243,18 @@ const FEATURED_CATEGORIES: Record<string, FeaturedCategory> = {
       { name: 'HD 209458', representative: 'HD 209458 b', tagline: 'The prototype hot Jupiter. Also the first exoplanet with a detected atmosphere.' },
     ],
   },
+  'galactic-tour': {
+    label: 'Different skies',
+    description: 'Hand-picked vantages that span the galaxy. Open the 3D scene on each — the per-host star projection, Milky Way band, dust lanes, spiral arms, and even Andromeda all shift with distance from Earth. From Proxima the sky is almost ours; from the bulge it\'s a different universe.',
+    systems: [
+      { name: 'Proxima Centauri', representative: 'Proxima Cen b',        tagline: '4.2 light-years from Earth — virtually identical to our night sky, just with Sol added as another bright star.' },
+      { name: 'TRAPPIST-1',       representative: 'TRAPPIST-1 e',         tagline: '40 light-years from Earth — subtle bright-star shifts; Sol becomes a barely-naked-eye dot in the constellation Gemini.' },
+      { name: 'Kepler-186',       representative: 'Kepler-186 f',         tagline: '579 light-years into the Kepler field — local stars rearrange visibly, the Milky Way band tilts to a different angle.' },
+      { name: 'Kepler-22',        representative: 'Kepler-22 b',          tagline: '638 light-years out — a noticeably different patch of disk overhead, plus the first habitable-zone Kepler confirmation.' },
+      { name: 'SWEEPS-4',         representative: 'SWEEPS-4 b',           tagline: '28,000 light-years — inside the galactic bulge. The galactic center fills a hemisphere with warm haze and spiral arms loop overhead.' },
+      { name: 'OGLE-2005-BLG-390L', representative: 'OGLE-2005-BLG-390L b', tagline: '21,500 light-years — a different bulge vantage. Dust lanes carve the sky in a different orientation than SWEEPS.' },
+    ],
+  },
   'best-for-3d': {
     label: 'Best for 3D scene',
     description: 'Hand-picked planets where the 3D scene shines — multi-planet systems, dramatic suns, resolved binary companions, or just spectacular geometry. Open one and click "View in 3D" on the detail page; works on Quest 3 in WebXR.',

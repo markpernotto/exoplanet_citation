@@ -6,6 +6,38 @@ WebXR Milky-Way architectural pass). This doc is the union of those
 drafts plus the hard lessons from a long VR-debugging session on Quest 3
 that reshaped the rendering strategy.
 
+## Status: All five phases shipped (2026-05-13)
+
+Phases 1-5 are in production. The original architecture below describes
+Layer 3 as a frontend GLSL fragment shader; **in implementation, Layer 3
+also moved to server-side rasterization** alongside Layers 1, 2, and 4.
+Reason: a long debugging session showed that a custom `ShaderMaterial`
+(and even `MeshBasicMaterial` extended via `onBeforeCompile`) silently
+failed to compile inside the @react-three/xr 6 multiview pipeline on
+Quest 3 — five different shader iterations all worked on desktop but
+none rendered the diffuse layer in VR. The pattern matched this doc's
+"N tiny meshes ≠ one big mesh" lesson: there's a class of WebGL
+operations the headset rejects without error, and shader splicing
+turned out to be one of them.
+
+The pivot: port the GLSL `densityAt` + log-spaced line-of-sight march
+to numpy in `api/starfield.py`, render the diffuse layer into the same
+equirectangular PNG that Layers 1+2 already paint, ship one textured
+sphere to the client. Tradeoff: per-vantage gen went from ~200ms (stars
+only) to ~700ms-1.3s (stars + diffuse + extragalactic anchors + dust +
+spiral arms + warmth tinting), cached forever after. Quest 3 renders
+it identically to desktop because it's just `meshBasicMaterial.map` on
+a sphere — exactly what was working in Phase 3.
+
+What this means for the "Layer 3" row in the architecture table below:
+the **Render strategy** column should read "Server-side numpy
+rasterization, composited into the same PNG as Layers 1+2" rather than
+"Fragment shader on the same skydome sphere." Same applies to Layer 4
+— extragalactic anchors are server-rasterized Gaussian blobs in the
+PNG, not three.js sprites. The Phase 4 / Phase 5 section near the
+bottom of this doc reflects the original frontend plan; for current
+behavior, read `api/starfield.py` (single source of truth).
+
 ---
 
 ## What we learned the hard way

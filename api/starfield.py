@@ -332,6 +332,73 @@ def _sech2(x: np.ndarray) -> np.ndarray:
     return (4.0 * e * e / (d * d)).astype(np.float32)
 
 
+def _star_dust_extinction(
+    host_xyz_pc: tuple[float, float, float],
+    dx_pc: np.ndarray, dy_pc: np.ndarray, dz_pc: np.ndarray,
+    d_pc: np.ndarray,
+) -> np.ndarray:
+    """Per-star, per-channel dust extinction factor.
+
+    For each star, integrates dust optical depth along the LOS from host
+    to star using the same density profile and step schedule as the
+    diffuse galaxy march. Then applies a standard 1/λ reddening law:
+    blue light attenuates 1.77× more than red, so dust-extincted stars
+    naturally redden as they dim (the famous interstellar reddening that
+    makes the visible bulge invisible from Earth — A_V ~30 mag toward
+    Sgr A* in reality; we use ~10× less for aesthetic, same as the
+    diffuse layer).
+
+    Args:
+      host_xyz_pc: host position in heliocentric ICRS pc.
+      dx_pc, dy_pc, dz_pc: per-star relative position (star - host) in
+        heliocentric ICRS pc.
+      d_pc: per-star distance (pre-computed magnitudes).
+
+    Returns: (N, 3) float32 multiplicative factor in [0, 1] — apply
+    per-channel to the star's RGB intensity.
+    """
+    # Relative position in galactic kpc — same frame as the dust profile.
+    rel_gal_kpc = (np.column_stack([dx_pc, dy_pc, dz_pc]) / 1000.0) @ _GAL_TO_ICRS
+    d_kpc = (d_pc / 1000.0).astype(np.float32)
+    safe_d = np.maximum(d_kpc, 1e-6)
+    dir_gal = (rel_gal_kpc / safe_d[:, None]).astype(np.float32)
+    host_gal = _host_galactocentric_kpc(host_xyz_pc)
+
+    tau = np.zeros(d_kpc.shape, dtype=np.float32)
+    prev_t = 0.0
+    for t_val in _DIFFUSE_T_STEPS:
+        t = float(t_val)
+        dt = t - prev_t
+        # Only count dust between the host and the star — steps past the
+        # star's distance don't lie on the LOS and shouldn't contribute.
+        mask = t < d_kpc
+        if not mask.any():
+            prev_t = t
+            continue
+        p_x = host_gal[0] + dir_gal[:, 0] * t
+        p_y = host_gal[1] + dir_gal[:, 1] * t
+        p_z = host_gal[2] + dir_gal[:, 2] * t
+        R = np.sqrt(p_x * p_x + p_y * p_y)
+        az = np.abs(p_z)
+        dust_here = (
+            np.exp(-R / _DUST_H_R_KPC, dtype=np.float32)
+            * _sech2(az / _DUST_H_Z_KPC)
+        )
+        # Zero out contribution for stars whose distance is already past t.
+        tau += np.where(mask, dust_here, 0.0) * (_DUST_OPACITY * dt)
+        prev_t = t
+
+    # Standard 1/λ wavelength-dependent extinction normalised to V-band:
+    #   A_R / A_V = 0.755   (R ≈ 620 nm)
+    #   A_G / A_V = 1.000   (V ≈ 550 nm)
+    #   A_B / A_V = 1.336   (B ≈ 440 nm)
+    return np.stack([
+        np.exp(-tau * 0.755, dtype=np.float32),
+        np.exp(-tau * 1.000, dtype=np.float32),
+        np.exp(-tau * 1.336, dtype=np.float32),
+    ], axis=-1)
+
+
 def _dust_density(p_kpc: np.ndarray) -> np.ndarray:
     """Interstellar dust density (relative, unitless).
 
@@ -671,7 +738,12 @@ def rasterize_skytexture(
 
     # ── Color from bp_rp, scaled by intensity, no minimum floor ───────────
     rgb = bprp_to_rgb(bp_rp)                                  # (N, 3) in [0, 1]
-    color_u8 = (rgb * intensity[:, None] * 255).clip(0, 255).astype(np.uint8)
+    # Per-star dust extinction: reddens AND dims stars whose LOS from the
+    # host passes through significant dust. Standard 1/λ reddening law —
+    # blue attenuates 1.77× more than red, so distant bulge stars
+    # naturally turn orange-red, and the deepest get extincted out.
+    dust_factor = _star_dust_extinction(host_xyz_pc, dx, dy, dz, d_pc)  # (N, 3)
+    color_u8 = (rgb * intensity[:, None] * dust_factor * 255).clip(0, 255).astype(np.uint8)
 
     # ── Rasterize: anti-aliased ellipse per star ──────────────────────────
     # PIL's ellipse fill at fractional coords gives sub-pixel anti-

@@ -84,6 +84,30 @@ _COMP_WEIGHTS = np.array([1.0, 0.6, 8.0], dtype=np.float32)
 _THIN_COLOR  = np.array([1.00, 0.95, 0.85], dtype=np.float32)
 _THICK_COLOR = np.array([1.00, 0.80, 0.60], dtype=np.float32)
 _BULGE_COLOR = np.array([1.00, 0.55, 0.30], dtype=np.float32)
+# Young OB-association tint — the blue light a Milky Way photo gets from
+# spiral-arm star-forming regions (Carina, Cygnus X, Orion Arm). Linear
+# RGB with B > 1 so the channel saturates first and arms read clearly as
+# blue-white rather than washing out to neutral against the warm thin disk.
+_YOUNG_COLOR = np.array([0.55, 0.75, 1.05], dtype=np.float32)
+
+# Logarithmic spiral arms — Milky-Way-ish 4-arm pattern with ~12° pitch
+# (cot(12°) ≈ 4.70). At each radius the arm phase is
+#   φ_arm(R) = (1/tan(p)) · ln(R/R_ref)
+# so the 4-arm cos²(4·(φ-φ_arm)) modulation produces 4 narrow peaks per
+# revolution that wind outward. The cos² gives sharper-than-sinusoidal
+# arms; multiplied by the thin-disk density it concentrates the blue
+# population where stars are actually being born today, not in the inter-
+# arm regions. Halo radius _SPIRAL_R_REF anchors the spiral pattern at
+# Sol's galactocentric radius so the local view matches Sun's Orion Spur.
+_SPIRAL_COT_PITCH = 4.70
+_SPIRAL_N_ARMS    = 4.0
+_SPIRAL_R_REF_KPC = 8.0
+# Relative brightness of the young population vs the underlying thin disk
+# AT ARM PEAKS. The narrow-peak modulation drops to nearly zero in
+# inter-arm gaps, so this peak value sets how much the arms stand out
+# against the smooth warm disk. 1.0× keeps arms subtly visible — they
+# tint the band cooler in clear stretches without dominating the look.
+_YOUNG_REL_TO_THIN = 1.0
 
 # Dust extinction. Real-world Milky Way: A_V ≈ 1.5 mag/kpc in the local
 # midplane, which is τ ≈ 1.4 per kpc (A_V = 1.086 · τ). Cranking that all
@@ -323,18 +347,42 @@ def _dust_density(p_kpc: np.ndarray) -> np.ndarray:
     ).astype(np.float32)
 
 
-def _component_densities(p_kpc: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Per-component density (thin, thick, bulge) at galactocentric points.
+def _spiral_arm_strength(p_kpc: np.ndarray) -> np.ndarray:
+    """4-arm logarithmic-spiral modulation in [0, 1].
+
+    Peaks (≈1) along narrow arm centerlines, drops to ≈0 in inter-arm
+    gaps. Power-4 makes the peaks narrower than a plain cos² so the arms
+    read as discrete features rather than smooth azimuthal swells —
+    important because LOS integration through the disk already blurs
+    azimuthal structure, and we need the *raw* modulation to be sharp
+    for arm features to survive averaging along the line of sight.
+    R clamped at 0.5 kpc to avoid the log singularity at the galactic
+    center (where arms aren't well-defined anyway).
+    """
+    R = np.sqrt(p_kpc[..., 0] ** 2 + p_kpc[..., 1] ** 2)
+    phi = np.arctan2(p_kpc[..., 1], p_kpc[..., 0])
+    log_R = np.log(np.maximum(R, 0.5) / _SPIRAL_R_REF_KPC)
+    twist = _SPIRAL_COT_PITCH * log_R
+    s = np.cos(_SPIRAL_N_ARMS * (phi - twist))
+    return ((0.5 + 0.5 * s) ** 3).astype(np.float32)
+
+
+def _component_densities(p_kpc: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Per-component density (thin, thick, bulge, young-spiral) at galactocentric points.
 
     Args: p_kpc shape (..., 3) in galactocentric galactic kpc.
-    Returns: three (...) float32 arrays — thin, thick, bulge — each
-    already multiplied by _COMP_WEIGHTS so the caller can tint and sum.
+    Returns: four (...) float32 arrays — thin, thick, bulge, young — each
+    already multiplied by _COMP_WEIGHTS / spiral modulation so the caller
+    can tint and sum directly.
 
     Parameters match etl/build_galactic_particles.py sample_*:
       - thin disk : h_R=2.6, h_z=0.3 (1/h pre-multiplied as 0.3846, 3.333)
       - thick disk: h_R=2.0, h_z=0.9 (1/h pre-multiplied as 0.5,    1.111)
       - bulge     : exp(-r_eff/0.7) with triaxial axes (1.0, 0.4, 0.3)
                     → 1/ax pre-multiplied as (1.0, 2.5, 3.333)
+      - young     : thin × 4-arm spiral modulation × _YOUNG_REL_TO_THIN.
+                    Captures the OB-association blue light that traces
+                    Milky Way spiral arms in real photos.
     """
     R = np.sqrt(p_kpc[..., 0] ** 2 + p_kpc[..., 1] ** 2)
     az = np.abs(p_kpc[..., 2])
@@ -354,7 +402,13 @@ def _component_densities(p_kpc: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.
         + (p_kpc[..., 2] * 3.3333333) ** 2
     )
     bulge = np.exp(-r_eff * 1.4285714, dtype=np.float32) * _COMP_WEIGHTS[2]
-    return thin.astype(np.float32), thick.astype(np.float32), bulge.astype(np.float32)
+    young = thin * _spiral_arm_strength(p_kpc) * _YOUNG_REL_TO_THIN
+    return (
+        thin.astype(np.float32),
+        thick.astype(np.float32),
+        bulge.astype(np.float32),
+        young.astype(np.float32),
+    )
 
 
 def rasterize_diffuse_rgb(
@@ -393,21 +447,24 @@ def rasterize_diffuse_rgb(
         # observer), but the discretization smooths it out.
         tau += _dust_density(p) * (_DUST_OPACITY * dt)
         attenuation = np.exp(-tau)                            # (H, W)
-        thin, thick, bulge = _component_densities(p)
+        thin, thick, bulge, young = _component_densities(p)
         rgb[..., 0] += (
             thin * _THIN_COLOR[0]
             + thick * _THICK_COLOR[0]
             + bulge * _BULGE_COLOR[0]
+            + young * _YOUNG_COLOR[0]
         ) * dt * attenuation
         rgb[..., 1] += (
             thin * _THIN_COLOR[1]
             + thick * _THICK_COLOR[1]
             + bulge * _BULGE_COLOR[1]
+            + young * _YOUNG_COLOR[1]
         ) * dt * attenuation
         rgb[..., 2] += (
             thin * _THIN_COLOR[2]
             + thick * _THICK_COLOR[2]
             + bulge * _BULGE_COLOR[2]
+            + young * _YOUNG_COLOR[2]
         ) * dt * attenuation
         prev_t = t
     return rgb

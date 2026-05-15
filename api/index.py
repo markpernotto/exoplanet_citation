@@ -516,6 +516,11 @@ def planet_companions(pl_name: str) -> list[BinaryCompanion]:
     available, falling back to the Exoplanet Archive's `sy_dist`. Earlier
     versions of this endpoint used `sy_dist` only, which let optical doubles
     through whenever the catalog row was missing it.
+
+    The Gaia lookup uses LEFT JOIN LATERAL so it returns at most one row per
+    hostname. host_stars_gaia is PK'd on gaia_dr3_id (not hostname) and is
+    currently 1:1 with hostname empirically, but the schema does not enforce
+    that — LATERAL keeps the companion row count exact regardless.
     """
     with _connect() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -525,7 +530,12 @@ def planet_companions(pl_name: str) -> list[BinaryCompanion]:
                        bc.separation_arcsec, bc.position_angle_deg,
                        bc.component_mag_v, bc.component_spectype, bc.source_catalog
                 FROM planets_current p
-                LEFT JOIN host_stars_gaia h ON h.hostname = p.hostname
+                LEFT JOIN LATERAL (
+                    SELECT distance_gspphot_pc
+                    FROM host_stars_gaia
+                    WHERE hostname = p.hostname
+                    LIMIT 1
+                ) h ON true
                 JOIN binary_companions bc ON bc.hostname = p.hostname
                 WHERE p.pl_name = %s
                   AND (

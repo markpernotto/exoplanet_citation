@@ -72,16 +72,17 @@ export function formatTemperature(kelvin: number | null, mode: UnitsMode): Forma
 }
 
 // Picks the most readable unit for a duration given in hours. Caller renders
-// `{value} {unit}`. Returning {value, unit} keeps this i18n-ready: a future
-// translation layer can map the English unit strings without re-deriving scale.
+// `{value} {unit}`. Abbreviated units (h / d / yr / kyr / Myr) sidestep
+// English plural rules so a duration of exactly 1 doesn't read "1.0 hours";
+// also cleaner for future i18n since the strings carry no grammar.
 export function humanizeHours(hours: number | null): Formatted | null {
   if (hours == null || !Number.isFinite(hours) || hours < 0) return null;
   const days = hours / 24;
   const years = days / 365.25;
-  if (hours < 48) return { value: hours.toFixed(1), unit: 'hours' };
-  if (days < 365) return { value: days.toFixed(1), unit: 'days' };
-  if (years < 100) return { value: years.toFixed(1), unit: 'years' };
-  if (years < 10000) return { value: Math.round(years).toLocaleString(), unit: 'years' };
+  if (hours < 48) return { value: hours.toFixed(1), unit: 'h' };
+  if (days < 365) return { value: days.toFixed(1), unit: 'd' };
+  if (years < 100) return { value: years.toFixed(1), unit: 'yr' };
+  if (years < 10000) return { value: Math.round(years).toLocaleString(), unit: 'yr' };
   if (years < 1e6) return { value: (years / 1000).toFixed(1), unit: 'kyr' };
   return { value: (years / 1e6).toFixed(2), unit: 'Myr' };
 }

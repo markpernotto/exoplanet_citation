@@ -38,7 +38,13 @@ function compact(n: number): string {
 export function useUnitsMode(): [UnitsMode, (m: UnitsMode) => void] {
   const [mode, setMode] = useState<UnitsMode>(() => {
     if (typeof window === 'undefined') return 'metric';
-    return window.localStorage.getItem(STORAGE_KEY) === 'imperial' ? 'imperial' : 'metric';
+    try {
+      return window.localStorage.getItem(STORAGE_KEY) === 'imperial' ? 'imperial' : 'metric';
+    } catch {
+      // Some legacy browser modes throw on `getItem` (older Safari private
+      // browsing). Don't crash first render; default to metric.
+      return 'metric';
+    }
   });
   useEffect(() => {
     try { window.localStorage.setItem(STORAGE_KEY, mode); } catch { /* private mode */ }

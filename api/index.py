@@ -579,7 +579,7 @@ def planet_host_star(pl_name: str) -> HostStarGaia:
 )
 def planet_starfield(pl_name: str) -> Response:
     """Reproject the Gaia DR3 starfield from this host system's vantage and
-    return the result as an 8192×4096 equirectangular PNG.
+    return the result as a 6144×3072 equirectangular PNG.
 
     Used by the frontend skydome in `web/src/pages/ScenePage.tsx`: the PNG
     is mapped onto the inside of a sphere around the camera, sampled by view
@@ -621,7 +621,7 @@ def planet_starfield(pl_name: str) -> Response:
         )
 
     # render_png_cached is process-cached by (host_xyz_pc, dims, mag_cutoff).
-    # Cold renders at 8K take several seconds; hot lookups are instant.
+    # Cold renders at 6K take ~3-4 seconds; hot lookups are instant.
     png_bytes = render_png_cached(tuple(host_xyz))
 
     return Response(

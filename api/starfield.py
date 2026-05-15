@@ -29,13 +29,16 @@ from PIL import Image, ImageDraw, ImageFilter
 
 log = logging.getLogger(__name__)
 
-# Default output dimensions. 8K equirectangular: ~0.044° per texel,
-# about 2.5× naked-eye acuity (typical eye resolves ~1 arcminute = 0.017°,
-# so we're sampling near the limit of what a Quest 3 / Vision Pro headset
-# can usefully display anyway). The per-host LRU cache below amortizes
-# the cold-render cost so repeat visits stay snappy.
-DEFAULT_WIDTH = 8192
-DEFAULT_HEIGHT = 4096
+# Default output dimensions. 6K equirectangular: ~0.059° per texel, still
+# ~1.9× naked-eye acuity (typical eye resolves ~1 arcminute = 0.017°) and
+# above the Quest 3 / Vision Pro per-pixel display sampling rate, so the
+# rendered detail doesn't outrun what the headset can show anyway. Chosen
+# over 8K because the Vercel serverless function's default memory ceiling
+# is 1024 MB; 8K peaks around 1.3 GB live during compositing while 6K
+# lands at ~700-800 MB. The per-host LRU cache below amortizes the cold-
+# render cost so repeat visits stay snappy.
+DEFAULT_WIDTH = 6144
+DEFAULT_HEIGHT = 3072
 
 # ── Diffuse galaxy (Phase 4) ─────────────────────────────────────────────
 # The original plan compiled a GLSL fragment shader to do per-pixel line-
@@ -568,26 +571,23 @@ def _linear_to_srgb(c: np.ndarray) -> np.ndarray:
     return np.where(c <= threshold, low, high).astype(np.float32)
 
 
-def composite_extragalactic_onto(
-    star_pil: Image.Image,
+def _add_extragalactic_to_linear(
+    canvas_lin: np.ndarray,
     host_xyz_pc: tuple[float, float, float],
-) -> Image.Image:
-    """Paint LMC/SMC/M31/M33/SagDEG soft blobs at their per-vantage positions.
+) -> None:
+    """Add LMC/SMC/M31/M33/SagDEG soft blobs to a linear-light float32 canvas.
 
-    Each anchor is reprojected to the host's frame (so a bulge-vantage
-    planet sees Sgr-DEG in a noticeably different direction than Earth
-    does — the dwarf is only ~24 kpc away). Anchor angular size scales
-    with `dist_sol / dist_host`; physical size is fixed. Blob is a 2D
-    Gaussian, with x-axis sigma stretched by 1/cos(dec) so the blob
-    appears circular on the sphere despite equirectangular distortion.
-    Composited additively in linear-light space, same convention as the
-    diffuse layer; placed BEFORE the diffuse so our Milky Way's haze
-    veils distant galaxies (cheap stand-in for atmospheric perspective).
+    Modifies `canvas_lin` in place. Each anchor is reprojected to the host's
+    frame (so a bulge-vantage planet sees Sgr-DEG in a noticeably different
+    direction than Earth does — the dwarf is only ~24 kpc away). Anchor
+    angular size scales with `dist_sol / dist_host`; physical size is fixed.
+    Blob is a 2D Gaussian, with x-axis sigma stretched by 1/cos(dec) so the
+    blob appears circular on the sphere despite equirectangular distortion.
+    Additive in linear-light, matching the convention of the star splats and
+    diffuse layer so the final sRGB encoding happens exactly once.
     """
-    width, height = star_pil.size
+    height, width = canvas_lin.shape[:2]
     hx, hy, hz = host_xyz_pc
-
-    overlay = np.zeros((height, width, 3), dtype=np.float32)
     deg_per_px_x = 360.0 / width
 
     for anchor in _EXTRAGALACTIC_ANCHORS:
@@ -611,11 +611,8 @@ def composite_extragalactic_onto(
         cx_px = u * width
         cy_px = v * height
 
-        # Apparent angular size scales inversely with distance.
         ang_size_deg = anchor["ang_size_deg"] * (d_sol / d_host)
-        # FWHM ≈ angular size; sigma = FWHM / 2.355.
         sigma_y_px = ang_size_deg / deg_per_px_x / 2.355
-        # cos(dec) stretch keeps the blob looking circular on the sphere.
         sigma_x_px = sigma_y_px / max(0.05, math.cos(dec_h))
 
         radius_x = max(2, int(3 * sigma_x_px))
@@ -634,52 +631,40 @@ def composite_extragalactic_onto(
             -0.5 * (
                 ((xx - cx_px) / sigma_x_px) ** 2
                 + ((yy - cy_px) / sigma_y_px) ** 2
-            )
-        ).astype(np.float32)
+            ),
+            dtype=np.float32,
+        )
         gauss *= float(anchor["peak_intensity"])
         cr, cg, cb = anchor["linear_color"]
-        overlay[y0:y1, x0:x1, 0] += gauss * cr
-        overlay[y0:y1, x0:x1, 1] += gauss * cg
-        overlay[y0:y1, x0:x1, 2] += gauss * cb
-
-    star_srgb = np.asarray(star_pil, dtype=np.float32) / 255.0
-    star_linear = _srgb_to_linear(star_srgb)
-    combined_linear = star_linear + overlay
-    combined_srgb = _linear_to_srgb(combined_linear)
-    combined_u8 = (np.clip(combined_srgb, 0.0, 1.0) * 255.0).astype(np.uint8)
-    return Image.fromarray(combined_u8, mode="RGB")
+        canvas_lin[y0:y1, x0:x1, 0] += gauss * cr
+        canvas_lin[y0:y1, x0:x1, 1] += gauss * cg
+        canvas_lin[y0:y1, x0:x1, 2] += gauss * cb
 
 
-def composite_diffuse_onto(
-    star_pil: Image.Image,
+def _add_diffuse_to_linear(
+    canvas_lin: np.ndarray,
     host_xyz_pc: tuple[float, float, float],
-) -> Image.Image:
-    """Add the diffuse galaxy layer to the star canvas in linear-light space.
+) -> None:
+    """Add the diffuse galaxy layer to a linear-light float32 canvas in place.
 
-    Generates the diffuse RGB at low resolution (smooth function → no
-    aliasing), bilinearly upsamples to the star canvas size, decodes
-    star sRGB → linear, adds gain × diffuse, re-encodes → sRGB.
+    Generates the diffuse RGB at low resolution (smooth function so there's
+    no aliasing to worry about), bilinearly upsamples to canvas size, and
+    adds gain × diffuse directly to `canvas_lin`. The upsample is done one
+    channel at a time and added immediately rather than stacked into a
+    full (H, W, 3) float array first — at 8K that intermediate would be
+    ~384 MiB extra peak memory, which a Vercel serverless function can't
+    afford.
     """
-    width, height = star_pil.size
-    diffuse_rgb = rasterize_diffuse_rgb(host_xyz_pc)                    # (h_gen, w_gen, 3)
-    # Upsample. PIL's float-image resize handles one channel at a time,
-    # so split-resize-stack each channel. Three single-channel LANCZOS
-    # resizes is still cheaper than a single RGB resize at the larger
-    # output size and avoids any byte-range clamping (intensity > 1.0
-    # values must survive the upsample to stay in linear-light).
-    channels_up: list[np.ndarray] = []
+    height, width = canvas_lin.shape[:2]
+    diffuse_rgb = rasterize_diffuse_rgb(host_xyz_pc)  # (h_gen, w_gen, 3) at gen-res
+    # Upsample per channel and add to the canvas as each channel arrives —
+    # avoids holding the full (H, W, 3) upsampled buffer in memory.
+    # PIL.Image mode "F" resizing preserves intensities > 1.0 in linear light
+    # (no byte-range clamping), which the additive compositing requires.
     for c in range(3):
         ch_img = Image.fromarray(diffuse_rgb[..., c], mode="F")
         ch_img = ch_img.resize((width, height), Image.Resampling.LANCZOS)
-        channels_up.append(np.asarray(ch_img, dtype=np.float32))
-    diffuse_full = np.stack(channels_up, axis=-1)                       # (H, W, 3)
-
-    star_srgb = np.asarray(star_pil, dtype=np.float32) / 255.0
-    star_linear = _srgb_to_linear(star_srgb)
-    combined_linear = star_linear + diffuse_full * _DIFFUSE_GAIN
-    combined_srgb = _linear_to_srgb(combined_linear)
-    combined_u8 = (np.clip(combined_srgb, 0.0, 1.0) * 255.0).astype(np.uint8)
-    return Image.fromarray(combined_u8, mode="RGB")
+        canvas_lin[..., c] += np.asarray(ch_img, dtype=np.float32) * _DIFFUSE_GAIN
 
 
 def rasterize_skytexture(
@@ -830,19 +815,36 @@ def rasterize_skytexture(
         canvas_lin[y0:y1, x0:x1, 1] += gauss * color_f_o[i, 1]
         canvas_lin[y0:y1, x0:x1, 2] += gauss * color_f_o[i, 2]
 
-    canvas_u8 = (np.clip(canvas_lin, 0.0, 1.0) * 255.0).astype(np.uint8)
-    pil = Image.fromarray(canvas_u8, mode="RGB")
-
     # ── Extragalactic anchors (Phase 5, Layer 4) ─────────────────────────
     # Placed before the diffuse so our own Milky Way's haze veils distant
-    # galaxies (cheap atmospheric-perspective stand-in).
-    pil = composite_extragalactic_onto(pil, host_xyz_pc)
+    # galaxies (cheap atmospheric-perspective stand-in). Added directly to
+    # the linear canvas — no intermediate sRGB encode/decode round-trip.
+    _add_extragalactic_to_linear(canvas_lin, host_xyz_pc)
 
     # ── Diffuse galaxy layer (Phase 4) ────────────────────────────────────
     # Composited in linear-light space so the additive math matches the
     # GLSL pipeline that worked on desktop. Done before the halo overlay
     # so naked-eye-bright halos shine through any bright bulge regions.
-    pil = composite_diffuse_onto(pil, host_xyz_pc)
+    _add_diffuse_to_linear(canvas_lin, host_xyz_pc)
+
+    # ── Linear → sRGB → uint8 (chunked, single encoding step) ────────────
+    # All additions above (stars, extragalactic anchors, diffuse) happened
+    # in linear light. Apply the sRGB transfer curve exactly once and
+    # convert to uint8 for display. The encode is done in row chunks so the
+    # several float32 intermediates inside `_linear_to_srgb` (clip, low,
+    # high, np.where output) only allocate per-chunk-size, not full canvas.
+    # At 8K the full-canvas variant would allocate ~2 GiB of transients on
+    # top of canvas_lin itself; chunk size 128 caps that at <40 MiB.
+    canvas_u8 = np.empty(canvas_lin.shape, dtype=np.uint8)
+    chunk_rows = 128
+    for y in range(0, canvas_lin.shape[0], chunk_rows):
+        ys = slice(y, min(y + chunk_rows, canvas_lin.shape[0]))
+        chunk_srgb = _linear_to_srgb(canvas_lin[ys])
+        np.clip(chunk_srgb, 0.0, 1.0, out=chunk_srgb)
+        chunk_srgb *= 255.0
+        canvas_u8[ys] = chunk_srgb.astype(np.uint8)
+    del canvas_lin  # release the big float buffer before the halo pass
+    pil = Image.fromarray(canvas_u8, mode="RGB")
 
     # ── Halo overlay for naked-eye-bright stars ───────────────────────────
     # The brightest few hundred get a soft radial halo drawn on top.

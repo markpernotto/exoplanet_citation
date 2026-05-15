@@ -35,7 +35,14 @@ load_dotenv()
 def parse_refname(raw: str | None) -> tuple[str, str | None]:
     if not raw:
         return ("", None)
-    m = re.search(r"href=([^\s>]+)[^>]*>\s*([^<]+?)\s*</a>", raw, re.IGNORECASE)
+    # Tolerate both unquoted (`href=https://...`, the form currently in DB) and
+    # quoted (`href="..."` or `href='...'`) variants so the printed URL is
+    # always clickable without surrounding punctuation.
+    m = re.search(
+        r"""href=["']?([^\s"'>]+)["']?[^>]*>\s*([^<]+?)\s*</a>""",
+        raw,
+        re.IGNORECASE,
+    )
     if not m:
         text = re.sub(r"<[^>]+>", "", raw).strip()
         return (text, None)

@@ -3,6 +3,7 @@ import { Link, Route, Routes, useLocation, useNavigationType, useSearchParams } 
 import SearchBar from './components/SearchBar';
 import ThemeSwitcher from './components/ThemeSwitcher';
 import { api, type StatsResponse } from './api';
+import About from './pages/About';
 import AuthorDetail from './pages/AuthorDetail';
 import Feeds from './pages/Feeds';
 import Home from './pages/Home';
@@ -87,6 +88,7 @@ export default function App() {
             <Route path="/planets/:plName/scene" element={<ScenePage />} />
             <Route path="/authors/:authorName" element={<AuthorDetail />} />
             <Route path="/feeds" element={<Feeds />} />
+            <Route path="/about" element={<About />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
@@ -94,6 +96,7 @@ export default function App() {
         <footer className="site">
           <div className="footer-line">
             Built as part of <a href="https://facetbuild.llc">Facet Build, LLC</a>
+            {' · '}<Link to="/about">About</Link>
             {' · '}<a href="https://github.com/markpernotto/exoplanet_citation">Source on GitHub</a>
             {' · '}<a href="/docs">API docs</a>
             {' · '}<Link to="/feeds">Subscribe</Link>

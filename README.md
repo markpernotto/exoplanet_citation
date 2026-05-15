@@ -1,5 +1,8 @@
 # exoplanet_citation
 
+[![DOI](https://zenodo.org/badge/1228082575.svg)](https://doi.org/10.5281/zenodo.20191479)
+
+
 A public data warehouse linking confirmed exoplanets to the scientific papers
 that announced them. Built on the NASA Exoplanet Archive, with citation
 resolution via NASA ADS and host-star enrichment via Gaia DR3.

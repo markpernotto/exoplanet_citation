@@ -5,6 +5,7 @@ import GalaxyMap from '../components/GalaxyMap';
 import LoadingBar from '../components/LoadingBar';
 import PlanetCard from '../components/PlanetCard';
 import { collectFacts } from '../lib/derived';
+import { formatMass, formatRadius, formatTemperature, useUnitsMode } from '../lib/units';
 
 export default function PlanetDetail() {
   const { plName = '' } = useParams<{ plName: string }>();
@@ -24,6 +25,7 @@ export default function PlanetDetail() {
   const [publications, setPublications] = useState<PlanetPublication[] | null>(null);
   const [companions, setCompanions] = useState<BinaryCompanion[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [unitsMode, setUnitsMode] = useUnitsMode();
 
   function goBack(e: React.MouseEvent) {
     e.preventDefault();
@@ -133,16 +135,19 @@ export default function PlanetDetail() {
 
         <div>
           <section>
-            <h2>Stat card</h2>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <h2 style={{ margin: 0 }}>Stat card</h2>
+              <UnitsToggle mode={unitsMode} setMode={setUnitsMode} />
+            </div>
             <div className="card">
               <dl className="stat-grid">
                 {fmtRow('Distance from host star', planet.pl_orbsmax, 'AU', '', 0)}
                 {fmtRow('Orbital period', planet.pl_orbper, 'days', '', 1)}
                 {fmtRow('Eccentricity', planet.pl_orbeccen, '', '', 2)}
-                {fmtRow('Radius', planet.pl_rade, 'Earth radii', '', 3)}
-                {fmtRow('Mass', planet.pl_bmasse, 'Earth masses', '', 4)}
+                {fmtRowDisplay('Radius', formatRadius(planet.pl_rade, unitsMode), 3)}
+                {fmtRowDisplay('Mass', formatMass(planet.pl_bmasse, unitsMode), 4)}
                 {fmtRow('Density', planet.pl_dens, 'g/cc', '', 5)}
-                {fmtRow('Equilibrium temperature', planet.pl_eqt, 'K', '', 6)}
+                {fmtRowDisplay('Equilibrium temperature', formatTemperature(planet.pl_eqt, unitsMode), 6)}
                 {fmtRow('Insolation flux', planet.pl_insol, '× Earth', '', 7)}
                 {planet.gaia_dr3_id && (
                   <>
@@ -714,6 +719,65 @@ function parseDiscRefname(raw: string): { text: string; url: string | null } {
   const match = raw.match(/href=([^\s>]+)[^>]*>\s*([^<]+?)\s*<\/a>/i);
   if (!match) return { text: raw.replace(/<[^>]+>/g, '').trim(), url: null };
   return { text: match[2].trim(), url: match[1] };
+}
+
+function UnitsToggle({ mode, setMode }: { mode: 'metric' | 'imperial'; setMode: (m: 'metric' | 'imperial') => void }) {
+  const base: React.CSSProperties = {
+    fontSize: '0.7rem',
+    padding: '0.2rem 0.55rem',
+    border: '1px solid var(--border)',
+    background: 'transparent',
+    color: 'var(--fg-muted)',
+    cursor: 'pointer',
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
+  };
+  const active: React.CSSProperties = { ...base, background: 'var(--accent)', color: '#0b0d12', borderColor: 'var(--accent)' };
+  return (
+    <div role="group" aria-label="Units" style={{ display: 'inline-flex', borderRadius: 3, overflow: 'hidden' }} title="Toggle units (saved in your browser)">
+      <button
+        type="button"
+        style={mode === 'metric' ? { ...active, borderRadius: '3px 0 0 3px' } : { ...base, borderRadius: '3px 0 0 3px', borderRight: 'none' }}
+        onClick={() => setMode('metric')}
+        aria-pressed={mode === 'metric'}
+      >
+        Metric
+      </button>
+      <button
+        type="button"
+        style={mode === 'imperial' ? { ...active, borderRadius: '0 3px 3px 0' } : { ...base, borderRadius: '0 3px 3px 0' }}
+        onClick={() => setMode('imperial')}
+        aria-pressed={mode === 'imperial'}
+      >
+        Imperial
+      </button>
+    </div>
+  );
+}
+
+function fmtRowDisplay(
+  label: string,
+  formatted: { value: string; unit: string; secondary?: string } | null,
+  rowIndex: number,
+  sectionDelay = 0,
+) {
+  if (formatted == null) return null;
+  const charCount = [formatted.value, formatted.unit, formatted.secondary].filter(Boolean).join(' ').length;
+  return (
+    <>
+      <dt>{label}</dt>
+      <dd>
+        <span
+          className="tw"
+          style={{ '--tw-chars': charCount, '--tw-delay': rowIndex, '--section-delay': `${sectionDelay}ms` } as React.CSSProperties}
+        >
+          {formatted.value}
+          {formatted.unit && <span style={{ color: 'var(--fg-muted)' }}> {formatted.unit}</span>}
+          {formatted.secondary && <span style={{ color: 'var(--fg-muted)', fontSize: '0.85rem' }}> {formatted.secondary}</span>}
+        </span>
+      </dd>
+    </>
+  );
 }
 
 function fmtRow(label: string, value: number | null, unit: string, suffix = '', rowIndex = 0, sectionDelay = 0) {

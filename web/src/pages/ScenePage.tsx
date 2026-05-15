@@ -2060,7 +2060,7 @@ function OrbitRing({
 
 function Starfield({ plName }: { plName: string }) {
   const [texture, setTexture] = useState<THREE.Texture | null>(null);
-  const { scene } = useThree();
+  const { scene, gl } = useThree();
   const skydomeRef = useRef<THREE.Mesh>(null);
 
   // Phase 2: fetch the per-vantage starfield PNG from the server. The
@@ -2087,6 +2087,15 @@ function Starfield({ plName }: { plName: string }) {
         if (cancelled) { tex.dispose(); return; }
         tex.colorSpace = THREE.SRGBColorSpace;
         tex.mapping = THREE.EquirectangularReflectionMapping;
+        // Anisotropic filtering: at glancing angles (near the skydome
+        // horizon line, or when looking through the texture at low grazing
+        // incidence) the default isotropic mip selection blurs the smaller
+        // texels aggressively and pinpoint stars smear into haze. Bumping
+        // to the GPU's max anisotropy (typically 16 on Quest 3 and desktop
+        // GPUs) tells the sampler to take more samples per fragment along
+        // the stretched axis, keeping stars sharp without affecting
+        // perpendicular viewing. Practically free at this texture size.
+        tex.anisotropy = gl.capabilities.getMaxAnisotropy();
         setTexture(tex);
       },
       undefined,

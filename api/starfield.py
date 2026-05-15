@@ -191,11 +191,14 @@ _DIFFUSE_T_STEPS = np.array([
 _DIFFUSE_GEN_WIDTH = 1024
 _DIFFUSE_GEN_HEIGHT = 512
 
-# Apparent G-magnitude cutoff for rendering. Maxed near the catalog's
-# own limit (build_gaia_xyz default ~10). The aesthetic goal: pure
-# pinpoint stars filling the absence of light — no glow, no halos,
-# just many small colored dots. Density does the work.
-DEFAULT_MAG_CUTOFF = 10.0
+# Apparent G-magnitude cutoff for rendering. The Gaia ETL trims at
+# apparent-mag-from-Earth < 10, so the mag-10-to-12 band is nearly
+# empty from any vantage; the procedural particle catalog extends out
+# to apparent mag 16-18 and provides the meaningful star-count gains
+# at cutoffs above 13. The aesthetic goal: pure pinpoint stars filling
+# the absence of light — no glow, no halos, just many small colored
+# dots. Density does the work.
+DEFAULT_MAG_CUTOFF = 14.0
 
 # Halo overlay disabled. Setting cutoff below the realistic-bright
 # threshold (-2 ≈ Sun's brightness from very close) means no star
@@ -733,19 +736,33 @@ def rasterize_skytexture(
     py_f = v * height
 
     # ── Per-star intensity from apparent magnitude ────────────────────────
-    # Exponent 1.2: dims the faint end (apparent ~mag 7-10 near the cutoff)
-    # without touching the bright end (apparent < 0 saturates at 1.0
-    # regardless of exponent). The procedural galactic-particles catalog
-    # adds ~half a million mag-7-to-10 stars to Sol's view that weren't in
-    # Gaia-only; pushing this exponent up surgically thins that haze while
-    # leaving SWEEPS-4 b's bright bulge giants (apparent ~-2 to 0) at full
-    # brightness. Brightness at apparent mag 7 (intensity_linear = 0.3):
-    #   ^0.5  : 0.548   — sqrt, "DRAMATIC"
-    #   ^0.75 : 0.405   — previous, tuned for Sol-only Gaia density
-    #   ^1.0  : 0.300   — linear
-    #   ^1.2  : 0.236   — this, tuned for Gaia + procedural combined density
-    intensity_linear = np.clip(1.0 - apparent / mag_cutoff, 0.0, 1.0)
-    intensity = intensity_linear ** 1.2
+    # Two-piece intensity curve so bumping mag_cutoff > 10 only adds new
+    # faint stars instead of brightening every existing one.
+    #
+    # i_main: the old curve, anchored at the original cutoff of 10. Stars
+    #   apparent < 10 follow the exact same brightness ramp as before.
+    #     intensity_linear = 1 - apparent/10
+    #     intensity        = intensity_linear ** 1.2
+    #   This preserves the existing Milky Way look. A mag-7 star sees
+    #   the same 0.236 brightness it always did.
+    #
+    # i_tail: a low-amplitude tail for mag-10-to-mag_cutoff stars. Peak
+    #   at mag 10 matches i_main's value just before it zeroes out (≈0.06
+    #   at mag-9), giving a continuous brightness curve across the seam.
+    #   Linear ramp to 0 at mag_cutoff so dim stars register without
+    #   amplifying the diffuse haze. Each new star adds maybe 2-10/255
+    #   to one or two pixels (well into PNG-compressible territory).
+    intensity_main = np.clip(1.0 - apparent / 10.0, 0.0, 1.0) ** 1.2
+    # Tail is only active for apparent ≥ 10. The np.where gate is required
+    # — without it, the clipped (1 - (apparent-10)/span) lifts to 1.0 for
+    # every mag < 10, applying the 0.06 floor to every star in the field
+    # and ballooning the PNG to 2× its compressed size.
+    tail_span = max(mag_cutoff - 10.0, 0.001)
+    tail_progress = np.clip(1.0 - (apparent - 10.0) / tail_span, 0.0, 1.0)
+    intensity_tail = np.where(apparent >= 10.0, 0.06 * tail_progress, 0.0)
+    # Use maximum (not sum) so the tail and main share their boundary
+    # value cleanly at mag 10 without double-counting.
+    intensity = np.maximum(intensity_main, intensity_tail)
 
     # ── Color from bp_rp, scaled by intensity, no minimum floor ───────────
     rgb = bprp_to_rgb(bp_rp)                                  # (N, 3) in [0, 1]
@@ -754,40 +771,67 @@ def rasterize_skytexture(
     # blue attenuates 1.77× more than red, so distant bulge stars
     # naturally turn orange-red, and the deepest get extincted out.
     dust_factor = _star_dust_extinction(host_xyz_pc, dx, dy, dz, d_pc)  # (N, 3)
-    color_u8 = (rgb * intensity[:, None] * dust_factor * 255).clip(0, 255).astype(np.uint8)
+    color_f = (rgb * intensity[:, None] * dust_factor).astype(np.float32)  # (N, 3) in [0, 1]
+    color_u8 = (color_f * 255.0).clip(0, 255).astype(np.uint8)
 
-    # ── Rasterize: anti-aliased ellipse per star ──────────────────────────
-    # PIL's ellipse fill at fractional coords gives sub-pixel anti-
-    # aliasing for free — single-pixel writes look chunky on screen
-    # because of GPU bilinear magnification, but a 0.6 px disc with
-    # fractional center anti-aliases to a soft 2-pixel blob, exactly
-    # what reads as "a star" on display. Brighter stars get bigger
-    # discs proportional to intensity.
-    pil = Image.new("RGB", (width, height), (0, 0, 0))
-    draw = ImageDraw.Draw(pil)
-    order = np.argsort(intensity)         # ascending → brightest drawn last
+    # ── Rasterize: Gaussian splats, additive in linear light ──────────────
+    # Previously PIL.ImageDraw.ellipse painted a solid disc per star,
+    # which has two costs: (1) the hard disc edge reads as a uniform
+    # blob, not a sharp pinpoint with a soft halo; (2) PIL overwrites
+    # pixels rather than blending, so overlapping stars in dense
+    # regions (Milky Way arms, bulge) discard the dimmer ones — losing
+    # the cumulative brightness that gives real photographs their
+    # spiral-arm glow. Gaussian splats fix both: the peak pixel gets
+    # the full star color, falloff is smooth (no hard edge), and
+    # accumulating in linear light means dense regions naturally
+    # brighten where star density is high.
+    #
+    # Pixel sizes are tuned for the 4K baseline; at higher resolutions
+    # the same texel count covers a smaller solid angle on the skydome,
+    # so faint stars would shrink below the sub-pixel threshold on
+    # screen and disappear. Scaling sigma linearly with width keeps the
+    # on-screen angular footprint constant regardless of rendered res.
+    order = np.argsort(intensity)         # ascending → brightest splatted last
     px_f_o = px_f[order]
     py_f_o = py_f[order]
     intensity_o = intensity[order]
-    color_o = color_u8[order]
-    # All star pixel sizes are tuned for the 4K baseline. At higher
-    # resolutions the same texel count covers a smaller solid angle on the
-    # skydome, so faint stars would shrink below the sub-pixel threshold
-    # on screen and disappear. Scaling linearly with width keeps the
-    # on-screen angular size constant regardless of rendered resolution.
+    color_f_o = color_f[order]
     px_scale = width / 4096.0
+    canvas_lin = np.zeros((height, width, 3), dtype=np.float32)
     for i in range(len(order)):
-        # All-tiny: 0.25 px (microscopic) → 0.85 px at 4K (brightest is
-        # still only ~1.5 px wide on screen after GPU filtering). Per user
-        # feedback: more stars + smaller dots reads as "deep space" more
-        # than fewer-bigger ones; halos are over-represented on stars
-        # that wouldn't realistically appear as anything but pinpoints
-        # to a human observer from light-years away.
-        radius = (0.25 + intensity_o[i] * 0.6) * px_scale
-        x, y = float(px_f_o[i]), float(py_f_o[i])
-        r = float(radius)
-        c = (int(color_o[i, 0]), int(color_o[i, 1]), int(color_o[i, 2]))
-        draw.ellipse([x - r, y - r, x + r, y + r], fill=c)
+        # σ in texels. 0.40 baseline keeps faint stars sub-pixel-robust:
+        # we point-evaluate the Gaussian at integer pixel centers, and
+        # a sub-pixel-offset star with σ ≥ 0.4 still hits its nearest
+        # pixel at ≥ 0.46 of peak (vs ~0.04 at σ = 0.2, where most
+        # faint stars would visually vanish at unlucky offsets).
+        # +0.55 × intensity gives bright stars a wider falloff, which
+        # reads as "bigger" without any disc-edge artifact.
+        sigma = (0.40 + intensity_o[i] * 0.55) * px_scale
+        half = max(1, int(np.ceil(3.0 * sigma)))
+        cx = float(px_f_o[i])
+        cy = float(py_f_o[i])
+        cx_i = int(cx)
+        cy_i = int(cy)
+        x0 = max(0, cx_i - half)
+        x1 = min(width, cx_i + half + 1)
+        y0 = max(0, cy_i - half)
+        y1 = min(height, cy_i + half + 1)
+        if x0 >= x1 or y0 >= y1:
+            continue
+        xs = np.arange(x0, x1, dtype=np.float32) - cx
+        ys = np.arange(y0, y1, dtype=np.float32) - cy
+        # Peak amplitude = 1 at center; falls off as exp(-r²/2σ²).
+        gauss = np.exp(
+            -0.5 * (ys[:, None] * ys[:, None] + xs[None, :] * xs[None, :])
+            / (sigma * sigma),
+            dtype=np.float32,
+        )
+        canvas_lin[y0:y1, x0:x1, 0] += gauss * color_f_o[i, 0]
+        canvas_lin[y0:y1, x0:x1, 1] += gauss * color_f_o[i, 1]
+        canvas_lin[y0:y1, x0:x1, 2] += gauss * color_f_o[i, 2]
+
+    canvas_u8 = (np.clip(canvas_lin, 0.0, 1.0) * 255.0).astype(np.uint8)
+    pil = Image.fromarray(canvas_u8, mode="RGB")
 
     # ── Extragalactic anchors (Phase 5, Layer 4) ─────────────────────────
     # Placed before the diffuse so our own Milky Way's haze veils distant

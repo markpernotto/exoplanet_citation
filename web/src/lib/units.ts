@@ -27,7 +27,12 @@ function compact(n: number): string {
     return `${mantissa.toFixed(2)} × 10${superscript(exp)}`;
   }
   if (abs >= 1000) return Math.round(n).toLocaleString();
-  return n.toPrecision(3);
+  // Avoid toPrecision(3) here: it emits exponential form for values that
+  // round up to 1000 (e.g. 999.9 → "1.00e+3").
+  if (abs >= 100) return Math.round(n).toString();
+  if (abs >= 10) return n.toFixed(1);
+  if (abs >= 1) return n.toFixed(2);
+  return n.toFixed(3);
 }
 
 export function useUnitsMode(): [UnitsMode, (m: UnitsMode) => void] {

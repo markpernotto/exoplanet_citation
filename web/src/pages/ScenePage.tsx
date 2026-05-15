@@ -32,7 +32,16 @@ export default function ScenePage() {
   const [paused, setPaused] = useState(true);          // start paused (per plan)
   const [speed, setSpeed] = useState(1);               // 0.25 / 1 / 4 / 16
   const [panelCollapsed, setPanelCollapsed] = useState(false);
-  const [viewMode, setViewMode] = useState<'system' | 'surface'>('system');
+
+  // Parse the URL hash once on initial mount. viewMode + orbital clock are
+  // initialized from it (must happen before Canvas first renders so the
+  // viewMode key picks the right OrbitControls/FirstPersonLook branch);
+  // camera angle is applied later by HashWriter once OrbitControls is wired.
+  const initialHash = useMemo(
+    () => (typeof window === 'undefined' ? {} : parseSceneHash(window.location.hash)),
+    [],
+  );
+  const [viewMode, setViewMode] = useState<'system' | 'surface'>(initialHash.v ?? 'system');
 
   // Shared ref written by SceneContents each frame with the focal planet's
   // animated world position. Read by CameraFollowFocal in surface mode so
@@ -41,6 +50,14 @@ export default function ScenePage() {
   // BOTH hooks must be declared before any early returns (React rules of hooks).
   const focalPosRef = useRef(new THREE.Vector3());
   const sunWorldPos = useMemo(() => new THREE.Vector3(0, 0, 0), []);
+  // Ref to the OrbitControls instance so HashWriter can read its live target
+  // (which moves with right-click pan) when computing the camera spherical.
+  const orbitControlsRef = useRef<unknown>(null);
+  // Orbital animation clock — accumulates real seconds × speed when not paused.
+  // Lifted from SceneContents so it can be (a) initialized from the URL hash,
+  // (b) read each frame by HashWriter, and (c) survive Canvas remounts on
+  // viewMode toggle (the clock would otherwise reset every time).
+  const clockRef = useRef<number>(initialHash.t ?? 0);
 
   useEffect(() => {
     setScene(null);
@@ -136,7 +153,7 @@ export default function ScenePage() {
       {panelCollapsed && (
         <ExpandTab onExpand={() => setPanelCollapsed(false)} />
       )}
-      <CloseButton to={backTo} />
+      <TopRightHUD to={backTo} />
       <PlaybackControls
         paused={paused} setPaused={setPaused}
         speed={speed} setSpeed={setSpeed}
@@ -174,6 +191,7 @@ export default function ScenePage() {
           <ambientLight intensity={0.04} />
           {viewMode === 'system' && (
             <OrbitControls
+              ref={orbitControlsRef as React.MutableRefObject<null>}
               target={focalPos}
               enablePan={true}
               minDistance={focalRadius * 1.5}
@@ -186,6 +204,14 @@ export default function ScenePage() {
               <CameraFollowFocal focalPosRef={focalPosRef} surfaceOffset={surfaceOffset} />
             </>
           )}
+          {/* Hash writer runs in both modes so simulation time + viewMode are
+              captured; the cam= field is only updated in system mode (where
+              OrbitControls drives the camera). */}
+          <HashWriter
+            controlsRef={orbitControlsRef}
+            viewMode={viewMode}
+            clockRef={clockRef}
+          />
           {/* Visual scene content sits inside VRSceneScale so it scales up
               in VR (AU → meters mapping) without affecting the desktop view.
               Starfield lives OUTSIDE the scale group — its skydome follows
@@ -194,10 +220,11 @@ export default function ScenePage() {
               to divide by the scale factor. */}
           <VRSceneScale maxOrbit={maxOrbit}>
             {viewMode === 'system' ? (
-              <SceneContents scene={scene} paused={paused} speed={speed} />
+              <SceneContents scene={scene} paused={paused} speed={speed} clockRef={clockRef} />
             ) : (
               <SceneContents
                 scene={scene} paused={paused} speed={speed}
+                clockRef={clockRef}
                 hideFocal
                 focalPosOut={focalPosRef}
               />
@@ -602,6 +629,51 @@ function ExpandTab({ onExpand }: { onExpand: () => void }) {
   );
 }
 
+// Top-right HUD: copy-link button + exit button, grouped in a single
+// fixed-position flex row so they share the same vertical baseline and
+// don't have to know each other's widths to avoid overlap.
+function TopRightHUD({ to }: { to: string }) {
+  return (
+    <div
+      style={{
+        position: 'fixed', top: HEADER_OFFSET_PX, right: 16, zIndex: 10,
+        display: 'flex', alignItems: 'center', gap: '0.4rem',
+      }}
+    >
+      <CopyLinkButton />
+      <CloseButton to={to} />
+    </div>
+  );
+}
+
+function CopyLinkButton() {
+  const [copied, setCopied] = useState(false);
+  const handleClick = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // clipboard API not available (insecure context, etc.); silently skip
+    }
+  };
+  return (
+    <button
+      onClick={handleClick}
+      title="Copy a link to this scene at the current camera angle"
+      style={{
+        background: 'rgba(11, 13, 18, 0.85)', color: 'var(--fg)',
+        padding: '0.35rem 0.6rem', borderRadius: 4,
+        fontSize: '0.85rem', fontWeight: 600,
+        border: '1px solid var(--border)', backdropFilter: 'blur(4px)',
+        cursor: 'pointer', fontFamily: 'inherit',
+      }}
+    >
+      {copied ? 'link copied' : 'copy link'}
+    </button>
+  );
+}
+
 function CloseButton({ to }: { to: string }) {
   return (
     <Link
@@ -609,7 +681,6 @@ function CloseButton({ to }: { to: string }) {
       replace
       title="Exit 3D scene"
       style={{
-        position: 'fixed', top: HEADER_OFFSET_PX, right: 16, zIndex: 10,
         background: 'rgba(11, 13, 18, 0.85)', color: 'var(--fg)',
         padding: '0.35rem 0.6rem', borderRadius: 4, textDecoration: 'none',
         fontSize: '0.85rem', fontWeight: 600,
@@ -620,6 +691,146 @@ function CloseButton({ to }: { to: string }) {
       <span style={{ fontSize: '1rem', lineHeight: 1 }}>✕</span> exit
     </Link>
   );
+}
+
+// Minimal subset of the underlying three-stdlib OrbitControls API we need
+// for hash sync. drei's <OrbitControls> forwards its ref to this instance.
+type OrbitControlsHandle = {
+  update: () => void;
+  target: THREE.Vector3;
+};
+
+// Parse the URL hash into a structured scene state. Hash format is a flat
+// `&`-separated list of `key=value` pairs (URLSearchParams-compatible, but
+// we hand-parse to keep commas in `cam` unencoded):
+//   cam=<cx>,<cy>,<cz>,<tx>,<ty>,<tz>   camera position + OrbitControls target,
+//                                       both in scene AU. The target must be
+//                                       captured separately from the camera —
+//                                       right-click pan moves the target, which
+//                                       a (camera − target) spherical offset
+//                                       would silently roll up and discard.
+//   t=<seconds>                         simulation clock (orbital phase)
+//   v=surface                           view mode (omitted ⇒ system)
+// All fields are independent; missing/malformed fields are skipped.
+type ParsedSceneHash = {
+  cam?: { cx: number; cy: number; cz: number; tx: number; ty: number; tz: number };
+  t?: number;
+  v?: 'system' | 'surface';
+};
+function parseSceneHash(hash: string): ParsedSceneHash {
+  const result: ParsedSceneHash = {};
+  const h = hash.replace(/^#/, '');
+  if (!h) return result;
+  for (const part of h.split('&')) {
+    const eq = part.indexOf('=');
+    if (eq < 0) continue;
+    const key = part.slice(0, eq);
+    const val = part.slice(eq + 1);
+    if (key === 'cam') {
+      const nums = val.split(',').map(parseFloat);
+      if (nums.length === 6 && nums.every(isFinite)) {
+        result.cam = {
+          cx: nums[0], cy: nums[1], cz: nums[2],
+          tx: nums[3], ty: nums[4], tz: nums[5],
+        };
+      }
+    } else if (key === 't') {
+      const t = parseFloat(val);
+      if (isFinite(t)) result.t = t;
+    } else if (key === 'v') {
+      if (val === 'surface' || val === 'system') result.v = val;
+    }
+  }
+  return result;
+}
+
+// Format a cam= field from a camera position + target. 4 decimal places gives
+// ~0.0001 AU precision, enough to be visually indistinguishable from the
+// captured state at any zoom level the OrbitControls min/maxDistance allows
+// (down to TRAPPIST-1's sub-0.01-AU planets).
+function formatCamField(cam: ParsedSceneHash['cam']): string | null {
+  if (!cam) return null;
+  return `cam=${cam.cx.toFixed(4)},${cam.cy.toFixed(4)},${cam.cz.toFixed(4)},`
+    + `${cam.tx.toFixed(4)},${cam.ty.toFixed(4)},${cam.tz.toFixed(4)}`;
+}
+
+// Sync the full scene state with the URL hash. Each frame:
+//   1) On first frame in system mode, apply the hash's cam (if any) to the
+//      camera + OrbitControls target (viewMode and clock are already applied
+//      at ScenePage mount — they have to be set before the Canvas first
+//      renders).
+//   2) Read current camera position, OrbitControls target, clock, viewMode,
+//      and write them back to the URL hash via history.replaceState. Throttled
+//      to ~5 Hz so back/forward history isn't flooded.
+//
+// useFrame polling avoids the timing/lifecycle fragility of subscribing to
+// OrbitControls' 'change' event (where controlsRef.current can be null during
+// the subscribe useEffect). Per-frame cost is bounded by a handful of Vector3
+// reads and a short string compare.
+function HashWriter({
+  controlsRef, viewMode, clockRef,
+}: {
+  controlsRef: React.MutableRefObject<unknown>;
+  viewMode: 'system' | 'surface';
+  clockRef: React.MutableRefObject<number>;
+}) {
+  const { camera } = useThree();
+  const applied = useRef(false);
+  const lastWriteAt = useRef(0);
+  const lastWrittenHash = useRef<string>('');
+
+  useFrame(() => {
+    const controls = controlsRef.current as OrbitControlsHandle | null;
+
+    // First-frame apply (system mode only): drop the camera + target onto the
+    // hash-specified vantage. useFrame instead of useEffect because
+    // controlsRef.current is reliably wired by the first frame; drei's
+    // ref-forwarding timing can leave it null in useEffect.
+    if (!applied.current) {
+      applied.current = true;
+      if (viewMode === 'system' && controls) {
+        const parsed = parseSceneHash(window.location.hash);
+        if (parsed.cam) {
+          camera.position.set(parsed.cam.cx, parsed.cam.cy, parsed.cam.cz);
+          controls.target.set(parsed.cam.tx, parsed.cam.ty, parsed.cam.tz);
+          controls.update();
+        }
+      }
+      // fall through to write current state on this same frame
+    }
+
+    // Throttle URL writes to ~5 Hz.
+    const now = performance.now();
+    if (now - lastWriteAt.current < 200) return;
+
+    // Build the new hash. cam is computed only in system mode (OrbitControls
+    // drives both camera and target there). In surface mode we preserve the
+    // previously captured cam so toggling surface→system doesn't lose it.
+    const parts: string[] = [];
+    if (viewMode === 'system' && controls) {
+      const camField = formatCamField({
+        cx: camera.position.x, cy: camera.position.y, cz: camera.position.z,
+        tx: controls.target.x, ty: controls.target.y, tz: controls.target.z,
+      });
+      if (camField) parts.push(camField);
+    } else {
+      const existing = formatCamField(parseSceneHash(window.location.hash).cam);
+      if (existing) parts.push(existing);
+    }
+    parts.push(`t=${clockRef.current.toFixed(2)}`);
+    if (viewMode === 'surface') parts.push('v=surface');
+    const newHash = parts.join('&');
+
+    if (newHash === lastWrittenHash.current) return;
+    lastWrittenHash.current = newHash;
+    lastWriteAt.current = now;
+    history.replaceState(
+      null, '',
+      `${window.location.pathname}${window.location.search}#${newHash}`,
+    );
+  });
+
+  return null;
 }
 
 function PlaybackControls({
@@ -1026,13 +1237,17 @@ function FirstPersonLook({
 }
 
 function SceneContents({
-  scene, paused, speed,
+  scene, paused, speed, clockRef,
   hideFocal = false,
   focalPosOut,
 }: {
   scene: SceneResponse;
   paused: boolean;
   speed: number;
+  /** Orbital animation clock (seconds × speed when not paused). Owned by
+      ScenePage so it can be initialized from the URL hash and survive
+      Canvas remounts on viewMode toggle. */
+  clockRef: React.MutableRefObject<number>;
   /** When true, the focal planet body is not rendered (used in surface mode
       where the camera is "standing on" the planet — no need to see it). */
   hideFocal?: boolean;
@@ -1084,7 +1299,9 @@ function SceneContents({
 
   // Animation clock — accumulates real seconds × speed when not paused.
   // Each planet derives its current orbital angle from this single shared time.
-  const clock = useRef(0);
+  // Lifted to ScenePage and passed in via clockRef so it can be initialized
+  // from the URL hash and survive Canvas remounts on viewMode toggle.
+  const clock = clockRef;
   const focalGroup = useRef<THREE.Group>(null);
   const siblingRefs = useRef<Map<string, THREE.Group>>(new Map());
 
@@ -1843,7 +2060,7 @@ function OrbitRing({
 
 function Starfield({ plName }: { plName: string }) {
   const [texture, setTexture] = useState<THREE.Texture | null>(null);
-  const { scene } = useThree();
+  const { scene, gl } = useThree();
   const skydomeRef = useRef<THREE.Mesh>(null);
 
   // Phase 2: fetch the per-vantage starfield PNG from the server. The
@@ -1870,6 +2087,15 @@ function Starfield({ plName }: { plName: string }) {
         if (cancelled) { tex.dispose(); return; }
         tex.colorSpace = THREE.SRGBColorSpace;
         tex.mapping = THREE.EquirectangularReflectionMapping;
+        // Anisotropic filtering: at glancing angles (near the skydome
+        // horizon line, or when looking through the texture at low grazing
+        // incidence) the default isotropic mip selection blurs the smaller
+        // texels aggressively and pinpoint stars smear into haze. Bumping
+        // to the GPU's max anisotropy (typically 16 on Quest 3 and desktop
+        // GPUs) tells the sampler to take more samples per fragment along
+        // the stretched axis, keeping stars sharp without affecting
+        // perpendicular viewing. Practically free at this texture size.
+        tex.anisotropy = gl.capabilities.getMaxAnisotropy();
         setTexture(tex);
       },
       undefined,
@@ -1917,8 +2143,8 @@ function Starfield({ plName }: { plName: string }) {
   //
   // Why disposal matters: the Canvas re-mounts on viewMode change (system
   // ↔ surface) via key={viewMode} on the parent — a new CanvasTexture
-  // (~33MB at 4096×2048 RGB) allocates each mount. Without dispose, GPU
-  // memory leaks per toggle.
+  // (~72MB at 6144×3072 RGB, ~96MB once mipmaps generate) allocates
+  // each mount. Without dispose, GPU memory leaks per toggle.
   useEffect(() => {
     if (!texture) return;
     const previous = scene.background;

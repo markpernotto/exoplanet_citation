@@ -29,11 +29,16 @@ from PIL import Image, ImageDraw, ImageFilter
 
 log = logging.getLogger(__name__)
 
-# Default output dimensions. The frontend skydome's sphereGeometry uses
-# 64×32 segments which at this resolution gives ~0.09° angular resolution
-# per texture pixel — slightly under naked-eye acuity.
-DEFAULT_WIDTH = 4096
-DEFAULT_HEIGHT = 2048
+# Default output dimensions. 6K equirectangular: ~0.059° per texel, still
+# ~1.9× naked-eye acuity (typical eye resolves ~1 arcminute = 0.017°) and
+# above the Quest 3 / Vision Pro per-pixel display sampling rate, so the
+# rendered detail doesn't outrun what the headset can show anyway. Chosen
+# over 8K because the Vercel serverless function's default memory ceiling
+# is 1024 MB; 8K peaks around 1.3 GB live during compositing while 6K
+# lands at ~700-800 MB. The per-host LRU cache below amortizes the cold-
+# render cost so repeat visits stay snappy.
+DEFAULT_WIDTH = 6144
+DEFAULT_HEIGHT = 3072
 
 # ── Diffuse galaxy (Phase 4) ─────────────────────────────────────────────
 # The original plan compiled a GLSL fragment shader to do per-pixel line-
@@ -189,11 +194,14 @@ _DIFFUSE_T_STEPS = np.array([
 _DIFFUSE_GEN_WIDTH = 1024
 _DIFFUSE_GEN_HEIGHT = 512
 
-# Apparent G-magnitude cutoff for rendering. Maxed near the catalog's
-# own limit (build_gaia_xyz default ~10). The aesthetic goal: pure
-# pinpoint stars filling the absence of light — no glow, no halos,
-# just many small colored dots. Density does the work.
-DEFAULT_MAG_CUTOFF = 10.0
+# Apparent G-magnitude cutoff for rendering. The Gaia ETL trims at
+# apparent-mag-from-Earth < 10, so the mag-10-to-12 band is nearly
+# empty from any vantage; the procedural particle catalog extends out
+# to apparent mag 16-18 and provides the meaningful star-count gains
+# at cutoffs above 13. The aesthetic goal: pure pinpoint stars filling
+# the absence of light — no glow, no halos, just many small colored
+# dots. Density does the work.
+DEFAULT_MAG_CUTOFF = 14.0
 
 # Halo overlay disabled. Setting cutoff below the realistic-bright
 # threshold (-2 ≈ Sun's brightness from very close) means no star
@@ -255,38 +263,47 @@ def load_catalog(
     return combined
 
 
-def bprp_to_rgb(bp_rp: np.ndarray) -> np.ndarray:
-    """Gaia BP-RP color index → normalized RGB. Vectorized.
+# Color breakpoints for Gaia BP-RP → RGB. Matches the bucket centers in
+# web/src/procedural.ts::starColor so server-rendered starfields and
+# client-rendered individual stars share a palette. Anchored on:
+#   bp_rp = -0.3  hot O/B blue       (≈ #a4c8ff)
+#   bp_rp =  0.0  A-type blue-white  (≈ #dce6ff)
+#   bp_rp =  0.7  G-type warm white  (≈ #fff7d2)
+#   bp_rp =  1.5  K-type orange      (≈ #ffd49a)
+#   bp_rp =  2.5  M-dwarf red        (≈ #ff9b6a)
+#   bp_rp =  3.5  late M / brown     (≈ #cf5040)
+_BPRP_BREAKPOINTS = np.array(
+    [-0.3, 0.0, 0.7, 1.5, 2.5, 3.5], dtype=np.float32,
+)
+_BPRP_COLORS = np.array([
+    [0.64, 0.78, 1.00],  # hot O/B blue
+    [0.86, 0.90, 1.00],  # A-type blue-white
+    [1.00, 0.97, 0.82],  # G-type warm white
+    [1.00, 0.83, 0.60],  # K-type orange
+    [1.00, 0.61, 0.42],  # M-dwarf red
+    [0.81, 0.31, 0.25],  # late M / brown dwarf
+], dtype=np.float32)
 
-    Mapping mirrors the buckets in web/src/pages/ScenePage.tsx::bpRpToRgb
-    so server-rendered and client-rendered starfields visually agree.
+
+def bprp_to_rgb(bp_rp: np.ndarray) -> np.ndarray:
+    """Gaia BP-RP color index → normalized RGB via piecewise linear
+    interpolation across the anchor breakpoints above.
+
+    Hard-bucket palettes produce visible banding in dense regions (e.g. the
+    bulge view from SWEEPS-4 b), where stars at bp_rp = 0.49 and 0.51 fall
+    into different buckets and render as different colors despite being
+    visually indistinguishable on the sky. Linear interpolation smooths
+    that out without changing the anchor colors themselves.
+
+    Inputs outside the anchor range are clamped to the endpoint colors —
+    no extrapolation past the brown-dwarf end.
 
     Returns: (N, 3) float32 array with values in [0, 1].
     """
-    n = bp_rp.shape[0]
-    rgb = np.empty((n, 3), dtype=np.float32)
-    # Default (any unhandled value): generic warm white.
-    rgb[:] = (1.00, 0.93, 0.75)
-
-    # O/B
-    mask = bp_rp < 0
-    rgb[mask] = (0.62, 0.78, 1.00)
-    # A
-    mask = (bp_rp >= 0) & (bp_rp < 0.5)
-    rgb[mask] = (0.86, 0.92, 1.00)
-    # F/G — Sun-color
-    mask = (bp_rp >= 0.5) & (bp_rp < 1.0)
-    rgb[mask] = (1.00, 0.97, 0.85)
-    # K
-    mask = (bp_rp >= 1.0) & (bp_rp < 1.5)
-    rgb[mask] = (1.00, 0.83, 0.60)
-    # M
-    mask = (bp_rp >= 1.5) & (bp_rp < 3.0)
-    rgb[mask] = (1.00, 0.61, 0.42)
-    # Late M / brown dwarf
-    mask = bp_rp >= 3.0
-    rgb[mask] = (0.81, 0.31, 0.25)
-
+    x = np.clip(bp_rp, _BPRP_BREAKPOINTS[0], _BPRP_BREAKPOINTS[-1])
+    rgb = np.empty((x.shape[0], 3), dtype=np.float32)
+    for c in range(3):
+        rgb[:, c] = np.interp(x, _BPRP_BREAKPOINTS, _BPRP_COLORS[:, c])
     return rgb
 
 
@@ -554,26 +571,23 @@ def _linear_to_srgb(c: np.ndarray) -> np.ndarray:
     return np.where(c <= threshold, low, high).astype(np.float32)
 
 
-def composite_extragalactic_onto(
-    star_pil: Image.Image,
+def _add_extragalactic_to_linear(
+    canvas_lin: np.ndarray,
     host_xyz_pc: tuple[float, float, float],
-) -> Image.Image:
-    """Paint LMC/SMC/M31/M33/SagDEG soft blobs at their per-vantage positions.
+) -> None:
+    """Add LMC/SMC/M31/M33/SagDEG soft blobs to a linear-light float32 canvas.
 
-    Each anchor is reprojected to the host's frame (so a bulge-vantage
-    planet sees Sgr-DEG in a noticeably different direction than Earth
-    does — the dwarf is only ~24 kpc away). Anchor angular size scales
-    with `dist_sol / dist_host`; physical size is fixed. Blob is a 2D
-    Gaussian, with x-axis sigma stretched by 1/cos(dec) so the blob
-    appears circular on the sphere despite equirectangular distortion.
-    Composited additively in linear-light space, same convention as the
-    diffuse layer; placed BEFORE the diffuse so our Milky Way's haze
-    veils distant galaxies (cheap stand-in for atmospheric perspective).
+    Modifies `canvas_lin` in place. Each anchor is reprojected to the host's
+    frame (so a bulge-vantage planet sees Sgr-DEG in a noticeably different
+    direction than Earth does — the dwarf is only ~24 kpc away). Anchor
+    angular size scales with `dist_sol / dist_host`; physical size is fixed.
+    Blob is a 2D Gaussian, with x-axis sigma stretched by 1/cos(dec) so the
+    blob appears circular on the sphere despite equirectangular distortion.
+    Additive in linear-light, matching the convention of the star splats and
+    diffuse layer so the final sRGB encoding happens exactly once.
     """
-    width, height = star_pil.size
+    height, width = canvas_lin.shape[:2]
     hx, hy, hz = host_xyz_pc
-
-    overlay = np.zeros((height, width, 3), dtype=np.float32)
     deg_per_px_x = 360.0 / width
 
     for anchor in _EXTRAGALACTIC_ANCHORS:
@@ -597,11 +611,8 @@ def composite_extragalactic_onto(
         cx_px = u * width
         cy_px = v * height
 
-        # Apparent angular size scales inversely with distance.
         ang_size_deg = anchor["ang_size_deg"] * (d_sol / d_host)
-        # FWHM ≈ angular size; sigma = FWHM / 2.355.
         sigma_y_px = ang_size_deg / deg_per_px_x / 2.355
-        # cos(dec) stretch keeps the blob looking circular on the sphere.
         sigma_x_px = sigma_y_px / max(0.05, math.cos(dec_h))
 
         radius_x = max(2, int(3 * sigma_x_px))
@@ -620,52 +631,40 @@ def composite_extragalactic_onto(
             -0.5 * (
                 ((xx - cx_px) / sigma_x_px) ** 2
                 + ((yy - cy_px) / sigma_y_px) ** 2
-            )
-        ).astype(np.float32)
+            ),
+            dtype=np.float32,
+        )
         gauss *= float(anchor["peak_intensity"])
         cr, cg, cb = anchor["linear_color"]
-        overlay[y0:y1, x0:x1, 0] += gauss * cr
-        overlay[y0:y1, x0:x1, 1] += gauss * cg
-        overlay[y0:y1, x0:x1, 2] += gauss * cb
-
-    star_srgb = np.asarray(star_pil, dtype=np.float32) / 255.0
-    star_linear = _srgb_to_linear(star_srgb)
-    combined_linear = star_linear + overlay
-    combined_srgb = _linear_to_srgb(combined_linear)
-    combined_u8 = (np.clip(combined_srgb, 0.0, 1.0) * 255.0).astype(np.uint8)
-    return Image.fromarray(combined_u8, mode="RGB")
+        canvas_lin[y0:y1, x0:x1, 0] += gauss * cr
+        canvas_lin[y0:y1, x0:x1, 1] += gauss * cg
+        canvas_lin[y0:y1, x0:x1, 2] += gauss * cb
 
 
-def composite_diffuse_onto(
-    star_pil: Image.Image,
+def _add_diffuse_to_linear(
+    canvas_lin: np.ndarray,
     host_xyz_pc: tuple[float, float, float],
-) -> Image.Image:
-    """Add the diffuse galaxy layer to the star canvas in linear-light space.
+) -> None:
+    """Add the diffuse galaxy layer to a linear-light float32 canvas in place.
 
-    Generates the diffuse RGB at low resolution (smooth function → no
-    aliasing), bilinearly upsamples to the star canvas size, decodes
-    star sRGB → linear, adds gain × diffuse, re-encodes → sRGB.
+    Generates the diffuse RGB at low resolution (smooth function so there's
+    no aliasing to worry about), bilinearly upsamples to canvas size, and
+    adds gain × diffuse directly to `canvas_lin`. The upsample is done one
+    channel at a time and added immediately rather than stacked into a
+    full (H, W, 3) float array first — at 8K that intermediate would be
+    ~384 MiB extra peak memory, which a Vercel serverless function can't
+    afford.
     """
-    width, height = star_pil.size
-    diffuse_rgb = rasterize_diffuse_rgb(host_xyz_pc)                    # (h_gen, w_gen, 3)
-    # Upsample. PIL's float-image resize handles one channel at a time,
-    # so split-resize-stack each channel. Three single-channel LANCZOS
-    # resizes is still cheaper than a single RGB resize at the larger
-    # output size and avoids any byte-range clamping (intensity > 1.0
-    # values must survive the upsample to stay in linear-light).
-    channels_up: list[np.ndarray] = []
+    height, width = canvas_lin.shape[:2]
+    diffuse_rgb = rasterize_diffuse_rgb(host_xyz_pc)  # (h_gen, w_gen, 3) at gen-res
+    # Upsample per channel and add to the canvas as each channel arrives —
+    # avoids holding the full (H, W, 3) upsampled buffer in memory.
+    # PIL.Image mode "F" resizing preserves intensities > 1.0 in linear light
+    # (no byte-range clamping), which the additive compositing requires.
     for c in range(3):
         ch_img = Image.fromarray(diffuse_rgb[..., c], mode="F")
         ch_img = ch_img.resize((width, height), Image.Resampling.LANCZOS)
-        channels_up.append(np.asarray(ch_img, dtype=np.float32))
-    diffuse_full = np.stack(channels_up, axis=-1)                       # (H, W, 3)
-
-    star_srgb = np.asarray(star_pil, dtype=np.float32) / 255.0
-    star_linear = _srgb_to_linear(star_srgb)
-    combined_linear = star_linear + diffuse_full * _DIFFUSE_GAIN
-    combined_srgb = _linear_to_srgb(combined_linear)
-    combined_u8 = (np.clip(combined_srgb, 0.0, 1.0) * 255.0).astype(np.uint8)
-    return Image.fromarray(combined_u8, mode="RGB")
+        canvas_lin[..., c] += np.asarray(ch_img, dtype=np.float32) * _DIFFUSE_GAIN
 
 
 def rasterize_skytexture(
@@ -722,19 +721,33 @@ def rasterize_skytexture(
     py_f = v * height
 
     # ── Per-star intensity from apparent magnitude ────────────────────────
-    # Exponent 1.2: dims the faint end (apparent ~mag 7-10 near the cutoff)
-    # without touching the bright end (apparent < 0 saturates at 1.0
-    # regardless of exponent). The procedural galactic-particles catalog
-    # adds ~half a million mag-7-to-10 stars to Sol's view that weren't in
-    # Gaia-only; pushing this exponent up surgically thins that haze while
-    # leaving SWEEPS-4 b's bright bulge giants (apparent ~-2 to 0) at full
-    # brightness. Brightness at apparent mag 7 (intensity_linear = 0.3):
-    #   ^0.5  : 0.548   — sqrt, "DRAMATIC"
-    #   ^0.75 : 0.405   — previous, tuned for Sol-only Gaia density
-    #   ^1.0  : 0.300   — linear
-    #   ^1.2  : 0.236   — this, tuned for Gaia + procedural combined density
-    intensity_linear = np.clip(1.0 - apparent / mag_cutoff, 0.0, 1.0)
-    intensity = intensity_linear ** 1.2
+    # Two-piece intensity curve so bumping mag_cutoff > 10 only adds new
+    # faint stars instead of brightening every existing one.
+    #
+    # i_main: the old curve, anchored at the original cutoff of 10. Stars
+    #   apparent < 10 follow the exact same brightness ramp as before.
+    #     intensity_linear = 1 - apparent/10
+    #     intensity        = intensity_linear ** 1.2
+    #   This preserves the existing Milky Way look. A mag-7 star sees
+    #   the same 0.236 brightness it always did.
+    #
+    # i_tail: a low-amplitude tail for mag-10-to-mag_cutoff stars. Peak
+    #   at mag 10 matches i_main's value just before it zeroes out (≈0.06
+    #   at mag-9), giving a continuous brightness curve across the seam.
+    #   Linear ramp to 0 at mag_cutoff so dim stars register without
+    #   amplifying the diffuse haze. Each new star adds maybe 2-10/255
+    #   to one or two pixels (well into PNG-compressible territory).
+    intensity_main = np.clip(1.0 - apparent / 10.0, 0.0, 1.0) ** 1.2
+    # Tail is only active for apparent ≥ 10. The np.where gate is required
+    # — without it, the clipped (1 - (apparent-10)/span) lifts to 1.0 for
+    # every mag < 10, applying the 0.06 floor to every star in the field
+    # and ballooning the PNG to 2× its compressed size.
+    tail_span = max(mag_cutoff - 10.0, 0.001)
+    tail_progress = np.clip(1.0 - (apparent - 10.0) / tail_span, 0.0, 1.0)
+    intensity_tail = np.where(apparent >= 10.0, 0.06 * tail_progress, 0.0)
+    # Use maximum (not sum) so the tail and main share their boundary
+    # value cleanly at mag 10 without double-counting.
+    intensity = np.maximum(intensity_main, intensity_tail)
 
     # ── Color from bp_rp, scaled by intensity, no minimum floor ───────────
     rgb = bprp_to_rgb(bp_rp)                                  # (N, 3) in [0, 1]
@@ -743,45 +756,95 @@ def rasterize_skytexture(
     # blue attenuates 1.77× more than red, so distant bulge stars
     # naturally turn orange-red, and the deepest get extincted out.
     dust_factor = _star_dust_extinction(host_xyz_pc, dx, dy, dz, d_pc)  # (N, 3)
-    color_u8 = (rgb * intensity[:, None] * dust_factor * 255).clip(0, 255).astype(np.uint8)
+    color_f = (rgb * intensity[:, None] * dust_factor).astype(np.float32)  # (N, 3) in [0, 1]
+    color_u8 = (color_f * 255.0).clip(0, 255).astype(np.uint8)
 
-    # ── Rasterize: anti-aliased ellipse per star ──────────────────────────
-    # PIL's ellipse fill at fractional coords gives sub-pixel anti-
-    # aliasing for free — single-pixel writes look chunky on screen
-    # because of GPU bilinear magnification, but a 0.6 px disc with
-    # fractional center anti-aliases to a soft 2-pixel blob, exactly
-    # what reads as "a star" on display. Brighter stars get bigger
-    # discs proportional to intensity.
-    pil = Image.new("RGB", (width, height), (0, 0, 0))
-    draw = ImageDraw.Draw(pil)
-    order = np.argsort(intensity)         # ascending → brightest drawn last
+    # ── Rasterize: Gaussian splats, additive in linear light ──────────────
+    # Previously PIL.ImageDraw.ellipse painted a solid disc per star,
+    # which has two costs: (1) the hard disc edge reads as a uniform
+    # blob, not a sharp pinpoint with a soft halo; (2) PIL overwrites
+    # pixels rather than blending, so overlapping stars in dense
+    # regions (Milky Way arms, bulge) discard the dimmer ones — losing
+    # the cumulative brightness that gives real photographs their
+    # spiral-arm glow. Gaussian splats fix both: the peak pixel gets
+    # the full star color, falloff is smooth (no hard edge), and
+    # accumulating in linear light means dense regions naturally
+    # brighten where star density is high.
+    #
+    # Pixel sizes are tuned for the 4K baseline; at higher resolutions
+    # the same texel count covers a smaller solid angle on the skydome,
+    # so faint stars would shrink below the sub-pixel threshold on
+    # screen and disappear. Scaling sigma linearly with width keeps the
+    # on-screen angular footprint constant regardless of rendered res.
+    order = np.argsort(intensity)         # ascending → brightest splatted last
     px_f_o = px_f[order]
     py_f_o = py_f[order]
     intensity_o = intensity[order]
-    color_o = color_u8[order]
+    color_f_o = color_f[order]
+    px_scale = width / 4096.0
+    canvas_lin = np.zeros((height, width, 3), dtype=np.float32)
     for i in range(len(order)):
-        # All-tiny: 0.25 px (microscopic) → 0.85 px (brightest is still
-        # only ~1.5 px wide on screen after GPU filtering). Per user
-        # feedback: more stars + smaller dots reads as "deep space" more
-        # than fewer-bigger ones; halos are over-represented on stars
-        # that wouldn't realistically appear as anything but pinpoints
-        # to a human observer from light-years away.
-        radius = 0.25 + intensity_o[i] * 0.6
-        x, y = float(px_f_o[i]), float(py_f_o[i])
-        r = float(radius)
-        c = (int(color_o[i, 0]), int(color_o[i, 1]), int(color_o[i, 2]))
-        draw.ellipse([x - r, y - r, x + r, y + r], fill=c)
+        # σ in texels. 0.40 baseline keeps faint stars sub-pixel-robust:
+        # we point-evaluate the Gaussian at integer pixel centers, and
+        # a sub-pixel-offset star with σ ≥ 0.4 still hits its nearest
+        # pixel at ≥ 0.46 of peak (vs ~0.04 at σ = 0.2, where most
+        # faint stars would visually vanish at unlucky offsets).
+        # +0.55 × intensity gives bright stars a wider falloff, which
+        # reads as "bigger" without any disc-edge artifact.
+        sigma = (0.40 + intensity_o[i] * 0.55) * px_scale
+        half = max(1, int(np.ceil(3.0 * sigma)))
+        cx = float(px_f_o[i])
+        cy = float(py_f_o[i])
+        cx_i = int(cx)
+        cy_i = int(cy)
+        x0 = max(0, cx_i - half)
+        x1 = min(width, cx_i + half + 1)
+        y0 = max(0, cy_i - half)
+        y1 = min(height, cy_i + half + 1)
+        if x0 >= x1 or y0 >= y1:
+            continue
+        xs = np.arange(x0, x1, dtype=np.float32) - cx
+        ys = np.arange(y0, y1, dtype=np.float32) - cy
+        # Peak amplitude = 1 at center; falls off as exp(-r²/2σ²).
+        gauss = np.exp(
+            -0.5 * (ys[:, None] * ys[:, None] + xs[None, :] * xs[None, :])
+            / (sigma * sigma),
+            dtype=np.float32,
+        )
+        canvas_lin[y0:y1, x0:x1, 0] += gauss * color_f_o[i, 0]
+        canvas_lin[y0:y1, x0:x1, 1] += gauss * color_f_o[i, 1]
+        canvas_lin[y0:y1, x0:x1, 2] += gauss * color_f_o[i, 2]
 
     # ── Extragalactic anchors (Phase 5, Layer 4) ─────────────────────────
     # Placed before the diffuse so our own Milky Way's haze veils distant
-    # galaxies (cheap atmospheric-perspective stand-in).
-    pil = composite_extragalactic_onto(pil, host_xyz_pc)
+    # galaxies (cheap atmospheric-perspective stand-in). Added directly to
+    # the linear canvas — no intermediate sRGB encode/decode round-trip.
+    _add_extragalactic_to_linear(canvas_lin, host_xyz_pc)
 
     # ── Diffuse galaxy layer (Phase 4) ────────────────────────────────────
     # Composited in linear-light space so the additive math matches the
     # GLSL pipeline that worked on desktop. Done before the halo overlay
     # so naked-eye-bright halos shine through any bright bulge regions.
-    pil = composite_diffuse_onto(pil, host_xyz_pc)
+    _add_diffuse_to_linear(canvas_lin, host_xyz_pc)
+
+    # ── Linear → sRGB → uint8 (chunked, single encoding step) ────────────
+    # All additions above (stars, extragalactic anchors, diffuse) happened
+    # in linear light. Apply the sRGB transfer curve exactly once and
+    # convert to uint8 for display. The encode is done in row chunks so the
+    # several float32 intermediates inside `_linear_to_srgb` (clip, low,
+    # high, np.where output) only allocate per-chunk-size, not full canvas.
+    # At 8K the full-canvas variant would allocate ~2 GiB of transients on
+    # top of canvas_lin itself; chunk size 128 caps that at <40 MiB.
+    canvas_u8 = np.empty(canvas_lin.shape, dtype=np.uint8)
+    chunk_rows = 128
+    for y in range(0, canvas_lin.shape[0], chunk_rows):
+        ys = slice(y, min(y + chunk_rows, canvas_lin.shape[0]))
+        chunk_srgb = _linear_to_srgb(canvas_lin[ys])
+        np.clip(chunk_srgb, 0.0, 1.0, out=chunk_srgb)
+        chunk_srgb *= 255.0
+        canvas_u8[ys] = chunk_srgb.astype(np.uint8)
+    del canvas_lin  # release the big float buffer before the halo pass
+    pil = Image.fromarray(canvas_u8, mode="RGB")
 
     # ── Halo overlay for naked-eye-bright stars ───────────────────────────
     # The brightest few hundred get a soft radial halo drawn on top.
@@ -797,8 +860,9 @@ def rasterize_skytexture(
         for i in range(len(halo_px)):
             # Smaller, dimmer halos than before. Only ~15 stars get
             # these; they're meant to be subtly-glowing standouts, not
-            # blooming UI dots.
-            halo_r = 2.0 + halo_intensity[i] * 3.0  # 2 px → 5 px
+            # blooming UI dots. Pixel radius scaled with px_scale so the
+            # on-screen halo size stays constant across resolutions.
+            halo_r = (2.0 + halo_intensity[i] * 3.0) * px_scale
             x, y = float(halo_px[i]), float(halo_py[i])
             r = float(halo_r)
             c = (
@@ -807,7 +871,7 @@ def rasterize_skytexture(
                 int(halo_color[i, 2] * 0.25),
             )
             halo_draw.ellipse([x - r, y - r, x + r, y + r], fill=c)
-        halo_layer = halo_layer.filter(ImageFilter.GaussianBlur(radius=2.0))
+        halo_layer = halo_layer.filter(ImageFilter.GaussianBlur(radius=2.0 * px_scale))
         pil_arr = np.asarray(pil, dtype=np.int16)
         halo_arr = np.asarray(halo_layer, dtype=np.int16)
         combined = np.clip(pil_arr + halo_arr, 0, 255).astype(np.uint8)
@@ -836,3 +900,31 @@ def render_png(
     buf = io.BytesIO()
     img.save(buf, format="PNG", optimize=False)
     return buf.getvalue()
+
+
+@lru_cache(maxsize=16)
+def render_png_cached(
+    host_xyz_pc: tuple[float, float, float],
+    width: int = DEFAULT_WIDTH,
+    height: int = DEFAULT_HEIGHT,
+    mag_cutoff: float = DEFAULT_MAG_CUTOFF,
+) -> bytes:
+    """Per-host PNG cache. Keyed by (host_xyz_pc, width, height, mag_cutoff).
+
+    Cold render at 8K runs several seconds (dominated by per-star ellipse
+    drawing + LANCZOS upsample of the diffuse layer to full resolution);
+    keeping the most recent 16 hosts cached in-process makes repeat visits
+    instant. The catalog itself is already process-cached by load_catalog().
+
+    16 × ~5 MB/PNG ≈ 80 MB peak. The OS-level Cache-Control on the endpoint
+    is a separate layer; this cache helps fresh requests (no browser cache,
+    multiple users hitting the same host, post-redeploy warmups).
+    """
+    catalog = load_catalog()
+    return render_png(
+        catalog=catalog,
+        host_xyz_pc=host_xyz_pc,
+        width=width,
+        height=height,
+        mag_cutoff=mag_cutoff,
+    )

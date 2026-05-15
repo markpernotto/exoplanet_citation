@@ -68,7 +68,7 @@ from api.models import (
     TopAuthorsResponse,
 )
 from api.scene import derive_scene_hints
-from api.starfield import load_catalog, render_png
+from api.starfield import render_png_cached
 
 load_dotenv()
 
@@ -585,7 +585,7 @@ def planet_host_star(pl_name: str) -> HostStarGaia:
 )
 def planet_starfield(pl_name: str) -> Response:
     """Reproject the Gaia DR3 starfield from this host system's vantage and
-    return the result as a 4096×2048 equirectangular PNG.
+    return the result as a 6144×3072 equirectangular PNG.
 
     Used by the frontend skydome in `web/src/pages/ScenePage.tsx`: the PNG
     is mapped onto the inside of a sphere around the camera, sampled by view
@@ -626,8 +626,9 @@ def planet_starfield(pl_name: str) -> Response:
             ),
         )
 
-    catalog = load_catalog()
-    png_bytes = render_png(catalog, host_xyz_pc=host_xyz)
+    # render_png_cached is process-cached by (host_xyz_pc, dims, mag_cutoff).
+    # Cold renders at 6K take ~3-4 seconds; hot lookups are instant.
+    png_bytes = render_png_cached(tuple(host_xyz))
 
     return Response(
         content=png_bytes,

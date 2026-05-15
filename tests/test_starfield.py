@@ -21,6 +21,28 @@ from api.starfield import (
     render_png,
 )
 
+# Test dimensions: production DEFAULT_WIDTH/HEIGHT are 8192×4096. Pinning
+# the suite to 4096×2048 (the prior production default) cuts memory 4× and
+# runtime ~3× per case versus running at 8K. We can't go arbitrarily smaller
+# because several tests assert pixel-precise star positions: the Gaussian-
+# splat σ scales with `width / 4096`, so at e.g. 512px wide each star's σ
+# drops to ~0.05 (sub-pixel) and the diffuse Milky Way layer dominates the
+# brightest-pixel search. 4K is the floor where the star-finding tests
+# remain reliable.
+TEST_WIDTH = 4096
+TEST_HEIGHT = 2048
+
+
+def _rasterize(catalog, host_xyz_pc, **kw):
+    """Test wrapper: defaults width/height to TEST_WIDTH/TEST_HEIGHT.
+
+    Explicit width/height passed by the caller still wins (setdefault),
+    so tests that exercise specific dimensions keep working unchanged.
+    """
+    kw.setdefault("width", TEST_WIDTH)
+    kw.setdefault("height", TEST_HEIGHT)
+    return rasterize_skytexture(catalog, host_xyz_pc=host_xyz_pc, **kw)
+
 # ── bprp_to_rgb buckets ────────────────────────────────────────────────────
 
 def test_bprp_buckets_cover_all_spectral_types():
@@ -58,14 +80,43 @@ def _single_star_catalog(x, y, z, abs_mag=0.0, bp_rp=0.8) -> pd.DataFrame:
     })
 
 
-def _brightest_pixel(arr: np.ndarray) -> tuple[int, int]:
+def _empty_catalog() -> pd.DataFrame:
+    """An empty catalog with the correct schema. Used as a baseline for
+    "this star should not render" assertions: the diffuse galaxy and
+    extragalactic anchor layers always contribute pixels, so we can't
+    just assert `sum == 0`; instead we compare the rendered output
+    against the empty-catalog render and assert byte-equality.
+    """
+    return _single_star_catalog(0.0, 0.0, 0.0).iloc[0:0].copy()
+
+
+def _brightest_pixel(
+    arr: np.ndarray,
+    near: tuple[int, int] | None = None,
+    radius: int | tuple[int, int] = 8,
+) -> tuple[int, int]:
     """Return (py, px) of the pixel with the highest RGB sum.
 
-    Stars are now drawn as anti-aliased discs spanning ~4 pixels each
-    (plus optional halo overlay for bright stars), so we can't just
-    look for "the one lit pixel" — we find the brightest one.
+    The diffuse Milky Way layer added in Phase 4 lights every pixel; a
+    naive whole-image argmax returns the galactic-center glow rather
+    than the test star. When `near=(py, px)` is provided, the search
+    is restricted to a window of half-extent `radius` (int for a square
+    window, or `(py_radius, px_radius)` for a rectangular one). The
+    polar tests use a wide-x narrow-y window because the equirectangular
+    distortion spreads a pole star across an entire row.
     """
     luminance = arr.sum(axis=2)
+    if near is not None:
+        py0, px0 = near
+        py_r, px_r = (radius, radius) if isinstance(radius, int) else radius
+        h, w = luminance.shape
+        py_lo = max(0, py0 - py_r)
+        py_hi = min(h, py0 + py_r + 1)
+        px_lo = max(0, px0 - px_r)
+        px_hi = min(w, px0 + px_r + 1)
+        sub = luminance[py_lo:py_hi, px_lo:px_hi]
+        idx = np.unravel_index(int(sub.argmax()), sub.shape)
+        return int(py_lo + idx[0]), int(px_lo + idx[1])
     py, px = np.unravel_index(int(luminance.argmax()), luminance.shape)
     return int(py), int(px)
 
@@ -78,26 +129,40 @@ def test_star_at_ra0_dec0_lands_at_left_edge():
     arctan2(0, +X) = 0) gives u = π / 2π = 0.5.
     """
     catalog = _single_star_catalog(x=100.0, y=0.0, z=0.0)
-    img = rasterize_skytexture(catalog, host_xyz_pc=(0.0, 0.0, 0.0))
-    py, px = _brightest_pixel(np.array(img))
-    assert px == pytest.approx(DEFAULT_WIDTH // 2, abs=1)
-    assert py == pytest.approx(DEFAULT_HEIGHT // 2, abs=1)
+    img = _rasterize(catalog, host_xyz_pc=(0.0, 0.0, 0.0))
+    py, px = _brightest_pixel(
+        np.array(img),
+        near=(TEST_HEIGHT // 2, TEST_WIDTH // 2),
+        radius=16,
+    )
+    assert px == pytest.approx(TEST_WIDTH // 2, abs=1)
+    assert py == pytest.approx(TEST_HEIGHT // 2, abs=1)
 
 
 def test_star_at_dec_plus_90_lands_at_top():
     """North celestial pole → top of texture (v=0)."""
     catalog = _single_star_catalog(x=0.0, y=0.0, z=100.0)
-    img = rasterize_skytexture(catalog, host_xyz_pc=(0.0, 0.0, 0.0))
-    py, _ = _brightest_pixel(np.array(img))
+    img = _rasterize(catalog, host_xyz_pc=(0.0, 0.0, 0.0))
+    # At the pole, equirectangular distortion spreads the star across an
+    # entire row, so we search a wide-x narrow-y window at the top.
+    py, _ = _brightest_pixel(
+        np.array(img),
+        near=(0, TEST_WIDTH // 2),
+        radius=(3, TEST_WIDTH // 2),
+    )
     assert py == pytest.approx(0, abs=1)   # very top row (allow 1px for disc spread)
 
 
 def test_star_at_dec_minus_90_lands_at_bottom():
     """South celestial pole → bottom of texture (v=1)."""
     catalog = _single_star_catalog(x=0.0, y=0.0, z=-100.0)
-    img = rasterize_skytexture(catalog, host_xyz_pc=(0.0, 0.0, 0.0))
-    py, _ = _brightest_pixel(np.array(img))
-    assert py == pytest.approx(DEFAULT_HEIGHT - 1, abs=1)   # very bottom row
+    img = _rasterize(catalog, host_xyz_pc=(0.0, 0.0, 0.0))
+    py, _ = _brightest_pixel(
+        np.array(img),
+        near=(TEST_HEIGHT - 1, TEST_WIDTH // 2),
+        radius=(3, TEST_WIDTH // 2),
+    )
+    assert py == pytest.approx(TEST_HEIGHT - 1, abs=1)   # very bottom row
 
 
 # ── per-vantage reprojection: a star looks different from a different host ─
@@ -110,8 +175,8 @@ def test_same_star_different_vantage_lands_at_different_pixel():
     has changed substantially → different texture pixel.
     """
     catalog = _single_star_catalog(x=100.0, y=0.0, z=0.0)
-    img_sol = rasterize_skytexture(catalog, host_xyz_pc=(0.0, 0.0, 0.0))
-    img_host = rasterize_skytexture(catalog, host_xyz_pc=(0.0, 100.0, 0.0))
+    img_sol = _rasterize(catalog, host_xyz_pc=(0.0, 0.0, 0.0))
+    img_host = _rasterize(catalog, host_xyz_pc=(0.0, 100.0, 0.0))
     sol_brightest = _brightest_pixel(np.array(img_sol))
     host_brightest = _brightest_pixel(np.array(img_host))
     # Brightest pixel from the two vantages should land in DIFFERENT places.
@@ -122,17 +187,22 @@ def test_same_star_different_vantage_lands_at_different_pixel():
 
 def test_dim_star_culled_by_mag_cutoff():
     """A star intrinsically faint and far away should drop below cutoff."""
-    # M = 10, d = 1000 pc → m = 10 + 5*log10(100) = 20 → way past cutoff (12)
+    # M = 10, d = 1000 pc → m = 10 + 5*log10(100) = 20 → way past cutoff (14)
     catalog = _single_star_catalog(x=1000.0, y=0.0, z=0.0, abs_mag=10.0)
-    img = rasterize_skytexture(catalog, host_xyz_pc=(0.0, 0.0, 0.0))
-    assert np.array(img).sum() == 0   # no lit pixels
+    img = _rasterize(catalog, host_xyz_pc=(0.0, 0.0, 0.0))
+    # Diffuse galaxy + extragalactic anchors always contribute pixels, so
+    # `sum == 0` no longer holds. The operationally meaningful check is
+    # "this star adds nothing": render with and without the star should be
+    # byte-identical.
+    baseline = _rasterize(_empty_catalog(), host_xyz_pc=(0.0, 0.0, 0.0))
+    np.testing.assert_array_equal(np.array(img), np.array(baseline))
 
 
 def test_bright_star_rendered():
     """A bright, nearby star should produce a visible pixel."""
     # M = 2, d = 10 pc → m = 2 → well below cutoff
     catalog = _single_star_catalog(x=10.0, y=0.0, z=0.0, abs_mag=2.0)
-    img = rasterize_skytexture(catalog, host_xyz_pc=(0.0, 0.0, 0.0))
+    img = _rasterize(catalog, host_xyz_pc=(0.0, 0.0, 0.0))
     assert np.array(img).sum() > 0
 
 
@@ -144,17 +214,31 @@ def test_host_star_excluded():
     """
     catalog = _single_star_catalog(x=10.0, y=0.0, z=0.0, abs_mag=4.0)
     # Host at the same position as the star.
-    img = rasterize_skytexture(catalog, host_xyz_pc=(10.0, 0.0, 0.0))
-    assert np.array(img).sum() == 0
+    img = _rasterize(catalog, host_xyz_pc=(10.0, 0.0, 0.0))
+    # Same baseline approach as test_dim_star_culled_by_mag_cutoff: the
+    # diffuse layer prevents `sum == 0`; instead assert that the star
+    # contributes nothing relative to an empty-catalog render from the
+    # same vantage.
+    baseline = _rasterize(_empty_catalog(), host_xyz_pc=(10.0, 0.0, 0.0))
+    np.testing.assert_array_equal(np.array(img), np.array(baseline))
 
 
 # ── output dimensions and format ───────────────────────────────────────────
 
 def test_output_dimensions_default():
+    """Wrapper-default dims passthrough + production-default sanity check.
+    The production-default (8K) render itself isn't exercised here; doing
+    so per-test would balloon the suite memory + runtime. The explicit-dim
+    path is exercised in test_output_dimensions_custom below, and the
+    full-resolution default render is covered by the API endpoint integration
+    tests.
+    """
     catalog = _single_star_catalog(x=10.0, y=0.0, z=0.0)
-    img = rasterize_skytexture(catalog, host_xyz_pc=(0.0, 0.0, 0.0))
-    assert img.size == (DEFAULT_WIDTH, DEFAULT_HEIGHT)
+    img = _rasterize(catalog, host_xyz_pc=(0.0, 0.0, 0.0))
+    assert img.size == (TEST_WIDTH, TEST_HEIGHT)
     assert img.mode == "RGB"
+    # Sanity-check the production defaults: equirectangular aspect (2:1).
+    assert DEFAULT_WIDTH == 2 * DEFAULT_HEIGHT
 
 
 def test_output_dimensions_custom():
@@ -185,9 +269,17 @@ def test_render_png_returns_valid_png_bytes():
 def test_red_star_pixel_is_red():
     """An M-dwarf (bp_rp > 1.5) at known position should write a red-dominant pixel."""
     catalog = _single_star_catalog(x=10.0, y=0.0, z=0.0, abs_mag=2.0, bp_rp=2.0)
-    img = rasterize_skytexture(catalog, host_xyz_pc=(0.0, 0.0, 0.0))
+    img = _rasterize(catalog, host_xyz_pc=(0.0, 0.0, 0.0))
     arr = np.array(img)
-    py, px = _brightest_pixel(arr)
+    # Localize search around the expected star pixel — without this, the
+    # warm-red diffuse galactic bulge would be the absolute brightest and
+    # the test would pass for the wrong reason (the bulge is red regardless
+    # of the test catalog's bp_rp).
+    py, px = _brightest_pixel(
+        arr,
+        near=(TEST_HEIGHT // 2, TEST_WIDTH // 2),
+        radius=16,
+    )
     r, g, b = arr[py, px]
     assert r > g > b   # M-dwarf: red dominates
 
@@ -195,9 +287,16 @@ def test_red_star_pixel_is_red():
 def test_blue_star_pixel_is_blue():
     """An O/B star (bp_rp < 0) should write a blue-dominant pixel."""
     catalog = _single_star_catalog(x=10.0, y=0.0, z=0.0, abs_mag=2.0, bp_rp=-0.3)
-    img = rasterize_skytexture(catalog, host_xyz_pc=(0.0, 0.0, 0.0))
+    img = _rasterize(catalog, host_xyz_pc=(0.0, 0.0, 0.0))
     arr = np.array(img)
-    py, px = _brightest_pixel(arr)
+    # Star at (10, 0, 0) → RA=0, Dec=0 → expected at the texture center.
+    # Localize the brightest-pixel search so the warm diffuse galactic
+    # center glow doesn't dominate the result.
+    py, px = _brightest_pixel(
+        arr,
+        near=(TEST_HEIGHT // 2, TEST_WIDTH // 2),
+        radius=16,
+    )
     r, g, b = arr[py, px]
     assert b > r   # O/B: blue dominates
 
@@ -214,8 +313,8 @@ def test_apparent_mag_formula_matches_distance_modulus():
     """
     catalog_near = _single_star_catalog(x=10.0, y=0.0, z=0.0, abs_mag=3.0)
     catalog_far = _single_star_catalog(x=30.0, y=0.0, z=0.0, abs_mag=3.0)
-    near_img = rasterize_skytexture(catalog_near, host_xyz_pc=(0.0, 0.0, 0.0))
-    far_img = rasterize_skytexture(catalog_far, host_xyz_pc=(0.0, 0.0, 0.0))
+    near_img = _rasterize(catalog_near, host_xyz_pc=(0.0, 0.0, 0.0))
+    far_img = _rasterize(catalog_far, host_xyz_pc=(0.0, 0.0, 0.0))
     near_brightness = np.array(near_img).sum()
     far_brightness = np.array(far_img).sum()
     assert near_brightness > 0
@@ -232,7 +331,7 @@ def test_dec_value_is_clipped_for_extreme_input():
     # rasterize_skytexture should handle this gracefully.
     catalog = _single_star_catalog(x=0.0, y=0.0, z=100.0)
     # Should not raise.
-    img = rasterize_skytexture(catalog, host_xyz_pc=(0.0, 0.0, 0.0))
+    img = _rasterize(catalog, host_xyz_pc=(0.0, 0.0, 0.0))
     assert img is not None
 
 
@@ -257,7 +356,7 @@ def test_many_stars_render_to_distinct_pixels():
         "abs_g_mag": np.full(n, 1.0, dtype=np.float32),
         "bp_rp": np.full(n, 0.8, dtype=np.float32),
     })
-    img = rasterize_skytexture(catalog, host_xyz_pc=(0.0, 0.0, 0.0))
+    img = _rasterize(catalog, host_xyz_pc=(0.0, 0.0, 0.0))
     arr = np.array(img)
     # With halos active for these bright stars, lit pixel count includes
     # halo footprint (multiple pixels per star). Just verify SOMETHING

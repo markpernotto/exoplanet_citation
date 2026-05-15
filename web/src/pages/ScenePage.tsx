@@ -8,7 +8,6 @@ import * as THREE from 'three';
 import { api, type BinaryCompanion, type DiscoveryPaper, type OrbitalGeometryRecord, type SceneResponse } from '../api';
 import LoadingBar from '../components/LoadingBar';
 import { planetVisual } from '../procedural';
-import { humanizeHours } from '../lib/units';
 
 // Single module-level XR store. Persists across viewMode toggles even when
 // the Canvas re-mounts (the store's session state lives in module scope).
@@ -451,10 +450,9 @@ function InfoPanel({
         </dd>
         <dt style={{ color: 'var(--fg-muted)' }}>day length</dt>
         <dd style={{ margin: 0 }}>
-          {(() => {
-            const d = humanizeHours(scene_hints.day_length_hours);
-            return d ? `${d.value} ${d.unit}` : 'unknown';
-          })()}
+          {scene_hints.day_length_hours != null
+            ? `${scene_hints.day_length_hours.toFixed(1)} hours`
+            : 'unknown'}
         </dd>
         <dt style={{ color: 'var(--fg-muted)' }}>brightness</dt>
         <dd style={{ margin: 0 }}>{scene_hints.insolation_label ?? 'unknown'}</dd>

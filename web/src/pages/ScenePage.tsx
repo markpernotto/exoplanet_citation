@@ -2134,8 +2134,8 @@ function Starfield({ plName }: { plName: string }) {
   //
   // Why disposal matters: the Canvas re-mounts on viewMode change (system
   // ↔ surface) via key={viewMode} on the parent — a new CanvasTexture
-  // (~33MB at 4096×2048 RGB) allocates each mount. Without dispose, GPU
-  // memory leaks per toggle.
+  // (~128MB at 8192×4096 RGB, ~170MB once mipmaps generate) allocates
+  // each mount. Without dispose, GPU memory leaks per toggle.
   useEffect(() => {
     if (!texture) return;
     const previous = scene.background;

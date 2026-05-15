@@ -29,11 +29,13 @@ from PIL import Image, ImageDraw, ImageFilter
 
 log = logging.getLogger(__name__)
 
-# Default output dimensions. The frontend skydome's sphereGeometry uses
-# 64×32 segments which at this resolution gives ~0.09° angular resolution
-# per texture pixel — slightly under naked-eye acuity.
-DEFAULT_WIDTH = 4096
-DEFAULT_HEIGHT = 2048
+# Default output dimensions. 8K equirectangular: ~0.044° per texel,
+# about 2.5× naked-eye acuity (typical eye resolves ~1 arcminute = 0.017°,
+# so we're sampling near the limit of what a Quest 3 / Vision Pro headset
+# can usefully display anyway). The per-host LRU cache below amortizes
+# the cold-render cost so repeat visits stay snappy.
+DEFAULT_WIDTH = 8192
+DEFAULT_HEIGHT = 4096
 
 # ── Diffuse galaxy (Phase 4) ─────────────────────────────────────────────
 # The original plan compiled a GLSL fragment shader to do per-pixel line-
@@ -255,38 +257,47 @@ def load_catalog(
     return combined
 
 
-def bprp_to_rgb(bp_rp: np.ndarray) -> np.ndarray:
-    """Gaia BP-RP color index → normalized RGB. Vectorized.
+# Color breakpoints for Gaia BP-RP → RGB. Matches the bucket centers in
+# web/src/procedural.ts::starColor so server-rendered starfields and
+# client-rendered individual stars share a palette. Anchored on:
+#   bp_rp = -0.3  hot O/B blue       (≈ #a4c8ff)
+#   bp_rp =  0.0  A-type blue-white  (≈ #dce6ff)
+#   bp_rp =  0.7  G-type warm white  (≈ #fff7d2)
+#   bp_rp =  1.5  K-type orange      (≈ #ffd49a)
+#   bp_rp =  2.5  M-dwarf red        (≈ #ff9b6a)
+#   bp_rp =  3.5  late M / brown     (≈ #cf5040)
+_BPRP_BREAKPOINTS = np.array(
+    [-0.3, 0.0, 0.7, 1.5, 2.5, 3.5], dtype=np.float32,
+)
+_BPRP_COLORS = np.array([
+    [0.64, 0.78, 1.00],  # hot O/B blue
+    [0.86, 0.90, 1.00],  # A-type blue-white
+    [1.00, 0.97, 0.82],  # G-type warm white
+    [1.00, 0.83, 0.60],  # K-type orange
+    [1.00, 0.61, 0.42],  # M-dwarf red
+    [0.81, 0.31, 0.25],  # late M / brown dwarf
+], dtype=np.float32)
 
-    Mapping mirrors the buckets in web/src/pages/ScenePage.tsx::bpRpToRgb
-    so server-rendered and client-rendered starfields visually agree.
+
+def bprp_to_rgb(bp_rp: np.ndarray) -> np.ndarray:
+    """Gaia BP-RP color index → normalized RGB via piecewise linear
+    interpolation across the anchor breakpoints above.
+
+    Hard-bucket palettes produce visible banding in dense regions (e.g. the
+    bulge view from SWEEPS-4 b), where stars at bp_rp = 0.49 and 0.51 fall
+    into different buckets and render as different colors despite being
+    visually indistinguishable on the sky. Linear interpolation smooths
+    that out without changing the anchor colors themselves.
+
+    Inputs outside the anchor range are clamped to the endpoint colors —
+    no extrapolation past the brown-dwarf end.
 
     Returns: (N, 3) float32 array with values in [0, 1].
     """
-    n = bp_rp.shape[0]
-    rgb = np.empty((n, 3), dtype=np.float32)
-    # Default (any unhandled value): generic warm white.
-    rgb[:] = (1.00, 0.93, 0.75)
-
-    # O/B
-    mask = bp_rp < 0
-    rgb[mask] = (0.62, 0.78, 1.00)
-    # A
-    mask = (bp_rp >= 0) & (bp_rp < 0.5)
-    rgb[mask] = (0.86, 0.92, 1.00)
-    # F/G — Sun-color
-    mask = (bp_rp >= 0.5) & (bp_rp < 1.0)
-    rgb[mask] = (1.00, 0.97, 0.85)
-    # K
-    mask = (bp_rp >= 1.0) & (bp_rp < 1.5)
-    rgb[mask] = (1.00, 0.83, 0.60)
-    # M
-    mask = (bp_rp >= 1.5) & (bp_rp < 3.0)
-    rgb[mask] = (1.00, 0.61, 0.42)
-    # Late M / brown dwarf
-    mask = bp_rp >= 3.0
-    rgb[mask] = (0.81, 0.31, 0.25)
-
+    x = np.clip(bp_rp, _BPRP_BREAKPOINTS[0], _BPRP_BREAKPOINTS[-1])
+    rgb = np.empty((x.shape[0], 3), dtype=np.float32)
+    for c in range(3):
+        rgb[:, c] = np.interp(x, _BPRP_BREAKPOINTS, _BPRP_COLORS[:, c])
     return rgb
 
 
@@ -759,14 +770,20 @@ def rasterize_skytexture(
     py_f_o = py_f[order]
     intensity_o = intensity[order]
     color_o = color_u8[order]
+    # All star pixel sizes are tuned for the 4K baseline. At higher
+    # resolutions the same texel count covers a smaller solid angle on the
+    # skydome, so faint stars would shrink below the sub-pixel threshold
+    # on screen and disappear. Scaling linearly with width keeps the
+    # on-screen angular size constant regardless of rendered resolution.
+    px_scale = width / 4096.0
     for i in range(len(order)):
-        # All-tiny: 0.25 px (microscopic) → 0.85 px (brightest is still
-        # only ~1.5 px wide on screen after GPU filtering). Per user
+        # All-tiny: 0.25 px (microscopic) → 0.85 px at 4K (brightest is
+        # still only ~1.5 px wide on screen after GPU filtering). Per user
         # feedback: more stars + smaller dots reads as "deep space" more
         # than fewer-bigger ones; halos are over-represented on stars
         # that wouldn't realistically appear as anything but pinpoints
         # to a human observer from light-years away.
-        radius = 0.25 + intensity_o[i] * 0.6
+        radius = (0.25 + intensity_o[i] * 0.6) * px_scale
         x, y = float(px_f_o[i]), float(py_f_o[i])
         r = float(radius)
         c = (int(color_o[i, 0]), int(color_o[i, 1]), int(color_o[i, 2]))
@@ -797,8 +814,9 @@ def rasterize_skytexture(
         for i in range(len(halo_px)):
             # Smaller, dimmer halos than before. Only ~15 stars get
             # these; they're meant to be subtly-glowing standouts, not
-            # blooming UI dots.
-            halo_r = 2.0 + halo_intensity[i] * 3.0  # 2 px → 5 px
+            # blooming UI dots. Pixel radius scaled with px_scale so the
+            # on-screen halo size stays constant across resolutions.
+            halo_r = (2.0 + halo_intensity[i] * 3.0) * px_scale
             x, y = float(halo_px[i]), float(halo_py[i])
             r = float(halo_r)
             c = (
@@ -807,7 +825,7 @@ def rasterize_skytexture(
                 int(halo_color[i, 2] * 0.25),
             )
             halo_draw.ellipse([x - r, y - r, x + r, y + r], fill=c)
-        halo_layer = halo_layer.filter(ImageFilter.GaussianBlur(radius=2.0))
+        halo_layer = halo_layer.filter(ImageFilter.GaussianBlur(radius=2.0 * px_scale))
         pil_arr = np.asarray(pil, dtype=np.int16)
         halo_arr = np.asarray(halo_layer, dtype=np.int16)
         combined = np.clip(pil_arr + halo_arr, 0, 255).astype(np.uint8)
@@ -836,3 +854,31 @@ def render_png(
     buf = io.BytesIO()
     img.save(buf, format="PNG", optimize=False)
     return buf.getvalue()
+
+
+@lru_cache(maxsize=16)
+def render_png_cached(
+    host_xyz_pc: tuple[float, float, float],
+    width: int = DEFAULT_WIDTH,
+    height: int = DEFAULT_HEIGHT,
+    mag_cutoff: float = DEFAULT_MAG_CUTOFF,
+) -> bytes:
+    """Per-host PNG cache. Keyed by (host_xyz_pc, width, height, mag_cutoff).
+
+    Cold render at 8K runs several seconds (dominated by per-star ellipse
+    drawing + LANCZOS upsample of the diffuse layer to full resolution);
+    keeping the most recent 16 hosts cached in-process makes repeat visits
+    instant. The catalog itself is already process-cached by load_catalog().
+
+    16 × ~5 MB/PNG ≈ 80 MB peak. The OS-level Cache-Control on the endpoint
+    is a separate layer; this cache helps fresh requests (no browser cache,
+    multiple users hitting the same host, post-redeploy warmups).
+    """
+    catalog = load_catalog()
+    return render_png(
+        catalog=catalog,
+        host_xyz_pc=host_xyz_pc,
+        width=width,
+        height=height,
+        mag_cutoff=mag_cutoff,
+    )

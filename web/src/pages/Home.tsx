@@ -153,6 +153,7 @@ export default function Home() {
   // ── DEFAULT MODE: infinite-scroll recent discoveries ─────────────────────
   return (
     <>
+      <HomeIntro />
       <FeaturedSystems />
 
       <section>
@@ -303,6 +304,75 @@ const KEY_LABELS: Record<string, string> = {
   ...Object.fromEntries(CATEGORY_KEYS.map((k) => [k, FEATURED_CATEGORIES[k].label])),
   'top-discoverers': 'Top discoverers',
 };
+
+function HomeIntro() {
+  return (
+    <section style={{
+      marginBottom: '2.5rem',
+      paddingBottom: '1.75rem',
+      borderBottom: '1px solid var(--border)',
+    }}>
+      <p style={{
+        fontSize: '1.05rem',
+        lineHeight: 1.55,
+        margin: '0 0 1rem',
+        color: 'var(--fg)',
+      }}>
+        <strong>Exoplanet Citation Atlas</strong> links every confirmed exoplanet
+        to its discovery papers, atmospheric observations, and full stellar
+        architecture, in one open-source view.
+      </p>
+      <p style={{
+        fontSize: '0.92rem',
+        lineHeight: 1.6,
+        color: 'var(--fg-muted)',
+        margin: '0 0 1.25rem',
+      }}>
+        Exoplanet science is spread across canonical archives that each do their
+        part well. The{' '}
+        <a href="https://exoplanetarchive.ipac.caltech.edu/" target="_blank" rel="noopener noreferrer">NASA Exoplanet Archive</a>
+        {' '}curates planetary parameters,{' '}
+        <a href="https://ui.adsabs.harvard.edu/" target="_blank" rel="noopener noreferrer">NASA ADS</a>
+        {' '}indexes the literature,{' '}
+        <a href="https://www.cosmos.esa.int/web/gaia/dr3" target="_blank" rel="noopener noreferrer">Gaia DR3</a>
+        {' '}supplies stellar astrometry, and the{' '}
+        <a href="http://www.astro.gsu.edu/wds/" target="_blank" rel="noopener noreferrer">Washington Double Star Catalog</a>
+        {' '}records stellar multiplicity. The Atlas brings them together into a
+        single per-object view so that system-level questions (what was the
+        discovery paper, has the atmosphere been observed, what other stars are
+        bound to the host, what does the architecture look like at scale) can be
+        answered in one place.
+      </p>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '1rem',
+        flexWrap: 'wrap',
+        fontSize: '0.85rem',
+        color: 'var(--fg-muted)',
+      }}>
+        <span>
+          Open source (MIT) by{' '}
+          <a href="mailto:mark@pernotto.com">Mark Pernotto</a>
+          {' '}at{' '}
+          <a href="https://facetbuild.llc" target="_blank" rel="noopener noreferrer">Facet Build, LLC</a>.
+        </span>
+        <a
+          href="https://doi.org/10.5281/zenodo.20191479"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <img
+            src="https://zenodo.org/badge/1228082575.svg"
+            alt="DOI 10.5281/zenodo.20191479"
+            style={{ verticalAlign: 'middle' }}
+          />
+        </a>
+        <Link to="/about">Methods, roadmap, and data-quality notes →</Link>
+      </div>
+    </section>
+  );
+}
 
 function FeaturedSystems() {
   const location = useLocation();

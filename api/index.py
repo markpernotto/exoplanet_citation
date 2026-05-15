@@ -534,6 +534,7 @@ def planet_companions(pl_name: str) -> list[BinaryCompanion]:
                     SELECT distance_gspphot_pc
                     FROM host_stars_gaia
                     WHERE hostname = p.hostname
+                    ORDER BY retrieved_at DESC NULLS LAST
                     LIMIT 1
                 ) h ON true
                 JOIN binary_companions bc ON bc.hostname = p.hostname

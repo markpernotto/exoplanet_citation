@@ -866,6 +866,7 @@ def planet_scene(pl_name: str) -> SceneResponse:
                        h.retrieved_at
                 FROM host_stars_gaia h
                 WHERE h.hostname = %s
+                ORDER BY h.retrieved_at DESC NULLS LAST
                 LIMIT 1
                 """,
                 (hostname,),

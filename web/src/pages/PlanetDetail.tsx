@@ -734,7 +734,7 @@ function UnitsToggle({ mode, setMode }: { mode: 'metric' | 'imperial'; setMode: 
   };
   const active: React.CSSProperties = { ...base, background: 'var(--accent)', color: '#0b0d12', borderColor: 'var(--accent)' };
   return (
-    <div role="group" aria-label="Units" style={{ display: 'inline-flex', borderRadius: 3, overflow: 'hidden' }} title="Toggle units (saved in your browser)">
+    <div role="group" aria-label="Units" style={{ display: 'inline-flex', borderRadius: 3 }} title="Toggle units (saved in your browser)">
       <button
         type="button"
         style={mode === 'metric' ? { ...active, borderRadius: '3px 0 0 3px' } : { ...base, borderRadius: '3px 0 0 3px', borderRight: 'none' }}

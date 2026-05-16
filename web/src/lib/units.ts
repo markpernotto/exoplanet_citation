@@ -81,14 +81,29 @@ export function formatTemperature(kelvin: number | null, mode: UnitsMode): Forma
 // `{value} {unit}`. Abbreviated units (h / d / yr / kyr / Myr) sidestep
 // English plural rules so a duration of exactly 1 doesn't read "1.0 hours";
 // also cleaner for future i18n since the strings carry no grammar.
+//
+// Each tier checks both the raw value AND the rounded display value, so
+// boundary cases don't render the next tier's threshold inside the current
+// tier (e.g. 47.95 h would have rendered "48.0 h" instead of "2.0 d";
+// 999,950 yr would have rendered "1000.0 kyr" instead of "1.00 Myr").
 export function humanizeHours(hours: number | null): Formatted | null {
   if (hours == null || !Number.isFinite(hours) || hours < 0) return null;
   const days = hours / 24;
   const years = days / 365.25;
-  if (hours < 48) return { value: hours.toFixed(1), unit: 'h' };
-  if (days < 365) return { value: days.toFixed(1), unit: 'd' };
-  if (years < 100) return { value: years.toFixed(1), unit: 'yr' };
-  if (years < 10000) return { value: Math.round(years).toLocaleString(), unit: 'yr' };
-  if (years < 1e6) return { value: (years / 1000).toFixed(1), unit: 'kyr' };
+  if (hours < 48 && Number(hours.toFixed(1)) < 48) {
+    return { value: hours.toFixed(1), unit: 'h' };
+  }
+  if (days < 365 && Number(days.toFixed(1)) < 365) {
+    return { value: days.toFixed(1), unit: 'd' };
+  }
+  if (years < 100 && Number(years.toFixed(1)) < 100) {
+    return { value: years.toFixed(1), unit: 'yr' };
+  }
+  if (years < 10000 && Math.round(years) < 10000) {
+    return { value: Math.round(years).toLocaleString(), unit: 'yr' };
+  }
+  if (years < 1e6 && Number((years / 1000).toFixed(1)) < 1000) {
+    return { value: (years / 1000).toFixed(1), unit: 'kyr' };
+  }
   return { value: (years / 1e6).toFixed(2), unit: 'Myr' };
 }

@@ -5,7 +5,7 @@ import GalaxyMap from '../components/GalaxyMap';
 import LoadingBar from '../components/LoadingBar';
 import PlanetCard from '../components/PlanetCard';
 import { collectFacts } from '../lib/derived';
-import { formatMass, formatRadius, formatTemperature, useUnitsMode } from '../lib/units';
+import { formatMass, formatRadius, formatTemperature, useUnitsMode, type Formatted, type UnitsMode } from '../lib/units';
 
 export default function PlanetDetail() {
   const { plName = '' } = useParams<{ plName: string }>();
@@ -721,7 +721,7 @@ function parseDiscRefname(raw: string): { text: string; url: string | null } {
   return { text: match[2].trim(), url: match[1] };
 }
 
-function UnitsToggle({ mode, setMode }: { mode: 'metric' | 'imperial'; setMode: (m: 'metric' | 'imperial') => void }) {
+function UnitsToggle({ mode, setMode }: { mode: UnitsMode; setMode: (m: UnitsMode) => void }) {
   const base: React.CSSProperties = {
     fontSize: '0.7rem',
     padding: '0.2rem 0.55rem',
@@ -757,7 +757,7 @@ function UnitsToggle({ mode, setMode }: { mode: 'metric' | 'imperial'; setMode: 
 
 function fmtRowDisplay(
   label: string,
-  formatted: { value: string; unit: string; secondary?: string } | null,
+  formatted: Formatted | null,
   rowIndex: number,
   sectionDelay = 0,
 ) {

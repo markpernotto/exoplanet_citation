@@ -22,9 +22,17 @@ function compact(n: number): string {
   if (!Number.isFinite(n) || n === 0) return '0';
   const abs = Math.abs(n);
   if (abs >= 1e6 || abs < 1e-2) {
-    const exp = Math.floor(Math.log10(abs));
-    const mantissa = n / Math.pow(10, exp);
-    return `${mantissa.toFixed(2)} × 10${superscript(exp)}`;
+    let exp = Math.floor(Math.log10(abs));
+    let mantissa = n / Math.pow(10, exp);
+    // Renormalize when rounding pushes the mantissa to ±10.00 (e.g. 9.999e6
+    // would otherwise display as "10.00 × 10⁶" instead of "1.00 × 10⁷").
+    let mantissaStr = mantissa.toFixed(2);
+    if (mantissaStr === '10.00' || mantissaStr === '-10.00') {
+      exp += 1;
+      mantissa = n / Math.pow(10, exp);
+      mantissaStr = mantissa.toFixed(2);
+    }
+    return `${mantissaStr} × 10${superscript(exp)}`;
   }
   if (abs >= 1000) return Math.round(n).toLocaleString();
   // Avoid toPrecision(3) here: it emits exponential form for values that

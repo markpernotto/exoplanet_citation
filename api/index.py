@@ -572,6 +572,7 @@ def planet_host_star(pl_name: str) -> HostStarGaia:
                 FROM planets_current p
                 JOIN host_stars_gaia h ON h.hostname = p.hostname
                 WHERE p.pl_name = %s
+                ORDER BY h.retrieved_at DESC NULLS LAST
                 LIMIT 1
                 """,
                 (pl_name,),

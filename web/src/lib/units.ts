@@ -62,14 +62,18 @@ export function useUnitsMode(): [UnitsMode, (m: UnitsMode) => void] {
 
 export type Formatted = { value: string; unit: string; secondary?: string };
 
+// Public formatters reject null AND non-finite inputs (NaN, ±Infinity) so
+// bad upstream data renders as a skipped row instead of silently showing
+// "0 kg" or "NaN °C". `compact()`'s legacy "0" return for non-finite values
+// is then unreachable from these callers.
 export function formatRadius(rade: number | null, mode: UnitsMode): Formatted | null {
-  if (rade == null) return null;
+  if (rade == null || !Number.isFinite(rade)) return null;
   if (mode === 'imperial') return { value: compact(rade * MI_PER_EARTH_RADIUS), unit: 'mi' };
   return { value: compact(rade * KM_PER_EARTH_RADIUS), unit: 'km' };
 }
 
 export function formatMass(bmasse: number | null, mode: UnitsMode): Formatted | null {
-  if (bmasse == null) return null;
+  if (bmasse == null || !Number.isFinite(bmasse)) return null;
   if (mode === 'imperial') return { value: compact(bmasse * LB_PER_EARTH_MASS), unit: 'lb' };
   return { value: compact(bmasse * KG_PER_EARTH_MASS), unit: 'kg' };
 }
@@ -77,7 +81,7 @@ export function formatMass(bmasse: number | null, mode: UnitsMode): Formatted | 
 // Kelvin stays primary as the scientific standard; the parenthetical swaps
 // between °C (metric) and °F (imperial).
 export function formatTemperature(kelvin: number | null, mode: UnitsMode): Formatted | null {
-  if (kelvin == null) return null;
+  if (kelvin == null || !Number.isFinite(kelvin)) return null;
   const c = kelvin - 273.15;
   const secondary = mode === 'imperial'
     ? `(${Math.round(c * 9 / 5 + 32)} °F)`

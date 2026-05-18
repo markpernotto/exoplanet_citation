@@ -356,8 +356,12 @@ export default function PlanetCard({ planet, siblings, bp_rp, companions, distan
           const sepAU = c.separation_arcsec != null && distancePc != null
             ? c.separation_arcsec * distancePc
             : null;
-          const insideOrbit = sepAU != null && planet.pl_orbsmax != null
-            && sepAU < planet.pl_orbsmax;
+          // Use effective semi-major axis (falls back to Kepler-from-period
+          // for AU-less catalog rows like NY Vir c). Without this, those
+          // planets would always read as "companion is outside the orbit".
+          const planetA = effectiveOrbsmaxAU(planet.pl_orbsmax, planet.pl_orbper);
+          const insideOrbit = sepAU != null && planetA != null
+            && sepAU < planetA;
           // Floor for inside-orbit placement: keep companion clear of the
           // host star's visual disc (starRadius) + its own corona (radius 15).
           // For VHS J125601.92-125723.9 b the true proportional position is
@@ -365,7 +369,7 @@ export default function PlanetCard({ planet, siblings, bp_rp, companions, distan
           // the companion would visually melt into the host without this.
           const insideOrbitFloor = displayStarRadius + 18;
           const compR = insideOrbit
-            ? Math.max(insideOrbitFloor, (sepAU! / planet.pl_orbsmax!) * orbitSemiMajor)
+            ? Math.max(insideOrbitFloor, (sepAU! / planetA!) * orbitSemiMajor)
             : companionR;
           const cx = focusX + compR * Math.sin(paRad);
           const cy = focusY - compR * Math.cos(paRad);
@@ -676,8 +680,11 @@ export default function PlanetCard({ planet, siblings, bp_rp, companions, distan
           const sepAU = c.separation_arcsec != null && distancePc != null
             ? c.separation_arcsec * distancePc
             : null;
-          const insideOrbit = sepAU != null && planet.pl_orbsmax != null
-            && sepAU < planet.pl_orbsmax;
+          // Same effective-a fallback as the single-orbit view: period-only
+          // catalog rows still get proportional placement.
+          const planetA = effectiveOrbsmaxAU(planet.pl_orbsmax, planet.pl_orbper);
+          const insideOrbit = sepAU != null && planetA != null
+            && sepAU < planetA;
           // Same host-disc clearance floor as the single-orbit view.
           const insideOrbitFloorMulti = multiStarRadius + 18;
           const compR = insideOrbit

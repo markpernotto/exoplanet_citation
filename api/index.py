@@ -511,6 +511,16 @@ def planet_companions(pl_name: str) -> list[BinaryCompanion]:
     cap around 20,000 AU; the loosest known reach ~30,000), so wider catalog
     pairs are almost always chance line-of-sight coincidences from crowded
     Kepler-field stars. They render absurdly far from the scene anyway.
+
+    The system distance is taken from Gaia DR3 (`distance_gspphot_pc`) when
+    available, falling back to the Exoplanet Archive's `sy_dist`. Earlier
+    versions of this endpoint used `sy_dist` only, which let optical doubles
+    through whenever the catalog row was missing it.
+
+    The Gaia lookup uses LEFT JOIN LATERAL so it returns at most one row per
+    hostname. host_stars_gaia is PK'd on gaia_dr3_id (not hostname) and is
+    currently 1:1 with hostname empirically, but the schema does not enforce
+    that — LATERAL keeps the companion row count exact regardless.
     """
     with _connect() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -520,12 +530,19 @@ def planet_companions(pl_name: str) -> list[BinaryCompanion]:
                        bc.separation_arcsec, bc.position_angle_deg,
                        bc.component_mag_v, bc.component_spectype, bc.source_catalog
                 FROM planets_current p
+                LEFT JOIN LATERAL (
+                    SELECT distance_gspphot_pc
+                    FROM host_stars_gaia
+                    WHERE hostname = p.hostname
+                    ORDER BY retrieved_at DESC NULLS LAST, gaia_dr3_id
+                    LIMIT 1
+                ) h ON true
                 JOIN binary_companions bc ON bc.hostname = p.hostname
                 WHERE p.pl_name = %s
                   AND (
                     bc.separation_arcsec IS NULL
-                    OR p.sy_dist IS NULL
-                    OR bc.separation_arcsec * p.sy_dist <= 25000
+                    OR COALESCE(h.distance_gspphot_pc, p.sy_dist) IS NULL
+                    OR bc.separation_arcsec * COALESCE(h.distance_gspphot_pc, p.sy_dist) <= 25000
                   )
                 ORDER BY bc.separation_arcsec NULLS LAST
                 """,
@@ -555,6 +572,7 @@ def planet_host_star(pl_name: str) -> HostStarGaia:
                 FROM planets_current p
                 JOIN host_stars_gaia h ON h.hostname = p.hostname
                 WHERE p.pl_name = %s
+                ORDER BY h.retrieved_at DESC NULLS LAST, h.gaia_dr3_id
                 LIMIT 1
                 """,
                 (pl_name,),
@@ -849,6 +867,7 @@ def planet_scene(pl_name: str) -> SceneResponse:
                        h.retrieved_at
                 FROM host_stars_gaia h
                 WHERE h.hostname = %s
+                ORDER BY h.retrieved_at DESC NULLS LAST, h.gaia_dr3_id
                 LIMIT 1
                 """,
                 (hostname,),
@@ -872,9 +891,12 @@ def planet_scene(pl_name: str) -> SceneResponse:
 
             # Binary companions (Milestone 1 data). Apply the same optical-
             # double filter as /api/planets/{pl_name}/companions — drop rows
-            # whose projected separation (arcsec × sy_dist pc) exceeds 25,000
-            # AU, well past the statistical limit for physically-bound pairs.
-            sy_dist = planet_row.get("sy_dist")
+            # whose projected separation (arcsec × system distance) exceeds
+            # 25,000 AU, well past the statistical limit for physically-bound
+            # pairs. Prefer Gaia DR3 distance when available; otherwise fall
+            # back to the Exoplanet Archive's sy_dist.
+            gaia_dist = host_row.get("distance_gspphot_pc") if host_row else None
+            effective_dist = gaia_dist if gaia_dist is not None else planet_row.get("sy_dist")
             cur.execute(
                 """
                 SELECT component_designation, primary_designation,
@@ -889,7 +911,7 @@ def planet_scene(pl_name: str) -> SceneResponse:
                   )
                 ORDER BY separation_arcsec NULLS LAST
                 """,
-                (hostname, sy_dist, sy_dist),
+                (hostname, effective_dist, effective_dist),
             )
             companion_rows = cur.fetchall()
 

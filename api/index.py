@@ -534,7 +534,7 @@ def planet_companions(pl_name: str) -> list[BinaryCompanion]:
                     SELECT distance_gspphot_pc
                     FROM host_stars_gaia
                     WHERE hostname = p.hostname
-                    ORDER BY retrieved_at DESC NULLS LAST
+                    ORDER BY retrieved_at DESC NULLS LAST, gaia_dr3_id
                     LIMIT 1
                 ) h ON true
                 JOIN binary_companions bc ON bc.hostname = p.hostname
@@ -572,7 +572,7 @@ def planet_host_star(pl_name: str) -> HostStarGaia:
                 FROM planets_current p
                 JOIN host_stars_gaia h ON h.hostname = p.hostname
                 WHERE p.pl_name = %s
-                ORDER BY h.retrieved_at DESC NULLS LAST
+                ORDER BY h.retrieved_at DESC NULLS LAST, h.gaia_dr3_id
                 LIMIT 1
                 """,
                 (pl_name,),
@@ -867,7 +867,7 @@ def planet_scene(pl_name: str) -> SceneResponse:
                        h.retrieved_at
                 FROM host_stars_gaia h
                 WHERE h.hostname = %s
-                ORDER BY h.retrieved_at DESC NULLS LAST
+                ORDER BY h.retrieved_at DESC NULLS LAST, h.gaia_dr3_id
                 LIMIT 1
                 """,
                 (hostname,),

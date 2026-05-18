@@ -186,7 +186,9 @@ make help        # list all targets
 - **[docs/STARFIELD_PLAN.md](docs/STARFIELD_PLAN.md)** — canonical plan
   for the per-vantage sky / Milky Way rendering. Four-layer architecture
   (Gaia reprojection, procedural galactic particles, diffuse galaxy
-  fragment shader, extragalactic anchors)
+  fragment shader, extragalactic anchors). Includes a
+  [resolution tuning guide](docs/STARFIELD_PLAN.md#tuning-render-resolution)
+  covering 4K through 16K local renders
 - **[docs/THEMING.md](docs/THEMING.md)** — retro display themes: design
   rationale, technical implementation, theme catalog, self-hosted fonts
 
@@ -245,6 +247,37 @@ make help        # list all targets
   (3 non-arXiv bibcodes ADS rejects + 4 with non-ADS reference URLs)
 - 🔜 **dbt marts** (`dim_planet`, `dim_publication`, `fact_discovery`,
   `fact_parameter_revision`) — deferred; the API doesn't need them yet.
+
+### 3D scene polish — in review (feat/3d-scene-polish, PR #13)
+
+- ✅ **Shareable scene URLs** — copy a planet's `/scene` link and the
+  recipient lands on the exact same camera angle, orbital phase, and view
+  mode (system or surface). Copy-link button in the HUD; URL hash updates
+  live as the user pans / zooms (throttled, no history flood).
+- ✅ **Per-vantage starfield density overhaul** — server-side Gaussian-
+  splat star drawing in linear light (sharper centers, additive blending
+  through dense regions), piecewise BP-RP color interpolation, dim-star
+  magnitude tail extending visibility to apparent mag 14, anisotropic
+  skydome texture filtering. From Kepler-class vantages, +40% to +134%
+  visible stars; Sol now appears as a faint pinprick from Kepler-186 /
+  -22 / -452.
+- ✅ **Resolution knob, documented for local renders** — single
+  `DEFAULT_WIDTH` / `DEFAULT_HEIGHT` pair in `api/starfield.py` tunes the
+  per-vantage PNG from 4K through 16K. See
+  [`docs/STARFIELD_PLAN.md#tuning-render-resolution`](docs/STARFIELD_PLAN.md#tuning-render-resolution).
+  Repo default 6K (fits Vercel Hobby 1024 MB ceiling); local 16K renders
+  produce ~63 MB PNGs in ~11 seconds for offline / Zenodo use.
+- ✅ **Linear-light render pipeline** — in-place compositors and chunked
+  sRGB encoding cut peak RSS roughly in half at every resolution. Also
+  fixed an inherent double-gamma bug where star pixels were being sRGB-
+  decoded twice; corrected encoding tripled the visible star count.
+- ✅ **Kepler-22 b and Kepler-452 b** restored to the "Different skies"
+  curated tour now that the dim-star tail makes their vantages populated.
+- 🔜 **Surface-mode VR bug** — ride-the-orbit broken only in VR; desktop
+  path works. Needs Quest 3 session to reproduce; not blocking.
+- 🔜 **Corona / photosphere fidelity** — proposal phase. Tighten limb
+  darkening on M dwarfs, increase corona alpha falloff for hot O/B
+  photospheres, bound bloom contribution on extreme HDR values.
 
 ### Phase 3 — post-v1.0
 

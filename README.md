@@ -152,6 +152,7 @@ make diff                               # consecutive snapshots → discovery_ch
 python -m etl.enrich_gaia               # host_stars_gaia (resumable)
 python -m etl.enrich_ads                # discovery_papers from NASA ADS
 python -m etl.resolve_citations         # publications + planet_publications (4-tier resolver: ADS + arXiv)
+python -m etl.clear_manual_queue        # hand-resolves the 7 historical edge cases the resolver can't reach
 make publish                            # → public/rss.xml, public/discoveries.json, public/health.json
 
 # Run the API locally

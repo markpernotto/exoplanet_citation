@@ -7,23 +7,26 @@ A public data warehouse linking confirmed exoplanets to the scientific papers
 that announced them. Built on the NASA Exoplanet Archive, with citation
 resolution via NASA ADS and host-star enrichment via Gaia DR3.
 
-**Live:** [exoplanet-citation.vercel.app](https://exoplanet-citation.vercel.app)
-· [API docs (Swagger)](https://exoplanet-citation.vercel.app/docs)
+**Live:** [exoplanetcitation.space](https://exoplanetcitation.space)
+· [API docs (Swagger)](https://exoplanetcitation.space/docs)
 · [Source on GitHub](https://github.com/markpernotto/exoplanet_citation)
 
-**Status:** Phase 1 done. Phase 2 complete. Daily ingest pipeline running
-on a GitHub Actions cron; 6,286 confirmed planets loaded into Postgres
-with 7+ consecutive nightly runs since 2026-05-04; FastAPI serving 22
-endpoints with automatic Swagger docs; React frontend deployed with
-procedurally-rendered planet cards, multi-planet "this paper also
-announced…" affordance, and a `/feeds` index for personalized RSS
-subscriptions; Gaia DR3 host-star enrichment complete for all 4,355
-enrichable hosts; **citation graph (`publications` +
-`planet_publications`) resolved for 6,279 / 6,286 planets (99.89%)** via
-a 4-tier resolver (ADS bibcode → arXiv API → ADS title search → manual
-queue), with only 7 genuinely weird edge cases parked in
-`citation_manual_queue` for human triage; 78 unit tests + 13 dbt tests
-passing.
+**Status:** Phase 1 done. Phase 2 done. Daily ingest pipeline running on
+a GitHub Actions cron; 6,287 confirmed planets loaded into Postgres with
+nightly runs since 2026-05-04; FastAPI serving 22 endpoints with
+automatic Swagger docs; React + Three.js + WebXR frontend deployed at
+[exoplanetcitation.space](https://exoplanetcitation.space) with
+procedurally-rendered planet cards, an interactive 3D scene viewer with
+per-vantage starfield reprojection (4K through 16K rendering knob;
+default 6K), the multi-planet "this paper also announced…" affordance,
+an imperial/metric units toggle, shareable URLs that round-trip camera
+state, and a `/feeds` index for personalized RSS subscriptions; Gaia DR3
+host-star enrichment complete for all 4,358 enrichable hosts; **citation
+graph (`publications` + `planet_publications`) resolved for 6,287 /
+6,287 planets (100%)** via a 4-tier automated resolver (ADS bibcode →
+arXiv API → ADS title search → manual queue) plus a 7-row hand-resolved
+final pass for edge-case journal references; 78 unit tests + 13 dbt
+tests passing.
 
 See [PLAN.md](PLAN.md) for the full implementation roadmap and
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the pieces fit together.
@@ -199,7 +202,7 @@ make help        # list all targets
 
 - ETL pipeline: extract → load → dbt staging → diff → publish
 - 28-column typed schema with JSONB raw preservation
-- Nightly cron on GitHub Actions (06:00 UTC) — 5 consecutive green runs
+- Nightly cron on GitHub Actions (06:00 UTC) — consecutive green runs
   since 2026-05-04 (Star Wars Day)
 - Field-tier-aware diff (Tier A surfaced, Tier B logged-only, Tier C ignored)
 - Auto-prune of `planets_snapshots` to a rolling 2-day window so Neon
@@ -214,23 +217,27 @@ make help        # list all targets
 - Documentation: data catalog, procedural rendering plan, architecture, theming
 - CI with ruff lint
 
-### Phase 2 — substantially complete
+### Phase 2 — done
 
 - ✅ **Gaia DR3 host-star enrichment** — `host_stars_gaia` populated for
-  all 4,355 enrichable hosts (parallax, BP-RP color, Gaia-derived stellar
+  all 4,358 enrichable hosts (parallax, BP-RP color, Gaia-derived stellar
   parameters)
 - ✅ **ADS discovery-paper enrichment** — `discovery_papers` populated for
   ~1,250 unique bibcodes (title, authors, abstract, citation count, DOI,
   arXiv ID)
 - ✅ **Citation graph schema** — `publications` + `planet_publications` +
   `citation_manual_queue` with provenance (resolved_via, confidence)
-- ✅ **4-tier resolver** — `etl/resolve_citations.py` (ADS bibcode → arXiv
-  API → ADS title → manual queue) with quota-aware circuit breaker,
-  resumable via `backfill_state`. The arXiv tier closes the long tail
-  of arXiv-only preprints that ADS's bibcode lookup doesn't index.
-  (A Crossref-by-DOI tier briefly existed during initial backfill while
-  ADS daily quota was the bottleneck; retired once ADS Tier 1 alone
-  hit 98.9%.)
+- ✅ **4-tier automated resolver** — `etl/resolve_citations.py` (ADS
+  bibcode → arXiv API → ADS title → manual queue) with quota-aware
+  circuit breaker, resumable via `backfill_state`. The arXiv tier closes
+  the long tail of arXiv-only preprints that ADS's bibcode lookup
+  doesn't index. (A Crossref-by-DOI tier briefly existed during initial
+  backfill while ADS daily quota was the bottleneck; retired once ADS
+  Tier 1 alone hit 98.9%.)
+- ✅ **Final 7 hand-resolved** — `etl/clear_manual_queue.py` resolves the
+  remaining edge cases (Nature / Science / RAA / Astronomy & Astrophysics
+  papers whose `disc_refname` carries a publisher URL or a malformed
+  bibcode, instead of a clean ADS reference). Coverage now at **100%**.
 - ✅ **API endpoints for the citation graph** — planet/publications,
   publication detail, author publications
 - ✅ **Frontend multi-planet UI** — discovery section on PlanetDetail
@@ -242,10 +249,39 @@ make help        # list all targets
   resolver. Mops up arXiv-only preprints (60 planets cleared on first
   run). Polite-pool 3-second inter-call window enforced; user-agent
   carries project + contact email per arXiv ToS.
-- 🔜 **Manual-queue triage UI** for the remaining 7 queued planets
-  (3 non-arXiv bibcodes ADS rejects + 4 with non-ADS reference URLs)
 - 🔜 **dbt marts** (`dim_planet`, `dim_publication`, `fact_discovery`,
   `fact_parameter_revision`) — deferred; the API doesn't need them yet.
+
+### Phase 2.5 — frontend & 3D viewer polish (done)
+
+- ✅ **Three.js + WebXR 3D scene viewer** — system view (true AU-scale
+  orbits, drag-to-orbit, scroll-to-zoom), surface view (first-person on
+  the focal planet, sun arcs across the sky), VR mode for Quest 3 / other
+  WebXR headsets
+- ✅ **Per-vantage starfield rasterizer** — server-side equirectangular
+  PNG rendering at the chosen resolution (4K default → 16K studio-quality
+  cap). Reprojects the Gaia DR3 catalog plus a procedurally-sampled
+  galactic-particle population (~1.4M stars total) from any exoplanet's
+  heliocentric ICRS position. Per-star BP-RP color (piecewise-interpolated
+  across spectral type), dust extinction along the line of sight, and a
+  diffuse Milky Way layer integrated through Bland-Hawthorn & Gerhard
+  2016 density profiles. Resolution knob documented in
+  [`docs/STARFIELD_PLAN.md`](docs/STARFIELD_PLAN.md#tuning-render-resolution).
+- ✅ **Shareable scene URLs** — copy a planet's `/scene` link and the
+  recipient lands on the exact same camera angle, orbital phase, and
+  view mode. Hash format encodes camera position, OrbitControls target,
+  simulation time, and view mode; updates live throttled to ~5 Hz.
+- ✅ **Imperial / Metric units toggle** — planet detail page tier-A stats
+  switchable between SI and imperial (Earth radii / kilometers / miles
+  for radius, etc.), persisted in localStorage.
+- ✅ **Companion star rendering** — wide-binary companions (where the
+  archive carries cross-referenced data) render in both the orbit-card
+  SVG and the 3D scene at proportional sizes when the "actual size"
+  toggle is on; spectral-type-driven radius estimates with conservative
+  defaults that cap at the primary's measured radius.
+- ✅ **Curated tours** — handful of pre-selected systems organized by
+  theme (multi-planet, dramatic suns, different skies, best for 3D)
+- ✅ **Custom domain live** at [exoplanetcitation.space](https://exoplanetcitation.space)
 
 ### Phase 3 — post-v1.0
 
@@ -253,8 +289,6 @@ make help        # list all targets
 - Galactic positioning view ("Here we are / Here this planet is")
 - Optional: PHL Habitable Exoplanets Catalog integration for
   Earth-Similarity Index tagging
-- Manual-queue triage UI for the ~50 planets that fall through all four
-  resolver tiers
 
 ---
 

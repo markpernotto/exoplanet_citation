@@ -7,7 +7,7 @@ import { createXRStore, useXR, useXRControllerLocomotion, XR, XROrigin } from '@
 import * as THREE from 'three';
 import { api, type BinaryCompanion, type DiscoveryPaper, type OrbitalGeometryRecord, type SceneResponse } from '../api';
 import LoadingBar from '../components/LoadingBar';
-import { planetVisual } from '../procedural';
+import { estimateStarRadiusRsun, planetVisual } from '../procedural';
 import { humanizeHours } from '../lib/units';
 
 // Single module-level XR store. Persists across viewMode toggles even when
@@ -1479,6 +1479,7 @@ function SceneContents({
           onHover={setHovered}
           hoveredKey={hovered}
           focalOrbsmaxAu={focalOrbsmax}
+          hostRsun={planet.st_rad}
         />
       ))}
     </>
@@ -1492,6 +1493,7 @@ function CompanionStar({
   onHover,
   hoveredKey,
   focalOrbsmaxAu,
+  hostRsun,
 }: {
   companion: BinaryCompanion;
   systemDistancePc: number | null;
@@ -1502,6 +1504,10 @@ function CompanionStar({
   // determines how big a companion has to be to remain visibly more than a
   // pixel from the default camera vantage (~2.4 × orbsmax from origin).
   focalOrbsmaxAu: number;
+  // Host star's measured radius in solar radii. Passed so that a companion
+  // with no recorded spectral type doesn't fall back to the K-dwarf default
+  // (0.7 Rsun) and render absurdly large next to a small M-dwarf primary.
+  hostRsun?: number | null;
 }) {
   // 1 AU subtends 1 arcsec at 1 pc — so projected separation in AU is just
   // sep_arcsec * distance_pc. We have no information on the line-of-sight
@@ -1554,7 +1560,7 @@ function CompanionStar({
   // behind it, so a "mostly corona" companion appears to have the back
   // half of the orbit shining through it.
   const MIN_COMPANION_RADIUS_AU = Math.max(0.05, focalOrbsmaxAu * 0.01);
-  const trueRadiusAU = estimateStarRadiusRsun(companion.component_spectype) * RSUN_IN_AU;
+  const trueRadiusAU = estimateStarRadiusRsun(companion.component_spectype, hostRsun) * RSUN_IN_AU;
   const exaggerated = trueRadiusAU * BODY_EXAG;
   const radiusAU = Math.max(MIN_COMPANION_RADIUS_AU, Math.min(exaggerated, sepAU / 8));
 
@@ -2178,24 +2184,6 @@ function Starfield({ plName }: { plName: string }) {
       />
     </mesh>
   );
-}
-
-function estimateStarRadiusRsun(spectype: string | null): number {
-  if (!spectype) return 0.7;
-  const letter = spectype.trim().charAt(0).toUpperCase();
-  // Main-sequence median radii. Brown dwarfs (L/T/Y) are ~Jupiter-sized.
-  switch (letter) {
-    case 'O': return 10;
-    case 'B': return 4;
-    case 'A': return 1.7;
-    case 'F': return 1.3;
-    case 'G': return 1.0;
-    case 'K': return 0.7;
-    case 'M': return 0.3;
-    case 'L': case 'T': case 'Y': return 0.1;
-    case 'D': return 0.012;   // white dwarf
-    default:  return 0.7;
-  }
 }
 
 // Median effective temperature for a spectral class — feeds the Photosphere

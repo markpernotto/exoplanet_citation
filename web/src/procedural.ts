@@ -196,3 +196,39 @@ function bp_rp_from_teff(teff: number): number {
   if (teff > 3000) return 2.0;
   return 3.5;
 }
+
+// Median main-sequence radius (in solar radii) for a spectral class. Used
+// when a measured radius isn't available, primarily for binary companions
+// where the catalog gives us a spectral type but no per-companion radius.
+// Brown dwarfs (L/T/Y) are ~Jupiter-sized; white dwarfs (D) are ~Earth-sized.
+//
+// When spectype is unknown, the optional hostRsun fallback prevents a guessed
+// companion from rendering as absurdly large next to a small host. Most
+// stellar binary companions in exoplanet host systems are similar in size to
+// or smaller than the primary; without that constraint, an unknown-spectype
+// companion was defaulting to 0.7 (K-dwarf median) and dwarfing M-dwarf hosts
+// like Proxima Cen by a factor of 5.
+export function estimateStarRadiusRsun(
+  spectype: string | null,
+  hostRsun?: number | null,
+): number {
+  if (!spectype) {
+    if (hostRsun != null && hostRsun > 0) {
+      return Math.min(0.5, hostRsun);
+    }
+    return 0.4;  // M-K boundary; conservative for an unknown wide companion
+  }
+  const letter = spectype.trim().charAt(0).toUpperCase();
+  switch (letter) {
+    case 'O': return 10;
+    case 'B': return 4;
+    case 'A': return 1.7;
+    case 'F': return 1.3;
+    case 'G': return 1.0;
+    case 'K': return 0.7;
+    case 'M': return 0.3;
+    case 'L': case 'T': case 'Y': return 0.1;
+    case 'D': return 0.012;   // white dwarf
+    default:  return 0.7;
+  }
+}

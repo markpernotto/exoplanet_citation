@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { BinaryCompanion, PlanetDetail, PlanetSummary } from '../api';
-import { planetVisual, starColor } from '../procedural';
+import { estimateStarRadiusRsun, planetVisual, starColor } from '../procedural';
 import { useSvgZoomPan, type ViewBox } from '../lib/useSvgZoomPan';
 
 type Props = {
@@ -376,10 +376,30 @@ export default function PlanetCard({ planet, siblings, bp_rp, companions, distan
           const color = companionColor(c.component_spectype);
           const kind = companionKind(c.component_spectype);
           const titleSuffix = c.component_spectype ? ` (${c.component_spectype})` : '';
+          // Real-size mode: shrink the companion disc to its true proportional
+          // radius. We don't have a measured radius for binary companions in
+          // the catalog, so estimate from spectral type (M-dwarf ~ 0.3 Rsun,
+          // brown dwarf ~ 0.1 Rsun, etc.). Same singlePxPerAU used by the
+          // host star, so the host and companion read at consistent scale.
+          // In the default (non-realSize) symbolic view we keep the prior
+          // fixed sizes so a small companion doesn't disappear.
+          // Fall back to the host's own radius when the companion's
+          // spectral type is unknown — caps the guess at "no bigger than the
+          // primary," which is true for the overwhelming majority of binary
+          // companions in exoplanet host systems.
+          const companionRsun = estimateStarRadiusRsun(c.component_spectype, stRad);
+          const displayCompanionRadius = (realSize && singlePxPerAU != null)
+            ? Math.max(1, companionRsun * SOLAR_RADII_IN_AU * singlePxPerAU)
+            : 5.5;
+          // Corona scales with the disc but with a floor so the halo doesn't
+          // vanish for very small companions in real-size mode.
+          const displayCompanionCorona = realSize
+            ? Math.max(displayCompanionRadius * 2.6, 4)
+            : 15;
           return (
             <g key={c.component_designation}>
-              <circle cx={cx} cy={cy} r={15} fill={`url(#comp-corona-${id}-${i})`} />
-              <circle cx={cx} cy={cy} r={5.5} fill={color} opacity={0.95}>
+              <circle cx={cx} cy={cy} r={displayCompanionCorona} fill={`url(#comp-corona-${id}-${i})`} />
+              <circle cx={cx} cy={cy} r={displayCompanionRadius} fill={color} opacity={0.95}>
                 <title>{c.component_designation}{titleSuffix} — {kind}; {planet.pl_name} orbits the primary only{insideOrbit ? ' — companion is inside the orbit' : ''}</title>
               </circle>
               <text x={cx} y={cy + 22} textAnchor="middle" fill="#9099aa"

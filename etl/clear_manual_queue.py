@@ -147,7 +147,7 @@ def main(argv: list[str] | None = None) -> int:
             resolutions.append((pl_name, n))
             print(f"OK ({n['bibcode']})")
         except Exception as exc:
-            print(f"FAIL")
+            print("FAIL")
             print(f"\nERROR: {exc}", file=sys.stderr)
             return 1
 

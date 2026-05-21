@@ -507,6 +507,19 @@ Auto-detected after the per-host walk below. See bottom of file.
   (announcement / preprint era) while the formal A&A publication is
   September 2005.
 
+  CORRECTION (2026-05-21, from the follow-up-citation verification):
+  Benedict & Harrison 2017 (2017AJ....153..258B) astrometry resolves
+  the sin(i) degeneracy and gives TRUE masses of HD 202206 B (the inner
+  companion) = 0.089 M_sun (~93 M_Jup, a very-low-mass STAR above the
+  H-burning limit, not a brown dwarf) and HD 202206 c (this cb_flag
+  object) = 17.9 M_Jup. So (a) the inner binary is star+star (G +
+  M-dwarf), nearly face-on, not star+BD as the earlier note implied;
+  and (b) HD 202206 c is itself brown-dwarf mass (17.9 M_Jup, above the
+  13 M_Jup deuterium-burning limit), so it belongs in the planet/BD
+  edge-case group in Finding 2 of the summary. cb_flag = 1 (P-type
+  geometry) remains correct; the object is a circumbinary brown dwarf
+  rather than a planet.
+
 ---
 
 ### HD 284149 A

@@ -160,25 +160,35 @@ INNER_BINARIES: list[dict] = [
         "notes": "Bonavita+ 2017. Inner companion found via SPHERE + Gaia-Tycho proper-motion residuals. Outer 'b' is a wide BD at 431 AU.",
     },
     {
-        "hostname": "HD 202206", "binary_class": "star + brown dwarf",
+        "hostname": "HD 202206", "binary_class": "G + M-dwarf (nearly face-on)",
         "separation_au": 0.83, "orbital_period_d": 256.0, "eccentricity": 0.43,
-        "primary_spectype": "G (solar-type)",
-        "component_mass_msun": 0.0166, "component_mass_is_min": False,
-        "source_bibcode": "2005A&A...440..751C",
-        "notes": "Correia+ 2005 + Benedict+ 2017 (HST FGS). Inner companion HD 202206 b is a brown dwarf (~17.4 Mjup = ~0.0166 Msun "
-                 "true mass per astrometry). Period ~256 d. The cb_flag planet (c) orbits the star+BD pair.",
+        "primary_mass_msun": 1.04, "primary_spectype": "G (solar-type)",
+        "component_mass_msun": 0.089, "component_mass_is_min": False, "component_spectype": "M",
+        "source_bibcode": "2017AJ....153..258B",
+        "notes": "Benedict & Harrison 2017 (HST FGS astrometry) resolved the Correia 2005 sin i degeneracy: inner companion "
+                 "HD 202206 B true mass 0.089 Msun (~93 Mjup, a very-low-mass star ABOVE the H-burning limit), not the 17.4 Mjup "
+                 "RV m sin i. So the inner pair is star+star (G + M), nearly face-on (i ~ 8-11 deg, mutual incl 6 deg). NB: the "
+                 "cb_flag object HD 202206 c has astrometric true mass 17.9 Mjup, i.e. a brown dwarf, not a planet.",
     },
     {
         "hostname": "WISPIT 1", "binary_class": "K+M binary",
-        "primary_spectype": "K4", "component_spectype": "M5.5",
+        "separation_au": 10.5,
+        "primary_mass_msun": 0.7, "primary_teff_k": 4600, "primary_spectype": "K4V",
+        "component_mass_msun": 0.15, "component_teff_k": 3300, "component_spectype": "M5.5V",
         "source_bibcode": "2025A&A...704A.221V",
-        "notes": "van Capelleveen+ 2025. Multi-decadal orbit (implies separation ~10-20 AU); component masses not given numerically. Deeper dive needed.",
+        "notes": "van Capelleveen et al. 2025: K4V (Teff 4600 K, 0.36 Lsun) + M5.5V (Teff 3300 K, 0.09 Lsun); projected "
+                 "separation >=10.5 AU, period >=34 yr. Component masses ~0.7 + ~0.15 Msun are spectral-type estimates "
+                 "(the paper gives Teff/spectype/luminosity, not numerical masses).",
     },
     {
         "hostname": "DP Leo", "binary_class": "WD+dM (eclipsing polar)",
         "orbital_period_d": 0.062362,
+        "primary_mass_msun": 0.6, "primary_teff_k": 13500, "primary_spectype": "white dwarf",
+        "component_mass_msun": 0.1, "component_spectype": "M",
         "source_bibcode": "2010ApJ...708L..66Q",
-        "notes": "Qian+ 2010. Total binary mass 0.69 Msun (components not split in abstract). P_orb = 1.4967 h. Deeper dive for WD/dM masses.",
+        "notes": "Qian et al. 2010: total binary mass 0.69 Msun, P_orb 1.4967 h, WD T_eff ~13500 K. Component split "
+                 "WD 0.6 + dM 0.1 Msun are ASSUMED values (Schwope et al. 2002, adopted by Beuermann et al. 2011), NOT "
+                 "independently/dynamically measured. Low-confidence; flag for replacement if measured masses surface.",
     },
     {
         "hostname": "NN Ser", "binary_class": "PCEB (WD+dM)",
@@ -202,10 +212,14 @@ INNER_BINARIES: list[dict] = [
         "notes": "Potter+ 2011. Component masses approximate (M_total ~0.8 Msun derived from the planets). Deeper dive for measured WD/dM masses + period.",
     },
     {
-        "hostname": "b Cen A", "binary_class": "B-star spectroscopic binary",
-        "primary_spectype": "B",
+        "hostname": "b Cen A", "binary_class": "B-star binary",
+        "separation_au": 1.0,
+        "primary_mass_msun": 6.0, "primary_spectype": "B2.5V",
+        "component_mass_msun": 3.0,
         "source_bibcode": "2021Natur.600..231J",
-        "notes": "Janson+ 2021 (BEAST). Combined mass 6-10 Msun (most massive planet host in corpus). Component split not given. Deeper dive needed.",
+        "notes": "Janson et al. 2021 (BEAST): primary b Cen A ~5-6 Msun (B2.5V); secondary b Cen B up to ~4.4 Msun at ~1 AU; "
+                 "total 6-10 Msun (most massive planet host in the corpus). Component masses recorded as approximate midpoints; "
+                 "confirm the exact split.",
     },
     {
         "hostname": "PSR B1620-26", "binary_class": "pulsar + white dwarf",
@@ -217,25 +231,42 @@ INNER_BINARIES: list[dict] = [
     },
     # ---- sparse: class + provenance only, numbers need a deeper dive ----------
     {
-        "hostname": "2MASS J01033563-5515561 A", "binary_class": "young M-dwarf pair", "primary_spectype": "late-M",
+        "hostname": "2MASS J01033563-5515561 A", "binary_class": "young M-dwarf pair (M5.5)",
+        "separation_au": 12.0,
+        "primary_mass_msun": 0.2, "primary_spectype": "M5.5",
+        "component_mass_msun": 0.2, "component_spectype": "M6",
         "source_bibcode": "2013A&A...553L...5D",
-        "notes": "Delorme+ 2013. Pair of young late-M stars; AB separation/masses not in abstract. Deeper dive needed.",
+        "notes": "Delorme et al. 2013: young very-low-mass M5.5/M6 binary, AB separation ~12 AU, component masses ~0.2 Msun "
+                 "each (estimates). The cb_flag object (AB)b is a 12-14 Mjup companion at 84 AU. = Delorme 1 system.",
     },
     {
-        "hostname": "2MASS J0249-0557 A", "binary_class": "ultracool dwarf binary",
+        "hostname": "2MASS J0249-0557 A", "binary_class": "BD+BD (ultracool dwarf binary)",
+        "separation_au": 2.17,
+        "primary_mass_msun": 0.046, "component_mass_msun": 0.042,
         "source_bibcode": "2018AJ....156...57D",
-        "notes": "Dupuy+ 2018. Tight ultracool dwarf binary; parameters not in abstract. Deeper dive needed.",
+        "notes": "Dupuy et al. 2018: tight BD+BD pair, 48 +12/-13 Mjup (0.046 Msun) + 44 +11/-14 Mjup (0.042 Msun), "
+                 "separation 2.17 +/- 0.22 AU; beta Pic moving group (22 Myr). The cb_flag object 2MASS J0249-0557 c "
+                 "(11.6 Mjup) is a wide planetary-mass companion at 1950 AU. Circum-(BD+BD), like VHS 1256.",
     },
     {
         "hostname": "2MASS J19383260+4603591", "binary_class": "sdB+dM (eclipsing)",
-        "primary_spectype": "sdB", "component_spectype": "M",
-        "source_bibcode": "2015A&A...577A.146B",
-        "notes": "Baran+ 2015 (= Kepler-451). sdB pulsator + M-dwarf, strong reflection effect. Component masses + binary period not harvested. Deeper dive needed.",
+        "orbital_period_d": 0.12577,
+        "primary_mass_msun": 0.372, "primary_spectype": "sdB",
+        "component_mass_msun": 0.1002, "component_spectype": "M",
+        "source_bibcode": "2012ApJ...753..101B",
+        "notes": "Inner-binary masses from Barlow et al. 2012 (Romer delay + mass ratio from Kepler eclipse timings): sdB 0.372 "
+                 "+/- 0.024 Msun, M dwarf 0.1002 +/- 0.0065 Msun, q=0.2691, P_orb ~3 h, strong reflection effect. First ID'd as "
+                 "sdB+dM by Ostensen et al. 2010. = Kepler-451 system; planets b/c/d via ETV (Baran 2015, Esmer 2022).",
     },
     {
-        "hostname": "BEBOP-3", "binary_class": "main-sequence EB",
+        "hostname": "BEBOP-3", "binary_class": "main-sequence EB (F9+M)",
+        "orbital_period_d": 13.2176657, "eccentricity": 0.063255,
+        "primary_mass_msun": 1.083, "primary_teff_k": 6033, "primary_spectype": "F9",
+        "component_mass_msun": 0.2615, "component_spectype": "M",
         "source_bibcode": "2025MNRAS.541.2801B",
-        "notes": "Baycroft+ 2025. Eclipsing binary; paper derives dynamical component masses via cross-correlation but values not harvested. Deeper dive needed.",
+        "notes": "Baycroft et al. 2025 (BEBOP VII), HRCCS dynamical masses (least model-dependent of 3 methods): primary "
+                 "1.083 +/- 0.026 Msun (F9, T_eff 6033 K), secondary 0.2615 +/- 0.0039 Msun, P_orb 13.218 d, e 0.063. "
+                 "Planet BEBOP-3 b (RV) 0.56 Mjup.",
     },
     {
         "hostname": "DE CVn", "binary_class": "PCEB (WD+dM)",
@@ -246,9 +277,14 @@ INNER_BINARIES: list[dict] = [
         "notes": "Inner-binary masses from van den Besselaar et al. 2007 (DA WD 0.51 +0.06/-0.02 Msun; M3V 0.41 +/- 0.06 Msun; P_orb 8.7 h). Planet (ETV) from Han et al. 2018 (2018ApJ...868...53H).",
     },
     {
-        "hostname": "HD 143811 A", "binary_class": "young binary",
+        "hostname": "HD 143811 A", "binary_class": "young F-type binary",
+        "separation_au": 1.0,
+        "primary_mass_msun": 1.29, "primary_teff_k": 6715,
+        "component_mass_msun": 1.15, "component_teff_k": 6380,
         "source_bibcode": "2025A&A...702L..10S",
-        "notes": "Squicciarini+ 2025. Young (~15 Myr) binary; (AB) architecture implied by designation but components not quantified in abstract. Deeper dive needed.",
+        "notes": "Squicciarini et al. 2025 (GPI+SPHERE, COBREX), isochrone-fit component masses: M1 1.29 +/- 0.05 Msun "
+                 "(T_eff 6715 K), M2 1.15 +/- 0.07 Msun (T_eff 6380 K); total ~2.50 Msun; age 18 +/- 3 Myr. Inner binary "
+                 "unresolved, <1 AU (~7 mas); secondary not directly detected. Planet at ~60 AU projected.",
     },
     {
         "hostname": "HIP 79098 AB", "binary_class": "B9 spectroscopic binary",
@@ -259,8 +295,13 @@ INNER_BINARIES: list[dict] = [
     },
     {
         "hostname": "HU Aqr", "binary_class": "WD+dM (eclipsing polar)",
-        "source_bibcode": "2011MNRAS.414L..16Q",
-        "notes": "Qian+ 2011. Eclipsing polar; component masses not in abstract. Planet existence strongly contested. Deeper dive needed.",
+        "orbital_period_d": 0.0868204, "inclination_deg": 87.4,
+        "primary_mass_msun": 0.80, "primary_spectype": "white dwarf",
+        "component_mass_msun": 0.18, "component_spectype": "M",
+        "source_bibcode": "2011A&A...531A..34S",
+        "notes": "Inner-binary masses from Schwope et al. 2011 (Dissecting the donor star in HU Aqr): WD 0.80 +/- 0.04 Msun, "
+                 "M2 0.18 +/- 0.06 Msun, i=87.4 deg. Planet(s) (ETV) from Qian et al. 2011 (2011MNRAS.414L..16Q); planet "
+                 "existence strongly contested.",
     },
     {
         "hostname": "MXB 1658-298", "binary_class": "LMXB (neutron star + low-mass dwarf)",
@@ -268,16 +309,23 @@ INNER_BINARIES: list[dict] = [
         "notes": "Jain+ 2017. Compact LMXB, P_orb ~7.1 h (literature). Component masses not in abstract. Deeper dive needed.",
     },
     {
-        "hostname": "NSVS 14256825", "binary_class": "sdOB+dM (eclipsing)",
-        "orbital_period_d": 0.110374, "primary_spectype": "sdOB", "component_spectype": "M",
-        "source_bibcode": "2019RAA....19..134Z",
-        "notes": "Zhu+ 2019. sdOB + red dwarf eclipsing binary, P_orb = 2.65 h. Component masses not in abstract. Deeper dive needed.",
+        "hostname": "NSVS 14256825", "binary_class": "sdOB+dM (eclipsing, HW Vir-type)",
+        "orbital_period_d": 0.110374, "inclination_deg": 82.5,
+        "primary_mass_msun": 0.419, "primary_radius_rsun": 0.188, "primary_spectype": "sdOB",
+        "component_mass_msun": 0.109, "component_radius_rsun": 0.162, "component_spectype": "M",
+        "source_bibcode": "2012MNRAS.423..478A",
+        "notes": "Inner-binary params from Almeida et al. 2012: sdOB 0.419 +/- 0.07 Msun (R 0.188 Rsun), M dwarf 0.109 +/- 0.023 "
+                 "Msun (R 0.162 Rsun), i=82.5 deg, P_orb 2.65 h. Planet (ETV) from Zhu et al. 2019 (2019RAA....19..134Z).",
     },
     {
         "hostname": "ROXs 42 B", "binary_class": "M-dwarf pair (T Tauri, rho Oph)",
-        "primary_spectype": "M0", "component_spectype": "M0",
+        "separation_au": 10.0,
+        "primary_mass_msun": 0.89, "primary_spectype": "M0",
+        "component_mass_msun": 0.36, "component_spectype": "M",
         "source_bibcode": "2014ApJ...780L..30C",
-        "notes": "Currie+ 2014. Young M0+M0 binary in rho Oph; AB separation/masses not in abstract. Deeper dive needed.",
+        "notes": "Close binary ROXs 42Ba/Bb in rho Oph (1-3 Myr), inner projected separation ~10 AU. Photometric component "
+                 "masses from Kraus et al. 2014: 0.89 +/- 0.08 + 0.36 +/- 0.04 Msun (total ~1.34 Msun). Planet ROXs 42B b "
+                 "(6-15 Mjup) at ~150-175 AU; discovery Currie et al. 2014 (2014ApJ...780L..30C).",
     },
     {
         "hostname": "RR Cae", "binary_class": "PCEB (WD+dM, detached)",
@@ -288,9 +336,13 @@ INNER_BINARIES: list[dict] = [
         "notes": "Inner-binary masses from Maxted et al. 2007 (DA WD 0.440 +/- 0.022 Msun; M4 dwarf 0.183 +/- 0.013 Msun, R 0.20 Rsun; P_orb 7.29 h). Planet (ETV) from Qian et al. 2012 (2012MNRAS.422L..24Q). Confirms the audit's internal-tension flag: real M_total ~0.62 Msun, not the ~1.0 implied by the abstract's period+separation.",
     },
     {
-        "hostname": "Ross 458", "binary_class": "M-dwarf binary",
+        "hostname": "Ross 458", "binary_class": "M-dwarf binary (M0.5+M7.5)",
+        "primary_mass_msun": 0.6, "primary_spectype": "M0.5V",
+        "component_mass_msun": 0.08, "component_spectype": "M7.5",
         "source_bibcode": "2010ApJ...725.1405B",
-        "notes": "Burgasser+ 2010 characterizes the wide T8 companion, not the AB pair. Inner-binary params from separate literature. Deeper dive needed.",
+        "notes": "Ross 458 AB (= DT Vir): A ~0.6 Msun (M0.5V), B ~0.06-0.09 Msun (M7.5). Component masses are "
+                 "spectral-type estimates (approximate, not dynamical). The wide T8 companion Ross 458 c (~1100 AU) is the "
+                 "cb_flag object; Burgasser et al. 2010 (2010ApJ...725.1405B) characterized C, not the AB pair.",
     },
     {
         "hostname": "SR 12 AB", "binary_class": "T Tauri binary (rho Oph)",
@@ -300,35 +352,40 @@ INNER_BINARIES: list[dict] = [
     {
         "hostname": "Kepler-1647", "binary_class": "main-sequence EB",
         "orbital_period_d": 11.0, "eccentricity": 0.16,
-        "primary_spectype": "G", "component_spectype": "G",
+        "primary_mass_msun": 1.22, "primary_spectype": "G",
+        "component_mass_msun": 0.97, "component_spectype": "G",
         "source_bibcode": "2016ApJ...827...86K",
-        "notes": "Kostov+ 2016. Two ~solar-mass stars, spin-synchronized. Per-component masses not split in abstract. Deeper dive needed.",
+        "notes": "Kostov et al. 2016: M_A 1.22 + M_B 0.97 Msun, P_orb 11 d, e_bin 0.16, spin-synchronized.",
     },
     {
         "hostname": "Kepler-1660 A", "binary_class": "main-sequence EB",
         "orbital_period_d": 18.6,
-        "source_bibcode": "2023MNRAS.525.4628G",
-        "notes": "Getley/2023 confirmation. M_total ~1.2 Msun derived (~two 0.6 Msun). First ETV CBP around a main-sequence binary. Deeper dive for component masses.",
+        "primary_mass_msun": 1.2, "component_mass_msun": 0.51,
+        "source_bibcode": "2016MNRAS.455.4136B",
+        "notes": "Inner-binary masses from Borkovits et al. 2016 / Getley et al. 2017 (KIC 5095269): primary 1.2 Msun + secondary 0.51 Msun, P_orb 18.6 d. First ETV CBP around a main-sequence binary; planet mass revised 7.7 -> 4.87 Mjup by the 2023 confirmation (2023MNRAS.525.4628G).",
     },
     {
-        "hostname": "Kepler-34", "binary_class": "main-sequence EB (two Sun-like stars)",
-        "primary_spectype": "G", "component_spectype": "G",
+        "hostname": "Kepler-34", "binary_class": "main-sequence EB (G+G)",
+        "primary_mass_msun": 1.0479, "primary_spectype": "G",
+        "component_mass_msun": 1.0208, "component_spectype": "G",
         "source_bibcode": "2012Natur.481..475W",
-        "notes": "Welsh+ 2012. 'Two Sun-like stars'; component masses + binary period not given in abstract. Deeper dive needed.",
+        "notes": "Welsh et al. 2012: two G stars, M_A 1.0479 + M_B 1.0208 Msun. Binary period not in the abstract; deeper dive for P_orb and radii.",
     },
     {
         "hostname": "Kepler-47", "binary_class": "G+M eclipsing binary",
         "orbital_period_d": 7.45,
-        "primary_spectype": "G (Sun-like)", "component_spectype": "M",
+        "primary_mass_msun": 1.04, "primary_radius_rsun": 0.96, "primary_spectype": "G (Sun-like)",
+        "component_mass_msun": 0.342, "component_radius_rsun": 0.338, "component_spectype": "M",
         "source_bibcode": "2012Sci...337.1511O",
-        "notes": "Orosz+ 2012. Sun-like primary + companion ~1/3 its size. M_total ~1.3 Msun derived. Per-component masses need deeper dive. Hosts 3 planets.",
+        "notes": "Orosz et al. 2012: primary 1.04 Msun / 0.96 Rsun; secondary 0.342 Msun / 0.338 Rsun; P_orb 7.45 d. Hosts 3 planets (b, c, d).",
     },
     {
         "hostname": "VHS J125601.92-125723.9", "binary_class": "BD+BD (ultracool dwarf binary)",
-        "separation_au": 1.96, "eccentricity": 0.883,
-        "source_bibcode": "2015ApJ...804...96G",
-        "notes": "Gauza+ 2015 / Stone+ 2016 / Dupuy+ 2023. Inner pair is two brown dwarfs (a=1.96 AU, e=0.883 per Dupuy 2023). "
-                 "Gauza reported the unresolved pair as a single 73 Mjup 'primary'. Deeper dive for the two BD masses.",
+        "separation_au": 1.96, "orbital_period_d": 2670, "eccentricity": 0.883,
+        "source_bibcode": "2023MNRAS.519.1688D",
+        "notes": "Inner pair is two brown dwarfs; Dupuy et al. 2023 dynamical fit: a=1.96 AU, P=7.31 yr, e=0.883, total mass "
+                 "0.141 Msun (so ~0.07 Msun each; individual split TBD). Gauza 2015 reported the unresolved pair as a single "
+                 "73 Mjup 'primary'; Stone 2016 resolved it.",
     },
     {
         "hostname": "OGLE-2016-BLG-0613L AB", "binary_class": "binary lens (degenerate)",

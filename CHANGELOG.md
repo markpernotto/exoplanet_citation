@@ -11,7 +11,11 @@ and each mints a version-specific
 
 ## [Unreleased]
 
-Changes since v0.1.0 (2026-05-14). Target version: v0.1.1.
+_Nothing yet._
+
+## [0.1.1] - 2026-05-21
+
+Changes since v0.1.0 (2026-05-14).
 
 ### Added
 

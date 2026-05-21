@@ -11,7 +11,7 @@ resolution via NASA ADS and host-star enrichment via Gaia DR3.
 · [API docs (Swagger)](https://exoplanetcitation.space/docs)
 · [Source on GitHub](https://github.com/markpernotto/exoplanet_citation)
 
-**Status:** Phase 1 done. Phase 2 done. Daily ingest pipeline running on
+**Status:** Live and maintained. Daily ingest pipeline running on
 a GitHub Actions cron; 6,287 confirmed planets loaded into Postgres with
 nightly runs since 2026-05-04; FastAPI serving 22 endpoints with
 automatic Swagger docs; React + Three.js + WebXR frontend deployed at
@@ -36,24 +36,27 @@ See [PLAN.md](PLAN.md) for the full implementation roadmap and
 ## What this is
 
 A data engineering project applied to the largest active discovery effort
-in modern astronomy. Three phases:
+in modern astronomy. It does three things:
 
-- **Phase 1** — Nightly diff watcher of the NASA Exoplanet Archive published
-  as RSS, JSON, and a browseable UI. Detects newly confirmed planets,
-  removed entries, and tier-classified parameter revisions.
-- **Phase 2** — Citation graph: each confirmed planet linked to its discovery
-  publication(s) via DOI / arXiv / ADS, with confidence scoring and
-  human-readable provenance. Plus Gaia DR3 enrichment of host stars for
-  precise distances, photometry, and procedural visualization data.
-- **Phase 3** *(post-v1.0)* — Follow-up paper graph: query NASA ADS for
-  papers that cite each discovery and mention the planet name, surfacing
-  the discovery → follow-up edges in the UI.
+- **Watches** the NASA Exoplanet Archive nightly and publishes the diff as
+  RSS, JSON, and a browseable UI: newly confirmed planets, removed entries,
+  and tier-classified parameter revisions.
+- **Links** each confirmed planet to the publications behind it via DOI /
+  arXiv / ADS, with confidence scoring and human-readable provenance, plus
+  Gaia DR3 enrichment of host stars for precise distances, photometry, and
+  procedural visualization data.
+- **Audits and enriches** what the archive ships: a per-system review of the
+  circumbinary (`cb_flag`) population against the discovery literature,
+  inner-binary parameters harvested from those papers, and a multi-role
+  citation graph (discovery / follow-up / prior-detection / characterization)
+  that credits every added data point to the paper it came from.
 
-The distinguishing technical bet is **provenance everywhere**: every row in
-the warehouse carries source URL, retrieval timestamp, sha256 checksum, and
-extraction version; every citation link will carry confidence + reason;
-every visual rendered in the UI is computed from measured properties, not
-from a stock-image library.
+The project has shifted over time from mirroring the NASA Exoplanet Archive to
+auditing and adding value to it. The distinguishing technical bet is
+**provenance everywhere**: every row in the warehouse carries source URL,
+retrieval timestamp, sha256 checksum, and extraction version; every citation
+link carries a role, confidence, and reason; every visual rendered in the UI is
+computed from measured properties, not from a stock-image library.
 
 ---
 
@@ -84,14 +87,21 @@ from a stock-image library.
   `backfill_state`. Trips a circuit breaker on
   `X-RateLimit-Remaining: 0` and stops calling ADS until quota resets;
   arXiv tier respects the polite-pool 3-second inter-call window.
-- **Circumbinary (cb_flag) audit + binary enrichment** — every `cb_flag=1`
-  planet is reviewed against its discovery literature in
-  [`docs/cb_flag_audit.md`](docs/cb_flag_audit.md). Inner-binary parameters
-  (component masses, radii, period, eccentricity) harvested from those papers
-  are seeded into `binary_companions` via `etl/seed_inner_binaries.py`, where
-  an `inner_binary` flag distinguishes the tight P-type-defining pair from the
-  wide visual companions SIMBAD resolves. Literature distances for hosts that
-  both Gaia and the archive miss live in `host_distances_manual`.
+- **Circumbinary (cb_flag) audit + binary enrichment** — all 54 `cb_flag=1`
+  planets across 44 host systems are reviewed against their discovery (and
+  follow-up) literature in
+  [`docs/cb_flag_audit.md`](docs/cb_flag_audit.md), the public per-host data
+  record. Inner-binary parameters (component masses, radii, period,
+  eccentricity) harvested from those papers are seeded into `binary_companions`
+  via `etl/seed_inner_binaries.py`, where an `inner_binary` flag distinguishes
+  the tight P-type-defining pair from the wide visual companions SIMBAD
+  resolves. Because the audit draws data from papers beyond the original
+  discovery, those papers are linked back into the citation graph with explicit
+  roles (`prior_detection`, `characterization`) and a `contribution` tag for
+  what each supplied (e.g. `binary_masses`, `distance`), so every enriched value
+  is traceable to its source. Literature distances for hosts that both Gaia and
+  the archive miss live in `host_distances_manual`. An analysis of the aggregate
+  audit results is in preparation as a short Research Note.
 - **Publisher** generates RSS 2.0, JSON, and health-snapshot feeds with
   freshness measurement against a 26-hour SLO. Per-planet, per-system, and
   per-author RSS feeds are also exposed dynamically by the API.
@@ -154,6 +164,8 @@ psql "$DATABASE_URL" -f etl/migrations/009_system_orbital_geometry.sql
 psql "$DATABASE_URL" -f etl/migrations/010_orbital_geometry_seed.sql
 psql "$DATABASE_URL" -f etl/migrations/011_binary_companions_inner.sql
 psql "$DATABASE_URL" -f etl/migrations/012_host_distances_manual.sql
+psql "$DATABASE_URL" -f etl/migrations/013_planet_publications_prior_detection.sql
+psql "$DATABASE_URL" -f etl/migrations/014_planet_publications_characterization.sql
 
 # Verify connectivity
 make check-setup
@@ -171,7 +183,9 @@ python -m etl.enrich_ads                # discovery_papers from NASA ADS
 python -m etl.resolve_citations         # publications + planet_publications (4-tier resolver: ADS + arXiv)
 python -m etl.clear_manual_queue        # hand-resolves the 7 historical edge cases the resolver can't reach
 python -m etl.enrich_binaries           # binary_companions from SIMBAD (wide visual companions)
-python -m etl.seed_inner_binaries --execute   # one-off: curated inner-binary backfill from the cb_flag audit (idempotent)
+python -m etl.seed_inner_binaries --execute        # one-off: curated inner-binary backfill from the cb_flag audit (idempotent)
+python -m etl.seed_followup_citations --execute     # one-off: link follow-up / prior-detection / characterization papers into the citation graph
+python -m etl.enrich_publication_metadata --execute # backfill ADS authors/metadata for the hand-seeded citations
 make publish                            # → public/rss.xml, public/discoveries.json, public/health.json
 
 # Run the API locally
@@ -209,102 +223,37 @@ make help        # list all targets
   fragment shader, extragalactic anchors)
 - **[docs/THEMING.md](docs/THEMING.md)** — retro display themes: design
   rationale, technical implementation, theme catalog, self-hosted fonts
+- **[docs/cb_flag_audit.md](docs/cb_flag_audit.md)** — per-host circumbinary
+  audit: every `cb_flag=1` system reviewed against its discovery literature,
+  with harvested inner-binary parameters (public data record; aggregate
+  analysis in preparation as a Research Note)
 
 ---
 
-## Roadmap
+## Versioning & releases
 
-### Phase 1 — done
+Tagged releases are published under
+[GitHub Releases](https://github.com/markpernotto/exoplanet_citation/releases),
+with a human-readable history in [CHANGELOG.md](CHANGELOG.md). The project
+follows [Semantic Versioning](https://semver.org) and the
+[Keep a Changelog](https://keepachangelog.com) format, and each tagged release
+also mints a version-specific
+[Zenodo](https://doi.org/10.5281/zenodo.20191479) DOI for citation.
 
-- ETL pipeline: extract → load → dbt staging → diff → publish
-- 28-column typed schema with JSONB raw preservation
-- Nightly cron on GitHub Actions (06:00 UTC) — consecutive green runs
-  since 2026-05-04 (Star Wars Day)
-- Field-tier-aware diff (Tier A surfaced, Tier B logged-only, Tier C ignored)
-- Auto-prune of `planets_snapshots` to a rolling 2-day window so Neon
-  storage stays steady at ~230 MB
-- Cloudflare R2 raw landing with manifest in git (full historical record)
-- React frontend: search (planet + author), infinite-scroll catalog,
-  planet detail with procedural rendering, system orbital view (true AU
-  scale, scroll-to-zoom), retro display themes
-- Six retro display themes switchable via `?theme=` URL param; self-hosted
-  OFL fonts; no CDN dependency; shareable links
-- Vercel deployment for both API and frontend
-- Documentation: data catalog, procedural rendering plan, architecture, theming
-- CI with ruff lint
+## What's next (unscheduled)
 
-### Phase 2 — done
-
-- ✅ **Gaia DR3 host-star enrichment** — `host_stars_gaia` populated for
-  all 4,358 enrichable hosts (parallax, BP-RP color, Gaia-derived stellar
-  parameters)
-- ✅ **ADS discovery-paper enrichment** — `discovery_papers` populated for
-  ~1,250 unique bibcodes (title, authors, abstract, citation count, DOI,
-  arXiv ID)
-- ✅ **Citation graph schema** — `publications` + `planet_publications` +
-  `citation_manual_queue` with provenance (resolved_via, confidence)
-- ✅ **4-tier automated resolver** — `etl/resolve_citations.py` (ADS
-  bibcode → arXiv API → ADS title → manual queue) with quota-aware
-  circuit breaker, resumable via `backfill_state`. The arXiv tier closes
-  the long tail of arXiv-only preprints that ADS's bibcode lookup
-  doesn't index. (A Crossref-by-DOI tier briefly existed during initial
-  backfill while ADS daily quota was the bottleneck; retired once ADS
-  Tier 1 alone hit 98.9%.)
-- ✅ **Final 7 hand-resolved** — `etl/clear_manual_queue.py` resolves the
-  remaining edge cases (Nature / Science / RAA / Astronomy & Astrophysics
-  papers whose `disc_refname` carries a publisher URL or a malformed
-  bibcode, instead of a clean ADS reference). Coverage now at **100%**.
-- ✅ **API endpoints for the citation graph** — planet/publications,
-  publication detail, author publications
-- ✅ **Frontend multi-planet UI** — discovery section on PlanetDetail
-  surfaces sibling planets announced in the same paper
-- ✅ **`/api/health` storage monitoring** — Neon DB size + warning/critical
-  thresholds at 80% / 95% of the 500 MB free-tier ceiling
-- ✅ **78 unit tests + 13 dbt tests; resumable backfills via `backfill_state`**
-- ✅ **arXiv resolver tier** — `etl/sources/arxiv.py` + Tier 2 in the
-  resolver. Mops up arXiv-only preprints (60 planets cleared on first
-  run). Polite-pool 3-second inter-call window enforced; user-agent
-  carries project + contact email per arXiv ToS.
-- 🔜 **dbt marts** (`dim_planet`, `dim_publication`, `fact_discovery`,
-  `fact_parameter_revision`) — deferred; the API doesn't need them yet.
-
-### Phase 2.5 — frontend & 3D viewer polish (done)
-
-- ✅ **Three.js + WebXR 3D scene viewer** — system view (true AU-scale
-  orbits, drag-to-orbit, scroll-to-zoom), surface view (first-person on
-  the focal planet, sun arcs across the sky), VR mode for Quest 3 / other
-  WebXR headsets
-- ✅ **Per-vantage starfield rasterizer** — server-side equirectangular
-  PNG rendering at the chosen resolution (4K default → 16K studio-quality
-  cap). Reprojects the Gaia DR3 catalog plus a procedurally-sampled
-  galactic-particle population (~1.4M stars total) from any exoplanet's
-  heliocentric ICRS position. Per-star BP-RP color (piecewise-interpolated
-  across spectral type), dust extinction along the line of sight, and a
-  diffuse Milky Way layer integrated through Bland-Hawthorn & Gerhard
-  2016 density profiles. Resolution knob documented in
-  [`docs/STARFIELD_PLAN.md`](docs/STARFIELD_PLAN.md#tuning-render-resolution).
-- ✅ **Shareable scene URLs** — copy a planet's `/scene` link and the
-  recipient lands on the exact same camera angle, orbital phase, and
-  view mode. Hash format encodes camera position, OrbitControls target,
-  simulation time, and view mode; updates live throttled to ~5 Hz.
-- ✅ **Imperial / Metric units toggle** — planet detail page tier-A stats
-  switchable between SI and imperial (Earth radii / kilometers / miles
-  for radius, etc.), persisted in localStorage.
-- ✅ **Companion star rendering** — wide-binary companions (where the
-  archive carries cross-referenced data) render in both the orbit-card
-  SVG and the 3D scene at proportional sizes when the "actual size"
-  toggle is on; spectral-type-driven radius estimates with conservative
-  defaults that cap at the primary's measured radius.
-- ✅ **Curated tours** — handful of pre-selected systems organized by
-  theme (multi-planet, dramatic suns, different skies, best for 3D)
-- ✅ **Custom domain live** at [exoplanetcitation.space](https://exoplanetcitation.space)
-
-### Phase 3 — post-v1.0
-
-- Follow-up paper graph via NASA ADS citation queries
-- Galactic positioning view ("Here we are / Here this planet is")
-- Optional: PHL Habitable Exoplanets Catalog integration for
-  Earth-Similarity Index tagging
+- Follow-up paper graph via NASA ADS citation queries: discovery to follow-up
+  edges surfaced automatically, complementing the hand-curated roles now in the
+  citation graph.
+- A literature monitor that flags new per-system data for human verification
+  before any write (detect, queue, verify; never auto-write).
+- Gaia DR4 ingestion scaffolding; several circumbinary papers cite DR4
+  astrometry as the path to refined masses and architectures.
+- Galactic positioning view ("here we are / here this planet is").
+- dbt marts (`dim_planet`, `dim_publication`, `fact_discovery`,
+  `fact_parameter_revision`) once the API needs them.
+- Optional PHL Habitable Exoplanets Catalog integration for Earth-Similarity
+  tagging.
 
 ---
 

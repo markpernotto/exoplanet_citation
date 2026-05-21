@@ -63,3 +63,7 @@ data/unresolved.csv
 # Build artifacts
 build/
 *.egg
+
+# Research Note draft — kept private while in preparation.
+# The public per-host data record lives in docs/cb_flag_audit.md.
+docs/rnaas_cb_flag_audit.md

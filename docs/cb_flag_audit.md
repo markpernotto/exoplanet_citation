@@ -5,7 +5,7 @@ Per-planet review of every entry in the NASA Exoplanet Archive's `pscomppars` ta
 ## Universe
 
 - **54 planets** across **44 host systems**
-- **16 / 44 hosts** have `binary_companions` data in the warehouse; **28 have none**, which is itself an audit finding (cb_flag set without supporting secondary-star evidence).
+- **16 / 44 hosts** have `binary_companions` data in the warehouse; **28 have none** (cb_flag set without supporting secondary-star evidence in the warehouse).
 
 ## Verdict taxonomy
 
@@ -17,37 +17,11 @@ Per the Doyle 2011 / Welsh+ 2012 convention, a planet in a multi-star system has
 
 The geometric test: compare the companion's projected separation (`separation_arcsec * system_distance_pc`, in AU) to each planet's `pl_orbsmax`. Companion narrower than the planet's orbit → P-type. Companion wider → S-type. Unknown companion separation → ambiguous.
 
-## Findings summary
+## About this document
 
 All 54 cb_flag=1 planets across 44 host systems were reviewed against their discovery (and where relevant follow-up) literature. Each per-host entry below carries a verdict and a **Notes:** block harvesting inner-binary parameters and context from the abstracts.
 
-**Verdict tally: 51 P-type confirmed, 3 Ambiguous, 0 confirmed S-type misflags.** The three Ambiguous entries are all microlensing detections and are the strongest candidates for a cb_flag review:
-
-- `OGLE-2018-BLG-1700L b`: the discovery paper explicitly gives a circumstellar (S-type) solution and a circumbinary (P-type) solution as equally likely, so cb_flag = 1 rests on one of two 50/50 fits. The most likely true S-type in the corpus.
-- `OGLE-2019-BLG-1470L AB c`: the competing model is a single star with a binary source (no binary host at all), disfavoured by only a chi-squared difference of ~18; if it is correct, cb_flag should be 0.
-- `KMT-2016-BLG-1337L b`: two triple-lens solutions, neither explicitly establishing that the planet orbits outside both stars.
-
-**Finding 1: microlensing cb_flags are unreliable.** Of the six microlensing entries, only one (`OGLE-2007-BLG-349L AB c`) has a fully settled circumbinary architecture, and only because HST imaging broke the close/wide lens degeneracy. The other five each carry an unresolved degeneracy: three are the Ambiguous entries above, and the remaining two (`OGLE-2016-BLG-0613L AB b`, `OGLE-2023-BLG-0836L b`) are P-type across their surviving solutions but leave the secondary's nature (star versus brown dwarf) or the projected geometry unstated. A microlensing cb_flag is only as trustworthy as the follow-up that breaks the lens-model degeneracy.
-
-**Finding 2: roughly a fifth of the corpus are planet/brown-dwarf boundary objects.** Twelve entries have a companion mass at or above the ~13 M_Jup deuterium-burning limit: 2MASS J01033563 AB b, DE CVn b, NSVS 14256825 b, HIP 79098 AB b, BEBOP-4 AB b, MXB 1658-298 b, HD 284149 AB b, ROXs 42 B b, SR 12 AB c, Ross 458 c, b Cen AB b, and VHS 1256 b (whose inner "binary" is itself a brown-dwarf pair). They are concentrated in the imaging and timing detections. cb_flag is a geometric flag (does the planet orbit both stars), independent of whether the object is a planet or a brown dwarf; that inclusion question is deliberately out of scope here but is flagged per entry.
-
-**Finding 3: warehouse data gaps and errors surfaced.**
-
-- 28 of 44 hosts have no `binary_companions` row, because the tight spectroscopic/eclipsing binaries that define P-type systems are not in the wide-binary catalogs (WDS, SIMBAD) the table is built from. The inner-binary parameters needed to fill them are harvested into the per-entry **Notes:** blocks.
-- `PSR B1620-26`: the four `binary_companions` rows are spurious crowded-field stars in the globular cluster M4, not bound companions; the real pulsar + white-dwarf inner binary is missing.
-- `PH1` (Kepler-64): the single `binary_companions` row (170,000 AU, SIMBAD) is not the relevant companion; the ~1000 AU outer binary that makes this a quadruple is missing.
-- Two hosts have null distance (`MXB 1658-298`, `PSR B1620-26`), which suppresses the Milky Way position card in the UI; both are recoverable from the literature (~9-12 kpc, and the M4 cluster distance ~1.8 kpc, respectively).
-- One duplicate `binary_companions` row (`VHS 1256`) was identified and removed during the audit.
-
-**Detection-method reliability:**
-
-| Method | Entries | cb_flag reliability |
-|---|---|---|
-| Transit (Kepler/TESS) | 14 | Highest; planet is directly observed transiting the binary. |
-| Eclipse / pulsar timing | 18 | Geometry secure (timing detection requires the binary); planet *existence* is contested for several post-common-envelope cases (HU Aqr most, NN Ser least). |
-| Radial velocity | 4 | Secure; all four hosts are known eclipsing or astrometrically characterized binaries. |
-| Imaging | 12 | Architecture P-type, but many companions are planet/BD-boundary mass. |
-| Microlensing | 6 | Lowest; three of six are misflag candidates. |
+This file is the per-host data record: it is the reproducible supplement to a short Research Note analyzing the aggregate results, which is in preparation. The aggregate verdict statistics, the detection-method reliability analysis, and the flag-review recommendations are being written up there and are intentionally not reproduced here while the Note is in progress.
 
 **Multi-citation cases** for the planned citation-system revamp (planet inferred or predicted in one paper, confirmed or revised in a later one): Kepler-1660 AB b, NY Vir c, PSR B1620-26 b, VHS 1256 b, TOI-1338 c, and the Kepler-451 system.
 

@@ -288,10 +288,13 @@ INNER_BINARIES: list[dict] = [
     },
     {
         "hostname": "HIP 79098 AB", "binary_class": "B9 spectroscopic binary",
-        "primary_spectype": "B9",
+        "primary_mass_msun": 2.5, "primary_spectype": "B9",
         "source_bibcode": "2019A&A...626A..99J",
-        "notes": "Janson+ 2019 (BEAST). B9-type spectroscopic pair, unresolved; component masses not given. Deeper dive needed. "
-                 "(Existing wide M-dwarf tertiaries B/C are separate field/hierarchical companions.)",
+        "notes": "Janson et al. 2019 (BEAST), full text: primary mass ~2.5 Msun (B9 SpT at Upper Sco age). Secondary mass is "
+                 "GENUINELY UNKNOWN per the paper ('the mass of the B component is unknown'); ranges from negligible to "
+                 "~2.5 Msun, so total = 2.5-5 Msun. No inner-binary orbital elements given. Real literature uncertainty, "
+                 "not a retrieval gap (full text exhausted). Wide M-dwarf tertiaries B/C in binary_companions are separate "
+                 "field/hierarchical companions.",
     },
     {
         "hostname": "HU Aqr", "binary_class": "WD+dM (eclipsing polar)",
@@ -304,9 +307,15 @@ INNER_BINARIES: list[dict] = [
                  "existence strongly contested.",
     },
     {
-        "hostname": "MXB 1658-298", "binary_class": "LMXB (neutron star + low-mass dwarf)",
-        "source_bibcode": "2017MNRAS.468L.118J",
-        "notes": "Jain+ 2017. Compact LMXB, P_orb ~7.1 h (literature). Component masses not in abstract. Deeper dive needed.",
+        "hostname": "MXB 1658-298", "binary_class": "LMXB (neutron star + low-mass donor)",
+        "orbital_period_d": 0.2965, "inclination_deg": 75,
+        "primary_mass_msun": 1.4, "primary_spectype": "neutron star",
+        "component_mass_msun": 0.5, "component_spectype": "low-mass dwarf",
+        "source_bibcode": "2018MNRAS.481L..94P",
+        "notes": "Ponti et al. 2018 (X-ray spectroscopy; = MXB 1659-298): donor mass constrained to 0.3-0.8 Msun (recorded "
+                 "~0.5 midpoint), inclination 73-77 deg, K1=89 km/s, P_orb 7.116 h. NS mass NOT directly measured "
+                 "(degenerate; recorded canonical ~1.4 Msun, paper allows 1.2-3 Msun). Planet (ETV) from Jain et al. 2017 "
+                 "(2017MNRAS.468L.118J).",
     },
     {
         "hostname": "NSVS 14256825", "binary_class": "sdOB+dM (eclipsing, HW Vir-type)",
@@ -347,7 +356,11 @@ INNER_BINARIES: list[dict] = [
     {
         "hostname": "SR 12 AB", "binary_class": "T Tauri binary (rho Oph)",
         "source_bibcode": "2011AJ....141..119K",
-        "notes": "Kuzuhara+ 2011. Young T Tauri binary; component masses/separation not in abstract. Deeper dive needed.",
+        "notes": "Kuzuhara et al. 2011 (full text) characterizes the wide companion SR12 C, not the AB pair. AB component "
+                 "masses are a GENUINE literature uncertainty: classifications conflict between Bouvier & Appenzeller 1992 "
+                 "(K4 + M2.5, implying ~0.7 + ~0.4 Msun) and Gras-Velazquez & Ray 2005 (M3 + M8, implying ~0.3 + ~0.1 Msun); "
+                 "no agreed dynamical/photometric masses. Both estimates recorded rather than choosing (obstacle #13). "
+                 "cb_flag object SR 12 AB c is an ~11 Mjup PMC at ~1100 AU.",
     },
     {
         "hostname": "Kepler-1647", "binary_class": "main-sequence EB",
@@ -382,17 +395,23 @@ INNER_BINARIES: list[dict] = [
     {
         "hostname": "VHS J125601.92-125723.9", "binary_class": "BD+BD (ultracool dwarf binary)",
         "separation_au": 1.96, "orbital_period_d": 2670, "eccentricity": 0.883,
+        "primary_mass_msun": 0.064, "component_mass_msun": 0.078,
         "source_bibcode": "2023MNRAS.519.1688D",
-        "notes": "Inner pair is two brown dwarfs; Dupuy et al. 2023 dynamical fit: a=1.96 AU, P=7.31 yr, e=0.883, total mass "
-                 "0.141 Msun (so ~0.07 Msun each; individual split TBD). Gauza 2015 reported the unresolved pair as a single "
-                 "73 Mjup 'primary'; Stone 2016 resolved it.",
+        "notes": "Dupuy et al. 2023 dynamical fit: a=1.96 AU, P=7.31 yr, e=0.883, TOTAL mass 0.141 +/- 0.008 Msun (well "
+                 "measured). The individual split is genuinely poorly constrained: astrometry gives only the total plus a "
+                 "mass ratio M_A/M_tot = 0.45 +/- 0.08, so components ~0.064 (A) + ~0.078 (B) Msun are ratio-derived "
+                 "approximations (if equal, ~74 Mjup each). Gauza 2015 saw the unresolved pair as a single 73 Mjup "
+                 "'primary'; Stone 2016 resolved it.",
     },
     {
-        "hostname": "OGLE-2016-BLG-0613L AB", "binary_class": "binary lens (degenerate)",
+        "hostname": "OGLE-2016-BLG-0613L AB", "binary_class": "binary lens (genuinely degenerate)",
         "primary_mass_msun": 0.7,
         "source_bibcode": "2017AJ....154..223H",
-        "notes": "Han+ 2017. Three surviving 3L1S solutions; secondary is a BD in one, comparable-mass star in two. "
-                 "Component masses solution-dependent; do not finalize until the 2024+ proper-motion follow-up resolves it.",
+        "notes": "Han et al. 2017: primary ~0.7 Msun. The SECONDARY is genuinely solution-dependent across the three "
+                 "surviving 3L1S classes: a low-mass brown dwarf (~22 Mjup, mass ratios 1:0.03:0.003) in one class, "
+                 "comparable-mass stars in the other two. Not a retrieval gap; the microlensing fit itself is degenerate "
+                 "(obstacle #4). Recorded as solution-dependent (no single secondary mass); resolvable only by the "
+                 "anticipated proper-motion follow-up.",
     },
 ]
 

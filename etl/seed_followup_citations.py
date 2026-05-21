@@ -7,18 +7,22 @@ that resolves an RV sin(i) degeneracy, or imaging that resolves an inner binary)
 The schema already supports this: planet_publications.role = 'follow_up' (0 rows
 used it before this seed).
 
-Two roles are seeded:
+Three roles are seeded:
   * 'follow_up'       — genuinely post-discovery papers (the definitive or
                         supporting evidence the discovery paper lacked).
   * 'prior_detection' — papers that PRECEDE the warehouse's discovery cite (the
-                        detection or prediction that came first). Requires the
-                        'prior_detection' role added by migration 013.
+                        detection or prediction that came first; migration 013).
+  * 'characterization'— host/binary data sources we pulled measurements from
+                        (component masses, distances), tagged with a `contribution`
+                        ('binary_masses', 'distance', ...). Migration 014. Rule: if
+                        we used a paper's data, we cite it.
 
 Safeguards: dry-run by default (--execute writes); inserts only, no deletes;
-idempotent (ON CONFLICT DO NOTHING on both tables); aborts before writing if any
+idempotent (upsert keyed on (pl_name, pub_id, role)); aborts before writing if any
 pl_name is not in planets_current.
 
-Requires migrations 005 (citation graph) and 013 (prior_detection role). Run:
+Requires migrations 005 (citation graph), 013 (prior_detection), 014
+(characterization role + contribution column). Run:
   python -m etl.seed_followup_citations             # dry-run (default)
   python -m etl.seed_followup_citations --execute   # apply to DATABASE_URL (.env)
 """
@@ -90,6 +94,34 @@ PRIOR_DETECTIONS: list[dict] = [
     },
 ]
 
+# Host/binary data-source papers (role='characterization'). We pulled component
+# masses or distances from these (recorded in binary_companions.source_bibcode /
+# host_distances_manual), so they must be credited. Bibcodes verified via ADS
+# 2026-05-21. Each links to all cb_flag planets in its system. Requires migration 014.
+CHARACTERIZATIONS: list[dict] = [
+    {"pl_names": ["DE CVn b"], "bibcode": "2007A&A...466.1031V", "contribution": "binary_masses",
+     "title": "DE CVn: A bright, eclipsing red dwarf - white dwarf binary"},
+    {"pl_names": ["RR Cae b"], "bibcode": "2007MNRAS.376..919M", "contribution": "binary_masses",
+     "title": "The mass and radius of the M-dwarf in the short period eclipsing binary RR Caeli"},
+    {"pl_names": ["NY Vir b", "NY Vir c"], "bibcode": "2007A&A...471..605V", "contribution": "binary_masses",
+     "title": "The binary properties of the pulsating subdwarf B eclipsing binary PG 1336-018 (NY Vir)"},
+    {"pl_names": ["2MASS J19383260+4603591 b", "Kepler-451 c", "Kepler-451 d"],
+     "bibcode": "2012ApJ...753..101B", "contribution": "binary_masses",
+     "title": "The Romer Delay and Mass Ratio of the sdB+dM Binary 2M 1938+4603 from Kepler Eclipse Timings"},
+    {"pl_names": ["HU Aqr AB b", "HU Aqr AB c"], "bibcode": "2011A&A...531A..34S", "contribution": "binary_masses",
+     "title": "Dissecting the donor star in the eclipsing polar HU Aquarii"},
+    {"pl_names": ["NSVS 14256825 b"], "bibcode": "2012MNRAS.423..478A", "contribution": "binary_masses",
+     "title": "A photometric and spectroscopic study of NSVS 14256825: the second sdOB+dM eclipsing binary"},
+    {"pl_names": ["MXB 1658-298 b"], "bibcode": "2018MNRAS.481L..94P", "contribution": "binary_masses",
+     "title": "Measuring masses in low mass X-ray binaries via X-ray spectroscopy: the case of MXB 1659-298"},
+    {"pl_names": ["ROXs 42 B b"], "bibcode": "2014ApJ...781...20K", "contribution": "binary_masses",
+     "title": "Three Wide Planetary-mass Companions to FW Tau, ROXs 12, and ROXs 42B"},
+    {"pl_names": ["MXB 1658-298 b"], "bibcode": "2008ApJS..179..360G", "contribution": "distance",
+     "title": "Thermonuclear (Type-I) X-Ray Bursts Observed by the Rossi X-ray Timing Explorer"},
+    {"pl_names": ["PSR B1620-26 b"], "bibcode": "2015ApJ...808...11N", "contribution": "distance",
+     "title": "On the distance of the globular cluster M4 (NGC 6121) using RR Lyrae stars. II."},
+]
+
 UPSERT_PUB = """
 INSERT INTO publications (bibcode, title, resolved_via, confidence)
 VALUES (%(bibcode)s, %(title)s, 'manual', 'high')
@@ -97,9 +129,9 @@ ON CONFLICT (bibcode) DO NOTHING
 """
 
 LINK = """
-INSERT INTO planet_publications (pl_name, pub_id, role)
-VALUES (%(pl_name)s, %(pub_id)s, %(role)s)
-ON CONFLICT DO NOTHING
+INSERT INTO planet_publications (pl_name, pub_id, role, contribution)
+VALUES (%(pl_name)s, %(pub_id)s, %(role)s, %(contribution)s)
+ON CONFLICT (pl_name, pub_id, role) DO UPDATE SET contribution = EXCLUDED.contribution
 """
 
 
@@ -108,13 +140,24 @@ def main() -> int:
     ap.add_argument("--execute", action="store_true", help="Apply to the DB (default is dry-run)")
     args = ap.parse_args()
 
-    entries = ([dict(r, role="follow_up") for r in FOLLOWUPS]
-               + [dict(r, role="prior_detection") for r in PRIOR_DETECTIONS])
+    entries: list[dict] = []
+    for r in FOLLOWUPS:
+        entries.append({"pl_name": r["pl_name"], "bibcode": r["bibcode"], "title": r["title"],
+                        "role": "follow_up", "contribution": r.get("contribution")})
+    for r in PRIOR_DETECTIONS:
+        entries.append({"pl_name": r["pl_name"], "bibcode": r["bibcode"], "title": r["title"],
+                        "role": "prior_detection", "contribution": r.get("contribution")})
+    for r in CHARACTERIZATIONS:
+        for pl in r["pl_names"]:
+            entries.append({"pl_name": pl, "bibcode": r["bibcode"], "title": r["title"],
+                            "role": "characterization", "contribution": r.get("contribution")})
 
-    print(f"Citations to link: {len(entries)} "
-          f"({len(FOLLOWUPS)} follow_up, {len(PRIOR_DETECTIONS)} prior_detection)")
+    n_char = sum(len(r["pl_names"]) for r in CHARACTERIZATIONS)
+    print(f"Citations to link: {len(entries)} ({len(FOLLOWUPS)} follow_up, "
+          f"{len(PRIOR_DETECTIONS)} prior_detection, {n_char} characterization)")
     for r in entries:
-        print(f"  [{r['role']:15s}] {r['pl_name']:26s} -> {r['bibcode']}")
+        contrib = f"  [{r['contribution']}]" if r["contribution"] else ""
+        print(f"  [{r['role']:15s}] {r['pl_name']:30s} -> {r['bibcode']}{contrib}")
 
     if not args.execute:
         print("\nDRY RUN — nothing written. Re-run with --execute to apply.")
@@ -138,12 +181,12 @@ def main() -> int:
                 cur.execute(UPSERT_PUB, r)
                 cur.execute("SELECT pub_id FROM publications WHERE bibcode = %s", (r["bibcode"],))
                 pub_id = cur.fetchone()["pub_id"]
-                cur.execute(LINK, {"pl_name": r["pl_name"], "pub_id": pub_id, "role": r["role"]})
+                cur.execute(LINK, {"pl_name": r["pl_name"], "pub_id": pub_id,
+                                   "role": r["role"], "contribution": r["contribution"]})
                 linked += cur.rowcount
-                print(f"  [{r['role']}] {r['pl_name']} -> {r['bibcode']} (pub_id {pub_id})"
-                      + ("" if cur.rowcount else "  [already linked]"))
+                print(f"  [{r['role']}] {r['pl_name']} -> {r['bibcode']} (pub_id {pub_id})")
         conn.commit()
-    print(f"Done — {linked} new citation link(s).")
+    print(f"Done — {linked} citation link(s) upserted.")
     return 0
 
 

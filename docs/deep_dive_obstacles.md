@@ -70,7 +70,15 @@ automation would need to do. Append as new obstacles appear.
       success.
     - DATA POINT (VHS 1256, arXiv 2208.08448): the /html/ URL returned 404 — older
       papers don't always have an arXiv HTML rendering. Automation needs a fallback
-      chain (arXiv HTML -> arXiv PDF -> journal full_html -> human paste).
+      chain (arXiv HTML -> ar5iv HTML -> arXiv PDF -> journal full_html -> human
+      paste). RESOLVED via ar5iv (ar5iv.labs.arxiv.org/html/<id>): ar5iv renders
+      older papers as HTML and fetched cleanly. Add ar5iv as the first fallback
+      after arxiv.org/html.
+    - And it confirmed a GENUINE uncertainty vs a retrieval failure (see #15):
+      VHS 1256's astrometry measures only the TOTAL mass (0.141 Msun) plus a poorly
+      constrained ratio (M_A/M_tot=0.45+/-0.08); the individual split is a real
+      literature limitation, not something a better fetch would fix. The full text
+      both succeeded AND told us the split is intrinsically weak.
     - DATA POINT (DP Leo, A&A full_html aa15942-10): fetched cleanly, BUT the masses
       it reports (WD 0.6 + dM 0.1) are stated as ASSUMED (from Schwope 2002), not
       measured. A successful fetch can still yield only assumed/low-confidence values

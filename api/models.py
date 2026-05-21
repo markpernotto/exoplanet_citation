@@ -106,6 +106,10 @@ class PlanetDetail(BaseModel):
     st_spectype: str | None
     st_dist: float | None
     sy_dist: float | None
+    # Literature-sourced distance for hosts with neither a Gaia nor a sy_dist
+    # value (host_distances_manual). Last-resort fallback; null for everything else.
+    distance_manual_pc: float | None = None
+    distance_manual_source: str | None = None
     ra: float | None
     dec: float | None
     gaia_dr3_id: str | None

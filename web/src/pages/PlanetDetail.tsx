@@ -128,7 +128,7 @@ export default function PlanetDetail() {
             siblings={siblings?.results.filter((s) => s.pl_name !== planet.pl_name) ?? null}
             bp_rp={hostStar?.bp_rp}
             companions={companions ?? undefined}
-            distancePc={hostStar?.distance_gspphot_pc ?? planet.sy_dist ?? null}
+            distancePc={hostStar?.distance_gspphot_pc ?? planet.sy_dist ?? planet.distance_manual_pc ?? null}
           />
           <HostStarCard planet={planet} sectionDelay={4000} />
         </div>
@@ -176,9 +176,10 @@ export default function PlanetDetail() {
                 )}
               </p>
               {(() => {
-                const pc = hostStar?.distance_gspphot_pc ?? (planet.sy_dist ?? null);
+                const pc = hostStar?.distance_gspphot_pc ?? planet.sy_dist ?? planet.distance_manual_pc ?? null;
                 if (pc == null) return null;
                 const ly = pc * 3.2616;
+                const isManual = hostStar?.distance_gspphot_pc == null && planet.sy_dist == null && planet.distance_manual_pc != null;
                 return (
                   <p style={{ margin: '0.5rem 0 0', fontSize: '0.85rem', color: 'var(--fg-muted)' }}>
                     {ly < 100
@@ -188,11 +189,12 @@ export default function PlanetDetail() {
                       : <><strong>{(ly / 1000).toFixed(1)}k light-years</strong> away ({Math.round(pc).toLocaleString()} pc)</>
                     }
                     {hostStar?.distance_gspphot_pc != null && <> · via Gaia DR3</>}
+                    {isManual && <> · literature distance{planet.distance_manual_source ? ` (${planet.distance_manual_source})` : ''}</>}
                   </p>
                 );
               })()}
               {planet.ra != null && planet.dec != null && (() => {
-                const pc = hostStar?.distance_gspphot_pc ?? planet.sy_dist ?? null;
+                const pc = hostStar?.distance_gspphot_pc ?? planet.sy_dist ?? planet.distance_manual_pc ?? null;
                 if (pc == null) return null;
                 return <GalaxyMap ra={planet.ra} dec={planet.dec} distPc={pc} hostname={planet.hostname} />;
               })()}
@@ -557,7 +559,7 @@ function CompanionsSection({
   hostStar: HostStarGaia | null;
 }) {
   if (!companions || companions.length === 0) return null;
-  const distance_pc = hostStar?.distance_gspphot_pc ?? planet.sy_dist ?? null;
+  const distance_pc = hostStar?.distance_gspphot_pc ?? planet.sy_dist ?? planet.distance_manual_pc ?? null;
   return (
     <section>
       <h2>System stars</h2>

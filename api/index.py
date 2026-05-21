@@ -415,6 +415,32 @@ def planets_recent(limit: int = Query(100, ge=1, le=500), offset: int = Query(0,
     )
 
 
+def _manual_distance(cur, hostname: str) -> tuple[float | None, str | None]:
+    """Literature-sourced fallback distance for hosts with no Gaia/sy_dist value.
+
+    Returns (distance_pc, source_bibcode) or (None, None). The cursor must use
+    dict_row. See migration 012_host_distances_manual.sql.
+
+    Guarded by a savepoint so that if the table does not exist yet (code deployed
+    before the migration ran), the failed lookup does not poison the surrounding
+    transaction — it degrades to (None, None).
+    """
+    try:
+        cur.execute("SAVEPOINT md")
+        cur.execute(
+            "SELECT distance_pc, source_bibcode FROM host_distances_manual WHERE hostname = %s",
+            (hostname,),
+        )
+        r = cur.fetchone()
+        cur.execute("RELEASE SAVEPOINT md")
+    except psycopg.errors.UndefinedTable:
+        cur.execute("ROLLBACK TO SAVEPOINT md")
+        return None, None
+    if not r:
+        return None, None
+    return r["distance_pc"], r.get("source_bibcode")
+
+
 @app.get("/api/planets/{pl_name}", response_model=PlanetDetail, tags=["planets"])
 def planet_detail(pl_name: str) -> PlanetDetail:
     """Single planet from the latest snapshot, with all 28 typed columns."""
@@ -431,6 +457,10 @@ def planet_detail(pl_name: str) -> PlanetDetail:
                 (pl_name,),
             )
             row = cur.fetchone()
+            if row is not None:
+                row["distance_manual_pc"], row["distance_manual_source"] = (
+                    _manual_distance(cur, row["hostname"])
+                )
 
     if row is None:
         raise HTTPException(status_code=404, detail=f"No planet named {pl_name!r}")
@@ -896,7 +926,13 @@ def planet_scene(pl_name: str) -> SceneResponse:
             # pairs. Prefer Gaia DR3 distance when available; otherwise fall
             # back to the Exoplanet Archive's sy_dist.
             gaia_dist = host_row.get("distance_gspphot_pc") if host_row else None
-            effective_dist = gaia_dist if gaia_dist is not None else planet_row.get("sy_dist")
+            manual_pc, manual_src = _manual_distance(cur, hostname)
+            planet_row["distance_manual_pc"] = manual_pc
+            planet_row["distance_manual_source"] = manual_src
+            effective_dist = next(
+                (d for d in (gaia_dist, planet_row.get("sy_dist"), manual_pc) if d is not None),
+                None,
+            )
             cur.execute(
                 """
                 SELECT component_designation, primary_designation,

@@ -118,7 +118,7 @@ export default function ScenePage() {
   // companion. Computing the maximum companion separation and folding it
   // into the zoom-out limit lets the user pull back far enough to see
   // those second/third suns instead of having them silently off-frame.
-  const systemDistancePc = scene.host_star?.distance_gspphot_pc ?? scene.planet.sy_dist ?? null;
+  const systemDistancePc = scene.host_star?.distance_gspphot_pc ?? scene.planet.sy_dist ?? scene.planet.distance_manual_pc ?? null;
   const maxCompanionSepAU = systemDistancePc != null
     ? Math.max(0, ...scene.binary_companions.map(
         (c) => (c.separation_arcsec ?? 0) * systemDistancePc,
@@ -412,7 +412,7 @@ function InfoPanel({
     return next;
   });
 
-  const distance_pc = host_star?.distance_gspphot_pc ?? planet.sy_dist;
+  const distance_pc = host_star?.distance_gspphot_pc ?? planet.sy_dist ?? planet.distance_manual_pc;
 
   return (
     <div
@@ -484,6 +484,9 @@ function InfoPanel({
             <strong style={{ color: 'var(--fg)' }}>{(distance_pc * 3.2616).toFixed(1)}</strong> light-years away
             ({distance_pc.toFixed(1)} pc)
             {host_star?.distance_gspphot_pc != null && <> · via Gaia DR3</>}
+            {host_star?.distance_gspphot_pc == null && planet.sy_dist == null && planet.distance_manual_pc != null && (
+              <> · literature distance{planet.distance_manual_source ? ` (${planet.distance_manual_source})` : ''}</>
+            )}
           </p>
         )}
       </Section>
@@ -1474,7 +1477,7 @@ function SceneContents({
         <CompanionStar
           key={c.component_designation}
           companion={c}
-          systemDistancePc={scene.host_star?.distance_gspphot_pc ?? scene.planet.sy_dist ?? null}
+          systemDistancePc={scene.host_star?.distance_gspphot_pc ?? scene.planet.sy_dist ?? scene.planet.distance_manual_pc ?? null}
           hostname={planet.hostname}
           onHover={setHovered}
           hoveredKey={hovered}

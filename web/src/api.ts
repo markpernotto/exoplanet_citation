@@ -95,6 +95,8 @@ export type PlanetDetail = {
   st_spectype: string | null;
   st_dist: number | null;
   sy_dist: number | null;
+  distance_manual_pc: number | null;
+  distance_manual_source: string | null;
   ra: number | null;
   dec: number | null;
   gaia_dr3_id: string | null;

@@ -84,6 +84,14 @@ from a stock-image library.
   `backfill_state`. Trips a circuit breaker on
   `X-RateLimit-Remaining: 0` and stops calling ADS until quota resets;
   arXiv tier respects the polite-pool 3-second inter-call window.
+- **Circumbinary (cb_flag) audit + binary enrichment** — every `cb_flag=1`
+  planet is reviewed against its discovery literature in
+  [`docs/cb_flag_audit.md`](docs/cb_flag_audit.md). Inner-binary parameters
+  (component masses, radii, period, eccentricity) harvested from those papers
+  are seeded into `binary_companions` via `etl/seed_inner_binaries.py`, where
+  an `inner_binary` flag distinguishes the tight P-type-defining pair from the
+  wide visual companions SIMBAD resolves. Literature distances for hosts that
+  both Gaia and the archive miss live in `host_distances_manual`.
 - **Publisher** generates RSS 2.0, JSON, and health-snapshot feeds with
   freshness measurement against a 26-hour SLO. Per-planet, per-system, and
   per-author RSS feeds are also exposed dynamically by the API.
@@ -140,6 +148,12 @@ psql "$DATABASE_URL" -f etl/migrations/003_fix_planets_current_view.sql
 psql "$DATABASE_URL" -f etl/migrations/004_discovery_papers.sql
 psql "$DATABASE_URL" -f etl/migrations/005_citation_graph.sql
 psql "$DATABASE_URL" -f etl/migrations/006_add_arxiv_resolved_via.sql
+psql "$DATABASE_URL" -f etl/migrations/007_binary_companions.sql
+psql "$DATABASE_URL" -f etl/migrations/008_atmospheres.sql
+psql "$DATABASE_URL" -f etl/migrations/009_system_orbital_geometry.sql
+psql "$DATABASE_URL" -f etl/migrations/010_orbital_geometry_seed.sql
+psql "$DATABASE_URL" -f etl/migrations/011_binary_companions_inner.sql
+psql "$DATABASE_URL" -f etl/migrations/012_host_distances_manual.sql
 
 # Verify connectivity
 make check-setup
@@ -156,6 +170,8 @@ python -m etl.enrich_gaia               # host_stars_gaia (resumable)
 python -m etl.enrich_ads                # discovery_papers from NASA ADS
 python -m etl.resolve_citations         # publications + planet_publications (4-tier resolver: ADS + arXiv)
 python -m etl.clear_manual_queue        # hand-resolves the 7 historical edge cases the resolver can't reach
+python -m etl.enrich_binaries           # binary_companions from SIMBAD (wide visual companions)
+python -m etl.seed_inner_binaries --execute   # one-off: curated inner-binary backfill from the cb_flag audit (idempotent)
 make publish                            # → public/rss.xml, public/discoveries.json, public/health.json
 
 # Run the API locally

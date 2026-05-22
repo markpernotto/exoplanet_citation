@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { api, type PlanetSummary, type PlanetsListResponse, type TopAuthor } from '../api';
+import { api, type ChangeRecord, type PlanetSummary, type PlanetsListResponse, type TopAuthor } from '../api';
 import LoadingBar from '../components/LoadingBar';
 
 const PAGE_SIZE = 100;
@@ -9,8 +9,11 @@ export default function Home() {
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const query = params.get('q') ?? '';
+  const themeParam = params.get('theme');
+  const themeQuery = themeParam ? `?theme=${themeParam}` : '';
 
   const [searchResults, setSearchResults] = useState<PlanetsListResponse | null>(null);
+  const [recent, setRecent] = useState<RecentFeed | null>(null);
   const [authorResults, setAuthorResults] = useState<TopAuthor[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,6 +40,36 @@ export default function Home() {
     hasMoreRef.current = true;
     loadingRef.current = false;
     setLoading(false);
+  }, [query]);
+
+  // "Recently added" feed (default mode only). Pull the latest pipeline run,
+  // then fetch real summaries for the new planets so they render as the same
+  // catalog cards. Useful physical revisions become a quiet line; bookkeeping
+  // churn (disc_year, etc.) is filtered out. Empty run -> the section hides.
+  useEffect(() => {
+    if (query) { setRecent(null); return; }
+    let cancelled = false;
+    api.discoveriesLatest(14).then(async (r) => {
+      const dayKeys = [...new Set(r.changes.map((c) => c.observed_at.slice(0, 10)))].sort().reverse();
+      if (dayKeys.length === 0) {
+        if (!cancelled) setRecent({ asOf: '', newPlanets: [], revisions: [], removed: [] });
+        return;
+      }
+      const asOf = dayKeys[0];
+      const run = r.changes.filter((c) => c.observed_at.slice(0, 10) === asOf);
+      const newNames = run.filter((c) => c.change_type === 'NEW').map((c) => c.pl_name);
+      const revisions = run.filter((c) => c.change_type === 'PARAMETER_CHANGE' && !!USEFUL_FIELDS[c.field_name ?? '']);
+      const removed = run.filter((c) => c.change_type === 'REMOVED').map((c) => c.pl_name);
+      const newPlanets = (await Promise.all(
+        newNames.map((n) =>
+          api.planetsList({ q: n, limit: 10 })
+            .then((res) => res.results.find((p) => p.pl_name === n) ?? null)
+            .catch(() => null),
+        ),
+      )).filter((p): p is PlanetSummary => p !== null);
+      if (!cancelled) setRecent({ asOf, newPlanets, revisions, removed });
+    }).catch(() => {});
+    return () => { cancelled = true; };
   }, [query]);
 
   const loadMore = useCallback(async () => {
@@ -153,8 +186,9 @@ export default function Home() {
   // ── DEFAULT MODE: infinite-scroll recent discoveries ─────────────────────
   return (
     <>
-      <HomeIntro />
       <FeaturedSystems />
+
+      <RecentChanges recent={recent} themeQuery={themeQuery} />
 
       <section>
         <h2>
@@ -179,6 +213,89 @@ export default function Home() {
         {hasMore && <div ref={sentinelRef} aria-hidden style={{ height: 1 }} />}
       </section>
     </>
+  );
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function fmtDay(ymd: string): string {
+  if (!ymd) return '';
+  const [, m, d] = ymd.split('-').map(Number);
+  return `${MONTHS[m - 1]} ${d}`;
+}
+
+// Physical-measurement fields worth surfacing as "updates". Everything else
+// (disc_year corrections, refname edits, IDs) is bookkeeping churn and is
+// filtered out so the feed only ever shows changes a reader would care about.
+const USEFUL_FIELDS: Record<string, string> = {
+  pl_bmasse: 'mass',
+  pl_rade: 'radius',
+  pl_orbper: 'orbital period',
+  pl_orbsmax: 'orbital distance',
+  pl_orbeccen: 'eccentricity',
+  pl_eqt: 'equilibrium temp',
+  pl_dens: 'density',
+  pl_insol: 'insolation',
+};
+
+type RecentFeed = {
+  asOf: string;
+  newPlanets: PlanetSummary[];
+  revisions: ChangeRecord[];
+  removed: string[];
+};
+
+// "Recently added": the latest pipeline run, shown above "Most recently
+// confirmed" (which it does not replace). New planets render as real catalog
+// cards via PlanetGrid; useful physical revisions and removals are quiet lines.
+// Renders nothing when the latest run produced no meaningful changes.
+function RecentChanges({ recent, themeQuery }: { recent: RecentFeed | null; themeQuery: string }) {
+  if (!recent) return null;
+  const { asOf, newPlanets, revisions, removed } = recent;
+  if (newPlanets.length === 0 && revisions.length === 0 && removed.length === 0) return null;
+
+  // Group revisions by planet so one planet with two changed fields reads as
+  // "Name (mass, radius)" instead of two separate entries.
+  const revByPlanet = new Map<string, string[]>();
+  for (const r of revisions) {
+    const label = USEFUL_FIELDS[r.field_name ?? ''] ?? 'updated';
+    const arr = revByPlanet.get(r.pl_name) ?? [];
+    if (!arr.includes(label)) arr.push(label);
+    revByPlanet.set(r.pl_name, arr);
+  }
+
+  return (
+    <section>
+      <h2>
+        Recently added
+        {asOf && (
+          <span style={{ marginLeft: '0.6rem', color: 'var(--fg-muted)', fontWeight: 'normal', fontSize: '0.75rem' }}>
+            {fmtDay(asOf)}
+          </span>
+        )}
+        <a href="/api/rss" title="Subscribe to all exoplanet changes" style={{ marginLeft: '0.75rem', fontSize: '0.72rem', fontWeight: 'normal', color: 'var(--fg-muted)', textTransform: 'none', letterSpacing: 0 }}>RSS</a>
+      </h2>
+
+      {newPlanets.length > 0 && <PlanetGrid results={newPlanets} />}
+
+      {revByPlanet.size > 0 && (
+        <p style={{ margin: '0.6rem 0 0', fontSize: '0.85rem', color: 'var(--fg-muted)', lineHeight: 1.6 }}>
+          Also updated:{' '}
+          {[...revByPlanet.entries()].map(([name, labels], i) => (
+            <span key={name}>
+              {i > 0 && ', '}
+              <Link to={`/planets/${encodeURIComponent(name)}${themeQuery}`} style={{ color: 'var(--fg-muted)' }}>{name}</Link>
+              {` (${labels.join(', ')})`}
+            </span>
+          ))}
+        </p>
+      )}
+
+      {removed.length > 0 && (
+        <p style={{ margin: '0.3rem 0 0', fontSize: '0.85rem', color: 'var(--fg-muted)' }}>
+          Removed: {removed.join(', ')}
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -304,75 +421,6 @@ const KEY_LABELS: Record<string, string> = {
   ...Object.fromEntries(CATEGORY_KEYS.map((k) => [k, FEATURED_CATEGORIES[k].label])),
   'top-discoverers': 'Top discoverers',
 };
-
-function HomeIntro() {
-  return (
-    <section style={{
-      marginBottom: '2.5rem',
-      paddingBottom: '1.75rem',
-      borderBottom: '1px solid var(--border)',
-    }}>
-      <p style={{
-        fontSize: '1.05rem',
-        lineHeight: 1.55,
-        margin: '0 0 1rem',
-        color: 'var(--fg)',
-      }}>
-        <strong>Exoplanet Citation Atlas</strong> links every confirmed exoplanet
-        to its discovery papers, atmospheric observations, and full stellar
-        architecture, in one open-source view.
-      </p>
-      <p style={{
-        fontSize: '0.92rem',
-        lineHeight: 1.6,
-        color: 'var(--fg-muted)',
-        margin: '0 0 1.25rem',
-      }}>
-        Exoplanet science is spread across canonical archives that each do their
-        part well. The{' '}
-        <a href="https://exoplanetarchive.ipac.caltech.edu/" target="_blank" rel="noopener noreferrer">NASA Exoplanet Archive</a>
-        {' '}curates planetary parameters,{' '}
-        <a href="https://ui.adsabs.harvard.edu/" target="_blank" rel="noopener noreferrer">NASA ADS</a>
-        {' '}indexes the literature,{' '}
-        <a href="https://www.cosmos.esa.int/web/gaia/dr3" target="_blank" rel="noopener noreferrer">Gaia DR3</a>
-        {' '}supplies stellar astrometry, and the{' '}
-        <a href="http://www.astro.gsu.edu/wds/" target="_blank" rel="noopener noreferrer">Washington Double Star Catalog</a>
-        {' '}records stellar multiplicity. The Atlas brings them together into a
-        single per-object view so that system-level questions (what was the
-        discovery paper, has the atmosphere been observed, what other stars are
-        bound to the host, what does the architecture look like at scale) can be
-        answered in one place.
-      </p>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '1rem',
-        flexWrap: 'wrap',
-        fontSize: '0.85rem',
-        color: 'var(--fg-muted)',
-      }}>
-        <span>
-          Open source (MIT) by{' '}
-          <a href="mailto:mark@pernotto.com">Mark Pernotto</a>
-          {' '}at{' '}
-          <a href="https://facetbuild.llc" target="_blank" rel="noopener noreferrer">Facet Build, LLC</a>.
-        </span>
-        <a
-          href="https://doi.org/10.5281/zenodo.20191479"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img
-            src="https://zenodo.org/badge/1228082575.svg"
-            alt="DOI 10.5281/zenodo.20191479"
-            style={{ verticalAlign: 'middle' }}
-          />
-        </a>
-        <Link to="/about">Methods, roadmap, and data-quality notes →</Link>
-      </div>
-    </section>
-  );
-}
 
 function FeaturedSystems() {
   const location = useLocation();

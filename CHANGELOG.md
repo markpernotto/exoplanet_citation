@@ -11,7 +11,16 @@ and each mints a version-specific
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **"Recently added" section on the landing page**: shows the latest pipeline
+  run above "Most recently confirmed" (without replacing it). New planets render
+  as the same catalog cards (`PlanetGrid`); notable physical revisions (mass,
+  radius, period, etc.) appear as a quiet "Also updated" line with bookkeeping
+  churn (disc_year, refnames) filtered out; removals get their own line. The
+  section hides entirely when a run has no meaningful changes. Fixes the gap
+  where newly ingested planets did not appear "as they come in" because the main
+  catalog list sorts by NASA discovery year. Built on `/api/discoveries/latest`.
 
 ## [0.1.2] - 2026-05-21
 

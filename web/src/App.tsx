@@ -46,19 +46,33 @@ function SiteTitle() {
   const [searchParams] = useSearchParams();
   const theme = searchParams.get('theme');
   const to = theme ? `/?theme=${theme}` : '/';
-  return <h1><Link to={to}>exoplanet_citation</Link></h1>;
+  return <h1><Link to={to}>Exoplanet Citation Atlas</Link></h1>;
 }
 
 function CatalogStats() {
   const [stats, setStats] = useState<StatsResponse | null>(null);
   useEffect(() => { api.stats().then(setStats).catch(() => {}); }, []);
   if (!stats) return null;
-  const topMethod = Object.entries(stats.discoveries_by_method).sort((a, b) => b[1] - a[1])[0]?.[0];
   return (
-    <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: 'var(--fg-muted)' }}>
-      <strong style={{ color: 'var(--fg)' }}>{stats.total_planets.toLocaleString()}</strong> confirmed exoplanets
-      {stats.latest_snapshot && <> · last refreshed {stats.latest_snapshot}</>}
-      {topMethod && <> · top discovery method <strong style={{ color: 'var(--fg)' }}>{topMethod}</strong></>}
+    <p style={{
+      margin: '0.35rem 0 0',
+      fontSize: '0.78rem',
+      color: 'var(--fg-muted)',
+      display: 'flex',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      gap: '0.5rem',
+    }}>
+      <span>
+        <strong style={{ color: 'var(--fg)' }}>{stats.total_planets.toLocaleString()}</strong> confirmed exoplanets
+        {stats.latest_snapshot && <> · last refreshed {stats.latest_snapshot}</>}
+      </span>
+      <span aria-hidden>·</span>
+      <a href="https://doi.org/10.5281/zenodo.20191479" target="_blank" rel="noopener noreferrer">
+        DOI 10.5281/zenodo.20191479
+      </a>
+      <span aria-hidden>·</span>
+      <Link to="/about">Methods &amp; data-quality notes →</Link>
     </p>
   );
 }

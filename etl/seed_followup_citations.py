@@ -67,6 +67,16 @@ FOLLOWUPS: list[dict] = [
         "note": "Esmer et al. 2022. Revised this planet's period 416 -> 406 d and added two more planets "
                 "(also the discovery paper for Kepler-451 c and d).",
     },
+    # Old-discovery cohort (manual deep dive 2026-05-21): foundational 1990s systems
+    # the catalog held at discovery-only depth. Bibcodes verified via ADS. The
+    # atmosphere (HD 209458 b) and mutual-inclination (ups And) papers are filed
+    # under CHARACTERIZATIONS below, since migration 015 harvests their measured data.
+    {
+        "pl_name": "HD 209458 b", "bibcode": "2000ApJ...529L..45C",
+        "title": "Detection of Planetary Transits Across a Sun-like Star",
+        "note": "Charbonneau et al. 2000. Independent detection of the transits (simultaneous with the "
+                "Henry 2000 discovery cite); first radius and orbital inclination, hence true mass.",
+    },
 ]
 
 # Prior-detection papers that PRECEDE the warehouse's discovery cite. Bibcodes
@@ -94,10 +104,12 @@ PRIOR_DETECTIONS: list[dict] = [
     },
 ]
 
-# Host/binary data-source papers (role='characterization'). We pulled component
-# masses or distances from these (recorded in binary_companions.source_bibcode /
-# host_distances_manual), so they must be credited. Bibcodes verified via ADS
-# 2026-05-21. Each links to all cb_flag planets in its system. Requires migration 014.
+# Data-source papers (role='characterization'). We pulled measured values from
+# these, so they must be credited: binary component masses / distances ->
+# binary_companions, host_distances_manual; atmospheric detections ->
+# planet_atmospheres; mutual inclinations -> system_orbital_geometry. Bibcodes
+# verified via ADS 2026-05-21. Requires migration 014 (and 015 for the atmosphere
+# and mutual-inclination data these supply).
 CHARACTERIZATIONS: list[dict] = [
     {"pl_names": ["DE CVn b"], "bibcode": "2007A&A...466.1031V", "contribution": "binary_masses",
      "title": "DE CVn: A bright, eclipsing red dwarf - white dwarf binary"},
@@ -120,6 +132,40 @@ CHARACTERIZATIONS: list[dict] = [
      "title": "Thermonuclear (Type-I) X-Ray Bursts Observed by the Rossi X-ray Timing Explorer"},
     {"pl_names": ["PSR B1620-26 b"], "bibcode": "2015ApJ...808...11N", "contribution": "distance",
      "title": "On the distance of the globular cluster M4 (NGC 6121) using RR Lyrae stars. II."},
+    # Old-discovery cohort (manual deep dive 2026-05-21); data harvested in migration 015.
+    {"pl_names": ["HD 209458 b"], "bibcode": "2002ApJ...568..377C", "contribution": "atmosphere",
+     "title": "Detection of an Extrasolar Planet Atmosphere"},
+    {"pl_names": ["HD 209458 b"], "bibcode": "2003Natur.422..143V", "contribution": "atmosphere",
+     "title": "An extended upper atmosphere around the extrasolar planet HD209458b"},
+    {"pl_names": ["HD 209458 b"], "bibcode": "2010Natur.465.1049S", "contribution": "atmosphere",
+     "title": "The orbital motion, absolute mass and high-altitude winds of exoplanet HD209458b"},
+    {"pl_names": ["51 Peg b"], "bibcode": "2017AJ....153..138B", "contribution": "atmosphere",
+     "title": "Discovery of Water at High Spectral Resolution in the Atmosphere of 51 Peg b"},
+    {"pl_names": ["HD 189733 b"], "bibcode": "2008ApJ...673L..87R", "contribution": "atmosphere",
+     "title": "Sodium Absorption from the Exoplanetary Atmosphere of HD 189733b"},
+    {"pl_names": ["55 Cnc e"], "bibcode": "2024Natur.630..609H", "contribution": "atmosphere",
+     "title": "A secondary atmosphere on the rocky exoplanet 55 Cancri e"},
+    {"pl_names": ["HD 189733 b"], "bibcode": "2013MNRAS.436L..35B", "contribution": "atmosphere",
+     "title": "Detection of water absorption in the day side atmosphere of HD 189733 b"},
+    {"pl_names": ["HD 189733 b"], "bibcode": "2013A&A...554A..82D", "contribution": "atmosphere",
+     "title": "Detection of carbon monoxide in the high-resolution day-side spectrum of HD 189733b"},
+    {"pl_names": ["HD 209458 b"], "bibcode": "2013ApJ...774...95D", "contribution": "atmosphere",
+     "title": "Infrared Transmission Spectroscopy of the Exoplanets HD 209458b and XO-1b Using WFC3"},
+    {"pl_names": ["ups And c", "ups And d"], "bibcode": "2010ApJ...715.1203M", "contribution": "mutual_inclination",
+     "title": "New Observational Constraints on the upsilon Andromedae System"},
+    {"pl_names": ["HD 189733 b"], "bibcode": "2006ApJ...641L..57B", "contribution": "binary_separation",
+     "title": "A Stellar Companion in the HD 189733 System with a Known Transiting Extrasolar Planet"},
+    {"pl_names": ["ups And b", "ups And c", "ups And d"], "bibcode": "2002ApJ...572L..79L", "contribution": "binary_separation",
+     "title": "A Distant Stellar Companion in the upsilon Andromedae System"},
+    # JWST/HST-era landmark atmospheres (manual deep dive 2026-05-21); data in migration 016.
+    {"pl_names": ["WASP-39 b"], "bibcode": "2023Natur.614..649J", "contribution": "atmosphere",
+     "title": "Identification of carbon dioxide in an exoplanet atmosphere"},
+    {"pl_names": ["WASP-39 b"], "bibcode": "2023Natur.617..483T", "contribution": "atmosphere",
+     "title": "Photochemically produced SO2 in the atmosphere of WASP-39b"},
+    {"pl_names": ["WASP-96 b"], "bibcode": "2018Natur.557..526N", "contribution": "atmosphere",
+     "title": "An absolute sodium abundance for a cloud-free hot Saturn exoplanet"},
+    {"pl_names": ["K2-18 b"], "bibcode": "2023ApJ...956L..13M", "contribution": "atmosphere",
+     "title": "Carbon-bearing Molecules in a Possible Hycean Atmosphere"},
 ]
 
 UPSERT_PUB = """

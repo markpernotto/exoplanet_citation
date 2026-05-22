@@ -102,6 +102,12 @@ computed from measured properties, not from a stock-image library.
   is traceable to its source. Literature distances for hosts that both Gaia and
   the archive miss live in `host_distances_manual`. An analysis of the aggregate
   audit results is in preparation as a short Research Note.
+- **Curated atmospheric and orbital-geometry data:** landmark literature results
+  hand-harvested into `planet_atmospheres` (molecule detections with instrument,
+  significance, and source paper) and `system_orbital_geometry` (measured mutual
+  inclinations), each credited via a `characterization` citation. Includes the
+  first detected exoplanet atmosphere (HD 209458 b) and JWST-era detections
+  (WASP-39 b CO2/SO2, K2-18 b CH4/CO2). This data feeds the 3D scene.
 - **Publisher** generates RSS 2.0, JSON, and health-snapshot feeds with
   freshness measurement against a 26-hour SLO. Per-planet, per-system, and
   per-author RSS feeds are also exposed dynamically by the API.
@@ -166,6 +172,8 @@ psql "$DATABASE_URL" -f etl/migrations/011_binary_companions_inner.sql
 psql "$DATABASE_URL" -f etl/migrations/012_host_distances_manual.sql
 psql "$DATABASE_URL" -f etl/migrations/013_planet_publications_prior_detection.sql
 psql "$DATABASE_URL" -f etl/migrations/014_planet_publications_characterization.sql
+psql "$DATABASE_URL" -f etl/migrations/015_old_cohort_enrichment.sql
+psql "$DATABASE_URL" -f etl/migrations/016_landmark_atmospheres.sql
 
 # Verify connectivity
 make check-setup

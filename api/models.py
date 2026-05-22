@@ -217,7 +217,8 @@ class Publication(BaseModel):
 
 
 class PlanetPublication(Publication):
-    role: str  # 'discovery' | 'follow_up'
+    role: str  # 'discovery' | 'follow_up' | 'prior_detection' | 'characterization'
+    contribution: str | None = None  # data this paper supplied, e.g. 'binary_masses', 'distance'
     co_planets: list[str]  # other planets linked to this publication
 
 

@@ -1023,7 +1023,7 @@ def planet_publications(pl_name: str) -> PlanetPublicationsResponse:
 
             cur.execute(
                 f"""
-                SELECT {_PUB_COLS}, pp.role,
+                SELECT {_PUB_COLS}, pp.role, pp.contribution,
                        COALESCE(
                            (SELECT array_agg(pp2.pl_name ORDER BY pp2.pl_name)
                             FROM planet_publications pp2

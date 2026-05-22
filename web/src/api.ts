@@ -194,7 +194,8 @@ export type Publication = {
 };
 
 export type PlanetPublication = Publication & {
-  role: 'discovery' | 'follow_up';
+  role: 'discovery' | 'follow_up' | 'prior_detection' | 'characterization';
+  contribution: string | null;
   co_planets: string[];
 };
 

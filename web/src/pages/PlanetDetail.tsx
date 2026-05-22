@@ -6,6 +6,7 @@ import LoadingBar from '../components/LoadingBar';
 import PlanetCard from '../components/PlanetCard';
 import { collectFacts } from '../lib/derived';
 import { formatMass, formatRadius, formatTemperature, useUnitsMode, type Formatted, type UnitsMode } from '../lib/units';
+import { plainText } from '../lib/html';
 
 export default function PlanetDetail() {
   const { plName = '' } = useParams<{ plName: string }>();
@@ -202,6 +203,8 @@ export default function PlanetDetail() {
           </section>
 
           <DiscoverySection planet={planet} paper={paper} publications={publications} sectionDelay={1200} />
+
+          <ReferencesSection publications={publications} />
         </div>
       </div>
 
@@ -271,9 +274,9 @@ function DiscoverySection({ planet, paper, publications, sectionDelay = 0 }: { p
             <p style={{ margin: '0 0 0.25rem', fontWeight: 600, fontSize: '0.95rem', lineHeight: 1.4 }}>
               {adsUrl ? (
                 <a href={adsUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--fg)' }}>
-                  {paper.title ?? paper.bibcode}
+                  {plainText(paper.title) || paper.bibcode}
                 </a>
-              ) : (paper.title ?? paper.bibcode)}
+              ) : (plainText(paper.title) || paper.bibcode)}
             </p>
 
             {paper.authors.length > 0 && (() => {
@@ -368,10 +371,11 @@ function DiscoverySection({ planet, paper, publications, sectionDelay = 0 }: { p
 
             {paper.abstract && (() => {
               const LIMIT = 300;
-              const truncated = paper.abstract.length > LIMIT;
+              const abstract = plainText(paper.abstract);
+              const truncated = abstract.length > LIMIT;
               const displayText = abstractExpanded || !truncated
-                ? paper.abstract
-                : paper.abstract.slice(0, LIMIT).trimEnd() + '…';
+                ? abstract
+                : abstract.slice(0, LIMIT).trimEnd() + '…';
               return (
                 <div style={{ margin: '0 0 0.75rem' }}>
                   <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--fg-muted)', lineHeight: 1.55 }}>
@@ -405,14 +409,151 @@ function DiscoverySection({ planet, paper, publications, sectionDelay = 0 }: { p
           <p style={{ margin: 0, fontSize: '0.9rem' }}>
             <strong>Reference:</strong>{' '}
             {ref.url ? (
-              <a href={ref.url} target="_blank" rel="noopener noreferrer">{ref.text}</a>
+              <a href={ref.url} target="_blank" rel="noopener noreferrer">{plainText(ref.text)}</a>
             ) : (
-              <span style={{ color: 'var(--fg-muted)' }}>{ref.text}</span>
+              <span style={{ color: 'var(--fg-muted)' }}>{plainText(ref.text)}</span>
             )}
           </p>
         ) : null}
       </div>
     </section>
+  );
+}
+
+// Non-discovery publications grouped by role. These credit the papers the audit
+// drew data from beyond the discovery announcement, honoring the rule that any
+// data point harvested from an additional paper must also cite that paper.
+const REFERENCE_ROLE_META: { role: string; label: string; blurb: string }[] = [
+  { role: 'characterization', label: 'Characterization', blurb: 'measured parameters this catalog drew from' },
+  { role: 'prior_detection', label: 'Prior detection', blurb: 'reported the planet or its host before the discovery paper' },
+  { role: 'follow_up', label: 'Follow-up', blurb: 'refined or confirmed the discovery' },
+];
+
+function ReferencesSection({ publications }: { publications: PlanetPublication[] | null }) {
+  const location = useLocation();
+  const themeQuery = (() => { const t = new URLSearchParams(location.search).get('theme'); return t ? `?theme=${t}` : ''; })();
+  if (!publications) return null;
+  const refs = publications.filter((p) => p.role !== 'discovery');
+  if (refs.length === 0) return null;
+
+  const known = new Set(REFERENCE_ROLE_META.map((m) => m.role));
+  const groups = REFERENCE_ROLE_META
+    .map((meta) => ({ ...meta, items: refs.filter((p) => p.role === meta.role) }))
+    .filter((g) => g.items.length > 0);
+  // Surface any unexpected role rather than silently dropping it.
+  const extra = refs.filter((p) => !known.has(p.role));
+  if (extra.length > 0) groups.push({ role: 'other', label: 'Other', blurb: 'additional linked publications', items: extra });
+
+  return (
+    <section style={{ marginTop: '2rem' }}>
+      <h2>Citations &amp; references</h2>
+      <p style={{ margin: '0 0 1rem', fontSize: '0.85rem', color: 'var(--fg-muted)', lineHeight: 1.55, maxWidth: '60ch' }}>
+        Papers beyond the discovery announcement that this catalog draws data from. Each is credited for what it contributed.
+      </p>
+      {groups.map((g) => (
+        <div key={g.role} style={{ marginBottom: '1.25rem' }}>
+          <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.95rem' }}>
+            {g.label}{' '}
+            <span style={{ fontWeight: 400, fontSize: '0.8rem', color: 'var(--fg-muted)' }}>· {g.blurb}</span>
+          </h3>
+          {g.items.map((p) => <ReferenceCard key={`${p.pub_id}-${p.role}`} pub={p} themeQuery={themeQuery} />)}
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function ReferenceCard({ pub, themeQuery }: { pub: PlanetPublication; themeQuery: string }) {
+  const [authorsExpanded, setAuthorsExpanded] = useState(false);
+  const [abstractExpanded, setAbstractExpanded] = useState(false);
+  const adsUrl = pub.bibcode ? `https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(pub.bibcode)}/abstract` : null;
+  const meta = [pub.journal, pub.pub_date?.slice(0, 4)].filter(Boolean).join(' · ');
+
+  return (
+    <div className="card" style={{ marginBottom: '0.6rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'flex-start' }}>
+        <p style={{ margin: '0 0 0.25rem', fontWeight: 600, fontSize: '0.92rem', lineHeight: 1.4 }}>
+          {adsUrl ? (
+            <a href={adsUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--fg)' }}>
+              {plainText(pub.title) || pub.bibcode}
+            </a>
+          ) : (plainText(pub.title) || pub.bibcode || 'Untitled')}
+        </p>
+        {pub.contribution && (
+          <span style={{ flexShrink: 0, fontSize: '0.72rem', color: 'var(--fg-muted)', border: '1px solid var(--border)', borderRadius: '999px', padding: '0.1rem 0.5rem', whiteSpace: 'nowrap' }}>
+            {pub.contribution.replace(/_/g, ' ')}
+          </span>
+        )}
+      </div>
+
+      {pub.authors.length > 0 && (() => {
+        const PREVIEW = 5;
+        const shown = authorsExpanded ? pub.authors : pub.authors.slice(0, PREVIEW);
+        const hidden = pub.authors.length - PREVIEW;
+        return (
+          <p style={{ margin: '0 0 0.35rem', fontSize: '0.82rem', color: 'var(--fg-muted)', lineHeight: 1.6 }}>
+            {shown.map((author, i) => (
+              <span key={author}>
+                {i > 0 && ', '}
+                <Link to={`/authors/${encodeURIComponent(author)}${themeQuery}`} style={{ color: 'var(--fg-muted)' }}>
+                  {author}
+                </Link>
+              </span>
+            ))}
+            {!authorsExpanded && hidden > 0 && (
+              <>
+                {', '}
+                <button onClick={() => setAuthorsExpanded(true)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: '0.82rem', color: 'var(--accent)' }}>
+                  +{hidden} more
+                </button>
+              </>
+            )}
+            {authorsExpanded && hidden > 0 && (
+              <>
+                {' '}
+                <button onClick={() => setAuthorsExpanded(false)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: '0.8rem', color: 'var(--accent)' }}>
+                  show less
+                </button>
+              </>
+            )}
+          </p>
+        );
+      })()}
+
+      {(meta || pub.citation_count != null) && (
+        <p style={{ margin: '0 0 0.5rem', fontSize: '0.8rem', color: 'var(--fg-muted)' }}>
+          {meta}
+          {pub.citation_count != null && (
+            <>{meta ? ' · ' : ''}<strong style={{ color: 'var(--fg)' }}>{pub.citation_count.toLocaleString()}</strong> citations</>
+          )}
+        </p>
+      )}
+
+      {pub.abstract && (() => {
+        const LIMIT = 300;
+        const abstract = plainText(pub.abstract);
+        const truncated = abstract.length > LIMIT;
+        const displayText = abstractExpanded || !truncated
+          ? abstract
+          : abstract.slice(0, LIMIT).trimEnd() + '…';
+        return (
+          <div style={{ margin: '0 0 0.6rem' }}>
+            <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--fg-muted)', lineHeight: 1.55 }}>{displayText}</p>
+            {truncated && (
+              <button onClick={() => setAbstractExpanded((e) => !e)} style={{ background: 'none', border: 'none', padding: '0.2rem 0', cursor: 'pointer', fontSize: '0.8rem', color: 'var(--accent)', marginTop: '0.2rem' }}>
+                {abstractExpanded ? 'show less' : 'show more…'}
+              </button>
+            )}
+          </div>
+        );
+      })()}
+
+      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', fontSize: '0.8rem' }}>
+        {adsUrl && <a href={adsUrl} target="_blank" rel="noopener noreferrer">ADS →</a>}
+        {pub.doi && <a href={`https://doi.org/${pub.doi}`} target="_blank" rel="noopener noreferrer">DOI →</a>}
+        {pub.arxiv_id && <a href={`https://arxiv.org/abs/${pub.arxiv_id}`} target="_blank" rel="noopener noreferrer">arXiv →</a>}
+      </div>
+    </div>
   );
 }
 

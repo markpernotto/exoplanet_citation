@@ -13,6 +13,36 @@ and each mints a version-specific
 
 _Nothing yet._
 
+## [0.1.2] - 2026-05-21
+
+### Added
+
+- **Citations & references on planet pages**: the planet detail page now renders
+  every non-discovery citation (follow-up, prior detection, characterization)
+  grouped by role, each with its `contribution` tag (e.g. binary masses,
+  distance), so the papers the audit drew data from are credited in the UI and
+  not only in the database. The `/api/planets/{name}/publications` response now
+  includes `contribution`.
+- **Old-discovery data harvest** (manual literature deep dive): the catalog's
+  oldest systems were held at discovery-only depth. Added landmark atmosphere
+  detections to `planet_atmospheres` for HD 209458 b (Na, H, CO, H2O), 51 Peg b (H2O),
+  HD 189733 b (Na, H2O, CO), and 55 Cnc e (CO2/CO, tentative); refined the ups And c/d
+  mutual inclination to the published 29.9 +/- 1.0 deg; backfilled wide stellar-companion separations for HD 189733 (216 AU) and ups And (750 AU); and linked the source
+  papers as `characterization` / `follow_up` citations (migration 015 plus
+  `etl/seed_followup_citations.py`). All values verified against ADS.
+- **Landmark JWST/HST atmosphere detections**: curated molecule detections added
+  to `planet_atmospheres` for WASP-39 b (CO2 at 26σ, SO2), WASP-96 b (Na), and
+  K2-18 b (CH4, CO2), with citations (migration 016). The tentative K2-18 b DMS
+  signal is deliberately excluded.
+
+### Fixed
+
+- Paper titles, abstracts, and discovery references on the planet page now render
+  as clean text. ADS / NASA strings carry HTML markup (`<SUB>`/`<SUP>` tags and
+  entities like `&amp;` / `&gt;` / accented-character escapes) that previously
+  showed raw; a `plainText` helper decodes entities and strips tags before
+  display.
+
 ## [0.1.1] - 2026-05-21
 
 Changes since v0.1.0 (2026-05-14).

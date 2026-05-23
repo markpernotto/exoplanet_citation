@@ -1,5 +1,6 @@
 // Derived planet/star properties — anything we can compute or infer from
 // the typed columns. These power the "Beyond the basics" card.
+import type { UnitsMode } from './units';
 
 const EARTH_RADIUS_KM = 6371;
 const EARTH_MASS_KG = 5.972e24;
@@ -15,12 +16,20 @@ export function surfaceGravity(pl_bmasse: number | null, pl_rade: number | null)
   return (G * M) / (r * r);
 }
 
-export function gravityFact(pl_bmasse: number | null, pl_rade: number | null, pl_dens: number | null): DerivedFact | null {
+export function gravityFact(pl_bmasse: number | null, pl_rade: number | null, pl_dens: number | null, mode: UnitsMode): DerivedFact | null {
   const g = surfaceGravity(pl_bmasse, pl_rade);
   if (g == null) return null;
   // Skip for likely-gaseous planets; "surface gravity" means little there.
   if (pl_dens != null && pl_dens < 1.5) return null;
   const earthMultiple = g / 9.81;
+  if (mode === 'imperial') {
+    const weightOnPlanet = (earthMultiple * 154).toFixed(0);
+    return {
+      label: 'Surface gravity',
+      value: `${earthMultiple.toFixed(2)}× Earth (${(g * 3.28084).toFixed(1)} ft/s²)`,
+      explain: `A 154 lb person on Earth would weigh about ${weightOnPlanet} lb here.`,
+    };
+  }
   const weightOnPlanet = (earthMultiple * 70).toFixed(0);
   return {
     label: 'Surface gravity',
@@ -146,24 +155,26 @@ export function yearLengthFact(pl_orbper: number | null): DerivedFact | null {
   return { label: 'Year length', value, explain };
 }
 
-export function temperatureFact(pl_eqt: number | null): DerivedFact | null {
+export function temperatureFact(pl_eqt: number | null, mode: UnitsMode): DerivedFact | null {
   if (pl_eqt == null) return null;
   const celsius = pl_eqt - 273.15;
-  const cStr = celsius.toFixed(0);
-  // Earth's mean equilibrium temperature is ~255 K (-18 °C); the actual surface
-  // is warmer (~288 K / 15 °C) due to greenhouse forcing. We compare to 255 K
-  // since that's what `pl_eqt` measures.
+  const imperial = mode === 'imperial';
+  // Kelvin stays primary as the scientific standard; the parenthetical and the
+  // comparison swap between °C and °F with the units toggle.
+  const tStr = imperial ? `${Math.round(celsius * 9 / 5 + 32)}°F` : `${Math.round(celsius)}°C`;
+  // Earth's mean equilibrium temperature is ~255 K (-18 °C / ~0 °F).
+  const earthRef = imperial ? '0°F' : '-18°C';
   let comparison = '';
-  if (pl_eqt > 1500) comparison = `${cStr}°C — hot enough to melt iron, far above any temperature found on Earth`;
-  else if (pl_eqt > 800) comparison = `${cStr}°C — hundreds of degrees hotter than the hottest place on Earth`;
-  else if (pl_eqt > 400) comparison = `${cStr}°C — far hotter than Earth (Earth's equilibrium is about -18°C)`;
-  else if (pl_eqt > 280) comparison = `${cStr}°C — within Earth-like temperature range`;
-  else if (pl_eqt > 200) comparison = `${cStr}°C — colder than Earth's average, well below freezing`;
-  else if (pl_eqt > 100) comparison = `${cStr}°C — far colder than anywhere on Earth's surface`;
-  else comparison = `${cStr}°C — cryogenic, far below Earth's coldest temperatures`;
+  if (pl_eqt > 1500) comparison = `${tStr} — hot enough to melt iron, far above any temperature found on Earth`;
+  else if (pl_eqt > 800) comparison = `${tStr} — hundreds of degrees hotter than the hottest place on Earth`;
+  else if (pl_eqt > 400) comparison = `${tStr} — far hotter than Earth (Earth's equilibrium is about ${earthRef})`;
+  else if (pl_eqt > 280) comparison = `${tStr} — within Earth-like temperature range`;
+  else if (pl_eqt > 200) comparison = `${tStr} — colder than Earth's average, well below freezing`;
+  else if (pl_eqt > 100) comparison = `${tStr} — far colder than anywhere on Earth's surface`;
+  else comparison = `${tStr} — cryogenic, far below Earth's coldest temperatures`;
   return {
     label: 'Equilibrium temperature',
-    value: `${pl_eqt.toFixed(0)} K (${cStr}°C)`,
+    value: `${pl_eqt.toFixed(0)} K (${tStr})`,
     explain: comparison,
   };
 }
@@ -200,12 +211,12 @@ export function collectFacts(planet: {
   pl_orbper: number | null;
   pl_insol: number | null;
   st_mass: number | null;
-}): DerivedFact[] {
+}, mode: UnitsMode): DerivedFact[] {
   return [
     compositionFact(planet.pl_dens),
     solarSystemAnalogFact(planet.pl_rade, planet.pl_bmasse),
-    gravityFact(planet.pl_bmasse, planet.pl_rade, planet.pl_dens),
-    temperatureFact(planet.pl_eqt),
+    gravityFact(planet.pl_bmasse, planet.pl_rade, planet.pl_dens, mode),
+    temperatureFact(planet.pl_eqt, mode),
     atmosphericChemistryFact(planet.pl_eqt, planet.pl_dens),
     sunlightFact(planet.pl_insol),
     yearLengthFact(planet.pl_orbper),

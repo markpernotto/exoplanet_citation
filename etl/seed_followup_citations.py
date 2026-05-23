@@ -339,6 +339,59 @@ CHARACTERIZATIONS: list[dict] = [
      "bibcode": "2012ApJ...761...59L", "contribution": "composition",
      "title": "How Thermal Evolution and Mass-loss Sculpt Populations of Super-Earths "
               "and Sub-Neptunes: Application to the Kepler-11 System and Beyond"},
+    # WASP-121 b deep dive (manual, 2026-05-23; migration 028). Benchmark ultra-hot
+    # Jupiter; a metal zoo + H2O + SiO. Bibcodes verified via ADS.
+    {"pl_names": ["WASP-121 b"], "bibcode": "2017Natur.548...58E", "contribution": "atmosphere",
+     "title": "An ultrahot gas-giant exoplanet with a stratosphere"},
+    {"pl_names": ["WASP-121 b"], "bibcode": "2018AJ....156..283E", "contribution": "atmosphere",
+     "title": "An Optical Transmission Spectrum for the Ultra-hot Jupiter WASP-121b "
+              "Measured with the Hubble Space Telescope"},
+    {"pl_names": ["WASP-121 b"], "bibcode": "2019AJ....158...91S", "contribution": "atmosphere",
+     "title": "The Hubble Space Telescope PanCET Program: Exospheric Mg II and Fe II in the "
+              "Near-ultraviolet Transmission Spectrum of WASP-121b Using Jitter Decorrelation"},
+    {"pl_names": ["WASP-121 b"], "bibcode": "2020A&A...641A.123H", "contribution": "atmosphere",
+     "title": "Hot Exoplanet Atmospheres Resolved with Transit Spectroscopy (HEARTS). IV. "
+              "A spectral inventory of atoms and molecules in the high-resolution transmission "
+              "spectrum of WASP-121 b"},
+    {"pl_names": ["WASP-121 b"], "bibcode": "2025AJ....169..341G", "contribution": "atmosphere",
+     "title": "WASP-121 b's Transmission Spectrum Observed with JWST/NIRSpec G395H Reveals "
+              "Thermal Dissociation and SiO in the Atmosphere"},
+    # GJ 1214 b deep dive (manual, 2026-05-23; migration 029). Featureless archetype
+    # sub-Neptune: clouds (Kreidberg 2014), JWST phase curve metal-rich/reflective +
+    # H2O + albedo/temps (Kempton 2023), tentative CO2/CH4 (Schlawin 2024).
+    {"pl_names": ["GJ 1214 b"], "bibcode": "2014Natur.505...69K", "contribution": "atmosphere",
+     "title": "Clouds in the atmosphere of the super-Earth exoplanet GJ1214b"},
+    {"pl_names": ["GJ 1214 b"], "bibcode": "2023Natur.620...67K", "contribution": "atmosphere",
+     "title": "A reflective, metal-rich atmosphere for GJ 1214b from its JWST phase curve"},
+    {"pl_names": ["GJ 1214 b"], "bibcode": "2024ApJ...974L..33S", "contribution": "atmosphere",
+     "title": "Possible Carbon Dioxide above the Thick Aerosols of GJ 1214 b"},
+    # WASP-107 b deep dive (manual, 2026-05-23; migration 030). Warm super-puff
+    # Neptune; He + H2O + CH4 + CO + CO2 + SO2. Bibcodes verified via ADS.
+    {"pl_names": ["WASP-107 b"], "bibcode": "2018Natur.557...68S", "contribution": "atmosphere",
+     "title": "Helium in the eroding atmosphere of an exoplanet"},
+    {"pl_names": ["WASP-107 b"], "bibcode": "2018ApJ...858L...6K", "contribution": "atmosphere",
+     "title": "Water, High-altitude Condensates, and Possible Methane Depletion in the "
+              "Atmosphere of the Warm Super-Neptune WASP-107b"},
+    {"pl_names": ["WASP-107 b"], "bibcode": "2024Natur.625...51D", "contribution": "atmosphere",
+     "title": "SO2, silicate clouds, but no CH4 detected in a warm Neptune"},
+    {"pl_names": ["WASP-107 b"], "bibcode": "2024Natur.630..831S", "contribution": "atmosphere",
+     "title": "A warm Neptune's methane reveals core mass and vigorous atmospheric mixing"},
+    {"pl_names": ["WASP-107 b"], "bibcode": "2024Natur.630..836W", "contribution": "atmosphere",
+     "title": "A high internal heat flux and large core in a warm Neptune exoplanet"},
+    # LHS 1140 b deep dive (manual, 2026-05-23; migration 031). Temperate HZ water
+    # world; H2-rich atmosphere ruled out, 9-19% water by mass. Bibcodes verified via ADS.
+    {"pl_names": ["LHS 1140 b"], "bibcode": "2024ApJ...970L...2C", "contribution": "atmosphere",
+     "title": "Transmission Spectroscopy of the Habitable Zone Exoplanet LHS 1140 b with JWST/NIRISS"},
+    {"pl_names": ["LHS 1140 b"], "bibcode": "2024ApJ...968L..22D", "contribution": "atmosphere",
+     "title": "LHS 1140 b Is a Potentially Habitable Water World"},
+    # WASP-76 b deep dive (manual, 2026-05-23; migration 032). "Iron rain" UHJ;
+    # Fe asymmetry + metal inventory + VO. Bibcodes verified via ADS.
+    {"pl_names": ["WASP-76 b"], "bibcode": "2020Natur.580..597E", "contribution": "atmosphere",
+     "title": "Nightside condensation of iron in an ultrahot giant exoplanet"},
+    {"pl_names": ["WASP-76 b"], "bibcode": "2021A&A...646A.158T", "contribution": "atmosphere",
+     "title": "ESPRESSO high-resolution transmission spectroscopy of WASP-76 b"},
+    {"pl_names": ["WASP-76 b"], "bibcode": "2023Natur.619..491P", "contribution": "atmosphere",
+     "title": "Vanadium oxide and a sharp onset of cold-trapping on a giant exoplanet"},
 ]
 
 UPSERT_PUB = """

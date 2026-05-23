@@ -188,6 +188,11 @@ psql "$DATABASE_URL" -f etl/migrations/024_planet_derived_measurements.sql
 psql "$DATABASE_URL" -f etl/migrations/025_betpic_atmosphere_and_derived.sql
 psql "$DATABASE_URL" -f etl/migrations/026_gj876b_astrometric_benedict2002.sql
 psql "$DATABASE_URL" -f etl/migrations/027_kepler11_envelopes_lopez2012.sql
+psql "$DATABASE_URL" -f etl/migrations/028_wasp121b_atmosphere.sql
+psql "$DATABASE_URL" -f etl/migrations/029_gj1214b_atmosphere_and_derived.sql
+psql "$DATABASE_URL" -f etl/migrations/030_wasp107b_atmosphere.sql
+psql "$DATABASE_URL" -f etl/migrations/031_lhs1140b_waterworld.sql
+psql "$DATABASE_URL" -f etl/migrations/032_wasp76b_atmosphere.sql
 
 # Verify connectivity
 make check-setup

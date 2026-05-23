@@ -5,7 +5,7 @@ import GalaxyMap from '../components/GalaxyMap';
 import LoadingBar from '../components/LoadingBar';
 import PlanetCard from '../components/PlanetCard';
 import { collectFacts } from '../lib/derived';
-import { formatMass, formatRadius, formatTemperature, useUnitsMode, type Formatted, type UnitsMode } from '../lib/units';
+import { formatMass, formatRadius, formatTemperature, humanizeHours, useUnitsMode, type Formatted, type UnitsMode } from '../lib/units';
 import { plainText } from '../lib/html';
 import { fmtMeasure, quantityLabel } from '../lib/composition';
 
@@ -99,6 +99,8 @@ export default function PlanetDetail() {
       <p style={{ margin: '0 0 1rem' }}>
         <a href={from || '/'} onClick={goBack}>← back{from && from.includes('q=') ? ' to search' : ''}</a>
       </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
+        <div style={{ minWidth: 0 }}>
       <h1 style={{ margin: '0 0 0.25rem', display: 'flex', alignItems: 'baseline', gap: '0.6rem', flexWrap: 'wrap' }}>
         {planet.pl_name}
         {planet.ra != null && planet.dec != null && (
@@ -125,6 +127,11 @@ export default function PlanetDetail() {
           <a href={`/api/rss/system/${encodeURIComponent(planet.hostname)}`} title={`RSS: all ${planet.hostname} system updates`} style={{ color: 'var(--fg-muted)' }}>{planet.hostname} system</a>
         </span>
       </p>
+        </div>
+        <div style={{ flexShrink: 0 }}>
+          <UnitsToggle mode={unitsMode} setMode={setUnitsMode} />
+        </div>
+      </div>
 
       <div className="planet-detail">
         <div className="planet-detail-left">
@@ -140,14 +147,11 @@ export default function PlanetDetail() {
 
         <div>
           <section>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <h2 style={{ margin: 0 }}>Stat card</h2>
-              <UnitsToggle mode={unitsMode} setMode={setUnitsMode} />
-            </div>
+            <h2>Stat card</h2>
             <div className="card">
               <dl className="stat-grid">
                 {fmtRow('Distance from host star', planet.pl_orbsmax, 'AU', '', 0)}
-                {fmtRow('Orbital period', planet.pl_orbper, 'days', '', 1)}
+                {fmtRowDisplay('Orbital period', humanizeHours(planet.pl_orbper != null ? planet.pl_orbper * 24 : null), 1)}
                 {fmtRow('Eccentricity', planet.pl_orbeccen, '', '', 2)}
                 {fmtRowDisplay('Radius', formatRadius(planet.pl_rade, unitsMode), 3)}
                 {fmtRowDisplay('Mass', formatMass(planet.pl_bmasse, unitsMode), 4)}
@@ -164,7 +168,7 @@ export default function PlanetDetail() {
             </div>
           </section>
 
-          <BeyondBasicsCard planet={planet} sectionDelay={2200} />
+          <BeyondBasicsCard planet={planet} unitsMode={unitsMode} sectionDelay={2200} />
 
           <SystemSiblingsSection planet={planet} siblings={siblings} />
 
@@ -702,8 +706,8 @@ function HostStarCard({ planet, sectionDelay = 0 }: { planet: PlanetDetailType; 
   );
 }
 
-function BeyondBasicsCard({ planet, sectionDelay = 0 }: { planet: PlanetDetailType; sectionDelay?: number }) {
-  const facts = collectFacts(planet);
+function BeyondBasicsCard({ planet, unitsMode, sectionDelay = 0 }: { planet: PlanetDetailType; unitsMode: UnitsMode; sectionDelay?: number }) {
+  const facts = collectFacts(planet, unitsMode);
   if (facts.length === 0) return null;
   const sd = `${sectionDelay}ms`;
   return (

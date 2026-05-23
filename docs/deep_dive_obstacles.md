@@ -113,3 +113,15 @@ automation would need to do. Append as new obstacles appear.
     PDF -> journal full_html -> ADS -> human paste) before recording a value as
     unavailable, and must distinguish "not found yet" from "genuinely unconstrained
     in the literature." Only the latter is a real frontier uncertainty.
+
+16. **A bibcode that resolves is not necessarily the right paper.** When a bibcode
+    is *guessed* from journal/volume/page rather than read off the source, it can
+    resolve to a real but WRONG paper for a different system. Example (2026-05-23):
+    `2018AJ....156...17K` was guessed for WASP-107 b's water paper but is actually
+    the WASP-**103**b phase-curve paper; the correct WASP-107 b paper is
+    `2018ApJ...858L...6K`. Caught immediately because the abstract named the wrong
+    planet, so nothing entered the warehouse.
+    → Verify each fetched bibcode's title/abstract names the intended planet, not
+    just that it resolves. Prefer bibcodes already in the warehouse (the
+    observation table or citation graph) over guessed ones. This is a self-caught
+    process slip, not an upstream data error -- nothing to report externally.

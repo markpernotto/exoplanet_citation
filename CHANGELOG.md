@@ -85,6 +85,45 @@ and each mints a version-specific
   present-day envelope/volatile fractions (H/He for c-f, peaking at ~17% on e;
   ~40% water for b, which cannot retain H/He) from Lopez et al. 2012 in
   `planet_derived_measurements` (migration 027). All bibcodes verified against ADS.
+- **WASP-121 b atmosphere deep dive** (manual literature review): the benchmark
+  ultra-hot Jupiter, previously discovery-cite only, now carries 13
+  `planet_atmospheres` rows (migration 028) - H2O (Evans 2017, emission +
+  stratosphere), VO (Evans 2018), the neutral metal inventory Na/Mg/Ca/Cr/Fe/Ni/V
+  (Hoeijmakers 2020, HARPS), escaping ionised Fe II and Mg II (Sing 2019), and SiO
+  at 5.2 sigma (Gapp 2025, JWST/NIRSpec), plus a TiO non-detection (the titanium
+  cold-trap). Five `characterization` / `atmosphere` citations added; bibcodes
+  verified against ADS. First in a JWST-era atmosphere-showcase set.
+- **GJ 1214 b deep dive** (manual literature review): the archetype sub-Neptune,
+  famously featureless in transmission. Added H2O (detected, >3 sigma) and
+  tentative CO2 / CH4 to `planet_atmospheres`, and its JWST phase-curve scalars -
+  Bond albedo 0.51 +/- 0.06 and dayside/nightside brightness temperatures
+  553 / 437 K - to `planet_derived_measurements` (migration 029), from Kreidberg
+  2014 (clouds), Kempton 2023 (reflective, metal-rich), and Schlawin 2024
+  (tentative CO2/CH4). Three `characterization` / `atmosphere` citations added;
+  bibcodes verified against ADS.
+- **WASP-107 b deep dive** (manual literature review): the low-density warm
+  Neptune, among the most thoroughly characterised exoplanet atmospheres. Added 6
+  `planet_atmospheres` rows (migration 030) - He (Spake 2018, the first exoplanet
+  helium detection, eroding atmosphere), H2O (21 sigma), CH4 (depleted, revealing
+  the core mass), CO (7 sigma), CO2, and photochemical SO2 with silicate clouds -
+  from the JWST-2024 trio (Dyrek, Sing, Welbanks) plus Kreidberg 2018. Five
+  `characterization` / `atmosphere` citations added; bibcodes verified against ADS.
+- **LHS 1140 b deep dive** (manual literature review): the temperate (226 K)
+  habitable-zone super-Earth. JWST transmission ruled out a H2-rich / mini-Neptune
+  atmosphere (Damiano 2024, "a potentially habitable water world"; Cadieux 2024),
+  recorded as an H2 `ruled_out` row plus a `water_mass_fraction` of 9-19%
+  (water-world) in `planet_derived_measurements` (migration 031). Two
+  `characterization` / `atmosphere` citations added; bibcodes verified against ADS.
+- **WASP-76 b deep dive** (manual literature review): the "iron rain" ultra-hot
+  Jupiter. Added 9 `planet_atmospheres` rows (migration 032) - neutral Fe
+  (Ehrenreich 2020, with the famous day-night condensation asymmetry), the
+  ESPRESSO metal inventory Li (first detection) / Na (9.2 sigma) / Mg / Ca II / Mn
+  / K (Tabernero 2021), VO (Pelletier 2023), and a TiO non-detection (cold-trap) -
+  plus the iron-rain terminator wind velocity (-11 km/s) in
+  `planet_derived_measurements`. Three `characterization` / `atmosphere` citations
+  added; bibcodes verified against ADS. Completes a five-system JWST-era
+  atmosphere-showcase set (WASP-121 b, GJ 1214 b, WASP-107 b, LHS 1140 b,
+  WASP-76 b).
 - **"Recently added" section on the landing page**: shows the latest pipeline
   run above "Most recently confirmed" (without replacing it). New planets render
   as the same catalog cards (`PlanetGrid`); notable physical revisions (mass,

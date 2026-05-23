@@ -75,6 +75,19 @@ export const COLLECTIONS: Collection[] = [
       'first exoplanet atmosphere (HD 209458 b) through the JWST era.',
   },
   {
+    key: 'composition',
+    label: 'Interiors & composition',
+    tagline: 'Derived interiors, abundances, metal budgets',
+    kind: 'visual',
+    imageCredit: 'HR 8799',
+    blurb:
+      'Literature-derived scalar properties beyond the catalog basics: interior core mass ' +
+      'fractions, atmospheric elemental abundances (C, O, S, N relative to solar), and heavy-' +
+      'element mass budgets. Each value carries its asymmetric uncertainty, the modelling ' +
+      'assumption it depends on, and the source paper. Interior fractions are degenerate with ' +
+      'water content; abundances are reported relative to solar.',
+  },
+  {
     key: 'boundary',
     label: 'Planet / brown-dwarf boundary',
     tagline: 'Objects near the deuterium-burning limit',

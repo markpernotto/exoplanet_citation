@@ -286,6 +286,59 @@ CHARACTERIZATIONS: list[dict] = [
     {"pl_names": ["TRAPPIST-1 e"], "bibcode": "2025ApJ...990L..52E", "contribution": "atmosphere",
      "title": "JWST-TST DREAMS: NIRSpec/PRISM Transmission Spectroscopy of the Habitable "
               "Zone Planet TRAPPIST-1 e"},
+    # HR 8799 atmosphere deep dive (manual, 2026-05-23; migration 023). Real
+    # molecule detections in the four directly-imaged giants. Bibcodes verified via
+    # ADS. Konopacky 2013 (c) and Barman 2015 (b) are the landmark ground-based
+    # detections; Xuan 2026 is the JWST/NIRSpec compositional study covering all four.
+    {"pl_names": ["HR 8799 c"], "bibcode": "2013Sci...339.1398K", "contribution": "atmosphere",
+     "title": "Detection of Carbon Monoxide and Water Absorption Lines in an Exoplanet Atmosphere"},
+    {"pl_names": ["HR 8799 b"], "bibcode": "2015ApJ...804...61B", "contribution": "atmosphere",
+     "title": "Simultaneous Detection of Water, Methane, and Carbon Monoxide in the "
+              "Atmosphere of Exoplanet HR8799b"},
+    {"pl_names": ["HR 8799 b", "HR 8799 c", "HR 8799 d", "HR 8799 e"],
+     "bibcode": "2026ApJ..1000...27X", "contribution": "atmosphere",
+     "title": "The Compositions of the HR 8799 Planets Reflect Accretion of Both Solids "
+              "and Metal-enriched Gas"},
+    # beta Pictoris b deep dive (manual, 2026-05-23; migration 025). CO + spin
+    # (Snellen 2014) and H2O + C/O (GRAVITY 2020). Molecule detections ->
+    # planet_atmospheres; spin + C/O -> planet_derived_measurements (provenance in
+    # those rows' bibcode). Bibcodes verified via ADS.
+    {"pl_names": ["bet Pic b"], "bibcode": "2014Natur.509...63S", "contribution": "atmosphere",
+     "title": "Fast spin of the young extrasolar planet β Pictoris b"},
+    {"pl_names": ["bet Pic b"], "bibcode": "2020A&A...633A.110G", "contribution": "atmosphere",
+     "title": "Peering into the formation history of β Pictoris b with VLTI/GRAVITY "
+              "long-baseline interferometry"},
+    # GJ 876 deep dive (manual, 2026-05-23). Non-transiting M-dwarf RV system, so no
+    # atmospheres; the value-add is the dynamical characterization. Benedict 2002 is
+    # the FIRST astrometrically-determined mass of any exoplanet (GJ 876 b, HST FGS3),
+    # which is why b's catalog mass is a true mass and not m sin i. Nelson 2016 is the
+    # empirical 3-D Laplace-resonance architecture (complements the Rivera 2010
+    # geometry already cited). Bibcodes verified via ADS.
+    {"pl_names": ["GJ 876 b"], "bibcode": "2002ApJ...581L.115B", "contribution": "mass",
+     "title": "A Mass for the Extrasolar Planet Gliese 876b Determined from Hubble Space "
+              "Telescope Fine Guidance Sensor 3 Astrometry and High-Precision Radial Velocities"},
+    {"pl_names": ["GJ 876 b", "GJ 876 c", "GJ 876 d", "GJ 876 e"],
+     "bibcode": "2016MNRAS.455.2484N", "contribution": "mutual_inclination",
+     "title": "An empirically derived three-dimensional Laplace resonance in the "
+              "Gliese 876 planetary system"},
+    # Kepler-11 deep dive (manual, 2026-05-23). Faint transiting multi, no atmosphere
+    # spectroscopy; masses/radii/densities are in the catalog. Value-add: Bedell et al.
+    # 2017 re-derived the benchmark planet masses and radii from a precise solar-twin
+    # stellar characterization of the host. (Lopez et al. 2012 modelled the H/He
+    # envelopes; harvest those per-planet fractions into planet_derived_measurements
+    # in a follow-up once the table is in hand.) Bibcode verified via ADS.
+    {"pl_names": ["Kepler-11 b", "Kepler-11 c", "Kepler-11 d", "Kepler-11 e",
+                  "Kepler-11 f", "Kepler-11 g"],
+     "bibcode": "2017ApJ...839...94B", "contribution": "mass",
+     "title": "Kepler-11 is a Solar Twin: Revising the Masses and Radii of Benchmark "
+              "Planets via Precise Stellar Characterization"},
+    # Lopez et al. 2012: Kepler-11 envelope/volatile fractions, now harvested into
+    # planet_derived_measurements (migration 027), so the paper is cited for the data
+    # taken. b-f only (g not modelled). contribution='composition'.
+    {"pl_names": ["Kepler-11 b", "Kepler-11 c", "Kepler-11 d", "Kepler-11 e", "Kepler-11 f"],
+     "bibcode": "2012ApJ...761...59L", "contribution": "composition",
+     "title": "How Thermal Evolution and Mass-loss Sculpt Populations of Super-Earths "
+              "and Sub-Neptunes: Application to the Kepler-11 System and Beyond"},
 ]
 
 UPSERT_PUB = """

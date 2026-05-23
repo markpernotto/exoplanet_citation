@@ -183,6 +183,11 @@ psql "$DATABASE_URL" -f etl/migrations/019_kepler90_reconcile_and_source_fix.sql
 psql "$DATABASE_URL" -f etl/migrations/020_trappist1_jwst_atmospheres.sql
 psql "$DATABASE_URL" -f etl/migrations/021_trappist1_geometry_agol2021.sql
 psql "$DATABASE_URL" -f etl/migrations/022_planet_interior_composition.sql
+psql "$DATABASE_URL" -f etl/migrations/023_hr8799_atmospheres.sql
+psql "$DATABASE_URL" -f etl/migrations/024_planet_derived_measurements.sql
+psql "$DATABASE_URL" -f etl/migrations/025_betpic_atmosphere_and_derived.sql
+psql "$DATABASE_URL" -f etl/migrations/026_gj876b_astrometric_benedict2002.sql
+psql "$DATABASE_URL" -f etl/migrations/027_kepler11_envelopes_lopez2012.sql
 
 # Verify connectivity
 make check-setup

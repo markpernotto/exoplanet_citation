@@ -1,8 +1,9 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
-import { api, type AtmosphereRow, type InnerBinaryRow, type PlanetSummary, type SystemGeometryRow, type TopAuthor } from '../api';
+import { api, type AtmosphereRow, type DerivedMeasurementRow, type InnerBinaryRow, type PlanetSummary, type SystemGeometryRow, type TopAuthor } from '../api';
 import { COLLECTION_BY_KEY, type Collection } from '../lib/collections';
 import LoadingBar from '../components/LoadingBar';
+import { fmtMeasure, quantityLabel } from '../lib/composition';
 
 // Curated from the cb_flag audit: the three microlensing entries whose published
 // solutions do not unambiguously place the planet outside both stars. (The audit
@@ -58,6 +59,7 @@ export default function Collections() {
   const [geometry, setGeometry] = useState<SystemGeometryRow[] | null>(null);
   const [innerBinaries, setInnerBinaries] = useState<Map<string, InnerBinaryRow> | null>(null);
   const [atmospheres, setAtmospheres] = useState<AtmosphereRow[] | null>(null);
+  const [derived, setDerived] = useState<DerivedMeasurementRow[] | null>(null);
 
   useEffect(() => {
     setMembers(null);
@@ -65,8 +67,13 @@ export default function Collections() {
     setGeometry(null);
     setInnerBinaries(null);
     setAtmospheres(null);
+    setDerived(null);
     if (key === 'atmospheres') {
       api.atmospheres().then((r) => setAtmospheres(r.rows)).catch(() => setAtmospheres([]));
+      return;
+    }
+    if (key === 'composition') {
+      api.derivedMeasurements().then((r) => setDerived(r.rows)).catch(() => setDerived([]));
       return;
     }
     if (key === 'top-discoverers') {
@@ -112,6 +119,7 @@ export default function Collections() {
         geometry={geometry}
         innerBinaries={innerBinaries}
         atmospheres={atmospheres}
+        derived={derived}
         themeQuery={themeQuery}
       />
     </>
@@ -161,17 +169,19 @@ function Reveal({ children }: { children: ReactNode }) {
   return <div className="collection-reveal">{children}</div>;
 }
 
-function CollectionBody({ collKey, members, authors, geometry, innerBinaries, atmospheres, themeQuery }: {
+function CollectionBody({ collKey, members, authors, geometry, innerBinaries, atmospheres, derived, themeQuery }: {
   collKey: string;
   members: PlanetSummary[] | null;
   authors: TopAuthor[] | null;
   geometry: SystemGeometryRow[] | null;
   innerBinaries: Map<string, InnerBinaryRow> | null;
   atmospheres: AtmosphereRow[] | null;
+  derived: DerivedMeasurementRow[] | null;
   themeQuery: string;
 }) {
   if (collKey === 'top-discoverers') return <AuthorList authors={authors} themeQuery={themeQuery} />;
   if (collKey === 'atmospheres') return <AtmosphereTable rows={atmospheres} themeQuery={themeQuery} />;
+  if (collKey === 'composition') return <CompositionTable rows={derived} themeQuery={themeQuery} />;
   if (collKey === 'data-quality') return <DataQualityTable themeQuery={themeQuery} />;
 
   if (collKey === 'architecture-3d') {
@@ -553,6 +563,54 @@ function AtmosphereTable({ rows, themeQuery }: { rows: AtmosphereRow[] | null; t
           ))}
         </tbody>
       </table>
+    </Reveal>
+  );
+}
+
+function CompositionTable({ rows, themeQuery }: { rows: DerivedMeasurementRow[] | null; themeQuery: string }) {
+  if (rows === null) return <LoadingBar loading={true} />;
+  if (rows.length === 0) return <p style={{ color: 'var(--fg-muted)' }}>No derived measurements found.</p>;
+  const systems = new Map<string, DerivedMeasurementRow[]>();
+  for (const r of rows) {
+    const k = r.hostname ?? '—';
+    const arr = systems.get(k);
+    if (arr) arr.push(r); else systems.set(k, [r]);
+  }
+  const planets = new Set(rows.map((r) => r.pl_name)).size;
+  return (
+    <Reveal>
+      <p style={{ margin: '0 0 1.25rem', fontSize: '0.9rem', color: 'var(--fg-muted)', lineHeight: 1.6 }}>
+        <strong style={{ color: 'var(--fg)' }}>{rows.length}</strong> derived values across{' '}
+        <strong style={{ color: 'var(--fg)' }}>{planets}</strong> planets, grouped by system. Each carries its
+        asymmetric uncertainty, the modelling assumption it depends on, and the source paper.
+      </p>
+      {[...systems.entries()].map(([host, hostRows]) => (
+        <div key={host} style={{ marginBottom: '1.5rem' }}>
+          <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.95rem' }}>{host}</h3>
+          <table className="history-table">
+            <thead>
+              <tr>
+                <th scope="col">Planet</th>
+                <th scope="col">Property</th>
+                <th scope="col">Value</th>
+                <th scope="col">Model</th>
+                <th scope="col">Source</th>
+              </tr>
+            </thead>
+            <tbody>
+              {hostRows.map((r) => (
+                <tr key={`${r.pl_name}-${r.quantity}`}>
+                  <td><Link to={`/planets/${encodeURIComponent(r.pl_name)}${themeQuery}`}>{r.pl_name}</Link></td>
+                  <td title={r.curator_note ?? undefined}>{quantityLabel(r.quantity)}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>{fmtMeasure(r)}</td>
+                  <td style={{ color: 'var(--fg-muted)', fontSize: '0.85rem' }}>{r.model ?? ''}</td>
+                  <td>{r.bibcode ? <a href={adsUrl(r.bibcode)} target="_blank" rel="noopener noreferrer" title={r.bibcode}>ADS</a> : ''}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ))}
     </Reveal>
   );
 }

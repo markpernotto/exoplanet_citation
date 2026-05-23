@@ -48,6 +48,8 @@ from api.models import (
     AuthorResponse,
     BinaryCompanion,
     ChangeRecord,
+    DerivedMeasurementRow,
+    DerivedMeasurementsResponse,
     DiscoveriesResponse,
     DiscoveryPaper,
     FreshnessInfo,
@@ -511,6 +513,39 @@ def atmospheres() -> AtmospheresResponse:
             )
             rows = cur.fetchall()
     return AtmospheresResponse(rows=[AtmosphereRow(**r) for r in rows])
+
+
+@app.get("/api/derived-measurements", response_model=DerivedMeasurementsResponse, tags=["planets"])
+def derived_measurements(
+    pl_name: str | None = Query(None, description="Restrict to one planet"),
+) -> DerivedMeasurementsResponse:
+    """Literature-derived scalar properties (planet_derived_measurements).
+
+    Interior composition, elemental abundances, and metal budgets, each with its
+    asymmetric uncertainty, the modelling assumption, and the source paper. The
+    hostname is joined in so consumers can group by system. Powers the composition
+    collection and the per-planet Composition block.
+    """
+    where = ""
+    params: list = []
+    if pl_name is not None:
+        where = "WHERE d.pl_name = %s"
+        params.append(pl_name)
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                f"""
+                SELECT d.pl_name, p.hostname, d.quantity, d.value, d.unc_hi, d.unc_lo,
+                       d.unit, d.model, d.bibcode, d.curator_note
+                FROM planet_derived_measurements d
+                LEFT JOIN planets_current p ON p.pl_name = d.pl_name
+                {where}
+                ORDER BY p.hostname NULLS LAST, d.pl_name, d.quantity
+                """,
+                params,
+            )
+            rows = cur.fetchall()
+    return DerivedMeasurementsResponse(rows=[DerivedMeasurementRow(**r) for r in rows])
 
 
 def _manual_distance(cur, hostname: str) -> tuple[float | None, str | None]:
@@ -1087,6 +1122,19 @@ def planet_scene(pl_name: str) -> SceneResponse:
             )
             geometry_rows = cur.fetchall()
 
+            # Literature-derived scalar properties (composition, abundances)
+            cur.execute(
+                """
+                SELECT pl_name, NULL::text AS hostname, quantity, value, unc_hi, unc_lo,
+                       unit, model, bibcode, curator_note
+                FROM planet_derived_measurements
+                WHERE pl_name = %s
+                ORDER BY quantity
+                """,
+                (pl_name,),
+            )
+            derived_rows = cur.fetchall()
+
     return SceneResponse(
         planet=PlanetDetail(**planet_row),
         host_star=HostStarGaia(**host_row) if host_row else None,
@@ -1095,6 +1143,7 @@ def planet_scene(pl_name: str) -> SceneResponse:
         atmospheric_observations=[AtmosphericObservation(**r) for r in atm_obs_rows],
         atmospheric_detections=[AtmosphericMolecule(**r) for r in atm_det_rows],
         orbital_geometry=[OrbitalGeometryRecord(**r) for r in geometry_rows],
+        derived_measurements=[DerivedMeasurementRow(**r) for r in derived_rows],
         scene_hints=SceneHints(**derive_scene_hints(planet_row)),
     )
 

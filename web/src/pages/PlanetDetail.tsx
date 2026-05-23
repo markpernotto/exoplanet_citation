@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { api, type BinaryCompanion, type DiscoveryPaper, type HostStarGaia, type PlanetDetail as PlanetDetailType, type PlanetHistoryResponse, type PlanetPublication, type PlanetsListResponse } from '../api';
+import { api, type BinaryCompanion, type DerivedMeasurementRow, type DiscoveryPaper, type HostStarGaia, type PlanetDetail as PlanetDetailType, type PlanetHistoryResponse, type PlanetPublication, type PlanetsListResponse } from '../api';
 import GalaxyMap from '../components/GalaxyMap';
 import LoadingBar from '../components/LoadingBar';
 import PlanetCard from '../components/PlanetCard';
 import { collectFacts } from '../lib/derived';
 import { formatMass, formatRadius, formatTemperature, useUnitsMode, type Formatted, type UnitsMode } from '../lib/units';
 import { plainText } from '../lib/html';
+import { fmtMeasure, quantityLabel } from '../lib/composition';
 
 export default function PlanetDetail() {
   const { plName = '' } = useParams<{ plName: string }>();
@@ -25,6 +26,7 @@ export default function PlanetDetail() {
   const [paper, setPaper] = useState<DiscoveryPaper | null>(null);
   const [publications, setPublications] = useState<PlanetPublication[] | null>(null);
   const [companions, setCompanions] = useState<BinaryCompanion[] | null>(null);
+  const [derived, setDerived] = useState<DerivedMeasurementRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [unitsMode, setUnitsMode] = useUnitsMode();
 
@@ -46,6 +48,7 @@ export default function PlanetDetail() {
     setPaper(null);
     setPublications(null);
     setCompanions(null);
+    setDerived(null);
     setError(null);
     api.planetDetail(plName).then(setPlanet).catch((e) => setError(e.message));
     api.planetHistory(plName).then(setHistory).catch(() => {});
@@ -53,6 +56,7 @@ export default function PlanetDetail() {
     api.planetPaper(plName).then(setPaper).catch(() => {});
     api.planetPublications(plName).then((r) => setPublications(r.publications)).catch(() => {});
     api.planetCompanions(plName).then(setCompanions).catch(() => {});
+    api.derivedMeasurements(plName).then((r) => setDerived(r.rows)).catch(() => {});
   }, [plName]);
 
   // Once we have the planet, fetch siblings (other planets with same hostname)
@@ -203,6 +207,8 @@ export default function PlanetDetail() {
           </section>
 
           <DiscoverySection planet={planet} paper={paper} publications={publications} sectionDelay={1200} />
+
+          <CompositionSection rows={derived} />
 
           <ReferencesSection publications={publications} />
         </div>
@@ -415,6 +421,46 @@ function DiscoverySection({ planet, paper, publications, sectionDelay = 0 }: { p
             )}
           </p>
         ) : null}
+      </div>
+    </section>
+  );
+}
+
+// Literature-derived scalar properties (planet_derived_measurements): interior
+// composition, elemental abundances, metal budgets. Renders nothing for planets
+// with no curated measurements. Source paper is also in the citation graph below.
+function CompositionSection({ rows }: { rows: DerivedMeasurementRow[] | null }) {
+  if (!rows || rows.length === 0) return null;
+  const adsUrl = (b: string) => `https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(b)}/abstract`;
+  return (
+    <section style={{ marginTop: '2rem' }}>
+      <h2>Composition &amp; abundances</h2>
+      <div className="card">
+        <p style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', color: 'var(--fg-muted)', lineHeight: 1.55 }}>
+          Literature-derived values, each with its asymmetric uncertainty, the modelling assumption it
+          depends on, and the source paper. Interior fractions are degenerate with water content;
+          abundances are relative to solar.
+        </p>
+        <table className="history-table">
+          <thead>
+            <tr>
+              <th scope="col">Property</th>
+              <th scope="col">Value</th>
+              <th scope="col">Model</th>
+              <th scope="col">Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.quantity}>
+                <td title={r.curator_note ?? undefined}>{quantityLabel(r.quantity)}</td>
+                <td style={{ whiteSpace: 'nowrap' }}>{fmtMeasure(r)}</td>
+                <td style={{ color: 'var(--fg-muted)', fontSize: '0.85rem' }}>{r.model ?? ''}</td>
+                <td>{r.bibcode ? <a href={adsUrl(r.bibcode)} target="_blank" rel="noopener noreferrer" title={r.bibcode}>ADS</a> : ''}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </section>
   );

@@ -37,14 +37,54 @@ and each mints a version-specific
   `characterization` / `atmosphere` citations added (migration 020); the
   Collections atmospheres view now distinguishes detections from ruled-out
   results. All bibcodes verified against ADS.
-- **Planet interior-composition layer** (new `planet_interior_composition`
-  table; migration 022): a curated home for interior-structure results (core mass
-  fraction, bulk Fe/Mg molar ratio, inferred water content), which the catalog
-  previously had nowhere to store. Seeded from Agol et al. 2021 for the seven
-  TRAPPIST-1 planets, recording their iron-poor-relative-to-Earth cores and the
-  dry-inner / wetter-outer volatile gradient, with the core-mass-fraction vs
-  water degeneracy noted per row. NASA EA already carries Agol's masses, radii,
-  and stellar parameters, so those were deliberately not duplicated.
+- **Derived-measurements layer** (new `planet_derived_measurements` table;
+  migrations 022 + 024): a single, general home for any literature-derived scalar
+  property (interior composition, elemental abundances, metal budget, ...) with
+  asymmetric uncertainty, unit, model assumption, and source, keyed by
+  `(pl_name, quantity, bibcode)` so a new result type is a new `quantity` value,
+  not a new table. (It replaces the initial single-purpose
+  `planet_interior_composition` table, whose rows are folded in here.) Seeded with
+  TRAPPIST-1 core mass fractions and Fe/Mg ratios (Agol et al. 2021; iron-poor
+  cores, dry-inner / wetter-outer volatile gradient, core-mass-fraction vs water
+  degeneracy noted) and the HR 8799 planets' elemental abundances and metal budget
+  - total heavy-element mass split into accreted solids vs metal-enriched gas, the
+  core-accretion signature (Xuan et al. 2026, Tables 4 and 5). NASA EA already
+  carries the masses, radii, and stellar parameters, so those were deliberately
+  not duplicated.
+- **HR 8799 atmosphere deep dive** (manual literature review): the four
+  directly-imaged giant planets had no curated molecule data. Added 29 molecule
+  rows to `planet_atmospheres` (migration 023; 26 detected, 3 tentative), from
+  Konopacky 2013 (c: CO, H2O), Barman 2015 (b: H2O, CH4, CO), and the JWST/NIRSpec
+  study Xuan et al. 2026, whose per-planet Table 3 supplies detection
+  significances (stored as CCF S/N) for CO2, H2S, NH3, and the 13CO / C18O
+  isotopologues - tying the planets' super-stellar metallicities to core
+  accretion. Per-planet specifics from that table: H2S in b/c/d but not e, NH3
+  only in b, and C18O/HDO/HCN only tentative in b. Six `characterization` /
+  `atmosphere` citations added; all bibcodes verified against ADS. These are the
+  first curated detections that drive the 3D scene's atmosphere tint.
+- **beta Pictoris b deep dive** (manual literature review): the directly-imaged
+  giant had no curated atmosphere or derived-property data. Added CO (Snellen
+  2014, VLT/CRIRES) and H2O (GRAVITY 2020) to `planet_atmospheres`, and its fast
+  spin (~25 km/s equatorial rotation, Snellen 2014) and C/O ratio (0.43 +/- 0.05,
+  GRAVITY 2020 - low C/O with a high mass implying core accretion) to
+  `planet_derived_measurements` - the first use of that table for a
+  non-composition scalar (planetary spin). Two `characterization` / `atmosphere`
+  citations added (migration 025); bibcodes verified against ADS.
+- **GJ 876 and Kepler-11 characterization citations** (manual literature review):
+  the last two of the five geometry-cohort systems, both non-atmosphere targets
+  (GJ 876 is non-transiting; Kepler-11's faint host has no molecule spectroscopy),
+  so the value-add is crediting their dynamical / benchmark characterization. GJ
+  876 b now cites Benedict et al. 2002 (the first astrometrically-determined
+  exoplanet mass), and all four planets cite Nelson et al. 2016 (the empirical
+  3-D Laplace-resonance architecture); Kepler-11's six planets cite Bedell et al.
+  2017 (revised benchmark masses and radii from a precise solar-twin stellar
+  characterization). GJ 876 b additionally gains its astrometric inclination
+  (84 +/- 6 deg, in known tension with the dynamical ~59 deg) and astrometric mass
+  (1.89 +/- 0.34 M_Jup) in `planet_derived_measurements` from Benedict et al. 2002,
+  the first astrometric exoplanet mass (migration 026). Kepler-11 b-f gain their
+  present-day envelope/volatile fractions (H/He for c-f, peaking at ~17% on e;
+  ~40% water for b, which cannot retain H/He) from Lopez et al. 2012 in
+  `planet_derived_measurements` (migration 027). All bibcodes verified against ADS.
 - **"Recently added" section on the landing page**: shows the latest pipeline
   run above "Most recently confirmed" (without replacing it). New planets render
   as the same catalog cards (`PlanetGrid`); notable physical revisions (mass,

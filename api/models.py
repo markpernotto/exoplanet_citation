@@ -309,6 +309,23 @@ class AtmospheresResponse(BaseModel):
     rows: list[AtmosphereRow]
 
 
+class DerivedMeasurementRow(BaseModel):
+    pl_name: str
+    hostname: str | None
+    quantity: str
+    value: float | None
+    unc_hi: float | None  # +1 sigma
+    unc_lo: float | None  # -1 sigma
+    unit: str | None
+    model: str | None  # modelling assumption / caveat
+    bibcode: str | None
+    curator_note: str | None
+
+
+class DerivedMeasurementsResponse(BaseModel):
+    rows: list[DerivedMeasurementRow]
+
+
 class SceneHints(BaseModel):
     sun_color_hex: str
     sun_angular_size_deg: float | None
@@ -327,4 +344,5 @@ class SceneResponse(BaseModel):
     atmospheric_observations: list[AtmosphericObservation]
     atmospheric_detections: list[AtmosphericMolecule]
     orbital_geometry: list[OrbitalGeometryRecord]
+    derived_measurements: list[DerivedMeasurementRow]
     scene_hints: SceneHints

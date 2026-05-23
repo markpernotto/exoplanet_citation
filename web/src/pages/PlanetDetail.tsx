@@ -396,12 +396,12 @@ function DiscoverySection({ planet, paper, publications, sectionDelay = 0 }: { p
             })()}
 
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', fontSize: '0.82rem' }}>
-              {adsUrl && <a href={adsUrl} target="_blank" rel="noopener noreferrer">ADS →</a>}
+              {adsUrl && <a href={adsUrl} target="_blank" rel="noopener noreferrer">ADS</a>}
               {paper.doi && (
-                <a href={`https://doi.org/${paper.doi}`} target="_blank" rel="noopener noreferrer">DOI →</a>
+                <a href={`https://doi.org/${paper.doi}`} target="_blank" rel="noopener noreferrer">DOI</a>
               )}
               {paper.arxiv_id && (
-                <a href={`https://arxiv.org/abs/${paper.arxiv_id}`} target="_blank" rel="noopener noreferrer">arXiv →</a>
+                <a href={`https://arxiv.org/abs/${paper.arxiv_id}`} target="_blank" rel="noopener noreferrer">arXiv</a>
               )}
             </div>
           </div>
@@ -549,9 +549,9 @@ function ReferenceCard({ pub, themeQuery }: { pub: PlanetPublication; themeQuery
       })()}
 
       <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', fontSize: '0.8rem' }}>
-        {adsUrl && <a href={adsUrl} target="_blank" rel="noopener noreferrer">ADS →</a>}
-        {pub.doi && <a href={`https://doi.org/${pub.doi}`} target="_blank" rel="noopener noreferrer">DOI →</a>}
-        {pub.arxiv_id && <a href={`https://arxiv.org/abs/${pub.arxiv_id}`} target="_blank" rel="noopener noreferrer">arXiv →</a>}
+        {adsUrl && <a href={adsUrl} target="_blank" rel="noopener noreferrer">ADS</a>}
+        {pub.doi && <a href={`https://doi.org/${pub.doi}`} target="_blank" rel="noopener noreferrer">DOI</a>}
+        {pub.arxiv_id && <a href={`https://arxiv.org/abs/${pub.arxiv_id}`} target="_blank" rel="noopener noreferrer">arXiv</a>}
       </div>
     </div>
   );

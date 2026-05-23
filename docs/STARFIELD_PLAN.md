@@ -217,6 +217,7 @@ Each phase is independently shippable. Phase 1 alone resolves the VR-stars-don't
 
 - **Dust extinction in Layer 1+2 rasterization** — for galactic-center vantages, stars on the far side of the bulge are heavily reddened. The current bp_rp colors don't account for dust along the new line of sight. Acceptable simplification for Phase 1-3; revisit in Phase 4 alongside the diffuse shader's dust handling.
 - **Texture resolution vs file size** — 4096×2048 PNG is ~2-4 MB. 8192×4096 is ~10 MB but resolves stars at 0.045° (within Quest 3's per-pixel resolution). Phase 1 tests with 4096; bump if visibly aliased.
+  - **Previewing a local resolution bump in VR (no deploy needed).** A Quest 3 enters VR only over HTTPS, so a bump you render locally will not show on the headset over plain `localhost` HTTP. You do not have to commit, push, and wait for Vercel to see it: serve the local Vite dev server over a temporary HTTPS address and open that on the Quest. Two ways to get one: a tunnel (`ngrok http 5550`, or `cloudflared tunnel --url http://localhost:5550`), or a local cert (`vite-plugin-mkcert`, then load the LAN HTTPS URL on the headset). Open the temp address in the Quest browser and hit Enter VR; the upgraded starfield renders against your uncommitted local changes.
 - **Real-time vs cached** — if a user moves between systems quickly, do we want to pre-fetch starfield textures? Probably not worth it; the 200-500ms gen time is fine for an interaction that happens at most once per minute.
 
 ---
@@ -235,7 +236,7 @@ Each phase is independently shippable. Phase 1 alone resolves the VR-stars-don't
 When working on the VR scene:
 
 - **N tiny meshes ≠ one big mesh.** Anything that depends on rendering hundreds-of-thousands of small objects is suspect in XR. If it must be done, validate the rendering primitive works at small scale FIRST.
-- **Test deployed, not local.** WebXR requires HTTPS; that means Vercel-deployed code, not localhost. Local code changes don't reach the Quest until you commit + push + wait for the deploy. (See git log timing in [the conversation transcript that produced this plan].)
+- **WebXR requires HTTPS, but testing local changes does not require a deploy.** A Quest 3 enters VR only over HTTPS, so plain `localhost` HTTP will not work. Two paths: deploy and test on Vercel, or expose the local dev server over a temporary HTTPS address (a tunnel such as `ngrok` / `cloudflared`, or a local cert via `vite-plugin-mkcert`) and open that URL on the headset. The tunnel path lets you preview uncommitted local changes, including a locally bumped starfield resolution, without a commit + push + deploy cycle. See "Texture resolution vs file size" under Open questions for the resolution-preview steps.
 - **`gl_PointSize` is not reliable in XR.** Treat point sprites as desktop-only.
 - **`scene.background` and skydome both work in XR.** Use either. Both is fine — skydome overdraws scene.background but acts as a fallback if scene.background is buggy on a specific device.
 - **`session.updateRenderState({ depthFar: 1e9 })` is mandatory** for any scene with content past 1000 units. Add to any new XR scene reflexively.

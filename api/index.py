@@ -40,6 +40,8 @@ from psycopg.rows import dict_row
 
 from api.host_xyz import resolve_host_xyz
 from api.models import (
+    AtmosphereRow,
+    AtmospheresResponse,
     AtmosphericMolecule,
     AtmosphericObservation,
     AuthorPlanet,
@@ -51,6 +53,8 @@ from api.models import (
     FreshnessInfo,
     HealthResponse,
     HostStarGaia,
+    InnerBinariesResponse,
+    InnerBinaryRow,
     OrbitalGeometryRecord,
     PlanetDetail,
     PlanetHistoryResponse,
@@ -64,6 +68,8 @@ from api.models import (
     SceneResponse,
     StatsResponse,
     StorageInfo,
+    SystemGeometryResponse,
+    SystemGeometryRow,
     TopAuthor,
     TopAuthorsResponse,
 )
@@ -338,6 +344,13 @@ def planets_list(
     q: str | None = Query(None, description="Search planet name or host name (ILIKE)"),
     discovery_method: str | None = Query(None, description="Filter by discoverymethod"),
     year: int | None = Query(None, description="Filter by disc_year"),
+    cb_flag: int | None = Query(None, description="Filter by circumbinary flag (1 = circumbinary)"),
+    has_geometry: bool = Query(False, description="Only planets in systems with measured 3D geometry"),
+    min_mass: float | None = Query(None, description="Minimum planet mass in Earth masses (pl_bmasse)"),
+    min_eccen: float | None = Query(None, description="Minimum orbital eccentricity (pl_orbeccen)"),
+    sy_pnum_min: int | None = Query(None, description="Minimum number of planets in the system (sy_pnum)"),
+    sy_snum_min: int | None = Query(None, description="Minimum number of stars in the system (sy_snum)"),
+    multi_paper: bool = Query(False, description="Only planets linked to more than one publication"),
 ) -> PlanetsListResponse:
     """Paginated list of planets from the latest snapshot."""
     where = ["snapshot_date = (SELECT MAX(snapshot_date) FROM planets_snapshots)"]
@@ -352,6 +365,28 @@ def planets_list(
     if year is not None:
         where.append("disc_year = %s")
         params.append(year)
+    if cb_flag is not None:
+        where.append("(raw_row->>'cb_flag')::int = %s")
+        params.append(cb_flag)
+    if has_geometry:
+        where.append("EXISTS (SELECT 1 FROM system_orbital_geometry g WHERE g.hostname = planets_snapshots.hostname)")
+    if min_mass is not None:
+        where.append("pl_bmasse >= %s")
+        params.append(min_mass)
+    if min_eccen is not None:
+        where.append("pl_orbeccen >= %s")
+        params.append(min_eccen)
+    if sy_pnum_min is not None:
+        where.append("sy_pnum >= %s")
+        params.append(sy_pnum_min)
+    if sy_snum_min is not None:
+        where.append("sy_snum >= %s")
+        params.append(sy_snum_min)
+    if multi_paper:
+        where.append(
+            "(SELECT COUNT(*) FROM planet_publications pp "
+            "WHERE pp.pl_name = planets_snapshots.pl_name) > 1"
+        )
     where_clause = " AND ".join(where)
 
     with _connect() as conn:
@@ -413,6 +448,69 @@ def planets_recent(limit: int = Query(100, ge=1, le=500), offset: int = Query(0,
         offset=offset,
         results=[PlanetSummary(**r) for r in rows],
     )
+
+
+@app.get("/api/system-geometry", response_model=SystemGeometryResponse, tags=["planets"])
+def system_geometry() -> SystemGeometryResponse:
+    """All measured mutual inclinations (system_orbital_geometry), most misaligned first.
+
+    Powers the "Measured 3D architecture" collection: the real angle between each
+    planet's orbit and its system's reference plane, with method and source.
+    """
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT hostname, pl_name, reference_pl_name, mutual_inclination_deg,
+                       inclination_uncertainty_deg, method, bibcode, note
+                FROM system_orbital_geometry
+                ORDER BY mutual_inclination_deg DESC NULLS LAST, hostname, pl_name
+                """
+            )
+            rows = cur.fetchall()
+    return SystemGeometryResponse(rows=[SystemGeometryRow(**r) for r in rows])
+
+
+@app.get("/api/inner-binaries", response_model=InnerBinariesResponse, tags=["planets"])
+def inner_binaries() -> InnerBinariesResponse:
+    """Inner-binary parameters (binary_companions where inner_binary), keyed by host.
+
+    Powers the circumbinary collection: the two stars the planet orbits, with the
+    source paper the masses came from.
+    """
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT hostname, primary_mass_msun, component_mass_msun, separation_au,
+                       orbital_period_d, eccentricity, source_bibcode
+                FROM binary_companions
+                WHERE inner_binary = true
+                ORDER BY hostname
+                """
+            )
+            rows = cur.fetchall()
+    return InnerBinariesResponse(rows=[InnerBinaryRow(**r) for r in rows])
+
+
+@app.get("/api/atmospheres", response_model=AtmospheresResponse, tags=["planets"])
+def atmospheres() -> AtmospheresResponse:
+    """Curated atmospheric molecule detections (planet_atmospheres).
+
+    Powers the atmospheres collection: each molecule with its detecting instrument,
+    statistical significance, and source paper.
+    """
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT pl_name, molecule, detection, instrument, confidence_sigma, bibcode
+                FROM planet_atmospheres
+                ORDER BY pl_name, molecule
+                """
+            )
+            rows = cur.fetchall()
+    return AtmospheresResponse(rows=[AtmosphereRow(**r) for r in rows])
 
 
 def _manual_distance(cur, hostname: str) -> tuple[float | None, str | None]:

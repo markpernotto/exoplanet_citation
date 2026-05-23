@@ -107,7 +107,10 @@ computed from measured properties, not from a stock-image library.
   significance, and source paper) and `system_orbital_geometry` (measured mutual
   inclinations), each credited via a `characterization` citation. Includes the
   first detected exoplanet atmosphere (HD 209458 b) and JWST-era detections
-  (WASP-39 b CO2/SO2, K2-18 b CH4/CO2). This data feeds the 3D scene.
+  (WASP-39 b CO2/SO2, K2-18 b CH4/CO2). Non-detections are recorded too: the JWST
+  TRAPPIST-1 campaign's bare-rock and ruled-out-atmosphere results (planets b
+  through e) are curated as `ruled_out` / `inconclusive`, so the catalog states
+  what has been excluded, not only what was found. This data feeds the 3D scene.
 - **Publisher** generates RSS 2.0, JSON, and health-snapshot feeds with
   freshness measurement against a 26-hour SLO. Per-planet, per-system, and
   per-author RSS feeds are also exposed dynamically by the API.
@@ -174,6 +177,12 @@ psql "$DATABASE_URL" -f etl/migrations/013_planet_publications_prior_detection.s
 psql "$DATABASE_URL" -f etl/migrations/014_planet_publications_characterization.sql
 psql "$DATABASE_URL" -f etl/migrations/015_old_cohort_enrichment.sql
 psql "$DATABASE_URL" -f etl/migrations/016_landmark_atmospheres.sql
+psql "$DATABASE_URL" -f etl/migrations/017_kepler_ttv_geometry_source_fix.sql
+psql "$DATABASE_URL" -f etl/migrations/018_geometry_source_fix_round2.sql
+psql "$DATABASE_URL" -f etl/migrations/019_kepler90_reconcile_and_source_fix.sql
+psql "$DATABASE_URL" -f etl/migrations/020_trappist1_jwst_atmospheres.sql
+psql "$DATABASE_URL" -f etl/migrations/021_trappist1_geometry_agol2021.sql
+psql "$DATABASE_URL" -f etl/migrations/022_planet_interior_composition.sql
 
 # Verify connectivity
 make check-setup

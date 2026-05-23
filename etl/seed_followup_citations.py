@@ -166,6 +166,126 @@ CHARACTERIZATIONS: list[dict] = [
      "title": "An absolute sodium abundance for a cloud-free hot Saturn exoplanet"},
     {"pl_names": ["K2-18 b"], "bibcode": "2023ApJ...956L..13M", "contribution": "atmosphere",
      "title": "Carbon-bearing Molecules in a Possible Hycean Atmosphere"},
+    # Orbital-geometry citation backfill (manual deep dive 2026-05-22). Migration 010
+    # bulk-seeded system_orbital_geometry for these systems but never linked the
+    # source papers, so the Atlas displayed mutual inclinations it did not cite. Each
+    # bibcode below is the recorded geometry source, re-verified via ADS, EXCEPT the
+    # four Kepler TTV systems that migration 010 mis-attributed to Fabrycky et al.
+    # 2014 (a statistical architecture study across 365 systems, not a per-system
+    # source). Their correct per-system sources, re-verified via ADS, are: Kepler-11
+    # -> Lissauer et al. 2013; Kepler-9 -> Borsato et al. 2014 (TRADES N-body fit);
+    # Kepler-30 -> Sanchis-Ojeda et al. 2012 (coplanar + spin-aligned); Kepler-36 ->
+    # Carter et al. 2012 (dynamical solution). Migration 017 corrects
+    # system_orbital_geometry.bibcode for all four to match. (Several of these
+    # bibcodes -- Gillon 2017, Rivera 2010, Sanchis-Ojeda 2012, Carter 2012 -- are
+    # also discovery cites; the characterization role + mutual_inclination
+    # contribution make each a distinct, non-duplicate link.)
+    {"pl_names": ["TRAPPIST-1 b", "TRAPPIST-1 c", "TRAPPIST-1 d", "TRAPPIST-1 e",
+                  "TRAPPIST-1 f", "TRAPPIST-1 g", "TRAPPIST-1 h"],
+     "bibcode": "2017Natur.542..456G", "contribution": "mutual_inclination",
+     "title": "Seven temperate terrestrial planets around the nearby ultracool dwarf star TRAPPIST-1"},
+    # Agol et al. 2021: refined sky-plane inclinations (photodynamic fit) now the
+    # value source for TRAPPIST-1 geometry (migration 021). Gillon 2017 kept above
+    # as the paper that established the flat architecture.
+    {"pl_names": ["TRAPPIST-1 b", "TRAPPIST-1 c", "TRAPPIST-1 d", "TRAPPIST-1 e",
+                  "TRAPPIST-1 f", "TRAPPIST-1 g", "TRAPPIST-1 h"],
+     "bibcode": "2021PSJ.....2....1A", "contribution": "mutual_inclination",
+     "title": "Refining the Transit-timing and Photometric Analysis of TRAPPIST-1: "
+              "Masses, Radii, Densities, Dynamics, and Ephemerides"},
+    {"pl_names": ["HR 8799 b", "HR 8799 c", "HR 8799 d", "HR 8799 e"],
+     "bibcode": "2018AJ....156..192W", "contribution": "mutual_inclination",
+     "title": "Dynamical Constraints on the HR 8799 Planets with GPI"},
+    {"pl_names": ["bet Pic b", "bet Pic c"],
+     "bibcode": "2020A&A...642L...2N", "contribution": "mutual_inclination",
+     "title": "Direct confirmation of the radial-velocity planet β Pictoris c"},
+    {"pl_names": ["GJ 876 b", "GJ 876 c", "GJ 876 d", "GJ 876 e"],
+     "bibcode": "2010ApJ...719..890R", "contribution": "mutual_inclination",
+     "title": "The Lick-Carnegie Exoplanet Survey: a Uranus-Mass Fourth Planet for "
+              "GJ 876 in an Extrasolar Laplace Configuration"},
+    {"pl_names": ["Kepler-11 b", "Kepler-11 c", "Kepler-11 d", "Kepler-11 e",
+                  "Kepler-11 f", "Kepler-11 g"],
+     "bibcode": "2013ApJ...770..131L", "contribution": "mutual_inclination",
+     "title": "All Six Planets Known to Orbit Kepler-11 Have Low Densities"},
+    {"pl_names": ["Kepler-9 b", "Kepler-9 c"],
+     "bibcode": "2014A&A...571A..38B", "contribution": "mutual_inclination",
+     "title": "TRADES: A new software to derive orbital parameters from observed "
+              "transit times and radial velocities. Revisiting Kepler-11 and Kepler-9"},
+    {"pl_names": ["Kepler-30 b", "Kepler-30 c", "Kepler-30 d"],
+     "bibcode": "2012Natur.487..449S", "contribution": "mutual_inclination",
+     "title": "Alignment of the stellar spin with the orbits of a three-planet system"},
+    {"pl_names": ["Kepler-36 b", "Kepler-36 c"],
+     "bibcode": "2012Sci...337..556C", "contribution": "mutual_inclination",
+     "title": "Kepler-36: A Pair of Planets with Neighboring Orbits and Dissimilar Densities"},
+    # Orbital-geometry citation backfill, round 2 (manual deep dive 2026-05-22).
+    # The remaining migration-010 systems. Each bibcode re-verified via ADS;
+    # seven are the recorded source and check out as the per-system
+    # architecture/dynamical paper. WASP-47's recorded bibcode was a typo
+    # (2017AJ....154..237B -> ...V, Vanderburg et al. 2017), corrected in
+    # migration 018. Several recorded bibcodes here are also discovery cites; the
+    # characterization role + mutual_inclination contribution keep them distinct.
+    # Kepler-90 (geometry hostname KOI-351): migration 019 reconciles its geometry
+    # pl_names to the catalog form ('Kepler-90 b'..'h' -> 'KOI-351 b'..'h'; the
+    # eighth stays 'Kepler-90 i') and repoints the source off Rowe et al. 2014
+    # (bulk validation paper) to the dedicated papers. Cite against the catalog
+    # keys: KOI-351 b-h -> Cabrera et al. 2014; Kepler-90 i -> Shallue &
+    # Vanderburg 2018 (which discovered it).
+    {"pl_names": ["KOI-351 b", "KOI-351 c", "KOI-351 d", "KOI-351 e",
+                  "KOI-351 f", "KOI-351 g", "KOI-351 h"],
+     "bibcode": "2014ApJ...781...18C", "contribution": "mutual_inclination",
+     "title": "The Planetary System to KIC 11442793: A Compact Analogue to the Solar System"},
+    {"pl_names": ["Kepler-90 i"],
+     "bibcode": "2018AJ....155...94S", "contribution": "mutual_inclination",
+     "title": "Identifying Exoplanets with Deep Learning: A Five-planet Resonant Chain "
+              "around Kepler-80 and an Eighth Planet around Kepler-90"},
+    {"pl_names": ["K2-138 b", "K2-138 c", "K2-138 d", "K2-138 e", "K2-138 f"],
+     "bibcode": "2018AJ....155...57C", "contribution": "mutual_inclination",
+     "title": "The K2-138 System: A Near-resonant Chain of Five Sub-Neptune Planets "
+              "Discovered by Citizen Scientists"},
+    {"pl_names": ["Kepler-186 b", "Kepler-186 c", "Kepler-186 d", "Kepler-186 e", "Kepler-186 f"],
+     "bibcode": "2014Sci...344..277Q", "contribution": "mutual_inclination",
+     "title": "An Earth-Sized Planet in the Habitable Zone of a Cool Star"},
+    {"pl_names": ["Kepler-223 b", "Kepler-223 c", "Kepler-223 d", "Kepler-223 e"],
+     "bibcode": "2016Natur.533..509M", "contribution": "mutual_inclination",
+     "title": "A resonant chain of four transiting, sub-Neptune planets"},
+    {"pl_names": ["Kepler-419 b", "Kepler-419 c"],
+     "bibcode": "2014ApJ...791...89D", "contribution": "mutual_inclination",
+     "title": "Large Eccentricity, Low Mutual Inclination: The Three-dimensional "
+              "Architecture of a Hierarchical System of Giant Planets"},
+    {"pl_names": ["Kepler-444 b", "Kepler-444 c", "Kepler-444 d", "Kepler-444 e", "Kepler-444 f"],
+     "bibcode": "2015ApJ...799..170C", "contribution": "mutual_inclination",
+     "title": "An Ancient Extrasolar System with Five Sub-Earth-size Planets"},
+    {"pl_names": ["Kepler-56 b", "Kepler-56 c", "Kepler-56 d"],
+     "bibcode": "2013Sci...342..331H", "contribution": "mutual_inclination",
+     "title": "Stellar Spin-Orbit Misalignment in a Multiplanet System"},
+    {"pl_names": ["TOI-178 b", "TOI-178 c", "TOI-178 d", "TOI-178 e", "TOI-178 f", "TOI-178 g"],
+     "bibcode": "2021A&A...649A..26L", "contribution": "mutual_inclination",
+     "title": "Six transiting planets and a chain of Laplace resonances in TOI-178"},
+    {"pl_names": ["WASP-47 b", "WASP-47 c", "WASP-47 d", "WASP-47 e"],
+     "bibcode": "2017AJ....154..237V", "contribution": "mutual_inclination",
+     "title": "Precise Masses in the WASP-47 System"},
+    # TRAPPIST-1 JWST atmosphere deep dive (manual, 2026-05-22; migration 020).
+    # All are atmosphere constraints / NON-detections (no molecule detected on any
+    # TRAPPIST-1 planet), recorded as ruled_out / inconclusive in planet_atmospheres.
+    # contribution='atmosphere' still applies: we took an atmospheric constraint from
+    # each paper. Bibcodes verified via ADS. The observation campaigns themselves are
+    # already in planet_atmospheric_observations (NASA EA spectra bulk load).
+    {"pl_names": ["TRAPPIST-1 b"], "bibcode": "2023Natur.618...39G", "contribution": "atmosphere",
+     "title": "Thermal emission from the Earth-sized exoplanet TRAPPIST-1 b using JWST"},
+    {"pl_names": ["TRAPPIST-1 b"], "bibcode": "2025NatAs...9..358D", "contribution": "atmosphere",
+     "title": "Combined analysis of the 12.8 and 15 micron JWST/MIRI eclipse observations of TRAPPIST-1 b"},
+    {"pl_names": ["TRAPPIST-1 c"], "bibcode": "2023Natur.620..746Z", "contribution": "atmosphere",
+     "title": "No thick carbon dioxide atmosphere on the rocky exoplanet TRAPPIST-1 c"},
+    {"pl_names": ["TRAPPIST-1 c"], "bibcode": "2025ApJ...979L...5R", "contribution": "atmosphere",
+     "title": "Promise and Peril: Stellar Contamination and Strict Limits on the Atmosphere "
+              "Composition of TRAPPIST-1 c from JWST NIRISS Transmission Spectra"},
+    {"pl_names": ["TRAPPIST-1 c"], "bibcode": "2025ApJ...979L..19R", "contribution": "atmosphere",
+     "title": "Stellar Contamination Correction Using Back-to-back Transits of TRAPPIST-1 b and c"},
+    {"pl_names": ["TRAPPIST-1 d"], "bibcode": "2025ApJ...989..181P", "contribution": "atmosphere",
+     "title": "Strict Limits on Potential Secondary Atmospheres on the Temperate Rocky "
+              "Exo-Earth TRAPPIST-1 d"},
+    {"pl_names": ["TRAPPIST-1 e"], "bibcode": "2025ApJ...990L..52E", "contribution": "atmosphere",
+     "title": "JWST-TST DREAMS: NIRSpec/PRISM Transmission Spectroscopy of the Habitable "
+              "Zone Planet TRAPPIST-1 e"},
 ]
 
 UPSERT_PUB = """

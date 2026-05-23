@@ -881,3 +881,15 @@ html[data-theme] .tw {
   animation-delay: calc(var(--tw-delay, 0) * 150ms + var(--section-delay, 0ms));
 }
 
+/* ── Collection content reveal ───────────────────────────────────────────── */
+/* Matches the planet-page typewriter convention: only animates under a theme;
+   the default theme shows content immediately. A fast section fade rather than a
+   per-row typewriter, which on 50-200 row tables would stagger over many seconds. */
+@keyframes collection-reveal {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+html[data-theme] .collection-reveal {
+  animation: collection-reveal 0.45s ease-out both;
+}
+

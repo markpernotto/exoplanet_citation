@@ -68,6 +68,36 @@ export type OrbitalGeometryRecord = {
   note: string | null;
 };
 
+export type SystemGeometryRow = {
+  hostname: string;
+  pl_name: string;
+  reference_pl_name: string | null;
+  mutual_inclination_deg: number | null;
+  inclination_uncertainty_deg: number | null;
+  method: string;
+  bibcode: string | null;
+  note: string | null;
+};
+
+export type InnerBinaryRow = {
+  hostname: string;
+  primary_mass_msun: number | null;
+  component_mass_msun: number | null;
+  separation_au: number | null;
+  orbital_period_d: number | null;
+  eccentricity: number | null;
+  source_bibcode: string | null;
+};
+
+export type AtmosphereRow = {
+  pl_name: string;
+  molecule: string;
+  detection: string;
+  instrument: string | null;
+  confidence_sigma: number | null;
+  bibcode: string | null;
+};
+
 export type PlanetDetail = {
   pl_name: string;
   hostname: string;
@@ -280,13 +310,26 @@ export const api = {
   stats: () => get<StatsResponse>('/api/stats'),
   discoveriesLatest: (days = 30) =>
     get<DiscoveriesResponse>(`/api/discoveries/latest?days=${days}`),
-  planetsList: (params: { limit?: number; offset?: number; q?: string; year?: number; discovery_method?: string } = {}) => {
+
+  systemGeometry: () => get<{ rows: SystemGeometryRow[] }>('/api/system-geometry'),
+
+  innerBinaries: () => get<{ rows: InnerBinaryRow[] }>('/api/inner-binaries'),
+
+  atmospheres: () => get<{ rows: AtmosphereRow[] }>('/api/atmospheres'),
+  planetsList: (params: { limit?: number; offset?: number; q?: string; year?: number; discovery_method?: string; cb_flag?: number; has_geometry?: boolean; min_mass?: number; min_eccen?: number; sy_pnum_min?: number; sy_snum_min?: number; multi_paper?: boolean } = {}) => {
     const qs = new URLSearchParams();
     if (params.limit !== undefined) qs.set('limit', String(params.limit));
     if (params.offset !== undefined) qs.set('offset', String(params.offset));
     if (params.q) qs.set('q', params.q);
     if (params.year !== undefined) qs.set('year', String(params.year));
     if (params.discovery_method) qs.set('discovery_method', params.discovery_method);
+    if (params.cb_flag !== undefined) qs.set('cb_flag', String(params.cb_flag));
+    if (params.has_geometry) qs.set('has_geometry', 'true');
+    if (params.min_mass !== undefined) qs.set('min_mass', String(params.min_mass));
+    if (params.min_eccen !== undefined) qs.set('min_eccen', String(params.min_eccen));
+    if (params.sy_pnum_min !== undefined) qs.set('sy_pnum_min', String(params.sy_pnum_min));
+    if (params.sy_snum_min !== undefined) qs.set('sy_snum_min', String(params.sy_snum_min));
+    if (params.multi_paper) qs.set('multi_paper', 'true');
     const query = qs.toString();
     return get<PlanetsListResponse>(`/api/planets${query ? '?' + query : ''}`);
   },

@@ -5,6 +5,7 @@ import ThemeSwitcher from './components/ThemeSwitcher';
 import { api, type StatsResponse } from './api';
 import About from './pages/About';
 import AuthorDetail from './pages/AuthorDetail';
+import Collections from './pages/Collections';
 import Feeds from './pages/Feeds';
 import Home from './pages/Home';
 import PlanetDetail from './pages/PlanetDetail';
@@ -103,6 +104,7 @@ export default function App() {
             <Route path="/authors/:authorName" element={<AuthorDetail />} />
             <Route path="/feeds" element={<Feeds />} />
             <Route path="/about" element={<About />} />
+            <Route path="/collections/:key" element={<Collections />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>

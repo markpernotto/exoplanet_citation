@@ -267,6 +267,48 @@ class OrbitalGeometryRecord(BaseModel):
     note: str | None
 
 
+class SystemGeometryRow(BaseModel):
+    hostname: str
+    pl_name: str
+    reference_pl_name: str | None
+    mutual_inclination_deg: float | None
+    inclination_uncertainty_deg: float | None
+    method: str
+    bibcode: str | None
+    note: str | None
+
+
+class SystemGeometryResponse(BaseModel):
+    rows: list[SystemGeometryRow]
+
+
+class InnerBinaryRow(BaseModel):
+    hostname: str
+    primary_mass_msun: float | None
+    component_mass_msun: float | None
+    separation_au: float | None
+    orbital_period_d: float | None
+    eccentricity: float | None
+    source_bibcode: str | None
+
+
+class InnerBinariesResponse(BaseModel):
+    rows: list[InnerBinaryRow]
+
+
+class AtmosphereRow(BaseModel):
+    pl_name: str
+    molecule: str
+    detection: str
+    instrument: str | None
+    confidence_sigma: float | None
+    bibcode: str | None
+
+
+class AtmospheresResponse(BaseModel):
+    rows: list[AtmosphereRow]
+
+
 class SceneHints(BaseModel):
     sun_color_hex: str
     sun_angular_size_deg: float | None

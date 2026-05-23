@@ -845,6 +845,29 @@ function PlaybackControls({
   viewMode: 'system' | 'surface'; setViewMode: (v: 'system' | 'surface') => void;
 }) {
   const isSurface = viewMode === 'surface';
+  const [collapsed, setCollapsed] = useState(false);
+
+  // Collapsed: shrink to a small pill so the scene is unobstructed for small
+  // screens or a clean, full-bleed screenshot.
+  if (collapsed) {
+    return (
+      <button
+        onClick={() => setCollapsed(false)}
+        title="Show view controls"
+        aria-label="Show view controls"
+        style={{
+          position: 'fixed', bottom: 56, right: 16, zIndex: 10,
+          background: 'rgba(11, 13, 18, 0.85)', color: 'var(--fg)',
+          padding: '0.4rem 0.65rem', borderRadius: 4,
+          border: '1px solid var(--border)', backdropFilter: 'blur(4px)',
+          fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer',
+        }}
+      >
+        ⚙ controls
+      </button>
+    );
+  }
+
   return (
     <div
       style={{
@@ -855,6 +878,19 @@ function PlaybackControls({
         fontSize: '0.78rem',
       }}
     >
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.4rem' }}>
+        <button
+          onClick={() => setCollapsed(true)}
+          title="Hide controls for a clean view / screenshot"
+          aria-label="Hide controls"
+          style={{
+            background: 'transparent', color: 'var(--fg-muted)',
+            border: 'none', cursor: 'pointer', fontSize: '0.72rem', padding: 0,
+          }}
+        >
+          ✕ hide
+        </button>
+      </div>
       {/* View-mode toggle row */}
       <div style={{ display: 'flex', gap: '0.3rem', marginBottom: '0.55rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.55rem' }}>
         <button

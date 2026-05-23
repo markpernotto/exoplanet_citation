@@ -13,6 +13,38 @@ and each mints a version-specific
 
 ### Added
 
+- **Orbital-geometry citations** (manual literature deep dive): migration 010
+  bulk-seeded mutual inclinations into `system_orbital_geometry` for a cohort of
+  multi-planet systems but never linked the papers the values came from, so the
+  Atlas displayed measurements it did not cite. Added 72 `characterization`
+  citations with a `mutual_inclination` contribution crediting each system's
+  source paper across all 17 multi-planet systems of the cohort (TRAPPIST-1,
+  HR 8799, GJ 876, beta Pictoris, K2-138, Kepler-9, Kepler-11, Kepler-30,
+  Kepler-36, Kepler-56, Kepler-90, Kepler-186, Kepler-223, Kepler-419,
+  Kepler-444, TOI-178, WASP-47) via `etl/seed_followup_citations.py`. All
+  bibcodes verified against ADS; the Atlas no longer shows an orbital-geometry
+  value it cannot trace to a paper.
+- **TRAPPIST-1 atmosphere deep dive** (manual literature review): curated the
+  JWST campaign's conclusions for the inner planets. All are atmosphere
+  constraints rather than detections (no molecule has been positively detected on
+  any TRAPPIST-1 planet), so `planet_atmospheres` records them with two
+  non-positive `detection` states, `ruled_out` and `inconclusive`: TRAPPIST-1 b
+  (bare rock vs thick-CO2-with-haze, degenerate; Greene 2023 + Ducrot 2025),
+  c (thick CO2 / H2-dominated ruled out; Zieba 2023 + Radica 2025 + Rathcke 2025),
+  d (flat spectrum, clear H2-dominated and trace CO2 excluded above 3 sigma;
+  Piaulet-Ghorayeb 2025), and e (habitable-zone planet; H2-dominated ruled out,
+  secondary atmosphere unconstrained; Espinoza 2025). Seven
+  `characterization` / `atmosphere` citations added (migration 020); the
+  Collections atmospheres view now distinguishes detections from ruled-out
+  results. All bibcodes verified against ADS.
+- **Planet interior-composition layer** (new `planet_interior_composition`
+  table; migration 022): a curated home for interior-structure results (core mass
+  fraction, bulk Fe/Mg molar ratio, inferred water content), which the catalog
+  previously had nowhere to store. Seeded from Agol et al. 2021 for the seven
+  TRAPPIST-1 planets, recording their iron-poor-relative-to-Earth cores and the
+  dry-inner / wetter-outer volatile gradient, with the core-mass-fraction vs
+  water degeneracy noted per row. NASA EA already carries Agol's masses, radii,
+  and stellar parameters, so those were deliberately not duplicated.
 - **"Recently added" section on the landing page**: shows the latest pipeline
   run above "Most recently confirmed" (without replacing it). New planets render
   as the same catalog cards (`PlanetGrid`); notable physical revisions (mass,
@@ -21,6 +53,40 @@ and each mints a version-specific
   section hides entirely when a run has no meaningful changes. Fixes the gap
   where newly ingested planets did not appear "as they come in" because the main
   catalog list sorts by NASA discovery year. Built on `/api/discoveries/latest`.
+
+### Changed
+
+- **TRAPPIST-1 orbital geometry refined to Agol et al. 2021** (migration 021):
+  replaced the hand-curated mutual inclinations (sourced to the Gillon 2017
+  discovery paper) with the measured sky-plane orbital inclinations from Agol
+  et al. 2021's photodynamic fit (89.73-89.90 deg per planet). That analysis
+  assumes coplanar orbits and does not fit the ascending nodes, so the stored
+  values are the inclination difference from planet b (a coplanar-node lower
+  bound), all consistent with coplanar within uncertainty; the per-row note
+  records the caveat. Agol 2021 added as a `characterization` /
+  `mutual_inclination` citation, with the Gillon 2017 citation retained as the
+  paper that established the flat architecture.
+
+### Fixed
+
+- **Orbital-geometry provenance for Kepler-9, Kepler-11, Kepler-30, and
+  Kepler-36** (migration 017): migration 010 attributed all four systems' mutual
+  inclinations to Fabrycky et al. 2014, which is a statistical architecture study
+  across 365 Kepler systems, not a per-system source. Repointed each
+  `system_orbital_geometry.bibcode` to its true per-system paper (Kepler-11 ->
+  Lissauer et al. 2013, Kepler-9 -> Borsato et al. 2014, Kepler-30 ->
+  Sanchis-Ojeda et al. 2012, Kepler-36 -> Carter et al. 2012), matching the
+  citations seeded above.
+- **WASP-47 orbital-geometry bibcode** (migration 018): the recorded source
+  `2017AJ....154..237B` did not resolve against ADS. It was a typo for
+  `2017AJ....154..237V` (Vanderburg et al. 2017, "Precise Masses in the WASP-47
+  System"); corrected.
+- **Kepler-90 orbital-geometry keys and source** (migration 019): the system's
+  geometry rows were keyed `Kepler-90 b`..`h`, but the catalog names those
+  planets `KOI-351 b`..`h` (only the eighth is `Kepler-90 i`), leaving the b-h
+  geometry orphaned from the catalog. Renamed the rows to the catalog form and
+  repointed the source off Rowe et al. 2014 (a bulk validation paper) to Cabrera
+  et al. 2014 (planets b-h) and Shallue & Vanderburg 2018 (planet i).
 
 ## [0.1.2] - 2026-05-21
 

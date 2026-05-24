@@ -4,8 +4,11 @@ Per-planet review of every entry in the NASA Exoplanet Archive's `pscomppars` ta
 
 ## Universe
 
-- **54 planets** across **44 host systems**
-- **16 / 44 hosts** have `binary_companions` data in the warehouse; **28 have none** (cb_flag set without supporting secondary-star evidence in the warehouse).
+- **54 planets** across **44 host systems.**
+- **All 44 hosts now carry `binary_companions` data.** This was not true at the original audit snapshot, and that gap was the audit's main structural finding (see the two sub-points and the retained note below):
+  - **15 / 44 hosts** carry a wide-binary cross-reference inherited from SIMBAD/WDS. These are wide tertiaries (thousands to hundreds of thousands of AU) and are irrelevant to the P-type question; the tight inner binary that defines a circumbinary system is never in those catalogs.
+  - **44 / 44 hosts** now carry a hand-harvested **inner-binary** row (`source_catalog = 'manual'`), backfilled from the discovery literature during this audit: component masses for 39 hosts, orbital period for 22, eccentricity for 10, plus a `binary_class` label. The same values appear in prose in each host's **Notes:** block below.
+- **Original-snapshot finding (retained as the audit record).** At audit time only 16 of 44 hosts had any companion cross-reference and 28 had none, because the archive's native wide-binary sources do not capture the defining inner binary. The per-host "No `binary_companions` row for this host" notes below reflect that pre-backfill snapshot; the inner-binary parameters they call for have since been written into the warehouse as the `manual` rows above (so re-running the generator would now render an inner-binary row for every host).
 
 ## Verdict taxonomy
 

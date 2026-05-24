@@ -43,21 +43,21 @@ export default function Home() {
     setLoading(false);
   }, [query]);
 
-  // "Recently added" feed (default mode only). Pull the latest pipeline run,
-  // then fetch real summaries for the new planets so they render as the same
-  // catalog cards. Useful physical revisions become a quiet line; bookkeeping
-  // churn (disc_year, etc.) is filtered out. Empty run -> the section hides.
+  // "Recently added" feed (default mode only). Show ONLY the latest pipeline
+  // run's changes, keyed off latest_snapshot (the newest snapshot_date), not the
+  // latest day that happened to have changes. So when the newest run is quiet the
+  // section hides, instead of persisting the last non-empty run for up to 14 days.
+  // Useful physical revisions become a quiet line; bookkeeping churn is filtered.
   useEffect(() => {
     if (query) { setRecent(null); return; }
     let cancelled = false;
     api.discoveriesLatest(14).then(async (r) => {
-      const dayKeys = [...new Set(r.changes.map((c) => c.observed_at.slice(0, 10)))].sort().reverse();
-      if (dayKeys.length === 0) {
-        if (!cancelled) setRecent({ asOf: '', newPlanets: [], revisions: [], removed: [] });
+      const asOf = r.latest_snapshot;
+      const run = asOf ? r.changes.filter((c) => c.source_snapshot_date === asOf) : [];
+      if (!asOf || run.length === 0) {
+        if (!cancelled) setRecent({ asOf: asOf ?? '', newPlanets: [], revisions: [], removed: [] });
         return;
       }
-      const asOf = dayKeys[0];
-      const run = r.changes.filter((c) => c.observed_at.slice(0, 10) === asOf);
       const newNames = run.filter((c) => c.change_type === 'NEW').map((c) => c.pl_name);
       const revisions = run.filter((c) => c.change_type === 'PARAMETER_CHANGE' && !!USEFUL_FIELDS[c.field_name ?? '']);
       const removed = run.filter((c) => c.change_type === 'REMOVED').map((c) => c.pl_name);

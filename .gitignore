@@ -67,6 +67,7 @@ build/
 # Research Note draft — kept private while in preparation.
 # The public per-host data record lives in docs/cb_flag_audit.md.
 docs/rnaas_cb_flag_audit.md
+docs/rnaas_cb_flag_draft.md
 
 # Deep-dive tracker / enrichment playbook — kept out of new commits so the
 # detailed/current tracker isn't published. (An older version is already in git

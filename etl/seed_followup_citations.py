@@ -77,6 +77,99 @@ FOLLOWUPS: list[dict] = [
         "note": "Charbonneau et al. 2000. Independent detection of the transits (simultaneous with the "
                 "Henry 2000 discovery cite); first radius and orbital inclination, hence true mass.",
     },
+    # 1990s foundational cohort (manual deep dive, 2026-05-24; migration 047+). PSR B1257+12:
+    # Wolszczan 1994 confirmed planets c & d via their 3:2-resonance perturbations (it is
+    # already the discovery cite for the moon-mass inner planet b), so it is a genuine
+    # post-discovery confirmation for c & d. Bibcodes verified via ADS.
+    {
+        "pl_name": "PSR B1257+12 c", "bibcode": "1994Sci...264..538W",
+        "title": "Confirmation of Earth-Mass Planets Orbiting the Millisecond Pulsar PSR B1257+12",
+        "note": "Wolszczan 1994. Confirmed planets c & d by detecting their predicted ~3:2 resonance "
+                "perturbations, and discovered the moon-mass inner planet b.",
+    },
+    {
+        "pl_name": "PSR B1257+12 d", "bibcode": "1994Sci...264..538W",
+        "title": "Confirmation of Earth-Mass Planets Orbiting the Millisecond Pulsar PSR B1257+12",
+        "note": "Wolszczan 1994. Confirmed planets c & d by detecting their predicted ~3:2 resonance "
+                "perturbations, and discovered the moon-mass inner planet b.",
+    },
+    # HD 168443 b (1990s cohort, 2026-05-24): inner planet of the HD 168443 planet + brown-dwarf
+    # system. Marcy 1999 (b) / Marcy 2001 (c) are the discovery cites (m sin i already catalogued).
+    # Reffert & Quirrenbach 2011 analyzed the system astrometrically but did NOT detect b's orbit,
+    # so b keeps its RV m sin i -- recorded here as a follow_up. (c's astrometric true mass is
+    # harvested in migration 049 and lives in CHARACTERIZATIONS below.) Bibcode via ADS.
+    {
+        "pl_name": "HD 168443 b", "bibcode": "2011A&A...527A.140R",
+        "title": "Mass constraints on substellar companion candidates from the re-reduced Hipparcos "
+                 "intermediate astrometric data: nine confirmed planets and two confirmed brown dwarfs",
+        "note": "Reffert & Quirrenbach 2011. Astrometric study of the HD 168443 system; b's orbit was "
+                "not detected astrometrically, so its RV m sin i (~8 Mjup) applies, while the outer "
+                "companion c is confirmed as a brown dwarf.",
+    },
+    # rho CrB b (1990s cohort, 2026-05-24): a hot Jupiter (Noyes 1997) once claimed to be a
+    # low-mass star seen nearly face-on (HIPPARCOS astrometry: Reffert & Quirrenbach 2011 fit
+    # i = 0.4 deg, ~170 Mjup). That is refuted by the system architecture: rho CrB now hosts
+    # small planets (c super-Neptune, d Neptune, e super-Earth) that could not survive around a
+    # 0.17 Msun stellar companion at 0.23 au. So b is a genuine ~1.1 Mjup planet; we do NOT
+    # record the face-on stellar mass. Brewer 2023 (EXPRES IV) establishes the 4-planet
+    # architecture and explicitly calls b a hot Jupiter. Bibcode via ADS.
+    {
+        "pl_name": "rho CrB b", "bibcode": "2023AJ....166...46B",
+        "title": "EXPRES. IV. Two Additional Planets Orbiting rho Coronae Borealis Reveal "
+                 "Uncommon System Architecture",
+        "note": "Brewer et al. 2023. Reveals rho CrB as a 4-planet system with b as the hot Jupiter; "
+                "the small inner planets confirm b is a genuine ~1.1 Mjup planet and disfavor the "
+                "earlier face-on-star astrometric interpretation (Reffert & Quirrenbach 2011, ~170 Mjup).",
+    },
+    # 16 Cyg B b (1990s cohort, 2026-05-24): the record-eccentricity (e~0.63-0.68) planet.
+    # Both 1997 papers attribute that eccentricity to Kozai-Lidov forcing by the wide
+    # companion star 16 Cyg A (a genuine post-discovery dynamical characterization). The
+    # discovery orbital solution itself (Cochran et al. 1997) is already the catalog source.
+    # Bibcodes verified via ADS.
+    {
+        "pl_name": "16 Cyg B b", "bibcode": "1997Natur.386..254H",
+        "title": "Chaotic variations in the eccentricity of the planet orbiting 16 Cygni B",
+        "note": "Holman, Touma & Tremaine 1997. The record eccentricity arises from Kozai-Lidov cycles "
+                "driven by the wide companion star 16 Cyg A, requiring a planet-binary mutual "
+                "inclination of 45-135 deg; e oscillates over 10^7-10^9 yr.",
+    },
+    {
+        "pl_name": "16 Cyg B b", "bibcode": "1997ApJ...477L.103M",
+        "title": "The High Eccentricity of the Planet Orbiting 16 Cygni B",
+        "note": "Mazeh, Krymolowski & Rosenfeld 1997. Independently attributes the high eccentricity to "
+                "secular forcing by 16 Cyg A; requires a relative inclination of at least ~60 deg "
+                "between the planet and wide-binary orbital planes.",
+    },
+    # 1990s cohort light citation pass (2026-05-24): the remaining slate systems had no Gaia DR3
+    # astrometric orbit and no recent dedicated literature, so these are the genuine post-discovery
+    # follow-ups (system-level dynamics + astrometric mass bounds). HD 217107 was skipped: it is
+    # already fully cited (b Fischer 1999 + c Vogt 2005) with no clean new follow-up. Bibcodes via ADS.
+    {
+        "pl_name": "47 UMa b", "bibcode": "2010MNRAS.403..731G",
+        "title": "A Bayesian periodogram finds evidence for three planets in 47 Ursae Majoris",
+        "note": "Gregory & Fischer 2010. Joint three-planet dynamical solution for the 47 UMa system "
+                "(also the discovery cite for 47 UMa d), refining b's and c's orbits.",
+    },
+    {
+        "pl_name": "47 UMa c", "bibcode": "2010MNRAS.403..731G",
+        "title": "A Bayesian periodogram finds evidence for three planets in 47 Ursae Majoris",
+        "note": "Gregory & Fischer 2010. Joint three-planet dynamical solution refining the 47 UMa orbits.",
+    },
+    {
+        "pl_name": "70 Vir b", "bibcode": "2011A&A...527A.140R",
+        "title": "Mass constraints on substellar companion candidates from the re-reduced Hipparcos "
+                 "intermediate astrometric data: nine confirmed planets and two confirmed brown dwarfs",
+        "note": "Reffert & Quirrenbach 2011. Re-reduced HIPPARCOS astrometry bounds the companion mass "
+                "at <= 45.5 Mjup (no orbit detected), keeping 70 Vir b in the planetary/substellar "
+                "regime -- relevant given its early brown-dwarf-candidate history.",
+    },
+    {
+        "pl_name": "HD 222582 b", "bibcode": "2011A&A...527A.140R",
+        "title": "Mass constraints on substellar companion candidates from the re-reduced Hipparcos "
+                 "intermediate astrometric data: nine confirmed planets and two confirmed brown dwarfs",
+        "note": "Reffert & Quirrenbach 2011. Re-reduced HIPPARCOS astrometry bounds the companion mass "
+                "at <= 105.9 Mjup (no orbit detected), confirming this eccentric (e=0.73) companion is substellar.",
+    },
 ]
 
 # Prior-detection papers that PRECEDE the warehouse's discovery cite. Bibcodes
@@ -499,6 +592,31 @@ CHARACTERIZATIONS: list[dict] = [
     # (GPI) supplies the featureless cloudy spectrum + Teff. Bibcode via ADS.
     {"pl_names": ["HD 95086 b"], "bibcode": "2016ApJ...824..121D", "contribution": "atmosphere",
      "title": "Spectroscopic Characterization of HD 95086 b with the Gemini Planet Imager"},
+    # 1990s foundational cohort (migration 047+). PSR B1257+12 c & d: Konacki & Wolszczan
+    # 2003 measured true masses + orbital inclinations from the planets' mutual perturbations
+    # (the catalog uses these masses but never cited the paper). Bibcode via ADS.
+    {"pl_names": ["PSR B1257+12 c", "PSR B1257+12 d"], "bibcode": "2003ApJ...591L.147K", "contribution": "mass",
+     "title": "Masses and Orbital Inclinations of Planets in the PSR B1257+12 System"},
+    # HD 168443 c (migration 049): astrometric true mass = 30.3 Mjup (Reffert & Quirrenbach 2011,
+    # re-reduced HIPPARCOS), confirming the brown-dwarf nature beyond the RV m sin i. Bibcode via ADS.
+    {"pl_names": ["HD 168443 c"], "bibcode": "2011A&A...527A.140R", "contribution": "mass",
+     "title": "Mass constraints on substellar companion candidates from the re-reduced Hipparcos "
+              "intermediate astrometric data: nine confirmed planets and two confirmed brown dwarfs"},
+    # GJ 86 b (migration 050): links the planet to the paper confirming its wide companion GJ 86 B
+    # is a white dwarf (the first WD found orbiting an exoplanet host). The binary_companions row's
+    # source_bibcode is fixed in migration 050; this is the planet->paper link. Bibcode via ADS.
+    {"pl_names": ["GJ 86 b"], "bibcode": "2005MNRAS.361L..15M", "contribution": "binary_companion",
+     "title": "Gl86B: a white dwarf orbits an exoplanet host star"},
+    # tau Boo b (migration 048): first non-transiting planet atmospherically characterized.
+    # Brogi 2012 (CO + inclination/true mass), Lockwood 2014 (H2O), Pelletier 2021 (C/H +
+    # water depletion + upper limits). Bibcodes via ADS.
+    {"pl_names": ["tau Boo b"], "bibcode": "2012Natur.486..502B", "contribution": "atmosphere",
+     "title": "The signature of orbital motion from the dayside of the planet tau Bootis b"},
+    {"pl_names": ["tau Boo b"], "bibcode": "2014ApJ...783L..29L", "contribution": "atmosphere",
+     "title": "Near-IR Direct Detection of Water Vapor in Tau Bootis b"},
+    {"pl_names": ["tau Boo b"], "bibcode": "2021AJ....162...73P", "contribution": "atmosphere",
+     "title": "Where Is the Water? Jupiter-like C/H Ratio but Strong H2O Depletion Found "
+              "on tau Bootis b Using SPIRou"},
 ]
 
 UPSERT_PUB = """

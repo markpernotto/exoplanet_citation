@@ -56,6 +56,10 @@ class DiscoveriesResponse(BaseModel):
     window_days: int = Field(description="How many days of history are included")
     change_count: int
     changes: list[ChangeRecord]
+    # Date of the most recent pipeline run (MAX snapshot_date). Lets clients show
+    # only the latest run's changes and hide when that run produced none, rather
+    # than persisting the last non-empty run's changes across quiet runs.
+    latest_snapshot: date | None = None
 
 
 class PlanetSummary(BaseModel):

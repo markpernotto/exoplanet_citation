@@ -208,6 +208,57 @@ and each mints a version-specific
   spectrum (De Rosa 2016). Molecules go to `planet_atmospheres`; temperatures,
   metallicities, C/O ratios and spins to `planet_derived_measurements`. Six
   `characterization` citations added; bibcodes verified against ADS.
+- **PSR B1257+12 deep dive** (manual literature review): the first confirmed
+  planetary system around any star (Wolszczan & Frail 1992). The catalog already
+  carries the true masses of the two Earth-mass planets c and d but never cited
+  their source, so this credits Konacki & Wolszczan 2003 (true masses + orbital
+  inclinations from the planets' mutual perturbations) and Wolszczan 1994 (which
+  confirmed c and d via their 3:2-resonance perturbations), and records the orbital
+  inclinations (53 and 47 deg, near-coplanar) in `planet_derived_measurements`
+  (migration 047). Bibcodes verified against ADS. First of a 1990s foundational
+  cohort.
+- **tau Boo b deep dive** (manual literature review): the first non-transiting
+  planet to be atmospherically characterized, by high-resolution spectroscopy that
+  also breaks the m sin i degeneracy. `planet_atmospheres` (migration 048) records
+  CO (Brogi 2012), water (Lockwood 2014, with the strong depletion found by
+  Pelletier 2021 noted), and a CH4 upper limit; `planet_derived_measurements`
+  records the orbital inclination (44.5 deg, giving the 5.95 Mjup true mass the
+  catalog already uses) and a Jupiter-like C/H (5.85x solar). Three
+  `characterization` citations added; bibcodes verified against ADS.
+- **16 Cyg B b and HD 168443 citation enrichment** (1990s cohort): for these RV
+  systems the discovery orbits are already in the catalog, so the value-add is
+  follow-up provenance. 16 Cyg B b's record eccentricity (~0.65) is credited to the
+  two 1997 papers (Holman, Touma & Tremaine; Mazeh, Krymolowski & Rosenfeld) that
+  trace it to Kozai-Lidov forcing by the companion star 16 Cyg A. HD 168443 b and c
+  (a planet plus a brown dwarf) are linked to Reffert & Quirrenbach 2011, whose
+  re-reduced HIPPARCOS astrometry confirms c as a brown dwarf. Bibcodes verified
+  against ADS.
+- **HD 168443 c astrometric true mass** (migration 049): from Reffert & Quirrenbach
+  2011's HIPPARCOS orbit, `planet_derived_measurements` records the true mass of the
+  outer companion (30.3 Mjup, vs the RV minimum of 18.1), firmly a brown dwarf. Its
+  citation is upgraded to `characterization`; the inner planet b (not astrometrically
+  detected) stays a `follow_up`.
+- **GJ 86 b white-dwarf companion provenance** (migration 050): GJ 86 b is a hot
+  Jupiter whose wide companion GJ 86 B is a white dwarf (the first found orbiting an
+  exoplanet host star). The companion was already in `binary_companions` from SIMBAD
+  but uncited, so its `source_bibcode` is set to Mugrauer & Neuhauser 2005 (the
+  white-dwarf confirmation), and a `characterization` citation links the planet to that
+  paper. Bibcode verified against ADS.
+- **rho CrB b confirmed as a planet** (1990s cohort): an old HIPPARCOS astrometric
+  result had suggested rho CrB b might be a low-mass star seen nearly face-on
+  (~170 Mjup). The four-planet architecture (Noyes 1997; Fulton 2016; Brewer 2023)
+  refutes that, so b stands as a ~1.1 Mjup hot Jupiter and the stellar mass was not
+  recorded. Brewer et al. 2023 added as a `follow_up`; bibcode verified against ADS.
+- **1990s cohort light citation pass**: post-discovery follow-ups for the
+  lower-yield systems (none had a Gaia DR3 astrometric orbit or a recordable true
+  mass). 47 UMa b and c link to Gregory & Fischer 2010 (the joint three-planet
+  dynamical solution); 70 Vir b and HD 222582 b link to Reffert & Quirrenbach 2011
+  (astrometric mass upper limits confirming substellar companions). HD 217107 was
+  already fully cited. Four `follow_up` citations added; bibcodes verified against ADS.
+- **Unit labels for literature-derived measurements** ([composition.ts](web/src/lib/composition.ts)):
+  the display map now covers Jupiter masses and the other units that previously
+  rendered as raw snake_case (`M_jup` -> M♃, `km_s` -> km/s, `log_Lsun` -> log L⊙,
+  the per-time mass-loss/decay units), matching the existing `M_earth` -> M⊕.
 - **"Recently added" section on the landing page**: shows the latest pipeline
   run above "Most recently confirmed" (without replacing it). New planets render
   as the same catalog cards (`PlanetGrid`); notable physical revisions (mass,

@@ -18,6 +18,12 @@ const UNIT_LABEL: Record<string, string> = {
   x_solar: '× solar',
   wt_pct: 'wt %',
   M_earth: 'M⊕',
+  M_jup: 'M♃',
+  M_earth_per_Gyr: 'M⊕/Gyr',
+  M_jup_per_yr: 'M♃/yr',
+  log_Lsun: 'log L⊙',
+  km_s: 'km/s',
+  ms_per_yr: 'ms/yr',
   ratio: '',
   fraction: '',
 };

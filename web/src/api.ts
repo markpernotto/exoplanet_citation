@@ -35,6 +35,7 @@ export type DiscoveriesResponse = {
   window_days: number;
   change_count: number;
   changes: ChangeRecord[];
+  latest_snapshot: string | null;
 };
 
 export type PlanetSummary = {

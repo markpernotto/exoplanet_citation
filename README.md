@@ -207,6 +207,10 @@ psql "$DATABASE_URL" -f etl/migrations/043_kapandb_superjupiter.sql
 psql "$DATABASE_URL" -f etl/migrations/044_2m1207b_methane_poor.sql
 psql "$DATABASE_URL" -f etl/migrations/045_abpicb_boundary_companion.sql
 psql "$DATABASE_URL" -f etl/migrations/046_hd95086b_dusty_disk_planet.sql
+psql "$DATABASE_URL" -f etl/migrations/047_psr1257_true_masses.sql
+psql "$DATABASE_URL" -f etl/migrations/048_tauboob_nontransiting_atmosphere.sql
+psql "$DATABASE_URL" -f etl/migrations/049_hd168443c_astrometric_mass.sql
+psql "$DATABASE_URL" -f etl/migrations/050_gj86b_wd_companion_provenance.sql
 
 # Verify connectivity
 make check-setup

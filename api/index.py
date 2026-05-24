@@ -265,11 +265,15 @@ def discoveries_latest(
             )
             rows = cur.fetchall()
 
+            cur.execute("SELECT MAX(snapshot_date) AS d FROM planets_snapshots")
+            latest_snapshot = cur.fetchone()["d"]
+
     return DiscoveriesResponse(
         generated_at=datetime.now(UTC),
         window_days=days,
         change_count=len(rows),
         changes=[_to_change_record(r) for r in rows],
+        latest_snapshot=latest_snapshot,
     )
 
 

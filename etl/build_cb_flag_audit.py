@@ -1,4 +1,4 @@
-"""Generate docs/cb_flag_audit.md, the starter file for the cb_flag audit.
+"""Generate docs/cb_flag_audit.md, the cb_flag audit supplement.
 
 Queries the warehouse for every cb_flag=1 planet in the latest snapshot,
 joins each to its host system's binary_companions data (when available),
@@ -15,23 +15,46 @@ unambiguous cases:
   Needs investigation          no binary_companions data, or geometry is unclear
 
 The user fills in the actual verdict by hand for the ambiguous cases and
-confirms or overrides the pre-filled cases. Output is a single markdown
-file the RNAAS can cite as supplementary material.
+confirms or overrides the pre-filled cases.
 
-WARNING: docs/cb_flag_audit.md is now hand-maintained (verdicts, Notes blocks, and
-a findings summary were filled in by hand). This generator only emits the blank
-skeleton, so do NOT pipe it over the live file. Write to a skeleton path and diff
-deliberately if you ever need to regenerate.
+VERDICT-PRESERVING REGENERATE
+-----------------------------
+docs/cb_flag_audit.md is hand-maintained: hand-written verdicts, **Notes:**
+blocks, the Universe section, and the "About this document" section all live in
+that file and must survive a regenerate. This generator now MERGES rather than
+clobbers: on each run it reads the existing doc, extracts the hand-written
+per-host verdict blocks plus the hand-maintained Universe / About sections, and
+re-injects them into a freshly rebuilt skeleton. Hosts that have dropped out of
+the cb_flag=1 set keep their verdicts under an "Orphaned verdicts" section
+rather than vanishing. Only the auto-generated scaffolding (companion tables,
+distances, planet tables, screenshot detection) is rebuilt from the warehouse.
 
-Run:
-    python -m etl.build_cb_flag_audit > docs/cb_flag_audit.skeleton.md
+Run (preview a merged regenerate to stdout, then diff):
+    python -m etl.build_cb_flag_audit | diff docs/cb_flag_audit.md -
+
+Run (apply in place; writes docs/cb_flag_audit.md.bak first, replaces atomically):
+    python -m etl.build_cb_flag_audit --in-place
+
+Do NOT do `python -m etl.build_cb_flag_audit > docs/cb_flag_audit.md`: the shell
+truncates the file before the program can read it for the merge, which would
+lose every hand-written verdict. Use --in-place for that.
+
+Note: the manual inner-binary backfill (source_catalog='manual') is excluded
+from the per-host "Known companions" table, which by design lists only the
+wide-binary catalog (WDS/SIMBAD) cross-references; the harvested inner-binary
+parameters live in each host's **Notes:** block and in binary_companions.
 """
 
 from __future__ import annotations
 
+import argparse
+import io
 import os
+import re
 import sys
+import tempfile
 from collections import defaultdict
+from pathlib import Path
 from typing import Any
 
 import psycopg
@@ -39,6 +62,18 @@ from dotenv import load_dotenv
 from psycopg.rows import dict_row
 
 load_dotenv()
+
+DOC_PATH = Path(__file__).resolve().parents[1] / "docs" / "cb_flag_audit.md"
+
+# Top-level (## ) sections that are hand-maintained and must survive a
+# regenerate verbatim. Everything else is rebuilt from the warehouse.
+PRESERVED_SECTIONS = ("Universe", "About this document")
+
+# The per-host marker that precedes the hand-written verdict bullets.
+VERDICT_MARKER = "**Verdict (fill in by hand if you disagree with the suggestion):**"
+
+# A verdict bullet still in its blank template form (not yet filled in).
+_BLANK_VERDICT_RE = re.compile(r"^- `[^`]+`: _+ \(rationale: _+\)\s*$")
 
 
 def fmt_au(au: float | None) -> str:
@@ -102,8 +137,53 @@ def verdict_label(
     return "Needs investigation"
 
 
-def main() -> int:
-    out = sys.stdout
+def parse_existing(text: str) -> tuple[dict[str, str], dict[str, str]]:
+    """Extract hand-maintained content from an existing audit doc.
+
+    Returns (preserved_sections, host_verdicts):
+      preserved_sections: {section_title: body_without_heading} for each
+        title in PRESERVED_SECTIONS that appears in the file.
+      host_verdicts: {host_name: verdict_block} for every per-host section
+        whose verdict bullets have been filled in by hand. Blank templates
+        are skipped so a re-run still offers them.
+    """
+    preserved: dict[str, str] = {}
+    for m in re.finditer(r"^## (.+?)\n(.*?)(?=^## |\Z)", text, re.S | re.M):
+        title = m.group(1).strip()
+        if title in PRESERVED_SECTIONS:
+            preserved[title] = m.group(2).strip("\n")
+
+    host_verdicts: dict[str, str] = {}
+    audit = re.search(r"^## Per-host audit\n(.*?)(?=^## |\Z)", text, re.S | re.M)
+    if audit:
+        for chunk in re.split(r"^### ", audit.group(1), flags=re.M)[1:]:
+            host = chunk.splitlines()[0].strip()
+            idx = chunk.find(VERDICT_MARKER)
+            if idx == -1:
+                continue
+            block_lines = chunk[idx + len(VERDICT_MARKER):].splitlines()
+            # Trim surrounding blank lines and a trailing horizontal rule.
+            while block_lines and not block_lines[0].strip():
+                block_lines.pop(0)
+            while block_lines and not block_lines[-1].strip():
+                block_lines.pop()
+            if block_lines and re.fullmatch(r"-{3,}", block_lines[-1].strip()):
+                block_lines.pop()
+            while block_lines and not block_lines[-1].strip():
+                block_lines.pop()
+            verdict_bullets = [ln for ln in block_lines if ln.startswith("- `")]
+            if not verdict_bullets:
+                continue
+            if all(_BLANK_VERDICT_RE.match(ln) for ln in verdict_bullets):
+                continue  # still a blank template; let the generator re-offer it
+            host_verdicts[host] = "\n".join(block_lines)
+    return preserved, host_verdicts
+
+
+def build_doc(existing: str) -> str:
+    """Build the merged audit doc, preserving hand-written content from `existing`."""
+    preserved, host_verdicts = parse_existing(existing)
+    out = io.StringIO()
 
     with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
         with conn.cursor(row_factory=dict_row) as cur:
@@ -131,7 +211,10 @@ def main() -> int:
             """)
             planets = cur.fetchall()
 
-            # All binary_companions rows for these hosts, keyed by host.
+            # Wide-binary catalog companions only (WDS/SIMBAD). The manual
+            # inner-binary backfill (source_catalog='manual') is intentionally
+            # excluded: this table is about the archive's wide cross-references,
+            # and the harvested inner binary lives in each host's Notes block.
             hosts = sorted({p["hostname"] for p in planets})
             cur.execute("""
                 SELECT hostname, component_designation, separation_arcsec,
@@ -139,6 +222,7 @@ def main() -> int:
                        source_bibcode
                 FROM binary_companions
                 WHERE hostname = ANY(%s)
+                  AND source_catalog IS DISTINCT FROM 'manual'
                 ORDER BY hostname, component_designation
             """, (hosts,))
             companions_by_host: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -171,18 +255,29 @@ def main() -> int:
         file=out,
     )
     print(file=out)
-    print("## Universe", file=out)
-    print(file=out)
-    print(f"- **{total_planets} planets** across **{total_hosts} host systems**", file=out)
-    print(
-        f"- **{hosts_with_companions} / {total_hosts} hosts** have "
-        "`binary_companions` data in the warehouse; "
-        f"**{total_hosts - hosts_with_companions} have none**, "
-        "which is itself an audit finding (cb_flag set without supporting "
-        "secondary-star evidence).",
-        file=out,
-    )
-    print(file=out)
+
+    # Universe: preserve the hand-maintained section if present.
+    if "Universe" in preserved:
+        print("## Universe", file=out)
+        print(file=out)
+        print(preserved["Universe"], file=out)
+        print(file=out)
+    else:
+        print("## Universe", file=out)
+        print(file=out)
+        print(f"- **{total_planets} planets** across **{total_hosts} host systems**", file=out)
+        print(
+            f"- **{hosts_with_companions} / {total_hosts} hosts** have a "
+            "wide-binary catalog (WDS/SIMBAD) cross-reference in the warehouse; "
+            f"**{total_hosts - hosts_with_companions} have none**. These are "
+            "wide tertiaries, not the tight inner binary that defines a "
+            "circumbinary system; the inner binary is harvested per host (see "
+            "**Notes:** blocks) and stored in `binary_companions` "
+            "(`source_catalog = 'manual'`).",
+            file=out,
+        )
+        print(file=out)
+
     print("## Verdict taxonomy", file=out)
     print(file=out)
     print(
@@ -218,8 +313,14 @@ def main() -> int:
         file=out,
     )
     print(file=out)
-    # Reserve a placeholder for the screenshot-candidate section; we'll
-    # populate it after we walk every host and know which ones qualify.
+
+    # About this document: preserve the hand-maintained section if present.
+    if "About this document" in preserved:
+        print("## About this document", file=out)
+        print(file=out)
+        print(preserved["About this document"], file=out)
+        print(file=out)
+
     print("## Screenshot candidates (\"spot the second sun\")", file=out)
     print(file=out)
     print("Auto-detected after the per-host walk below. See bottom of file.", file=out)
@@ -280,12 +381,11 @@ def main() -> int:
             print(file=out)
         else:
             print(
-                "**No `binary_companions` row for this host.** The cb_flag is "
-                "set but the warehouse has no secondary-star evidence to "
-                "verify the architecture. For P-type confirmation, the "
-                "discovery paper's reported inner-binary parameters would "
-                "need to be consulted directly (not in the warehouse). Default "
-                "verdict: needs investigation.",
+                "**No wide-binary catalog companion for this host.** The "
+                "archive's wide-binary cross-references (WDS, SIMBAD) carry no "
+                "entry. The defining inner binary, where the literature reports "
+                "it, is harvested in this host's **Notes:** block and stored in "
+                "`binary_companions` (`source_catalog = 'manual'`).",
                 file=out,
             )
             print(file=out)
@@ -340,21 +440,43 @@ def main() -> int:
             screenshot_candidates.append(host)
             spot_the_sun_targets.append((host, sorted(valid_orbsmax), widest_companion_au))
 
-        print("**Verdict (fill in by hand if you disagree with the suggestion):**", file=out)
+        # Verdict block: re-inject the hand-written verdict if we have one,
+        # otherwise emit the blank template for the user to fill in.
+        print(VERDICT_MARKER, file=out)
         print(file=out)
-        for p in host_planets:
-            print(
-                f"- `{p['pl_name']}`: __________ (rationale: __________)",
-                file=out,
-            )
+        if host in host_verdicts:
+            print(host_verdicts[host], file=out)
+        else:
+            for p in host_planets:
+                print(
+                    f"- `{p['pl_name']}`: __________ (rationale: __________)",
+                    file=out,
+                )
         print(file=out)
         print("---", file=out)
         print(file=out)
 
-    # Backfill the screenshot candidates near the top so it's the first
-    # thing the user sees. We can't actually rewrite the placeholder we
-    # printed above without buffering, so we append a fresh section at the
-    # bottom and reference it.
+    # Preserve verdicts for hosts that have dropped out of the cb_flag=1 set
+    # rather than silently discarding hand-written work.
+    orphans = sorted(h for h in host_verdicts if h not in planets_by_host)
+    if orphans:
+        print("## Orphaned verdicts (host no longer in the cb_flag=1 snapshot)", file=out)
+        print(file=out)
+        print(
+            "Hand-written verdicts preserved from a previous version whose "
+            "host no longer appears in the current snapshot. Review before "
+            "removing.",
+            file=out,
+        )
+        print(file=out)
+        for h in orphans:
+            print(f"### {h}", file=out)
+            print(file=out)
+            print(host_verdicts[h], file=out)
+            print(file=out)
+            print("---", file=out)
+            print(file=out)
+
     print("## Screenshot candidates detail", file=out)
     print(file=out)
     if not spot_the_sun_targets:
@@ -379,6 +501,61 @@ def main() -> int:
                 file=out,
             )
 
+    return out.getvalue()
+
+
+def write_in_place(doc: str) -> None:
+    """Back up the existing doc, then replace it atomically."""
+    if DOC_PATH.exists():
+        backup = DOC_PATH.with_suffix(DOC_PATH.suffix + ".bak")
+        backup.write_text(DOC_PATH.read_text())
+    fd, tmp = tempfile.mkstemp(dir=str(DOC_PATH.parent), suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as f:
+            f.write(doc)
+        os.replace(tmp, DOC_PATH)
+    except BaseException:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+        raise
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(
+        description="Regenerate docs/cb_flag_audit.md, preserving hand-written verdicts."
+    )
+    ap.add_argument(
+        "--in-place",
+        action="store_true",
+        help=(
+            "Apply the merged regenerate to docs/cb_flag_audit.md "
+            "(writes a .bak first, replaces atomically). Default: print to stdout."
+        ),
+    )
+    args = ap.parse_args()
+
+    existing = DOC_PATH.read_text() if DOC_PATH.exists() else ""
+
+    # Safety net: refuse to clobber a doc that clearly holds hand verdicts if
+    # the parser failed to recover any of them (format drift).
+    if existing and existing.count(VERDICT_MARKER):
+        _, parsed = parse_existing(existing)
+        if not parsed:
+            print(
+                "Refusing to run: the existing doc contains verdict markers but "
+                "none parsed as filled-in verdicts. Aborting to avoid data loss; "
+                "check the doc format against parse_existing().",
+                file=sys.stderr,
+            )
+            return 2
+
+    doc = build_doc(existing)
+
+    if args.in_place:
+        write_in_place(doc)
+        print(f"Wrote {DOC_PATH} (backup at {DOC_PATH}.bak)", file=sys.stderr)
+    else:
+        sys.stdout.write(doc)
     return 0
 
 

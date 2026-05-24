@@ -170,6 +170,55 @@ FOLLOWUPS: list[dict] = [
         "note": "Reffert & Quirrenbach 2011. Re-reduced HIPPARCOS astrometry bounds the companion mass "
                 "at <= 105.9 Mjup (no orbit detected), confirming this eccentric (e=0.73) companion is substellar.",
     },
+    # "Wild Orbits" theme (2026-05-24): dynamical-origin follow-ups for the extreme-eccentricity
+    # planets (the eccentricity itself is already catalogued; these explain it). Bibcodes via ADS.
+    {
+        "pl_name": "HD 80606 b", "bibcode": "2003ApJ...589..605W",
+        "title": "Planet Migration and Binary Companions: The Case of HD 80606b",
+        "note": "Wu & Murray 2003. The e=0.93 orbit arises from Kozai-Lidov migration driven by the "
+                "wide stellar companion HD 80607 combined with tidal dissipation (requires a high "
+                "initial mutual inclination, ~85 deg, between the planet and binary orbits).",
+    },
+    {
+        "pl_name": "HD 20782 b", "bibcode": "2016ApJ...821...65K",
+        "title": "Evidence for Reflected Light from the Most Eccentric Exoplanet Known",
+        "note": "Kane et al. 2016. Refined the orbit to e=0.96 -- the most eccentric known exoplanet -- "
+                "with periastron radial velocities; confirmed a planetary (not stellar) mass via "
+                "combined Keplerian + HIPPARCOS astrometry; and found tentative reflected-light phase "
+                "variations near periastron in MOST photometry (no firm geometric albedo derived).",
+    },
+    {
+        "pl_name": "nu Oct A b", "bibcode": "2025Natur.641..866C",
+        "title": "A retrograde planet in a tight binary star system with a white dwarf",
+        "note": "Cheng et al. 2025. New radial velocities confirm the planet on a RETROGRADE, nearly "
+                "coplanar S-type orbit midway between the stars of this 2.6 AU binary; AO imaging shows "
+                "the companion is a white dwarf. The tight binary rules out coeval formation, so the "
+                "planet is likely second-generation (from the WD progenitor's shed material) or captured "
+                "from a circumbinary orbit.",
+    },
+    # 1990s cohort exhaustive finish (2026-05-24): the last three discovery-only systems. Each gets
+    # its genuine post-discovery follow-up (two-planet solution refining the inner planet, or an
+    # astrometric mass bound). Closes the cohort at 11/11 systems with recovered provenance. Bibcodes via ADS.
+    {
+        "pl_name": "HD 187123 b", "bibcode": "2009ApJ...693.1084W",
+        "title": "Ten New and Updated Multiplanet Systems and a Survey of Exoplanetary Systems",
+        "note": "Wright et al. 2009. The two-planet solution that discovered the long-period HD 187123 c "
+                "and refined the orbit of the inner hot Jupiter b.",
+    },
+    {
+        "pl_name": "HD 210277 b", "bibcode": "2011A&A...527A.140R",
+        "title": "Mass constraints on substellar companion candidates from the re-reduced Hipparcos "
+                 "intermediate astrometric data: nine confirmed planets and two confirmed brown dwarfs",
+        "note": "Reffert & Quirrenbach 2011. Re-reduced HIPPARCOS astrometry bounds the companion mass at "
+                "<= 30.3 Mjup (no orbit detected), confirming HD 210277 b is planetary/substellar "
+                "(RV m sin i = 1.29 Mjup).",
+    },
+    {
+        "pl_name": "HD 217107 b", "bibcode": "2005ApJ...632..638V",
+        "title": "Five New Multicomponent Planetary Systems",
+        "note": "Vogt et al. 2005. The two-planet solution that discovered the long-period HD 217107 c "
+                "and refined the orbit of the inner hot Jupiter b.",
+    },
 ]
 
 # Prior-detection papers that PRECEDE the warehouse's discovery cite. Bibcodes
@@ -602,6 +651,10 @@ CHARACTERIZATIONS: list[dict] = [
     {"pl_names": ["HD 168443 c"], "bibcode": "2011A&A...527A.140R", "contribution": "mass",
      "title": "Mass constraints on substellar companion candidates from the re-reduced Hipparcos "
               "intermediate astrometric data: nine confirmed planets and two confirmed brown dwarfs"},
+    # HD 4113 b (migration 058): links the eccentric planet to the paper that imaged its cold T9
+    # brown-dwarf companion HD 4113 C (Cheetham 2018) and updated the planet's orbit. Bibcode via ADS.
+    {"pl_names": ["HD 4113 b"], "bibcode": "2018A&A...614A..16C", "contribution": "binary_companion",
+     "title": "Direct imaging of an ultracool substellar companion to the exoplanet host star HD 4113 A"},
     # GJ 86 b (migration 050): links the planet to the paper confirming its wide companion GJ 86 B
     # is a white dwarf (the first WD found orbiting an exoplanet host). The binary_companions row's
     # source_bibcode is fixed in migration 050; this is the planet->paper link. Bibcode via ADS.
@@ -633,6 +686,11 @@ CHARACTERIZATIONS: list[dict] = [
     {"pl_names": ["WASP-79 b"], "bibcode": "2017MNRAS.464..810B", "contribution": "obliquity",
      "title": "Rossiter-McLaughlin models and their effect on estimates of stellar rotation, "
               "illustrated using four WASP systems"},
+    # "Wild Orbits" theme (extreme-eccentricity / dynamics, 2026-05-24; migrations 056+).
+    # HD 80606 b (migration 056): Laughlin 2009 caught the periastron flash-heating (dayside
+    # 8-um brightness temp); harvested as a derived dayside_temperature. Bibcode via ADS.
+    {"pl_names": ["HD 80606 b"], "bibcode": "2009Natur.457..562L", "contribution": "atmosphere",
+     "title": "Rapid heating of the atmosphere of an extrasolar planet"},
     # tau Boo b (migration 048): first non-transiting planet atmospherically characterized.
     # Brogi 2012 (CO + inclination/true mass), Lockwood 2014 (H2O), Pelletier 2021 (C/H +
     # water depletion + upper limits). Bibcodes via ADS.

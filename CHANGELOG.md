@@ -238,6 +238,27 @@ and each mints a version-specific
   outer companion (30.3 Mjup, vs the RV minimum of 18.1), firmly a brown dwarf. Its
   citation is upgraded to `characterization`; the inner planet b (not astrometrically
   detected) stays a `follow_up`.
+- **1990s foundational cohort closed** (provenance audit, basis for a Research Note):
+  an exhaustive follow-up audit of 11 systems discovered 1992-1999 (47 UMa, 16 Cyg B,
+  70 Vir, tau Boo, rho CrB, HD 168443, HD 187123, HD 210277, HD 217107, PSR B1257+12,
+  PSR B1620-26). All 11 carried only their discovery citation despite decades of
+  follow-up; the audit recovered 20 post-discovery citations (mean 1.8/system) and, in
+  two systems, true masses the archive displays but never cited (PSR B1257+12 c/d via
+  Konacki & Wolszczan 2003; tau Boo b via Brogi et al. 2012). The last three systems
+  (HD 187123 b, HD 210277 b, HD 217107 b) are closed out here with `follow_up` citations.
+- **Wild Orbits deep dive begun** (extreme-eccentricity planets): HD 80606 b (e=0.93),
+  whose Spitzer 8-um light curve caught its dayside flash-heating from ~800 K to
+  ~1500 K in six hours through periastron (Laughlin et al. 2009), recorded as a peak
+  `dayside_temperature` (migration 056). Its extreme eccentricity is credited to Kozai
+  migration from the binary companion HD 80607 (Wu & Murray 2003). One
+  `characterization` plus one `follow_up` citation added. Two further
+  extreme-eccentricity systems are credited to their landmark characterizations:
+  HD 20782 b, the most eccentric known (e~0.96; Kane et al. 2016), and nu Oct A b, a
+  retrograde planet in a tight binary whose companion turned out to be a white dwarf
+  (Cheng et al. 2025); that white dwarf (nu Oct B) is added to `binary_companions`
+  (migration 057). HD 4113 b (e=0.90) is a hierarchical triple whose imaged cold T9
+  brown-dwarf companion (HD 4113 C; Teff 500-600 K; Cheetham et al. 2018) is added to
+  `binary_companions` (migration 058). `follow_up` / `characterization` citations added.
 - **Tilted & Tumbling deep dive** (spin-orbit-misaligned planets): promotes obliquity
   out of the raw NASA EA rows into the cited, usable `planet_derived_measurements`
   layer. WASP-17 b, the first retrograde planet, gets its sky-projected obliquity

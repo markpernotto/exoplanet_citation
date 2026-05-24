@@ -216,6 +216,9 @@ psql "$DATABASE_URL" -f etl/migrations/052_wasp33b_retrograde_hotstar.sql
 psql "$DATABASE_URL" -f etl/migrations/053_k2290c_polar.sql
 psql "$DATABASE_URL" -f etl/migrations/054_hatp7b_polar.sql
 psql "$DATABASE_URL" -f etl/migrations/055_wasp79b_polar.sql
+psql "$DATABASE_URL" -f etl/migrations/056_hd80606b_flashheating.sql
+psql "$DATABASE_URL" -f etl/migrations/057_nuoctb_white_dwarf.sql
+psql "$DATABASE_URL" -f etl/migrations/058_hd4113c_cold_brown_dwarf.sql
 
 # Verify connectivity
 make check-setup

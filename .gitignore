@@ -69,6 +69,10 @@ build/
 docs/rnaas_cb_flag_audit.md
 docs/rnaas_cb_flag_draft.md
 
+# Grant/collaborator pitch and strategy notes. Kept private while seeking an
+# institutional home.
+docs/project_pitch.md
+
 # Deep-dive tracker / enrichment playbook — kept out of new commits so the
 # detailed/current tracker isn't published. (An older version is already in git
 # history; that's fine and not being scrubbed.)

@@ -8,7 +8,7 @@ title: "exoplanet_citation: a public citation-graph warehouse and 3D visualizati
 abstract: >-
   A daily-refreshed open-source data warehouse linking the NASA Exoplanet
   Archive's confirmed exoplanets to the scientific papers that announced
-  them. Citation coverage at 99.89% via a four-tier resolver (NASA ADS
+  them. Citation coverage at 100% via a four-tier resolver (NASA ADS
   bibcode, arXiv API, ADS title search, manual triage). Includes Gaia DR3
   host-star enrichment, a FastAPI service over the warehouse, and a React +
   Three.js + WebXR frontend with a per-vantage starfield rasterizer that

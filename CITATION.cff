@@ -1,0 +1,53 @@
+# Citation File Format. GitHub renders this as a "Cite this repository"
+# button on the repo page. Zenodo and many citation managers also read it.
+# See https://citation-file-format.github.io for spec.
+cff-version: 1.2.0
+message: "If you use this data warehouse, software, or visualization platform in academic work, please cite it as below."
+type: software
+title: "exoplanet_citation: a public citation-graph warehouse and 3D visualization platform for confirmed exoplanets"
+abstract: >-
+  A daily-refreshed open-source data warehouse linking the NASA Exoplanet
+  Archive's confirmed exoplanets to the scientific papers that announced
+  them. Citation coverage at 99.89% via a four-tier resolver (NASA ADS
+  bibcode, arXiv API, ADS title search, manual triage). Includes Gaia DR3
+  host-star enrichment, a FastAPI service over the warehouse, and a React +
+  Three.js + WebXR frontend with a per-vantage starfield rasterizer that
+  reprojects ~1.4M stars from any exoplanet's heliocentric position.
+authors:
+  - given-names: Mark
+    family-names: Pernotto
+    email: mark@pernotto.com
+    orcid: "https://orcid.org/0009-0003-1100-4453"
+version: 0.1.1
+date-released: 2026-05-19
+url: "https://exoplanetcitation.space"
+repository-code: "https://github.com/markpernotto/exoplanet_citation"
+license: MIT
+keywords:
+  - exoplanets
+  - exoplanet archive
+  - NASA Exoplanet Archive
+  - Gaia DR3
+  - citation graph
+  - data warehouse
+  - astronomy visualization
+  - WebXR
+  - virtual reality
+  - open science
+  - open data
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.20191479"
+    description: "Concept DOI (always resolves to the latest version)"
+preferred-citation:
+  type: software
+  title: "exoplanet_citation: a public citation-graph warehouse and 3D visualization platform for confirmed exoplanets"
+  authors:
+    - given-names: Mark
+      family-names: Pernotto
+      email: mark@pernotto.com
+      orcid: "https://orcid.org/0009-0003-1100-4453"
+  version: 0.1.1
+  year: 2026
+  doi: "10.5281/zenodo.20191479"
+  url: "https://exoplanetcitation.space"

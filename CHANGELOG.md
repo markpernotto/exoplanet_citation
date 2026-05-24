@@ -195,6 +195,19 @@ and each mints a version-specific
   also records the H2O and CO K-band carriers. Two `characterization` citations
   added; bibcodes verified against ADS. Completes a four-system user-flagged
   fast-follow set (51 Eri b, Kepler-51, WASP-18 b, HIP 65426 b).
+- **Directly-imaged young giants deep dive** (manual literature review, migrations
+  042-046): the companion set to the imaged work already done (HR 8799, bet Pic,
+  51 Eri b, HIP 65426 b). GJ 504 b, the first T-dwarf-type imaged planet (CH4 +
+  superstellar metallicity; Skemer 2016). kappa And b, a planet/brown-dwarf-boundary
+  super-Jupiter with resolved H2O + CO and a host-like C/O (Wilcomb 2020). 2M1207 b
+  (catalog `2MASS J12073346-3932539 b`), the first directly-imaged exoplanet, which
+  is methane-poor: CH4 absent and CO weak despite its cool temperature, confirmed by
+  JWST (Luhman 2023) and explained by Barman 2011. AB Pic b, a boundary companion
+  with its first C/O ratio and projected spin (Palma-Bifani 2023). HD 95086 b, an
+  extremely red, dust-dominated planet in a debris-disk gap with a featureless cloudy
+  spectrum (De Rosa 2016). Molecules go to `planet_atmospheres`; temperatures,
+  metallicities, C/O ratios and spins to `planet_derived_measurements`. Six
+  `characterization` citations added; bibcodes verified against ADS.
 - **"Recently added" section on the landing page**: shows the latest pipeline
   run above "Most recently confirmed" (without replacing it). New planets render
   as the same catalog cards (`PlanetGrid`); notable physical revisions (mass,

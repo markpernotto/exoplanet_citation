@@ -472,6 +472,33 @@ CHARACTERIZATIONS: list[dict] = [
      "title": "The JWST Early Release Science Program for Direct Observations of "
               "Exoplanetary Systems I: High-contrast Imaging of the Exoplanet HIP 65426 b "
               "from 2 to 16 um"},
+    # Directly-imaged young giants theme (manual deep dive, 2026-05-23; migrations 042+).
+    # Companion set to the imaged work already done (HR 8799, bet Pic, 51 Eri, HIP 65426).
+    # GJ 504 b (migration 042): the first T-dwarf-type imaged planet. Skemer 2016 supplies
+    # the methane detection + Teff/metallicity/luminosity. Bibcode via ADS.
+    {"pl_names": ["GJ 504 b"], "bibcode": "2016ApJ...817..166S", "contribution": "atmosphere",
+     "title": "The LEECH Exoplanet Imaging Survey: Characterization of the Coldest Directly "
+              "Imaged Exoplanet, GJ 504 b, and Evidence for Superstellar Metallicity"},
+    # kap And b (migration 043): super-Jupiter at the planet/BD boundary. Wilcomb 2020
+    # (Keck/OSIRIS R~4000 K-band) supplies resolved H2O + CO and Teff/[M/H]/C/O. Bibcode via ADS.
+    {"pl_names": ["kap And b"], "bibcode": "2020AJ....160..207W", "contribution": "atmosphere",
+     "title": "Moderate-resolution K-band Spectroscopy of Substellar Companion kappa Andromedae b"},
+    # 2M1207 b / TWA 27B = catalog '2MASS J12073346-3932539 b' (migration 044): first
+    # directly-imaged exoplanet; methane-poor. Barman 2011 = the cloudy/non-eq atmosphere
+    # explanation; Luhman 2023 = JWST/NIRSpec (CH4 absent, CO weak). Bibcodes via ADS.
+    {"pl_names": ["2MASS J12073346-3932539 b"], "bibcode": "2011ApJ...735L..39B", "contribution": "atmosphere",
+     "title": "The Young Planet-mass Object 2M1207b: A Cool, Cloudy, and Methane-poor Atmosphere"},
+    {"pl_names": ["2MASS J12073346-3932539 b"], "bibcode": "2023ApJ...949L..36L", "contribution": "atmosphere",
+     "title": "JWST/NIRSpec Observations of the Planetary Mass Companion TWA 27B"},
+    # AB Pic b (migration 045): planet/BD-boundary companion. Palma-Bifani 2023 (ForMoSA)
+    # supplies refined Teff + first C/O + first vsin(i). Bibcode via ADS.
+    {"pl_names": ["AB Pic b"], "bibcode": "2023A&A...670A..90P", "contribution": "atmosphere",
+     "title": "Peering into the young planetary system AB Pic. Atmosphere, orbit, "
+              "obliquity, and second planetary candidate"},
+    # HD 95086 b (migration 046): dusty ~5 Mjup planet in a debris-disk gap. De Rosa 2016
+    # (GPI) supplies the featureless cloudy spectrum + Teff. Bibcode via ADS.
+    {"pl_names": ["HD 95086 b"], "bibcode": "2016ApJ...824..121D", "contribution": "atmosphere",
+     "title": "Spectroscopic Characterization of HD 95086 b with the Gemini Planet Imager"},
 ]
 
 UPSERT_PUB = """

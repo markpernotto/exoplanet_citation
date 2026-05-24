@@ -202,6 +202,11 @@ psql "$DATABASE_URL" -f etl/migrations/038_51erib_cold_methane_giant.sql
 psql "$DATABASE_URL" -f etl/migrations/039_kepler51_superpuffs.sql
 psql "$DATABASE_URL" -f etl/migrations/040_wasp18b_thermal_inversion.sql
 psql "$DATABASE_URL" -f etl/migrations/041_hip65426b_first_jwst_imaged.sql
+psql "$DATABASE_URL" -f etl/migrations/042_gj504b_cold_t_dwarf_planet.sql
+psql "$DATABASE_URL" -f etl/migrations/043_kapandb_superjupiter.sql
+psql "$DATABASE_URL" -f etl/migrations/044_2m1207b_methane_poor.sql
+psql "$DATABASE_URL" -f etl/migrations/045_abpicb_boundary_companion.sql
+psql "$DATABASE_URL" -f etl/migrations/046_hd95086b_dusty_disk_planet.sql
 
 # Verify connectivity
 make check-setup

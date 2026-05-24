@@ -193,6 +193,15 @@ psql "$DATABASE_URL" -f etl/migrations/029_gj1214b_atmosphere_and_derived.sql
 psql "$DATABASE_URL" -f etl/migrations/030_wasp107b_atmosphere.sql
 psql "$DATABASE_URL" -f etl/migrations/031_lhs1140b_waterworld.sql
 psql "$DATABASE_URL" -f etl/migrations/032_wasp76b_atmosphere.sql
+psql "$DATABASE_URL" -f etl/migrations/033_pds70_forming_planets.sql
+psql "$DATABASE_URL" -f etl/migrations/034_wasp12b_inspiral_and_atmosphere.sql
+psql "$DATABASE_URL" -f etl/migrations/035_kelt9b_atmosphere.sql
+psql "$DATABASE_URL" -f etl/migrations/036_kepler1520b_disintegrating.sql
+psql "$DATABASE_URL" -f etl/migrations/037_toi849b_exposed_core.sql
+psql "$DATABASE_URL" -f etl/migrations/038_51erib_cold_methane_giant.sql
+psql "$DATABASE_URL" -f etl/migrations/039_kepler51_superpuffs.sql
+psql "$DATABASE_URL" -f etl/migrations/040_wasp18b_thermal_inversion.sql
+psql "$DATABASE_URL" -f etl/migrations/041_hip65426b_first_jwst_imaged.sql
 
 # Verify connectivity
 make check-setup

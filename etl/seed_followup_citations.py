@@ -102,6 +102,12 @@ PRIOR_DETECTIONS: list[dict] = [
         "title": "The Triple Pulsar System PSR B1620-26 in M4",
         "note": "Thorsett et al. 1999. Established the triple system / planetary third body; Sigurdsson et al. 2003 is the warehouse discovery cite.",
     },
+    {
+        "pl_name": "Kepler-1520 b", "bibcode": "2012ApJ...752....1R",
+        "title": "Possible Disintegrating Short-period Super-Mercury Orbiting KIC 12557548",
+        "note": "Rappaport et al. 2012. The actual discovery of the disintegrating planet (KIC 12557548 b), "
+                "four years before the Morton et al. 2016 validation the warehouse uses as the discovery cite.",
+    },
 ]
 
 # Data-source papers (role='characterization'). We pulled measured values from
@@ -392,6 +398,80 @@ CHARACTERIZATIONS: list[dict] = [
      "title": "ESPRESSO high-resolution transmission spectroscopy of WASP-76 b"},
     {"pl_names": ["WASP-76 b"], "bibcode": "2023Natur.619..491P", "contribution": "atmosphere",
      "title": "Vanadium oxide and a sharp onset of cold-trapping on a giant exoplanet"},
+    # PDS 70 deep dive (manual, 2026-05-23; migration 033). The only confirmed
+    # forming planets: accretion (b) + circumplanetary disk (c). Data in
+    # planet_derived_measurements. Bibcodes verified via ADS.
+    {"pl_names": ["PDS 70 b"], "bibcode": "2018ApJ...863L...8W", "contribution": "accretion",
+     "title": "Magellan Adaptive Optics Imaging of PDS 70: Measuring the Mass Accretion "
+              "Rate of a Young Giant Planet within a Gapped Disk"},
+    {"pl_names": ["PDS 70 b"], "bibcode": "2019NatAs...3..749H", "contribution": "accretion",
+     "title": "Two accreting protoplanets around the young star PDS 70"},
+    {"pl_names": ["PDS 70 c"], "bibcode": "2021ApJ...916L...2B", "contribution": "circumplanetary_disk",
+     "title": "A Circumplanetary Disk around PDS70c"},
+    # WASP-12 b deep dive (manual, 2026-05-23; migration 034). Inspiraling hot
+    # Jupiter: orbital decay (derived) + H2O / escaping Mg II (atmosphere).
+    {"pl_names": ["WASP-12 b"], "bibcode": "2020ApJ...888L...5Y", "contribution": "orbital_decay",
+     "title": "The Orbit of WASP-12b Is Decaying"},
+    {"pl_names": ["WASP-12 b"], "bibcode": "2017AJ....154....4P", "contribution": "orbital_decay",
+     "title": "The Apparently Decaying Orbit of WASP-12b"},
+    {"pl_names": ["WASP-12 b"], "bibcode": "2015ApJ...814...66K", "contribution": "atmosphere",
+     "title": "A Detection of Water in the Transmission Spectrum of the Hot Jupiter WASP-12b "
+              "and Implications for Its Atmospheric Composition"},
+    {"pl_names": ["WASP-12 b"], "bibcode": "2010ApJ...714L.222F", "contribution": "atmosphere",
+     "title": "Metals in the Exosphere of the Highly Irradiated Planet WASP-12b"},
+    # KELT-9 b deep dive (manual, 2026-05-23; migration 035). Hottest known planet;
+    # atomic/ionic metal zoo + escaping H. Bibcodes verified via ADS.
+    {"pl_names": ["KELT-9 b"], "bibcode": "2018Natur.560..453H", "contribution": "atmosphere",
+     "title": "Atomic iron and titanium in the atmosphere of the exoplanet KELT-9b"},
+    {"pl_names": ["KELT-9 b"], "bibcode": "2019A&A...627A.165H", "contribution": "atmosphere",
+     "title": "A spectral survey of an ultra-hot Jupiter. Detection of metals in the "
+              "transmission spectrum of KELT-9 b"},
+    {"pl_names": ["KELT-9 b"], "bibcode": "2018NatAs...2..714Y", "contribution": "atmosphere",
+     "title": "An extended hydrogen envelope of the extremely hot giant exoplanet KELT-9b"},
+    # Kepler-1520 b deep dive (manual, 2026-05-23; migration 036). Disintegrating
+    # planet. Rappaport 2012 is the real discovery (prior_detection, above). Mass /
+    # mass-loss data in planet_derived_measurements.
+    {"pl_names": ["Kepler-1520 b"], "bibcode": "2013MNRAS.433.2294P", "contribution": "mass_loss",
+     "title": "Catastrophic evaporation of rocky planets"},
+    {"pl_names": ["Kepler-1520 b"], "bibcode": "2014A&A...561A...3V", "contribution": "mass",
+     "title": "Analysis and interpretation of 15 quarters of Kepler data of the disintegrating "
+              "planet KIC 12557548 b"},
+    # 51 Eri b deep dive (manual, 2026-05-23; migration 038). Cold methane young
+    # Jupiter; CH4/H2O (Macintosh 2015, already discovery) + Teff/metallicity/luminosity.
+    {"pl_names": ["51 Eri b"], "bibcode": "2017AJ....154...10R", "contribution": "atmosphere",
+     "title": "Characterizing 51 Eri b from 1 to 5 micron: A Partly Cloudy Exoplanet"},
+    {"pl_names": ["51 Eri b"], "bibcode": "2017A&A...603A..57S", "contribution": "metallicity",
+     "title": "Spectral and atmospheric characterization of 51 Eridani b using VLT/SPHERE"},
+    # Kepler-51 deep dive (manual, 2026-05-23; migration 039). Super-puffs whose
+    # transmission spectra are featureless (high-altitude hazes), so the value-add is
+    # the H2O non-detections, not molecule lists. Libby-Roberts 2020 (HST/WFC3) covered
+    # b and d; Libby-Roberts 2026 (JWST/NIRSpec-PRISM) re-observed d. Bibcodes via ADS.
+    {"pl_names": ["Kepler-51 b", "Kepler-51 d"], "bibcode": "2020AJ....159...57L", "contribution": "atmosphere",
+     "title": "The Featureless Transmission Spectra of Two Super-puff Planets"},
+    {"pl_names": ["Kepler-51 d"], "bibcode": "2026AJ....171..221L", "contribution": "atmosphere",
+     "title": "A JWST Transmission Spectrum of the Super-puff Kepler-51 d"},
+    # WASP-18 b deep dive (manual, 2026-05-23; migration 040). Benchmark ultra-hot
+    # Jupiter with a dayside thermal inversion. Sheppard 2017 + Arcangeli 2018 (HST/
+    # Spitzer) established the inversion and the H-/dissociation picture; Coulombe 2023
+    # (JWST/NIRISS) gave the definitive H2O-in-emission detection. Bibcodes via ADS.
+    {"pl_names": ["WASP-18 b"], "bibcode": "2017ApJ...850L..32S", "contribution": "atmosphere",
+     "title": "Evidence for a Dayside Thermal Inversion and High Metallicity for the "
+              "Hot Jupiter WASP-18b"},
+    {"pl_names": ["WASP-18 b"], "bibcode": "2018ApJ...855L..30A", "contribution": "atmosphere",
+     "title": "H- Opacity and Water Dissociation in the Dayside Atmosphere of the Very "
+              "Hot Gas Giant WASP-18b"},
+    {"pl_names": ["WASP-18 b"], "bibcode": "2023Natur.620..292C", "contribution": "atmosphere",
+     "title": "A broadband thermal emission spectrum of the ultra-hot Jupiter WASP-18b"},
+    # HIP 65426 b deep dive (manual, 2026-05-23; migration 041). First JWST-imaged
+    # exoplanet. Petrus 2021 (VLT/SINFONI K-band) supplies Teff/[M/H]/C/O + the H2O/CO
+    # carriers; Carter 2023 (JWST NIRCam+MIRI) supplies the bolometric luminosity and a
+    # refined mass. (Chauvin 2017 discovery cite already linked.) Bibcodes via ADS.
+    {"pl_names": ["HIP 65426 b"], "bibcode": "2021A&A...648A..59P", "contribution": "atmosphere",
+     "title": "Medium-resolution spectrum of the exoplanet HIP 65426 b"},
+    {"pl_names": ["HIP 65426 b"], "bibcode": "2023ApJ...951L..20C", "contribution": "atmosphere",
+     "title": "The JWST Early Release Science Program for Direct Observations of "
+              "Exoplanetary Systems I: High-contrast Imaging of the Exoplanet HIP 65426 b "
+              "from 2 to 16 um"},
 ]
 
 UPSERT_PUB = """

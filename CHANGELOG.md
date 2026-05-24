@@ -124,6 +124,77 @@ and each mints a version-specific
   added; bibcodes verified against ADS. Completes a five-system JWST-era
   atmosphere-showcase set (WASP-121 b, GJ 1214 b, WASP-107 b, LHS 1140 b,
   WASP-76 b).
+- **PDS 70 deep dive** (manual literature review): the only confirmed *forming*
+  planets, caught accreting inside their disk gap. No molecule detections (dusty
+  accreting young giants), so the value-add is in `planet_derived_measurements`
+  (migration 033): PDS 70 b's H-alpha mass-accretion rate (~1e-8 M_Jup/yr, Wagner
+  2018) and PDS 70 c's resolved circumplanetary-disk dust mass (~0.031 M_earth,
+  Benisty 2021), the two near a 2:1 resonance. Three `characterization` citations
+  added (Wagner 2018, Haffert 2019, Benisty 2021); bibcodes verified against ADS.
+  Opens an "extremes" set (forming / dying / record-holding planets).
+- **WASP-12 b deep dive** (manual literature review): a hot Jupiter measurably
+  spiraling into its star. `planet_derived_measurements` (migration 034) gets the
+  orbital decay rate (-29 +/- 2 ms/yr, Yee 2020) and decay timescale (3.2 Myr to
+  destruction, Patra 2017); `planet_atmospheres` gets H2O (Kreidberg 2015) and
+  exospheric Mg II from its escaping, Roche-lobe-overflowing atmosphere (Fossati
+  2010). Four `characterization` citations added; bibcodes verified against ADS.
+- **KELT-9 b deep dive** (manual literature review): the hottest known planet
+  (dayside ~4600 K, A0 host). 13 `planet_atmospheres` rows (migration 035) - the
+  first-ever Fe / Fe II / Ti II detection in any exoplanet (Hoeijmakers 2018), a
+  full metal/ion zoo (Na, Mg, Cr II, Sc II, Y II; Hoeijmakers 2019), an escaping H
+  envelope (Yan & Henning 2018), and tentative Ca/Cr/Co/Sr II - plus the dayside
+  temperature in `planet_derived_measurements`. Too hot for molecules. Three
+  `characterization` citations; bibcodes verified against ADS.
+- **Kepler-1520 b deep dive** (manual literature review): a Mercury-sized rocky
+  planet catastrophically evaporating with a comet-like dust tail.
+  `planet_derived_measurements` (migration 036) gets the mass-loss rate
+  (~1 M_earth/Gyr), evaporation timescale (~0.2 Gyr), and present-day mass
+  (<=0.02 M_earth, possibly a naked iron core; Rappaport 2012, Perez-Becker &
+  Chiang 2013, van Werkhoven 2014). No curated atmosphere (the obscuring material
+  is mineral dust). Rappaport 2012 - the actual 2012 discovery, predating the
+  warehouse's Morton 2016 validation cite - is credited as a `prior_detection`;
+  two `characterization` citations also added. Bibcodes verified against ADS.
+- **TOI-849 b deep dive** (manual literature review): the "exposed core" - the
+  remnant core of a giant planet in the hot-Neptune desert (39 M_earth, Earth-like
+  density). `planet_derived_measurements` (migration 037) records its H/He envelope
+  fraction (<=3.9% of the planet mass; Armstrong 2020), which quantifies the
+  stripped-core nature. Completes a five-system "extremes" set (PDS 70, WASP-12 b,
+  KELT-9 b, Kepler-1520 b, TOI-849 b).
+- **51 Eri b deep dive** (manual literature review): a cold (~675 K), young
+  directly-imaged Jupiter - the first imaged planet with a methane-dominated
+  spectrum. `planet_atmospheres` gets CH4 + H2O (Macintosh 2015);
+  `planet_derived_measurements` (migration 038) gets the effective temperature,
+  a super-solar metallicity ([Fe/H] = 1.0; Samland 2017, with a noted model
+  tension vs Rajan 2017's ~solar), and a cold-start-consistent luminosity (Rajan
+  2017). Two `characterization` citations added; bibcodes verified against ADS.
+- **Kepler-51 deep dive** (manual literature review): the "cotton-candy"
+  super-puffs (densities below 0.1 g/cm3). The value-add is non-detections: both
+  Kepler-51 b and d have featureless transmission spectra hidden by high-altitude
+  hazes, so `planet_atmospheres` (migration 039) records H2O as `ruled_out` for
+  each - b from HST/WFC3 (Libby-Roberts 2020) and d from JWST/NIRSpec-PRISM
+  (Libby-Roberts 2026, a featureless sloped line). Three `characterization`
+  citations added; bibcodes verified against ADS.
+- **WASP-18 b deep dive** (manual literature review): the benchmark ultra-hot
+  Jupiter for dayside *thermal inversions*. `planet_atmospheres` (migration 040)
+  records H2O detected in emission (JWST/NIRISS, >6 sigma; Coulombe 2023, the
+  band-flip that proves the stratosphere), CO as tentative (Sheppard 2017, with
+  Arcangeli 2018's competing H- interpretation noted), and TiO/VO as inconclusive
+  (the still-open question of what optical absorber drives the inversion).
+  `planet_derived_measurements` gets a solar metallicity (M/H = 1.03x solar;
+  Coulombe 2023, resolving an earlier high-metallicity claim) and a ~2900 K
+  dayside temperature (Arcangeli 2018). Three `characterization` citations added;
+  bibcodes verified against ADS.
+- **HIP 65426 b deep dive** (manual literature review): the first exoplanet imaged
+  by JWST (and the first direct detection beyond 5 um). A young, dusty,
+  L-dwarf-like super-Jupiter at 92 au, so the value-add is characterization
+  scalars: a VLT/SINFONI K-band spectrum (Petrus 2021) sets the effective
+  temperature (1560 K), a solar metallicity, and a C/O upper limit (<=0.55,
+  pointing to core accretion beyond the snowline), and the JWST 2-16 um SED
+  (Carter 2023) gives a model-independent bolometric luminosity and a refined mass
+  (7.1 Mjup, vs the catalog's older ~9 Mjup). `planet_atmospheres` (migration 041)
+  also records the H2O and CO K-band carriers. Two `characterization` citations
+  added; bibcodes verified against ADS. Completes a four-system user-flagged
+  fast-follow set (51 Eri b, Kepler-51, WASP-18 b, HIP 65426 b).
 - **"Recently added" section on the landing page**: shows the latest pipeline
   run above "Most recently confirmed" (without replacing it). New planets render
   as the same catalog cards (`PlanetGrid`); notable physical revisions (mass,

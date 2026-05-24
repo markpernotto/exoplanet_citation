@@ -607,6 +607,32 @@ CHARACTERIZATIONS: list[dict] = [
     # source_bibcode is fixed in migration 050; this is the planet->paper link. Bibcode via ADS.
     {"pl_names": ["GJ 86 b"], "bibcode": "2005MNRAS.361L..15M", "contribution": "binary_companion",
      "title": "Gl86B: a white dwarf orbits an exoplanet host star"},
+    # "Tilted & Tumbling" theme (spin-orbit-misaligned planets, 2026-05-24; migrations 051+).
+    # Obliquity values come from NASA EA's raw_row (reflink papers), promoted into
+    # planet_derived_measurements and cited here. WASP-17 b (migration 051): first retrograde
+    # planet; lambda from Triaud 2010 (HARPS Rossiter-McLaughlin). Bibcode via ADS.
+    {"pl_names": ["WASP-17 b"], "bibcode": "2010A&A...524A..25T", "contribution": "obliquity",
+     "title": "Spin-orbit angle measurements for six southern transiting planets. "
+              "New insights into the dynamical origins of hot Jupiters"},
+    # WASP-33 b (migration 052): retrograde UHJ around a hot, fast-rotating A-star; both lambda
+    # and true obliquity psi from Collier Cameron 2010 (also the discovery cite, distinct role). Bibcode via ADS.
+    {"pl_names": ["WASP-33 b"], "bibcode": "2010MNRAS.407..507C", "contribution": "obliquity",
+     "title": "Line-profile tomography of exoplanet transits - II. A gas-giant planet "
+              "transiting a rapidly rotating A5 star"},
+    # K2-290 c (migration 053): polar/retrograde warm Jupiter; both planets coplanar but the plane
+    # tilted ~124 deg from a "backward-spinning" star -> primordial disk misalignment. Hjorth 2021
+    # (PNAS; distinct from the 2019 discovery cite) supplies lambda + true obliquity. Bibcode via ADS.
+    {"pl_names": ["K2-290 c"], "bibcode": "2021PNAS..11817418H", "contribution": "obliquity",
+     "title": "A backward-spinning star with two coplanar planets"},
+    # HAT-P-7 b (migration 054): near-polar hot Jupiter; one of the first misaligned HJs (Winn 2009,
+    # alongside WASP-17 b). lambda + true obliquity from Winn 2009 (distinct from 2008 discovery). Bibcode via ADS.
+    {"pl_names": ["HAT-P-7 b"], "bibcode": "2009ApJ...703L..99W", "contribution": "obliquity",
+     "title": "HAT-P-7: A Retrograde or Polar Orbit, and a Third Body"},
+    # WASP-79 b (migration 055): near-polar hot Jupiter (closes the theme). lambda from Brown 2017
+    # (distinct from the 2012 discovery cite). Bibcode via ADS.
+    {"pl_names": ["WASP-79 b"], "bibcode": "2017MNRAS.464..810B", "contribution": "obliquity",
+     "title": "Rossiter-McLaughlin models and their effect on estimates of stellar rotation, "
+              "illustrated using four WASP systems"},
     # tau Boo b (migration 048): first non-transiting planet atmospherically characterized.
     # Brogi 2012 (CO + inclination/true mass), Lockwood 2014 (H2O), Pelletier 2021 (C/H +
     # water depletion + upper limits). Bibcodes via ADS.

@@ -238,6 +238,19 @@ and each mints a version-specific
   outer companion (30.3 Mjup, vs the RV minimum of 18.1), firmly a brown dwarf. Its
   citation is upgraded to `characterization`; the inner planet b (not astrometrically
   detected) stays a `follow_up`.
+- **Tilted & Tumbling deep dive** (spin-orbit-misaligned planets): promotes obliquity
+  out of the raw NASA EA rows into the cited, usable `planet_derived_measurements`
+  layer. WASP-17 b, the first retrograde planet, gets its sky-projected obliquity
+  (lambda = -148.5 deg; Triaud et al. 2010; migration 051). WASP-33 b, a retrograde
+  ultra-hot Jupiter around a hot A-star above the Kraft break, gets both its projected
+  (251 deg) and true (108 deg) obliquity (Collier Cameron et al. 2010; migration 052).
+  K2-290 c, a warm Jupiter on a polar/retrograde orbit (true obliquity 124 deg; Hjorth
+  et al. 2021; migration 053), is the theme's primordial-disk case: both planets are
+  coplanar but tilted from a "backward-spinning" star, pointing to a tipped disk rather
+  than scattering. HAT-P-7 b adds a near-polar case (true obliquity 86 deg; Winn et al.
+  2009; migration 054), one of the first misaligned hot Jupiters ever found, and
+  WASP-79 b a polar one (lambda = -95 deg; Brown et al. 2017; migration 055). Five
+  `characterization` citations added (contribution=obliquity), one per system.
 - **GJ 86 b white-dwarf companion provenance** (migration 050): GJ 86 b is a hot
   Jupiter whose wide companion GJ 86 B is a white dwarf (the first found orbiting an
   exoplanet host star). The companion was already in `binary_companions` from SIMBAD

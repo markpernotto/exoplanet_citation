@@ -211,6 +211,11 @@ psql "$DATABASE_URL" -f etl/migrations/047_psr1257_true_masses.sql
 psql "$DATABASE_URL" -f etl/migrations/048_tauboob_nontransiting_atmosphere.sql
 psql "$DATABASE_URL" -f etl/migrations/049_hd168443c_astrometric_mass.sql
 psql "$DATABASE_URL" -f etl/migrations/050_gj86b_wd_companion_provenance.sql
+psql "$DATABASE_URL" -f etl/migrations/051_wasp17b_retrograde.sql
+psql "$DATABASE_URL" -f etl/migrations/052_wasp33b_retrograde_hotstar.sql
+psql "$DATABASE_URL" -f etl/migrations/053_k2290c_polar.sql
+psql "$DATABASE_URL" -f etl/migrations/054_hatp7b_polar.sql
+psql "$DATABASE_URL" -f etl/migrations/055_wasp79b_polar.sql
 
 # Verify connectivity
 make check-setup

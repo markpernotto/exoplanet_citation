@@ -29,14 +29,15 @@ OpenAPI / interactive docs:
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
+import urllib.request
 from datetime import UTC, datetime, timedelta
 from urllib.parse import unquote
 from xml.etree import ElementTree as ET
 from xml.etree.ElementTree import Element, SubElement
 
-import httpx
 import psycopg
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Path, Query, Request, Response
@@ -155,7 +156,11 @@ def _ip_hash(ip: str) -> str:
 
 
 def _send_feedback_email(message: str, page_url: str | None, email: str | None) -> None:
-    """Best-effort maintainer notification via Resend. Silent no-op if unconfigured."""
+    """Best-effort maintainer notification via Resend. Silent no-op if unconfigured.
+
+    Uses stdlib urllib so the serverless function needs no dependency beyond
+    api/requirements.txt (anything imported there must be listed in that file).
+    """
     key = os.getenv("RESEND_API_KEY")
     if not key:
         return
@@ -174,12 +179,13 @@ def _send_feedback_email(message: str, page_url: str | None, email: str | None) 
     if email:
         payload["reply_to"] = email
     try:
-        httpx.post(
+        req = urllib.request.Request(
             "https://api.resend.com/emails",
-            headers={"Authorization": f"Bearer {key}"},
-            json=payload,
-            timeout=10,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+            method="POST",
         )
+        urllib.request.urlopen(req, timeout=10).close()
     except Exception:
         pass  # the row is already stored; notification is a bonus, not a guarantee
 

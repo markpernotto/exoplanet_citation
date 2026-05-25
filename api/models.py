@@ -30,6 +30,20 @@ class StorageInfo(BaseModel):
     status: str  # "ok" | "warning" | "critical"
 
 
+class FeedbackRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=4000)
+    email: str | None = Field(default=None, max_length=320)
+    page_url: str | None = Field(default=None, max_length=2000)
+    # Anti-spam: `company` is a honeypot (must stay empty); `elapsed_ms` is how
+    # long the form was on screen before submit (bots submit near-instantly).
+    company: str | None = Field(default=None, max_length=200)
+    elapsed_ms: int | None = None
+
+
+class FeedbackResponse(BaseModel):
+    ok: bool
+
+
 class HealthResponse(BaseModel):
     status: str
     checked_at: datetime

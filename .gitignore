@@ -73,6 +73,12 @@ docs/rnaas_cb_flag_draft.md
 # institutional home.
 docs/project_pitch.md
 
+# Private working list for the "Could you live here?" survival feature (review menu).
+docs/survival_feature_candidates.md
+
+# Private planning list of next atmospheric-enrichment deep-dive targets.
+docs/atmosphere_deep_dive_candidates.md
+
 # Deep-dive tracker / enrichment playbook — kept out of new commits so the
 # detailed/current tracker isn't published. (An older version is already in git
 # history; that's fine and not being scrubbed.)

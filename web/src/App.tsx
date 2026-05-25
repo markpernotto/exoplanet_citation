@@ -6,6 +6,7 @@ import { api, type StatsResponse } from './api';
 import About from './pages/About';
 import AuthorDetail from './pages/AuthorDetail';
 import Collections from './pages/Collections';
+import Feedback from './pages/Feedback';
 import Feeds from './pages/Feeds';
 import Home from './pages/Home';
 import PlanetDetail from './pages/PlanetDetail';
@@ -104,6 +105,7 @@ export default function App() {
             <Route path="/authors/:authorName" element={<AuthorDetail />} />
             <Route path="/feeds" element={<Feeds />} />
             <Route path="/about" element={<About />} />
+            <Route path="/feedback" element={<Feedback />} />
             <Route path="/collections/:key" element={<Collections />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
@@ -116,12 +118,27 @@ export default function App() {
             {' · '}<a href="https://github.com/markpernotto/exoplanet_citation">Source on GitHub</a>
             {' · '}<a href="/docs">API docs</a>
             {' · '}<Link to="/feeds">Subscribe</Link>
+            {' · '}<ReportIssueLink />
             {' · '}Data from <a href="https://exoplanetarchive.ipac.caltech.edu/">NASA Exoplanet Archive</a>
           </div>
         </footer>
       </div>
     </>
   );
+}
+
+// Footer link to the issue form, carrying the page the reader is on (and theme)
+// so the form pre-fills "Regarding: <page>". Self-reference is dropped when
+// already on /feedback.
+function ReportIssueLink() {
+  const { pathname, search } = useLocation();
+  const [params] = useSearchParams();
+  const theme = params.get('theme');
+  const qs = new URLSearchParams();
+  if (!pathname.startsWith('/feedback')) qs.set('from', pathname + search);
+  if (theme) qs.set('theme', theme);
+  const q = qs.toString();
+  return <Link to={`/feedback${q ? `?${q}` : ''}`}>Report an issue</Link>;
 }
 
 function NotFound() {

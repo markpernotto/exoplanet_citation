@@ -13,7 +13,16 @@ store any personal information about visitors.
 
 ## What we collect from visitors
 
-Nothing. The public site has no analytics, no cookies, and no user accounts.
+The public site has no analytics, no cookies, and no user accounts. The only
+data we collect is what you choose to send through the "Report an issue" form:
+
+- The message you write, and the page you were on when you opened the form
+- Your email address, only if you provide one, and only so we can reply
+- A one-way SHA-256 hash of your IP address (never the raw IP), used solely to
+  rate-limit spam
+
+Reports are stored in our database and emailed to the maintainer. We use them
+only to respond to and act on the report.
 
 ## Server logs
 

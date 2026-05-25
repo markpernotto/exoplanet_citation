@@ -16,6 +16,19 @@ export type Collection = {
 
 export const COLLECTIONS: Collection[] = [
   {
+    key: 'beyond-archive',
+    label: 'Beyond the Archive',
+    tagline: 'Characterizations beyond the catalog basics',
+    kind: 'visual',
+    imageCredit: 'KELT-9 b',
+    blurb:
+      'A curated tour of planets where published follow-up work records something the core ' +
+      'parameter tables do not carry: a decaying orbit, an accretion rate, a terminator wind, ' +
+      'a heavy-element budget. Every value links to its source paper and instrument. This is ' +
+      'the showcase view; the full data lives under Characterized atmospheres and Interiors & ' +
+      'composition.',
+  },
+  {
     key: 'circumbinary',
     label: 'Circumbinary planets',
     tagline: 'Worlds that orbit two stars at once',

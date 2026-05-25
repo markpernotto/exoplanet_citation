@@ -1,10 +1,13 @@
 """FastAPI app for exoplanet_citation.
 
-All endpoints under /api/. Read-only over the Postgres warehouse.
+All endpoints under /api/. Read-only over the Postgres warehouse, with one
+exception: POST /api/feedback, an isolated append-only write path for the
+contact form (it never touches the nightly-overwritten catalog tables).
 Deploys as Python serverless functions on Vercel; runnable locally with
 `make api` (uvicorn on port 8000).
 
 Endpoints:
+  POST /api/feedback                              — contact / issue report (stored + emailed)
   GET /api/health                                 — pipeline health + freshness
   GET /api/stats                                  — top-level counts + breakdowns
   GET /api/discoveries/latest?days=30             — recent surfaced changes
@@ -25,6 +28,7 @@ OpenAPI / interactive docs:
 
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 from datetime import UTC, datetime, timedelta
@@ -32,9 +36,10 @@ from urllib.parse import unquote
 from xml.etree import ElementTree as ET
 from xml.etree.ElementTree import Element, SubElement
 
+import httpx
 import psycopg
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Path, Query, Response
+from fastapi import FastAPI, HTTPException, Path, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from psycopg.rows import dict_row
 
@@ -52,6 +57,8 @@ from api.models import (
     DerivedMeasurementsResponse,
     DiscoveriesResponse,
     DiscoveryPaper,
+    FeedbackRequest,
+    FeedbackResponse,
     FreshnessInfo,
     HealthResponse,
     HostStarGaia,
@@ -101,7 +108,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
@@ -123,6 +130,95 @@ def _to_change_record(row: dict) -> ChangeRecord:
         diff_summary=row["diff_summary"],
         source_snapshot_date=row["source_snapshot_date"],
     )
+
+
+# ---------- Feedback / issue reports (the one write path) ----------
+
+FEEDBACK_TO = os.getenv("FEEDBACK_TO", "mark@pernotto.com")
+FEEDBACK_FROM = os.getenv("FEEDBACK_FROM", "Exoplanet Atlas <onboarding@resend.dev>")
+FEEDBACK_IP_SALT = os.getenv("FEEDBACK_IP_SALT", "exoplanet-citation")
+FEEDBACK_MIN_FILL_MS = 2000          # faster than this == almost certainly a bot
+FEEDBACK_RATE_LIMIT = 5              # accepted reports per client IP per window
+FEEDBACK_RATE_WINDOW = timedelta(hours=1)
+
+
+def _client_ip(request: Request) -> str:
+    fwd = request.headers.get("x-forwarded-for", "")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else ""
+
+
+def _ip_hash(ip: str) -> str:
+    # One-way: we keep only the hash, never the raw IP (see PRIVACY.md).
+    return hashlib.sha256((FEEDBACK_IP_SALT + ip).encode()).hexdigest()
+
+
+def _send_feedback_email(message: str, page_url: str | None, email: str | None) -> None:
+    """Best-effort maintainer notification via Resend. Silent no-op if unconfigured."""
+    key = os.getenv("RESEND_API_KEY")
+    if not key:
+        return
+    body = (
+        "New issue report from the Exoplanet Atlas.\n\n"
+        f"Page: {page_url or '(not provided)'}\n"
+        f"Reply-to: {email or '(none given)'}\n\n"
+        f"{message}\n"
+    )
+    payload: dict = {
+        "from": FEEDBACK_FROM,
+        "to": [FEEDBACK_TO],
+        "subject": "[Exoplanet Atlas] New issue report",
+        "text": body,
+    }
+    if email:
+        payload["reply_to"] = email
+    try:
+        httpx.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {key}"},
+            json=payload,
+            timeout=10,
+        )
+    except Exception:
+        pass  # the row is already stored; notification is a bonus, not a guarantee
+
+
+@app.post("/api/feedback", response_model=FeedbackResponse, tags=["feedback"])
+def submit_feedback(body: FeedbackRequest, request: Request) -> FeedbackResponse:
+    """Accept a contact / issue report: store the row, email the maintainer.
+
+    Anti-spam, cheapest first: a honeypot field that must stay empty, a minimum
+    time-to-fill, and a per-client-IP hourly rate limit. Honeypot/timing failures
+    return ok WITHOUT storing, so a bot gets no signal that it was caught.
+    """
+    if body.company:
+        return FeedbackResponse(ok=True)
+    if body.elapsed_ms is not None and body.elapsed_ms < FEEDBACK_MIN_FILL_MS:
+        return FeedbackResponse(ok=True)
+
+    message = body.message.strip()
+    if not message:
+        raise HTTPException(status_code=422, detail="Message is required.")
+    email = (body.email or "").strip() or None
+    ip_hash = _ip_hash(_client_ip(request))
+
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                "SELECT COUNT(*) AS c FROM feedback WHERE ip_hash = %s AND created_at >= %s",
+                (ip_hash, datetime.now(UTC) - FEEDBACK_RATE_WINDOW),
+            )
+            if cur.fetchone()["c"] >= FEEDBACK_RATE_LIMIT:
+                raise HTTPException(status_code=429, detail="Too many reports; please try again later.")
+            cur.execute(
+                "INSERT INTO feedback (page_url, message, contact_email, user_agent, ip_hash) "
+                "VALUES (%s, %s, %s, %s, %s)",
+                (body.page_url, message, email, request.headers.get("user-agent"), ip_hash),
+            )
+
+    _send_feedback_email(message, body.page_url, email)
+    return FeedbackResponse(ok=True)
 
 
 # ---------- Health ----------

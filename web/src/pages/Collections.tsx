@@ -183,6 +183,7 @@ function CollectionBody({ collKey, members, authors, geometry, innerBinaries, at
   if (collKey === 'atmospheres') return <AtmosphereTable rows={atmospheres} themeQuery={themeQuery} />;
   if (collKey === 'composition') return <CompositionTable rows={derived} themeQuery={themeQuery} />;
   if (collKey === 'data-quality') return <DataQualityTable themeQuery={themeQuery} />;
+  if (collKey === 'beyond-archive') return <BeyondArchiveList themeQuery={themeQuery} />;
 
   if (collKey === 'architecture-3d') {
     if (geometry === null) return <LoadingBar loading={true} />;
@@ -629,6 +630,54 @@ function AuthorList({ authors, themeQuery }: { authors: TopAuthor[] | null; them
         </li>
       ))}
     </ol>
+  );
+}
+
+// Hand-maintained showcase: planets where the literature deep-dives recorded data
+// the catalog's core tables do not carry (atmospheric detections, derived scalars).
+// Curated for range, not row count, so the set reads as a tour of what the
+// value-added layer adds. `pl_name` is the link target; `label` may name a group.
+type BeyondArchiveEntry = { pl_name: string; label: string; hook: string };
+const BEYOND_ARCHIVE: BeyondArchiveEntry[] = [
+  { pl_name: 'PDS 70 b', label: 'PDS 70 b & c',
+    hook: 'The only planets ever caught in the act of forming. We record the accretion rate of b and the circumplanetary-disk dust mass of c, neither of which the core tables carry.' },
+  { pl_name: 'WASP-12 b', label: 'WASP-12 b',
+    hook: 'A giant planet spiraling into its star, its orbit shrinking by 29 ms per year with roughly 3.2 million years left.' },
+  { pl_name: 'WASP-76 b', label: 'WASP-76 b',
+    hook: 'So hot that iron condenses and falls on its nightside. We hold the 11 km/s terminator wind that revealed it, alongside its iron, lithium, and sodium inventory.' },
+  { pl_name: 'KELT-9 b', label: 'KELT-9 b',
+    hook: 'The hottest known planet, and the first found to contain iron and titanium. A thirteen-species inventory of metals and ions.' },
+  { pl_name: 'HR 8799 b', label: 'HR 8799 b-e',
+    hook: 'Four directly imaged giants with measured carbon, oxygen, nitrogen, and sulphur abundances and a heavy-element budget (b alone holds about 123 Earth masses of metals), the chemical fingerprint of how they formed.' },
+  { pl_name: 'WASP-107 b', label: 'WASP-107 b',
+    hook: 'The first helium ever detected in an exoplanet atmosphere, plus the sulphur-dioxide photochemistry and silicate clouds caught by JWST.' },
+  { pl_name: 'Kepler-1520 b', label: 'Kepler-1520 b',
+    hook: 'A small rocky world evaporating into a comet-like dust tail, shedding roughly one Earth mass of material every billion years.' },
+  { pl_name: 'TOI-849 b', label: 'TOI-849 b',
+    hook: 'The stripped, exposed core of a giant planet. Whatever gas envelope remains is at most 3.9 percent of its mass.' },
+  { pl_name: 'tau Boo b', label: 'tau Boo b',
+    hook: 'The first non-transiting planet to have its atmosphere read (carbon monoxide and water), tracked through the Doppler shift of the planet itself.' },
+  { pl_name: 'bet Pic b', label: 'bet Pic b',
+    hook: 'A young giant with a measured spin near 25 km/s and a carbon-to-oxygen ratio that point to formation by core accretion.' },
+];
+
+function BeyondArchiveList({ themeQuery }: { themeQuery: string }) {
+  return (
+    <Reveal>
+      <p style={{ margin: '0 0 1.25rem', fontSize: '0.9rem', color: 'var(--fg-muted)', lineHeight: 1.6 }}>
+        <strong style={{ color: 'var(--fg)' }}>{BEYOND_ARCHIVE.length}</strong> planets where published
+        follow-up work records something the catalog's core parameter tables do not. Each links to its page,
+        where every value carries its source paper and instrument.
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+        {BEYOND_ARCHIVE.map((e) => (
+          <div key={e.pl_name} className="card">
+            <Link to={`/planets/${encodeURIComponent(e.pl_name)}${themeQuery}`} style={{ fontWeight: 600 }}>{e.label}</Link>
+            <p style={{ margin: '0.35rem 0 0', fontSize: '0.9rem', color: 'var(--fg-muted)', lineHeight: 1.55 }}>{e.hook}</p>
+          </div>
+        ))}
+      </div>
+    </Reveal>
   );
 }
 

@@ -701,6 +701,22 @@ CHARACTERIZATIONS: list[dict] = [
     {"pl_names": ["tau Boo b"], "bibcode": "2021AJ....162...73P", "contribution": "atmosphere",
      "title": "Where Is the Water? Jupiter-like C/H Ratio but Strong H2O Depletion Found "
               "on tau Bootis b Using SPIRou"},
+    # Warm-Neptune atmosphere batch (migration 060, 2026-05-24). Curated from JWST-era
+    # spectroscopy already in planet_atmospheric_observations. Bibcodes via ADS.
+    {"pl_names": ["GJ 3470 b"], "bibcode": "2024ApJ...970L..10B", "contribution": "atmosphere",
+     "title": "Sulfur Dioxide and Other Molecular Species in the Atmosphere of the Sub-Neptune GJ 3470 b"},
+    {"pl_names": ["GJ 436 b"], "bibcode": "2025ApJ...982L..39M", "contribution": "atmosphere",
+     "title": "A JWST Panchromatic Thermal Emission Spectrum of the Warm Neptune Archetype GJ 436b"},
+    {"pl_names": ["HAT-P-26 b"], "bibcode": "2017Sci...356..628W", "contribution": "atmosphere",
+     "title": "HAT-P-26b: A Neptune-mass exoplanet with a well-constrained heavy element abundance"},
+    {"pl_names": ["HAT-P-26 b"], "bibcode": "2025AJ....170..292G", "contribution": "atmosphere",
+     "title": "JWST-TST DREAMS: Sulfur Dioxide in the Atmosphere of the Neptune-mass Planet HAT-P-26 b "
+              "from NIRSpec G395H Transmission Spectroscopy"},
+    {"pl_names": ["TOI-270 d"], "bibcode": "2024A&A...683L...2H", "contribution": "atmosphere",
+     "title": "Possible Hycean conditions in the sub-Neptune TOI-270 d"},
+    {"pl_names": ["TOI-270 d"], "bibcode": "2025A&A...701A.296F", "contribution": "atmosphere",
+     "title": "Competing chemical signatures in the atmosphere of TOI-270 d: Inference of sulfur "
+              "and carbon chemistry"},
 ]
 
 UPSERT_PUB = """

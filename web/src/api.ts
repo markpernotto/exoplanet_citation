@@ -320,9 +320,23 @@ async function get<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+async function post<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new Error(`${res.status} ${res.statusText}: ${path}`);
+  }
+  return res.json() as Promise<T>;
+}
+
 export const api = {
   health: () => get<HealthResponse>('/api/health'),
   stats: () => get<StatsResponse>('/api/stats'),
+  submitFeedback: (input: { message: string; email?: string; page_url?: string; company?: string; elapsed_ms?: number }) =>
+    post<{ ok: boolean }>('/api/feedback', input),
   discoveriesLatest: (days = 30) =>
     get<DiscoveriesResponse>(`/api/discoveries/latest?days=${days}`),
 

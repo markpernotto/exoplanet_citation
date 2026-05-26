@@ -35,9 +35,12 @@ const QUANTITY_LABEL: Record<string, string> = {
   rotation_velocity: 'Rotation velocity (v sin i)',
   projected_obliquity: 'Projected obliquity (λ)',
   true_obliquity: 'True obliquity (ψ)',
+  radial_velocity: 'Planetary radial velocity',
+  internal_temperature: 'Internal temperature (T_int)',
   // Atmospheric dynamics
   terminator_wind_velocity: 'Terminator wind velocity',
   equatorial_jet_velocity: 'Equatorial jet velocity',
+  vertical_mixing_kzz: 'Vertical mixing (log K_zz)',
   // Evolution / loss / accretion
   accretion_rate: 'Mass accretion rate',
   circumplanetary_disk_dust_mass: 'Circumplanetary disk dust mass',
@@ -71,6 +74,7 @@ const UNIT_LABEL: Record<string, string> = {
   planet_radii: 'R_planet',
   Myr: 'Myr',
   Gyr: 'Gyr',
+  log_cm2_s: 'log cm²/s',
 };
 
 export function quantityLabel(q: string): string {

@@ -831,6 +831,35 @@ CHARACTERIZATIONS: list[dict] = [
               "to account for correlated noise in individual pixels"},
     {"pl_names": ["LTT 3780 c"], "bibcode": "2025arXiv251215844R", "contribution": "atmosphere",
      "title": "A JWST Transmission Spectrum of the Temperate Sub-Neptune TOI-732 c"},
+    # Atmosphere backlog batch 8: two young-system single-planet dives (migration 068, 2026-05-26).
+    {"pl_names": ["PDS 70 b"], "bibcode": "2024ApJ...977L..47H", "contribution": "atmosphere",
+     "title": "PDS 70b Shows Stellar-like Carbon-to-oxygen Ratio"},
+    {"pl_names": ["V1298 Tau b"], "bibcode": "2025arXiv250708837B", "contribution": "atmosphere",
+     "title": "A metal-poor atmosphere with a hot interior for a young sub-Neptune progenitor: "
+              "JWST/NIRSpec transmission spectrum of V1298 Tau b"},
+    # V1298 Tau stellar-architecture enrichment (migration 069, 2026-05-26): wide G0
+    # spectroscopic-binary companion HD 284154 + SPHERE direct-imaging candidate
+    # substellar companion. Cited to b as the representative planet.
+    {"pl_names": ["V1298 Tau b"], "bibcode": "2022NatAs...6..232S", "contribution": "binary_companion",
+     "title": "Rapid contraction of giant planets orbiting the 20 million-years old star V1298 Tau"},
+    {"pl_names": ["V1298 Tau b"], "bibcode": "2023A&A...679A.111S", "contribution": "binary_companion",
+     "title": "The GAPS programme at TNG XLVII: The unusual formation history of V1298 Tau"},
+    # S-type stellar-multiplicity audit: 13-system high-value enrichment (migrations 070+, 2026-05-26).
+    {"pl_names": ["WASP-12 b"], "bibcode": "2014ApJ...788....2B", "contribution": "binary_companion",
+     "title": "WASP-12b and HAT-P-8b are Members of Triple Star Systems"},
+    {"pl_names": ["HAT-P-8 b"], "bibcode": "2014ApJ...788....2B", "contribution": "binary_companion",
+     "title": "WASP-12b and HAT-P-8b are Members of Triple Star Systems"},
+    {"pl_names": ["LTT 1445 A b"], "bibcode": "2019AJ....158..152W", "contribution": "binary_companion",
+     "title": "Three Red Suns in the Sky: A Transiting, Terrestrial Planet in a Triple M Dwarf System "
+              "at 6.9 Parsecs"},
+    {"pl_names": ["HD 110067 b"], "bibcode": "2023RNAAS...7..264A", "contribution": "binary_companion",
+     "title": "HD 110067 is a wide hierarchical triple system"},
+    {"pl_names": ["Kepler-444 b"], "bibcode": "2016ApJ...817...80D", "contribution": "binary_companion",
+     "title": "Orbital Architectures of Planet-Hosting Binaries. I. Forming Five Small Planets "
+              "in the Truncated Disk of Kepler-444A"},
+    {"pl_names": ["51 Eri b"], "bibcode": "2015ApJ...813L..11M", "contribution": "binary_companion",
+     "title": "Dynamical Masses of Young M Dwarfs: Masses and Orbital Parameters of GJ 3305 AB, "
+              "the Wide Binary Companion to the Imaged Exoplanet Host 51 Eri"},
 ]
 
 UPSERT_PUB = """

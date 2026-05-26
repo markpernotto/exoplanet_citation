@@ -754,6 +754,57 @@ CHARACTERIZATIONS: list[dict] = [
     # WASP-17 b's quartz paper). Bibcode via ADS.
     {"pl_names": ["HD 189733 b"], "bibcode": "2024ApJ...973L..41I", "contribution": "atmosphere",
      "title": "Quartz Clouds in the Dayside Atmosphere of the Quintessential Hot Jupiter HD 189733 b"},
+    # Atmosphere backlog batch 3: rocky JWST set (migration 063, 2026-05-25). Mostly honest
+    # non-detections / constraints; L 98-59 b is the headline (tentative volcanic SO2).
+    {"pl_names": ["GJ 1132 b"], "bibcode": "2024ApJ...973L...8X", "contribution": "atmosphere",
+     "title": "JWST Thermal Emission of the Terrestrial Exoplanet GJ 1132b"},
+    {"pl_names": ["GJ 1132 b"], "bibcode": "2023ApJ...959L...9M", "contribution": "atmosphere",
+     "title": "Double Trouble: Two Transits of the Super-Earth GJ 1132 b Observed with JWST NIRSpec G395H"},
+    {"pl_names": ["GJ 1132 b"], "bibcode": "2025AJ....170..205B", "contribution": "atmosphere",
+     "title": "Additional JWST/NIRSpec Transits of the Rocky M Dwarf Exoplanet GJ 1132 b Reveal "
+              "a Featureless Spectrum"},
+    {"pl_names": ["GJ 486 b"], "bibcode": "2023ApJ...948L..11M", "contribution": "atmosphere",
+     "title": "High Tide or Riptide on the Cosmic Shoreline? A Water-rich Atmosphere or Stellar "
+              "Contamination for the Warm Super-Earth GJ 486b from JWST Observations"},
+    {"pl_names": ["GJ 486 b"], "bibcode": "2024ApJ...975L..22W", "contribution": "atmosphere",
+     "title": "No Thick Atmosphere on the Terrestrial Exoplanet Gl 486b"},
+    {"pl_names": ["L 98-59 b"], "bibcode": "2025ApJ...980L..26B", "contribution": "atmosphere",
+     "title": "Evidence for a Volcanic Atmosphere on the Sub-Earth L 98-59 b"},
+    {"pl_names": ["LTT 1445 A b"], "bibcode": "2025AJ....169..311W", "contribution": "atmosphere",
+     "title": "The Thermal Emission Spectrum of the Nearby Rocky Exoplanet LTT 1445A b from JWST MIRI/LRS"},
+    {"pl_names": ["L 98-59 c"], "bibcode": "2024AJ....168..276S", "contribution": "atmosphere",
+     "title": "JWST COMPASS: The 3-5 um Transmission Spectrum of the Super-Earth L 98-59 c"},
+    {"pl_names": ["L 98-59 d"], "bibcode": "2024ApJ...975L..10G", "contribution": "atmosphere",
+     "title": "Hints of a Sulfur-rich Atmosphere around the 1.6 R_Earth Super-Earth L 98-59 d from "
+              "JWST NIRspec G395H Transmission Spectroscopy"},
+    # Atmosphere backlog batch 4: JWST hot Jupiters (migration 064, 2026-05-25).
+    {"pl_names": ["WASP-43 b"], "bibcode": "2024NatAs...8..879B", "contribution": "atmosphere",
+     "title": "Nightside clouds and disequilibrium chemistry on the hot Jupiter WASP-43b"},
+    {"pl_names": ["WASP-80 b"], "bibcode": "2023Natur.623..709B", "contribution": "atmosphere",
+     "title": "Methane throughout the atmosphere of the warm exoplanet WASP-80b"},
+    {"pl_names": ["WASP-80 b"], "bibcode": "2025AJ....169..277M", "contribution": "atmosphere",
+     "title": "A Moderate Albedo from Reflecting Aerosols on the Dayside of WASP-80 b Revealed by "
+              "JWST/NIRISS Eclipse Spectroscopy"},
+    {"pl_names": ["WASP-77 A b"], "bibcode": "2023ApJ...953L..24A", "contribution": "atmosphere",
+     "title": "Confirmation of Subsolar Metallicity for WASP-77Ab from JWST Thermal Emission Spectroscopy"},
+    {"pl_names": ["HD 149026 b"], "bibcode": "2023Natur.618...43B", "contribution": "atmosphere",
+     "title": "High atmospheric metal enrichment for a Saturn-mass planet"},
+    # Atmosphere backlog batch 5: directly-imaged young giants (migration 065, 2026-05-25).
+    {"pl_names": ["AF Lep b"], "bibcode": "2023A&A...672A..93M", "contribution": "atmosphere",
+     "title": "AF Lep b: The lowest-mass planet detected by coupling astrometric and direct imaging data"},
+    {"pl_names": ["AF Lep b"], "bibcode": "2023A&A...672A..94D", "contribution": "atmosphere",
+     "title": "Direct imaging discovery of a super-Jovian around the young Sun-like star AF Leporis"},
+    {"pl_names": ["AF Lep b"], "bibcode": "2024ApJ...974L..11F", "contribution": "atmosphere",
+     "title": "JWST/NIRCam 4-5 um Imaging of the Giant Planet AF Lep b"},
+    {"pl_names": ["TYC 8998-760-1 b"], "bibcode": "2025Natur.643..938H", "contribution": "atmosphere",
+     "title": "Silicate clouds and a circumplanetary disk in the YSES-1 exoplanet system"},
+    {"pl_names": ["TYC 8998-760-1 c"], "bibcode": "2025Natur.643..938H", "contribution": "atmosphere",
+     "title": "Silicate clouds and a circumplanetary disk in the YSES-1 exoplanet system"},
+    {"pl_names": ["VHS J125601.92-125723.9 b"], "bibcode": "2023ApJ...946L...6M", "contribution": "atmosphere",
+     "title": "The JWST Early-release Science Program for Direct Observations of Exoplanetary Systems II: "
+              "A 1 to 20 um Spectrum of the Planetary-mass Companion VHS 1256-1257 b"},
+    {"pl_names": ["eps Ind A b"], "bibcode": "2024Natur.633..789M", "contribution": "atmosphere",
+     "title": "A temperate super-Jupiter imaged with JWST in the mid-infrared"},
 ]
 
 UPSERT_PUB = """

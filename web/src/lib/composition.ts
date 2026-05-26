@@ -4,14 +4,50 @@
 import type { DerivedMeasurementRow } from '../api';
 
 // Display labels for the controlled-vocabulary quantities. Quantities not listed
-// (C/H, O/H, S/H, N/H) read fine as-is.
+// (C/H, O/H, S/H, N/H elemental abundances) read fine as-is. Keep this in sync
+// with the quantity strings used in planet_derived_measurements migrations.
 const QUANTITY_LABEL: Record<string, string> = {
+  // Composition / interior (migration 024, the original set)
   core_mass_fraction: 'Core mass fraction',
   fe_mg_molar: 'Fe/Mg (molar)',
   metal_mass_fraction: 'Metal mass fraction',
   total_metal_mass: 'Total metal mass',
   metals_from_solids: 'Metals from solids',
   metals_from_gas: 'Metals from gas',
+  envelope_mass_fraction: 'Envelope mass fraction (H/He)',
+  water_mass_fraction: 'Water mass fraction',
+  // Temperatures
+  effective_temperature: 'Effective temperature',
+  dayside_temperature: 'Dayside temperature',
+  nightside_temperature: 'Nightside temperature',
+  atmospheric_temperature_10mbar: 'Atmospheric temperature at 10 mbar',
+  morning_evening_temperature_diff: 'Morning to evening terminator ΔT',
+  // Bulk atmospheric properties
+  metallicity: 'Atmospheric metallicity',
+  'C/O': 'Atmospheric C/O ratio',
+  mean_molecular_weight: 'Mean molecular weight',
+  bond_albedo: 'Bond albedo',
+  geometric_albedo: 'Geometric albedo',
+  bolometric_luminosity: 'Bolometric luminosity',
+  // Planet / orbit
+  mass: 'Mass',
+  orbital_inclination: 'Orbital inclination',
+  rotation_velocity: 'Rotation velocity (v sin i)',
+  projected_obliquity: 'Projected obliquity (λ)',
+  true_obliquity: 'True obliquity (ψ)',
+  // Atmospheric dynamics
+  terminator_wind_velocity: 'Terminator wind velocity',
+  equatorial_jet_velocity: 'Equatorial jet velocity',
+  // Evolution / loss / accretion
+  accretion_rate: 'Mass accretion rate',
+  circumplanetary_disk_dust_mass: 'Circumplanetary disk dust mass',
+  orbital_decay_rate: 'Orbital decay rate',
+  orbital_decay_timescale: 'Orbital decay timescale',
+  mass_loss_rate: 'Atmospheric mass loss rate',
+  evaporation_timescale: 'Evaporation timescale',
+  helium_tail_length: 'Helium tail length',
+  // Observed scalars
+  eclipse_depth: 'Secondary eclipse depth',
 };
 
 const UNIT_LABEL: Record<string, string> = {
@@ -26,6 +62,15 @@ const UNIT_LABEL: Record<string, string> = {
   ms_per_yr: 'ms/yr',
   ratio: '',
   fraction: '',
+  dimensionless: '',
+  K: 'K',
+  dex: 'dex',
+  deg: '°',
+  ppm: 'ppm',
+  g_per_mol: 'g/mol',
+  planet_radii: 'R_planet',
+  Myr: 'Myr',
+  Gyr: 'Gyr',
 };
 
 export function quantityLabel(q: string): string {

@@ -659,6 +659,12 @@ const BEYOND_ARCHIVE: BeyondArchiveEntry[] = [
     hook: 'The first non-transiting planet to have its atmosphere read (carbon monoxide and water), tracked through the Doppler shift of the planet itself.' },
   { pl_name: 'bet Pic b', label: 'bet Pic b',
     hook: 'A young giant with a measured spin near 25 km/s and a carbon-to-oxygen ratio that point to formation by core accretion.' },
+  { pl_name: 'L 98-59 b', label: 'L 98-59 b',
+    hook: 'The first tentative detection of a volcanic, sulfur-rich atmosphere on a planet smaller than Earth, sulfur dioxide caught by JWST at about 3.6 sigma and sustained by tidal heating from the planet\'s neighbours.' },
+  { pl_name: 'HD 149026 b', label: 'HD 149026 b',
+    hook: 'The most metal-rich giant planet known. JWST pins its atmospheric metallicity between 59 and 276 times solar, more than four sigma above even Saturn.' },
+  { pl_name: 'WASP-80 b', label: 'WASP-80 b',
+    hook: 'The first definitive space-based methane detection in a transiting exoplanet, seen by JWST at greater than 6 sigma in both transmission and emission.' },
 ];
 
 function BeyondArchiveList({ themeQuery }: { themeQuery: string }) {

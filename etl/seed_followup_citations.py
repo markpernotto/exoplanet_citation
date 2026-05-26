@@ -805,6 +805,32 @@ CHARACTERIZATIONS: list[dict] = [
               "A 1 to 20 um Spectrum of the Planetary-mass Companion VHS 1256-1257 b"},
     {"pl_names": ["eps Ind A b"], "bibcode": "2024Natur.633..789M", "contribution": "atmosphere",
      "title": "A temperate super-Jupiter imaged with JWST in the mid-infrared"},
+    # Atmosphere backlog batch 6: Neptune desert + low-density sub-Saturn (migration 066, 2026-05-26).
+    {"pl_names": ["LTT 9779 b"], "bibcode": "2024ApJ...962L..20R", "contribution": "atmosphere",
+     "title": "Muted Features in the JWST NIRISS Transmission Spectrum of Hot-Neptune LTT 9779b"},
+    {"pl_names": ["LTT 9779 b"], "bibcode": "2025NatAs...9..512C", "contribution": "atmosphere",
+     "title": "Highly reflective white clouds on the western dayside of an exo-Neptune"},
+    {"pl_names": ["WASP-127 b"], "bibcode": "2024AJ....168..201K", "contribution": "atmosphere",
+     "title": "IGRINS observations of WASP-127 b: H2O, CO, and super-Solar atmospheric metallicity "
+              "in the inflated sub-Saturn"},
+    {"pl_names": ["WASP-127 b"], "bibcode": "2025A&A...693A.213N", "contribution": "atmosphere",
+     "title": "CRIRES+ transmission spectroscopy of WASP-127b. Detection of the resolved signatures "
+              "of a supersonic equatorial jet and cool poles in a hot planet"},
+    {"pl_names": ["TOI-421 b"], "bibcode": "2025ApJ...984L..44D", "contribution": "atmosphere",
+     "title": "TOI-421 b: A Hot Sub-Neptune with a Haze-free, Low Mean Molecular Weight Atmosphere"},
+    {"pl_names": ["WASP-69 b"], "bibcode": "2024AJ....168..104S", "contribution": "atmosphere",
+     "title": "Multiple Clues for Dayside Aerosols and Temperature Gradients in WASP-69 b from a "
+              "Panchromatic JWST Emission Spectrum"},
+    {"pl_names": ["WASP-69 b"], "bibcode": "2024ApJ...960..123T", "contribution": "atmosphere",
+     "title": "WASP-69b's Escaping Envelope Is Confined to a Tail Extending at Least 7 R_p"},
+    # Atmosphere backlog batch 7: finish the rocky M-dwarf sweep (migration 067, 2026-05-26).
+    {"pl_names": ["GJ 357 b"], "bibcode": "2025arXiv250707165A", "contribution": "atmosphere",
+     "title": "JWST COMPASS: A NIRSpec G395H Transmission Spectrum of the Super-Earth GJ 357 b"},
+    {"pl_names": ["LHS 1140 c"], "bibcode": "2025A&A...701A..25F", "contribution": "atmosphere",
+     "title": "Hot Rocks Survey III: A deep eclipse for LHS 1140c and a new Gaussian process method "
+              "to account for correlated noise in individual pixels"},
+    {"pl_names": ["LTT 3780 c"], "bibcode": "2025arXiv251215844R", "contribution": "atmosphere",
+     "title": "A JWST Transmission Spectrum of the Temperate Sub-Neptune TOI-732 c"},
 ]
 
 UPSERT_PUB = """

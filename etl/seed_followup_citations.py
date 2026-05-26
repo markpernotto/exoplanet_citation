@@ -717,6 +717,43 @@ CHARACTERIZATIONS: list[dict] = [
     {"pl_names": ["TOI-270 d"], "bibcode": "2025A&A...701A.296F", "contribution": "atmosphere",
      "title": "Competing chemical signatures in the atmosphere of TOI-270 d: Inference of sulfur "
               "and carbon chemistry"},
+    # Atmosphere backlog batch 2: fast-follows (migration 061, 2026-05-25). Systems already
+    # curated for obliquity/dynamics; bibcodes via ADS.
+    {"pl_names": ["WASP-17 b"], "bibcode": "2024AJ....168..123V", "contribution": "atmosphere",
+     "title": "JWST-TST DREAMS: Nonuniform Dayside Emission for WASP-17b from MIRI/LRS"},
+    {"pl_names": ["WASP-17 b"], "bibcode": "2023ApJ...956L..29G", "contribution": "atmosphere",
+     "title": "JWST-TST DREAMS: Quartz Clouds in the Atmosphere of WASP-17b"},
+    {"pl_names": ["WASP-33 b"], "bibcode": "2015ApJ...806..146H", "contribution": "atmosphere",
+     "title": "Spectroscopic Evidence for a Temperature Inversion in the Dayside Atmosphere of "
+              "Hot Jupiter WASP-33b"},
+    {"pl_names": ["WASP-33 b"], "bibcode": "2017AJ....154..221N", "contribution": "atmosphere",
+     "title": "High-resolution Spectroscopic Detection of TiO and a Stratosphere in the "
+              "Day-side of WASP-33b"},
+    {"pl_names": ["WASP-33 b"], "bibcode": "2020ApJ...898L..31N", "contribution": "atmosphere",
+     "title": "Detection of Fe I Emission in the Dayside Spectrum of WASP-33b"},
+    {"pl_names": ["WASP-33 b"], "bibcode": "2021ApJ...910L...9N", "contribution": "atmosphere",
+     "title": "First Detection of Hydroxyl Radical Emission from an Exoplanet Atmosphere"},
+    {"pl_names": ["WASP-33 b"], "bibcode": "2021A&A...645A..90S", "contribution": "atmosphere",
+     "title": "Is TiO emission present in the ultra-hot Jupiter WASP-33b? A reassessment"},
+    {"pl_names": ["WASP-33 b"], "bibcode": "2021A&A...651A..33C", "contribution": "atmosphere",
+     "title": "Detection of Fe and evidence for TiO in the dayside emission spectrum of WASP-33b"},
+    {"pl_names": ["WASP-33 b"], "bibcode": "2022A&A...668A..53C", "contribution": "atmosphere",
+     "title": "Atmospheric characterization of the ultra-hot Jupiter WASP-33b. Detection of Ti "
+              "and V emission"},
+    {"pl_names": ["WASP-79 b"], "bibcode": "2020AJ....159....5S", "contribution": "atmosphere",
+     "title": "Transmission Spectroscopy of WASP-79b from 0.6 to 5.0 um"},
+    {"pl_names": ["HAT-P-7 b"], "bibcode": "2016ApJ...823..122W", "contribution": "atmosphere",
+     "title": "3.6 and 4.5 um Spitzer Phase Curves of the Highly Irradiated Hot Jupiters "
+              "WASP-19b and HAT-P-7b"},
+    {"pl_names": ["HAT-P-7 b"], "bibcode": "2022ApJS..260....3C", "contribution": "atmosphere",
+     "title": "Five Key Exoplanet Questions Answered via the Analysis of 25 Hot-Jupiter "
+              "Atmospheres in Eclipse"},
+    {"pl_names": ["HD 80606 b"], "bibcode": "2025AJ....170..105S", "contribution": "atmosphere",
+     "title": "Seasonal Changes in the Atmosphere of HD 80606 b Observed with JWST's NIRSpec/G395H"},
+    # HD 189733 b silicate clouds + H2S (migration 062, 2026-05-25; surfaced while sourcing
+    # WASP-17 b's quartz paper). Bibcode via ADS.
+    {"pl_names": ["HD 189733 b"], "bibcode": "2024ApJ...973L..41I", "contribution": "atmosphere",
+     "title": "Quartz Clouds in the Dayside Atmosphere of the Quintessential Hot Jupiter HD 189733 b"},
 ]
 
 UPSERT_PUB = """

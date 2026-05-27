@@ -897,45 +897,49 @@ CHARACTERIZATIONS: list[dict] = [
        "title": "Search for stellar companions of exoplanet host stars by exploring the second "
                 "ESA-Gaia data release"}
       for pl in [
-          "WASP-26 b", "GJ 15 A b", "HATS-30 b", "HD 4732 b", "EPIC 220194974 b",
-          "EPIC 220621087 b", "HD 8535 b", "ups And b", "WASP-18 b", "HIP 8541 b",
+          "WASP-26 b", "GJ 15 A b", "HATS-30 b", "HD 4732 b",
+          "HD 8535 b", "ups And b", "WASP-18 b", "HIP 8541 b",
           "HD 11964 b", "WASP-33 b", "WASP-77 A b", "75 Cet b", "HD 16141 b",
-          "30 Ari B b", "HD 16417 b", "HAT-P-10 b", "HD 19994 b", "WASP-139 b",
+          "HD 16417 b", "HD 19994 b", "WASP-139 b",
           "HD 20782 b", "HD 23596 b", "WASP-98 b", "HD 25171 b", "WASP-140 b",
-          "EPIC 211089792 b", "HD 26965 b", "HD 27442 b", "HD 28254 b", "WASP-100 b",
-          "HD 33283 b", "EPIC 246851721 b", "WASP-160 b", "HD 40979 b", "WASP-49 b",
+          "HD 27442 b", "HD 28254 b", "WASP-100 b",
+          "HD 33283 b", "EPIC 246851721 b", "HD 40979 b", "WASP-49 b",
           "KELT-2 A b", "WASP-168 b", "HD 46375 b", "WASP-64 b", "HAT-P-24 b",
           "XO-2 N b", "KELT-15 b", "HD 65216 b", "HAT-P-35 b", "HAT-P-30 b",
-          "EPIC 212006344 b", "omi UMa b", "Pr0211 b", "WASP-36 b", "HD 75289 b",
+          "omi UMa b", "Pr0211 b", "WASP-36 b", "HD 75289 b",
           "55 Cnc b", "HD 79498 b", "HD 80606 b", "KELT-3 b", "HD 89744 b",
-          "HAT-P-22 b", "KELT-4 A b", "EPIC 248435473 b", "WASP-127 b", "WASP-104 b",
-          "HD 93385 b", "HD 96167 b", "EPIC 201637175 b", "HD 98736 b", "K2-27 b",
-          "HD 99492 b", "HD 100655 b", "EPIC 201828749 b", "HD 101930 b", "WASP-129 b",
-          "HD 102365 b", "HD 102956 b", "HD 103774 b", "WASP-56 b", "HD 106515 b",
-          "HD 107148 b", "11 Com b", "WASP-87 A b", "HD 108341 b", "HD 109749 b",
-          "WASP-108 b", "HD 113996 b", "HD 114729 b", "WASP-55 b", "HD 118904 b",
+          "HAT-P-22 b", "KELT-4 A b", "WASP-127 b", "WASP-104 b",
+          "HD 93385 b", "HD 96167 b", "HD 98736 b", "K2-27 b",
+          "HD 99492 b", "HD 100655 b", "HD 101930 b", "WASP-129 b",
+          "HD 102956 b", "HD 103774 b", "WASP-56 b",
+          "HD 107148 b", "11 Com b", "HD 108341 b", "HD 109749 b",
+          "WASP-108 b", "HD 113996 b", "HD 114729 b", "WASP-55 b",
           "HAT-P-3 b", "HD 125612 b", "KELT-18 b", "HD 126614 b", "WASP-14 b",
-          "Qatar 6 b", "HD 132563 B b", "HD 133131 A b", "WASP-24 b", "NLTT 41135 b",
+          "HD 133131 A b", "WASP-24 b",
           "ome Ser b", "HD 142245 b", "HD 142022 A b", "HD 147379 b", "K2-31 b",
-          "HD 147513 b", "HD 147873 b", "EPIC 205071984 b", "HAT-P-67 b", "HD 155233 b",
-          "GJ 676 A b", "psi1 Dra B b", "HD 164595 b", "42 Dra b", "HD 170469 b",
+          "HD 147513 b", "HD 147873 b", "HAT-P-67 b",
+          "GJ 676 A b", "psi1 Dra B b", "HD 164595 b", "HD 170469 b",
           "WASP-3 b", "Kepler-1341 b", "CoRoT-9 b", "Kepler-83 b", "Kepler-410 A b",
-          "Kepler-530 b", "Kepler-1540 b", "Kepler-1651 b", "HD 176051 b", "Kepler-504 b",
+          "Kepler-530 b", "Kepler-1540 b", "Kepler-1651 b", "Kepler-504 b",
           "Kepler-1130 b", "Kepler-779 b", "TrES-1 b", "Kepler-514 b", "Kepler-25 b",
-          "Kepler-13 b", "HD 178911 B b", "Kepler-454 b", "Kepler-1027 b", "Kepler-104 b",
+          "HD 178911 B b", "Kepler-454 b", "Kepler-1027 b", "Kepler-104 b",
           "Kepler-411 b", "Kepler-20 b", "Kepler-951 b", "Kepler-477 b", "Kepler-130 b",
           "Kepler-970 b", "Kepler-515 b", "Kepler-1063 b", "Kepler-1319 b", "Kepler-795 b",
           "Kepler-390 b", "CoRoT-2 b", "Kepler-1480 b", "Kepler-333 b", "Kepler-167 b",
           "HATS-65 b", "Kepler-636 b", "Kepler-517 b", "Kepler-78 b", "HD 185269 b",
-          "KOI-4427 b", "Kepler-197 b", "Kepler-1086 b", "Kepler-908 b", "Kepler-743 b",
+          "Kepler-197 b", "Kepler-1086 b", "Kepler-908 b", "Kepler-743 b",
           "Kepler-136 b", "Kepler-1008 b", "Kepler-1150 b", "Kepler-353 b", "Kepler-755 b",
-          "HAT-P-41 b", "Kepler-89 b", "Kepler-99 b", "Kepler-538 b", "HD 188015 b",
+          "HAT-P-41 b", "Kepler-99 b", "Kepler-538 b", "HD 188015 b",
           "Kepler-519 b", "HD 189733 b", "Kepler-560 b", "HD 190360 b", "WASP-68 b",
           "HD 195019 b", "KELT-9 b", "HD 196050 b", "HD 197037 b", "HD 196067 b",
           "WASP-94 A b", "18 Del b", "WASP-70 A b", "HD 202772 A b", "WASP-145 A b",
-          "HD 204941 b", "WASP-114 b", "WASP-111 b", "HIP 109600 b", "HD 212301 b",
-          "HD 213240 b", "HD 214823 b", "HD 215456 b", "WASP-75 b", "HAT-P-1 b",
+          "HD 204941 b", "WASP-114 b", "HIP 109600 b", "HD 212301 b",
+          "HD 213240 b", "HD 214823 b", "WASP-75 b", "HAT-P-1 b",
           "HD 220842 b", "HIP 116454 b", "WASP-173 A b", "WASP-8 b",
+          # Alias-fix renames (2026-05-27): catalog uses these forms; original Mugrauer
+          # labels (HAT-P-10, Kepler-13, Kepler-89, HD 132563 B, Qatar 6, WASP-87 A,
+          # Aldebaran) were silent-dropped at first seed run.
+          "WASP-11 b", "KOI-13 b", "KOI-94 b", "HD 132563 b", "Qatar-6 b", "WASP-87 b", "alf Tau b",
       ]],
     # Secondary cites: original discovery / candidate papers for companions
     # that Mugrauer 2019 confirmed via Gaia DR2 but were first reported elsewhere.
@@ -946,25 +950,53 @@ CHARACTERIZATIONS: list[dict] = [
     {"pl_names": ["WASP-24 b"], "bibcode": "2010ApJ...720..337S", "contribution": "binary_companion",
      "title": "WASP-24 b: A new transiting close-in hot Jupiter orbiting a late F-star"},
     {"pl_names": ["WASP-127 b"], "bibcode": "2017A&A...599A...3L", "contribution": "binary_companion",
-     "title": "From dense hot Jupiter to low-density Neptune: The discovery of WASP-127b, WASP-136b, and WASP-138b"},
-    {"pl_names": ["EPIC 201637175 b"], "bibcode": "2015ApJ...812..112S", "contribution": "binary_companion",
-     "title": "A low stellar obliquity for WASP-47, a compact multiplanet system with a hot Jupiter and an ultra-short period planet"},
-    {"pl_names": ["WASP-87 A b"], "bibcode": "2014arXiv1410.3449A", "contribution": "binary_companion",
-     "title": "Six newly-discovered hot Jupiters transiting F/G stars: WASP-87b, WASP-108b, WASP-109b, WASP-110b, WASP-111b & WASP-112b"},
-    {"pl_names": ["EPIC 246851721 b"], "bibcode": "2018AJ....156..250Y", "contribution": "binary_companion",
-     "title": "A new model-independent method to constrain the stellar binary system in EPIC 246851721"},
-    {"pl_names": ["WASP-160 b"], "bibcode": "2019MNRAS.482..301L", "contribution": "binary_companion",
-     "title": "The hot Jupiters WASP-43b, WASP-46b, WASP-49b: Atmospheric reconnaissance"},
-    {"pl_names": ["WASP-145 A b"], "bibcode": "2019MNRAS.482.1379H", "contribution": "binary_companion",
+     "title": "From dense hot Jupiter to low-density Neptune: The discovery of WASP-127b, WASP-136b, and WASP-138b"},    {"pl_names": ["EPIC 246851721 b"], "bibcode": "2018AJ....156..250Y", "contribution": "binary_companion",
+     "title": "A new model-independent method to constrain the stellar binary system in EPIC 246851721"},    {"pl_names": ["WASP-145 A b"], "bibcode": "2019MNRAS.482.1379H", "contribution": "binary_companion",
      "title": "WASP-145Ab and HAT-P-49b: Two new hot Jupiters in binary systems"},
     {"pl_names": ["WASP-140 b"], "bibcode": "2017MNRAS.465.3693H", "contribution": "binary_companion",
      "title": "WASP-92b, WASP-93b and WASP-118b: Three new transiting close-in giant planets"},
     {"pl_names": ["HATS-65 b"], "bibcode": "2019AJ....157...55H", "contribution": "binary_companion",
      "title": "HATS-60-HATS-69: 10 transiting planets from HATSouth"},
     {"pl_names": ["WASP-18 b"], "bibcode": "2019A&A...623A..45C", "contribution": "binary_companion",
-     "title": "Transiting exoplanet candidates from K2 Campaigns 5 and 6"},
-    {"pl_names": ["EPIC 220194974 b"], "bibcode": "2018AJ....155..127H", "contribution": "binary_companion",
-     "title": "Exoplanets around low-mass stars unveiled by K2"},
+     "title": "Transiting exoplanet candidates from K2 Campaigns 5 and 6"},    # LTT 3780 stellar architecture (migration 078, 2026-05-26). Both Cloutier and
+    # Nowak 2020 are simultaneous independent discovery papers.
+    {"pl_names": ["LTT 3780 b"], "bibcode": "2020AJ....160....3C", "contribution": "binary_companion",
+     "title": "A Pair of TESS Planets Spanning the Radius Valley around the Nearby Mid-M Dwarf LTT 3780"},
+    {"pl_names": ["LTT 3780 b"], "bibcode": "2020A&A...642A.173N", "contribution": "binary_companion",
+     "title": "The CARMENES search for exoplanets around M dwarfs: Two planets on the opposite sides "
+              "of the radius gap transiting the nearby M dwarf LTT 3780"},
+    # HAT-P-7 stellar architecture (migration 079, 2026-05-26).
+    {"pl_names": ["HAT-P-7 b"], "bibcode": "2012PASJ...64L...7N", "contribution": "binary_companion",
+     "title": "A Common Proper Motion Stellar Companion to HAT-P-7"},
+    # Winn 2009 (HAT-P-7 C inner third body via RV trend) already cited in migration 054
+    # for the obliquity measurement; adding a second role here for the binary_companion contribution.
+    {"pl_names": ["HAT-P-7 b"], "bibcode": "2009ApJ...703L..99W", "contribution": "binary_companion",
+     "title": "HAT-P-7: A Retrograde or Polar Orbit, and a Third Body"},
+    # K2-290 stellar architecture (migration 080, 2026-05-26).
+    # Hjorth 2021 already cited via obliquity role (migration 053); adding binary_companion role here.
+    {"pl_names": ["K2-290 c"], "bibcode": "2021PNAS..11817418H", "contribution": "binary_companion",
+     "title": "A backward-spinning star with two coplanar planets"},
+    {"pl_names": ["K2-290 c"], "bibcode": "2022ApJ...924L..11B", "contribution": "binary_companion",
+     "title": "The chaotic history of the retrograde multi-planet system in K2-290A driven by distant stars"},
+    # eps Ind A stellar architecture (migration 081, 2026-05-26).
+    # Dieterich 2018 is the dynamical-mass paper (primary data source).
+    # McCaughrean 2004 is the original resolved-binary discovery + spectral typing.
+    {"pl_names": ["eps Ind A b"], "bibcode": "2018ApJ...865...28D", "contribution": "binary_companion",
+     "title": "The Solar Neighborhood XLV: The Stellar/Substellar Boundary Revisited"},
+    {"pl_names": ["eps Ind A b"], "bibcode": "2004A&A...413.1029M", "contribution": "binary_companion",
+     "title": "epsilon Indi Ba, Bb: a mature, resolved T dwarf binary at the very heart of our Solar "
+              "neighbourhood"},
+    # Proxima Cen architecture REPAIR (migration 082, 2026-05-26):
+    # replaced the bogus SIMBAD optical-double with the real alpha Cen A + B triple.
+    {"pl_names": ["Proxima Cen b"], "bibcode": "2017A&A...598L...7K", "contribution": "binary_companion",
+     "title": "Proxima's orbit around alpha Centauri"},
+    # gam Cep B stellar architecture (migration 083, 2026-05-27).
+    # Hatzes 2003 discovery + mass function; Neuhäuser 2007 direct detection + mass.
+    {"pl_names": ["gam Cep b"], "bibcode": "2003ApJ...599.1383H", "contribution": "binary_companion",
+     "title": "A Planetary Companion to gamma Cephei A"},
+    {"pl_names": ["gam Cep b"], "bibcode": "2007A&A...462..777N", "contribution": "binary_companion",
+     "title": "Direct detection of exoplanet host star companion gamma Cep B and revised masses for "
+              "both stars and the sub-stellar object"},
 ]
 
 UPSERT_PUB = """

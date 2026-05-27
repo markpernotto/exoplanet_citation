@@ -665,6 +665,12 @@ const BEYOND_ARCHIVE: BeyondArchiveEntry[] = [
     hook: 'The most metal-rich giant planet known. JWST pins its atmospheric metallicity between 59 and 276 times solar, more than four sigma above even Saturn.' },
   { pl_name: 'WASP-80 b', label: 'WASP-80 b',
     hook: 'The first definitive space-based methane detection in a transiting exoplanet, seen by JWST at greater than 6 sigma in both transmission and emission.' },
+  { pl_name: 'WASP-127 b', label: 'WASP-127 b',
+    hook: 'The first three-dimensional weather map of an exoplanet atmosphere. High-resolution spectroscopy resolved a supersonic 7.7 km/s equatorial jet, with poles about 175 K cooler than the morning-evening terminator.' },
+  { pl_name: 'LTT 9779 b', label: 'LTT 9779 b',
+    hook: 'An ultra-hot Neptune with strikingly asymmetric reflection: the western limb returns 79 percent of incoming starlight while the eastern returns 41 percent, the signature of magnesium-silicate clouds condensing on the cooler hemisphere.' },
+  { pl_name: 'V1298 Tau b', label: 'V1298 Tau b',
+    hook: 'A 23-million-year-old planet with the most molecule-rich atmosphere measured at this age: carbon dioxide at 35 sigma, water at 30 sigma, methane roughly 7 sigma below equilibrium, plus sulfur dioxide and carbonyl sulfide, the chemistry of a world still cooling from formation.' },
 ];
 
 function BeyondArchiveList({ themeQuery }: { themeQuery: string }) {
@@ -696,7 +702,6 @@ const DATA_QUALITY_FLAGS: DataQualityFlag[] = [
   { pl_name: 'KMT-2016-BLG-1337L b', flag: 'cb_flag review', note: 'Published microlensing solution does not unambiguously place the planet outside both stars.' },
   { pl_name: 'OGLE-2018-BLG-1700L b', flag: 'cb_flag review', note: 'Published microlensing solution does not unambiguously place the planet outside both stars.' },
   { pl_name: 'OGLE-2019-BLG-1470L AB c', flag: 'cb_flag review', note: 'Published microlensing solution does not unambiguously place the planet outside both stars.' },
-  { pl_name: 'Proxima Cen b', flag: 'optical double', note: 'Cross-referenced wide-binary entry at 3.67 arcsec (~4.8 AU) has no counterpart in the known Proxima / Alpha Cen AB triple; almost certainly a line-of-sight projection rather than a bound companion.' },
   { pl_name: 'PSR B1620-26 b', flag: 'cross-reference', note: 'The four catalogued companions are crowded-field stars in globular cluster M4, not bound; the real pulsar + white-dwarf inner binary is missing.' },
   { pl_name: 'PH1 b', flag: 'cross-reference', note: 'The catalogued companion is a 170,000 AU SIMBAD entry, not the relevant body; the ~1000 AU outer binary that makes the system a quadruple is missing.' },
 ];

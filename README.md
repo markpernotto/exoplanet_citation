@@ -1,4 +1,4 @@
-# exoplanet_citation
+# Exoplanet Citation Atlas
 
 [![DOI](https://zenodo.org/badge/1228082575.svg)](https://doi.org/10.5281/zenodo.20191479)
 
@@ -102,15 +102,37 @@ computed from measured properties, not from a stock-image library.
   is traceable to its source. Literature distances for hosts that both Gaia and
   the archive miss live in `host_distances_manual`. An analysis of the aggregate
   audit results is in preparation as a short Research Note.
-- **Curated atmospheric and orbital-geometry data:** landmark literature results
-  hand-harvested into `planet_atmospheres` (molecule detections with instrument,
-  significance, and source paper) and `system_orbital_geometry` (measured mutual
-  inclinations), each credited via a `characterization` citation. Includes the
-  first detected exoplanet atmosphere (HD 209458 b) and JWST-era detections
-  (WASP-39 b CO2/SO2, K2-18 b CH4/CO2). Non-detections are recorded too: the JWST
-  TRAPPIST-1 campaign's bare-rock and ruled-out-atmosphere results (planets b
-  through e) are curated as `ruled_out` / `inconclusive`, so the catalog states
-  what has been excluded, not only what was found. This data feeds the 3D scene.
+- **S-type stellar-multiplicity audit campaign** — a parallel system-by-system
+  close-out of the 174-host gap where the catalog's `sy_snum` advertised
+  additional stellar components that `binary_companions` did not carry. Sixteen
+  migrations (069-084) closed the 13-system priority list, executed a bulk
+  attack on Mugrauer et al. 2019's Gaia DR2 SPHERE survey (~85 hosts in one
+  migration), established three architectural patterns (ENRICH for missing data,
+  SPLIT for combined SIMBAD entries, REPAIR for mislabelled or spurious rows),
+  and normalized 9 paper-verbatim hostnames to the catalog's canonical forms so
+  the renderer and Atlas joins resolve. The campaign repaired the 3D scene for
+  systems that had been showing as a single star (V1298 Tau, WASP-12, LTT 1445 A,
+  HD 110067, Kepler-444, 51 Eri, ...) and surfaced the real architecture of
+  Proxima Cen and eps Ind A in place of bulk-load SIMBAD artefacts. A proper
+  `planet_aliases` table is queued for v0.2; 7 of the 31 audit-surfaced
+  planet-pub link gaps remain alias-only (the rest are truly not in the catalog).
+- **Curated atmospheric and orbital-geometry data:** landmark literature
+  results hand-harvested into `planet_atmospheres` (molecule detections with
+  instrument, significance, and source paper) and `system_orbital_geometry`
+  (measured mutual inclinations), each credited via a `characterization`
+  citation. Includes the first detected exoplanet atmosphere (HD 209458 b) and
+  the JWST-era sweep across warm Neptunes, rocky M-dwarf targets, hot
+  Jupiters, directly-imaged young giants, and Neptune-desert / sub-Saturn
+  oddballs (~30 systems across nine batches in migrations 060-068, plus the
+  earlier per-system deep-dives in 020-048). Non-detections are recorded too:
+  the JWST TRAPPIST-1 campaign's bare-rock and ruled-out-atmosphere results
+  (planets b through e) and the LHS 1140 c / GJ 357 b primordial-envelope
+  exclusions are curated as `ruled_out` / `inconclusive`, so the catalog
+  states what has been excluded, not only what was found. Per-planet derived
+  scalars (dayside temperature, metallicity, C/O ratio, spin, mass-loss rate,
+  envelope fraction) live alongside in `planet_derived_measurements`. This
+  data feeds the 3D scene and the curated "Could you live here?" survival
+  profiles in `docs/survival_feature_candidates.md`.
 - **Publisher** generates RSS 2.0, JSON, and health-snapshot feeds with
   freshness measurement against a 26-hour SLO. Per-planet, per-system, and
   per-author RSS feeds are also exposed dynamically by the API.
@@ -219,6 +241,32 @@ psql "$DATABASE_URL" -f etl/migrations/055_wasp79b_polar.sql
 psql "$DATABASE_URL" -f etl/migrations/056_hd80606b_flashheating.sql
 psql "$DATABASE_URL" -f etl/migrations/057_nuoctb_white_dwarf.sql
 psql "$DATABASE_URL" -f etl/migrations/058_hd4113c_cold_brown_dwarf.sql
+psql "$DATABASE_URL" -f etl/migrations/059_feedback.sql
+psql "$DATABASE_URL" -f etl/migrations/060_warm_neptune_atmospheres.sql
+psql "$DATABASE_URL" -f etl/migrations/061_fastfollow_atmospheres.sql
+psql "$DATABASE_URL" -f etl/migrations/062_hd189733b_silicate_clouds.sql
+psql "$DATABASE_URL" -f etl/migrations/063_rocky_jwst_atmospheres.sql
+psql "$DATABASE_URL" -f etl/migrations/064_jwst_hot_jupiters.sql
+psql "$DATABASE_URL" -f etl/migrations/065_directly_imaged_giants.sql
+psql "$DATABASE_URL" -f etl/migrations/066_neptune_desert_subsaturn.sql
+psql "$DATABASE_URL" -f etl/migrations/067_rocky_mdwarf_sweep.sql
+psql "$DATABASE_URL" -f etl/migrations/068_pds70b_v1298taub.sql
+psql "$DATABASE_URL" -f etl/migrations/069_v1298tau_binary_companions.sql
+psql "$DATABASE_URL" -f etl/migrations/070_wasp12_bc_triple.sql
+psql "$DATABASE_URL" -f etl/migrations/071_ltt1445_bc_triple.sql
+psql "$DATABASE_URL" -f etl/migrations/072_hd110067_wide_triple.sql
+psql "$DATABASE_URL" -f etl/migrations/073_kepler444_bc_triple.sql
+psql "$DATABASE_URL" -f etl/migrations/074_51eri_gj3305_triple.sql
+psql "$DATABASE_URL" -f etl/migrations/075_bohn2020_wasp76_hatp57_wasp2.sql
+psql "$DATABASE_URL" -f etl/migrations/076_mugrauer2019_5hosts.sql
+psql "$DATABASE_URL" -f etl/migrations/077_mugrauer2019_bulk.sql
+psql "$DATABASE_URL" -f etl/migrations/078_ltt3780_lp729-55.sql
+psql "$DATABASE_URL" -f etl/migrations/079_hatp7_bc_triple.sql
+psql "$DATABASE_URL" -f etl/migrations/080_k2-290_bc_relabel.sql
+psql "$DATABASE_URL" -f etl/migrations/081_epsindAB_ba_bb_split.sql
+psql "$DATABASE_URL" -f etl/migrations/082_proxima_cen_real_architecture.sql
+psql "$DATABASE_URL" -f etl/migrations/083_gamcep_b.sql
+psql "$DATABASE_URL" -f etl/migrations/084_bc_hostname_alias_fixes.sql
 
 # Verify connectivity
 make check-setup

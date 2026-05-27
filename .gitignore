@@ -68,6 +68,11 @@ build/
 # The public per-host data record lives in docs/cb_flag_audit.md.
 docs/rnaas_cb_flag_audit.md
 docs/rnaas_cb_flag_draft.md
+docs/rnaas_cb_flag.tex
+docs/rnaas_cb_flag.pdf
+docs/rnaas_cb_flag.aux
+docs/rnaas_cb_flag.log
+docs/rnaas_cb_flag.out
 
 # Grant/collaborator pitch and strategy notes. Kept private while seeking an
 # institutional home.

@@ -4,7 +4,7 @@
 cff-version: 1.2.0
 message: "If you use this data warehouse, software, or visualization platform in academic work, please cite it as below."
 type: software
-title: "exoplanet_citation: a public citation-graph warehouse and 3D visualization platform for confirmed exoplanets"
+title: "Exoplanet Citation Atlas: a public citation-graph warehouse and 3D visualization platform for confirmed exoplanets"
 abstract: >-
   A daily-refreshed open-source data warehouse linking the NASA Exoplanet
   Archive's confirmed exoplanets to the scientific papers that announced
@@ -18,8 +18,8 @@ authors:
     family-names: Pernotto
     email: mark@pernotto.com
     orcid: "https://orcid.org/0009-0003-1100-4453"
-version: 0.1.1
-date-released: 2026-05-19
+version: 0.1.3
+date-released: 2026-05-27
 url: "https://exoplanetcitation.space"
 repository-code: "https://github.com/markpernotto/exoplanet_citation"
 license: MIT
@@ -41,13 +41,13 @@ identifiers:
     description: "Concept DOI (always resolves to the latest version)"
 preferred-citation:
   type: software
-  title: "exoplanet_citation: a public citation-graph warehouse and 3D visualization platform for confirmed exoplanets"
+  title: "Exoplanet Citation Atlas: a public citation-graph warehouse and 3D visualization platform for confirmed exoplanets"
   authors:
     - given-names: Mark
       family-names: Pernotto
       email: mark@pernotto.com
       orcid: "https://orcid.org/0009-0003-1100-4453"
-  version: 0.1.1
+  version: 0.1.3
   year: 2026
   doi: "10.5281/zenodo.20191479"
   url: "https://exoplanetcitation.space"

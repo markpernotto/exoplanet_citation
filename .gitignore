@@ -64,15 +64,17 @@ data/unresolved.csv
 build/
 *.egg
 
-# Research Note draft — kept private while in preparation.
-# The public per-host data record lives in docs/cb_flag_audit.md.
+# Paper draft and LaTeX byproducts: kept private while in preparation.
+# The public per-host data record lives in docs/cb_flag_audit.md, and the
+# reproducibility script in etl/verify_cb_flag_paper.py is public.
 docs/rnaas_cb_flag_audit.md
 docs/rnaas_cb_flag_draft.md
-docs/rnaas_cb_flag.tex
-docs/rnaas_cb_flag.pdf
-docs/rnaas_cb_flag.aux
-docs/rnaas_cb_flag.log
-docs/rnaas_cb_flag.out
+docs/cb_flag_paper.tex
+docs/cb_flag_paper.pdf
+docs/cb_flag_paper.aux
+docs/cb_flag_paper.log
+docs/cb_flag_paper.out
+docs/cb_flag_paper.bbl
 
 # Grant/collaborator pitch and strategy notes. Kept private while seeking an
 # institutional home.

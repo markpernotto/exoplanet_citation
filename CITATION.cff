@@ -14,7 +14,7 @@ abstract: >-
   Three.js + WebXR frontend with a per-vantage starfield rasterizer that
   reprojects ~1.4M stars from any exoplanet's heliocentric position.
 authors:
-  - given-names: Mark
+  - given-names: Mark A.
     family-names: Pernotto
     email: mark@pernotto.com
     orcid: "https://orcid.org/0009-0003-1100-4453"
@@ -43,7 +43,7 @@ preferred-citation:
   type: software
   title: "Exoplanet Citation Atlas: a public citation-graph warehouse and 3D visualization platform for confirmed exoplanets"
   authors:
-    - given-names: Mark
+    - given-names: Mark A.
       family-names: Pernotto
       email: mark@pernotto.com
       orcid: "https://orcid.org/0009-0003-1100-4453"

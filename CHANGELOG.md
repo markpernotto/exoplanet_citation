@@ -11,8 +11,127 @@ and each mints a version-specific
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-05-28
+
 ### Added
 
+- **S-type stellar-multiplicity audit campaign** (manual literature review,
+  16 migrations 069-084): a system-by-system close-out of the 174-host
+  gap where the catalog's `sy_snum` advertised additional stellar
+  components that `binary_companions` did not carry, parallel in structure
+  to the cb_flag audit. Closed the 13-system priority list (each previously
+  surfaced in our 3D renderer as a single star) plus a bulk attack on
+  Mugrauer et al. 2019's Gaia DR2 SPHERE survey, with three architectural
+  patterns established (ENRICH for missing data, SPLIT for combined entries,
+  REPAIR for mislabelled or spurious SIMBAD rows):
+  - **069 V1298 Tau** — HD 284154 spectroscopic pair (Aab) + SPHERE
+    candidate substellar companion at 300 AU (Suarez Mascareño 2021,
+    Maire 2020).
+  - **070 WASP-12 + HAT-P-8** — both triples closed from Bechter et al.
+    2014 (4 rows).
+  - **071 LTT 1445 A** — the closest M-dwarf transiting multi-planet
+    triple at 6.87 pc (Winters et al. 2019).
+  - **072 HD 110067** — wide M-dwarf binary HD 110106 A+B
+    (Apps & Luque 2023 RNAAS) for our 6-planet 1:2:3-resonance showcase
+    system.
+  - **073 Kepler-444** — M-dwarf BC pair (Dupuy et al. 2016) for the
+    11 Gyr-old 5-planet host.
+  - **074 51 Eri** — GJ 3305 AB (Montet et al. 2015), tying the
+    deep-dived imaged giant 51 Eri b into its hierarchical triple.
+  - **075 Bohn et al. 2020 SPHERE** — WASP-76 B, HAT-P-57 BC, WASP-2 B
+    (3 hosts from one paper).
+  - **076 Mugrauer 2019 (5 hosts)** — HD 142 B, WASP-1 B, WASP-45 B,
+    HAT-P-16 C, HD 4113 B.
+  - **077 Mugrauer 2019 bulk** — the campaign's largest single migration
+    (~85 rows): closes a large fraction of the 174-host gap from one
+    Gaia DR2 survey paper, preserving the paper's verbatim hostnames
+    for fidelity.
+  - **078 LTT 3780** — LP 729-55 wide M5V companion
+    (Cloutier 2020 + Nowak 2020).
+  - **079 HAT-P-7 BC** — adds the M5.5V close companion (Narita 2012)
+    and the Winn 2009 RV-trend body, completing the architecture for
+    the obliquity-deep-dived host.
+  - **080 K2-290 (RELABEL)** — DELETE mislabelled SIMBAD B + INSERT the
+    Hjorth 2021 close 113 AU companion (B) and Best 2022 wide 2467 AU
+    (C), reconciling to the literature naming.
+  - **081 eps Ind A (SPLIT)** — DELETE the combined SIMBAD B row +
+    INSERT Ba (T1.5) and Bb (T6) with dynamical masses
+    (Dieterich et al. 2018).
+  - **082 Proxima Cen (REPAIR)** — DELETE the bogus SIMBAD optical
+    double + INSERT the real alpha Cen A (G2V) and B (K1V) per
+    Kervella et al. 2017 (also closes the DATA_QUALITY_FLAGS "optical
+    double" entry surfaced in v0.1.2).
+  - **083 gam Cep B** — the M4V companion (Hatzes et al. 2003;
+    Neuhäuser et al. 2007) for the original close-binary RV-host.
+  - **084 hostname alias normalization** — 9 UPDATEs reconciling
+    paper-verbatim hostnames written by 077 to the catalog's canonical
+    forms (`HAT-P-10` → `WASP-11`, `Kepler-13` → `KOI-13`,
+    `HD 195689` → `KELT-9`, `Aldebaran` → `alf Tau`, etc.), so the
+    Atlas join, the 3D renderer system lookup, and the planet-detail
+    `binary_companions` list all resolve. A proper `planet_aliases`
+    table is queued for v0.2; 9 hosts and 7 planet-pubs links are the
+    minimum patch for v0.1.
+- **Atmospheric deep-dive backlog (nine batches, migrations 060-068)**:
+  manual literature review systematically working through the published
+  JWST/HST atmosphere papers absent from our curated layer. Each batch
+  adds molecule detections, non-detections, instrument-specific
+  significances, and derived scalars (dayside temperatures, C/O ratios,
+  metallicities) to `planet_atmospheres` + `planet_derived_measurements`,
+  with `characterization` citations linked into the graph and every
+  bibcode verified against ADS.
+  - **060 Warm Neptunes / sub-Neptunes** — GJ 3470 b
+    (H2O+CH4+SO2+CO2, Beatty 2024 disequilibrium chemistry), GJ 436 b,
+    HAT-P-26 b, TOI-270 d.
+  - **061 Fast-follow obliquity cohort** — WASP-17 b (quartz clouds,
+    Grant 2023), WASP-33 b, WASP-79 b, HAT-P-7 b, HD 80606 b. Adds the
+    molecule layer to systems previously curated for spin-orbit
+    obliquity in migrations 051-056.
+  - **062 HD 189733 b silicate quartz clouds + H2S** — Inglis et al.
+    2024 (JWST MIRI/LRS dayside emission), a serendipitous add from
+    sourcing WASP-17 b's quartz paper.
+  - **063 Rocky JWST sweep, batch 1** — GJ 1132 b, GJ 486 b,
+    L 98-59 b/c/d, LTT 1445 A b. Mostly honest non-detections /
+    bare-rock-consistent dayside temperatures.
+  - **064 JWST hot Jupiters** — WASP-43 b (Bell 2024 phase-curve
+    day-night 1520/863 K with disequilibrium methane), WASP-77 A b,
+    WASP-80 b (definitive space methane), HD 149026 b (atmospheric
+    metallicity 59-276x solar).
+  - **065 Directly-imaged young giants** — AF Lep b (the lowest-mass
+    direct-mass imaged planet), TYC 8998-760-1 b/c (YSES-1, JWST
+    0.6-12 um), VHS J125601.92-125723.9 b (VHS 1256 b, JWST NIRSpec IFU),
+    eps Ind A b (the coldest directly-imaged exoplanet at ~275 K,
+    Matthews 2024 Nature).
+  - **066 Neptune desert + low-density sub-Saturn** — LTT 9779 b
+    (Coulombe 2025 asymmetric reflective dayside, W=0.79/E=0.41),
+    TOI-421 b, WASP-127 b (Nortmann 2025 first 3D wind map: 7.7 km/s
+    supersonic equatorial jet), WASP-69 b.
+  - **067 Rocky M-dwarf sweep, batch 2** — GJ 357 b (Adams Redai 2025
+    JWST COMPASS: primordial H/He envelope ruled out at 8.2 sigma),
+    LHS 1140 c (Fortune 2025 Hot Rocks III: 561 K bare-rock dayside),
+    LTT 3780 c (Rigby 2025 JWST NIRISS+NIRSpec+MIRI joint).
+  - **068 Single-planet young systems** — PDS 70 b (Hsu 2024 Keck/KPIC
+    stellar-like C/O), V1298 Tau b (Barat 2025 metal-poor atmosphere
+    with deep-mixing methane depletion at ~7 sigma below equilibrium,
+    plus CO2, H2O, CO, SO2, OCS).
+- **"Could you live here?" survival profiles** (curated, high-bar; see
+  `docs/survival_feature_candidates.md`): per-planet standalone profiles
+  built from harvested data only. Each profile reads correctly on a
+  single planet's page, never references other planets, and embeds Earth-
+  referenced numbers from the warehouse (equilibrium temperature, derived
+  gravity, day/night contrast, atmosphere). 22 profiles spec'd across
+  three categories (temperate-suit-survivable, heat-ends-on-arrival,
+  unusual-hazard) plus a directly-imaged young-giant set. Not yet wired
+  into the UI; the spec is the deliverable for v0.1.3.
+- **`feedback` table** (migration 059): isolated, append-only sink for the
+  public site's "Report an issue" contact form (`POST /api/feedback`), the
+  first write path in the otherwise read-only serving layer. Decoupled
+  from the nightly-overwritten catalog tables; stores message, optional
+  reply-to email, page context, and user-agent (see PRIVACY.md).
+- **Collections page enrichment**: "Beyond the archive" gains three new
+  cards from this campaign (WASP-127 b 3D wind map, LTT 9779 b asymmetric
+  reflection, V1298 Tau b young-planet 6-molecule atmosphere), bringing
+  it to 16 systems where the value-added layer carries data the core
+  parameter tables do not.
 - **Orbital-geometry citations** (manual literature deep dive): migration 010
   bulk-seeded mutual inclinations into `system_orbital_geometry` for a cohort of
   multi-planet systems but never linked the papers the values came from, so the
@@ -301,9 +420,21 @@ and each mints a version-specific
   section hides entirely when a run has no meaningful changes. Fixes the gap
   where newly ingested planets did not appear "as they come in" because the main
   catalog list sorts by NASA discovery year. Built on `/api/discoveries/latest`.
+- **cb_flag audit reproducibility tooling**: `etl/verify_cb_flag_paper.py`, a
+  read-only, two-tier verification script that recomputes the cb_flag audit's
+  headline numbers (planet/host counts, per-method breakdown, verdict tally)
+  offline from the frozen supplement `docs/cb_flag_audit.md`, and cross-checks
+  the companion-provenance numbers against the live mirror (which retains only a
+  short snapshot window). Supports the in-preparation Research Note on the
+  `cb_flag` audit.
 
 ### Changed
 
+- **Project renamed to Exoplanet Citation Atlas.** The human-facing name is now
+  "Exoplanet Citation Atlas"; the package and repository identifier
+  `exoplanet_citation` is unchanged. Updated the README title and `CITATION.cff`
+  (title and version), and added `ZENODO_DESCRIPTION.md` as the release-notes
+  payload for the Zenodo deposit.
 - **TRAPPIST-1 orbital geometry refined to Agol et al. 2021** (migration 021):
   replaced the hand-curated mutual inclinations (sourced to the Gillon 2017
   discovery paper) with the measured sky-plane orbital inclinations from Agol
@@ -317,6 +448,13 @@ and each mints a version-specific
 
 ### Fixed
 
+- **DATA_QUALITY_FLAGS: Proxima Cen "optical double" resolved**: the
+  v0.1.2 flag for the 3.67 arcsec phantom companion is removed; migration
+  082 replaces the bogus SIMBAD row with the real alpha Cen A + B
+  architecture from Kervella et al. 2017. The Collections "data quality"
+  table is down to 5 entries (3 microlensing cb_flag-review candidates +
+  PSR B1620-26 b crowded-field cross-reference + PH1 b 170,000 AU
+  cross-reference).
 - **Orbital-geometry provenance for Kepler-9, Kepler-11, Kepler-30, and
   Kepler-36** (migration 017): migration 010 attributed all four systems' mutual
   inclinations to Fabrycky et al. 2014, which is a statistical architecture study

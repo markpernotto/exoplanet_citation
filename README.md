@@ -392,7 +392,7 @@ Total monthly hosting cost: $0.
 
 ## Contact
 
-Mark Pernotto — mark@pernotto.com
+Mark A. Pernotto — mark@pernotto.com
 
 ---
 

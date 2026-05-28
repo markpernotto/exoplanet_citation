@@ -2,7 +2,7 @@
 name = "exoplanet_citation"
 version = "0.1.0"
 description = "A public data warehouse linking confirmed exoplanets to the scientific papers that announced them."
-authors = [{ name = "Mark Pernotto", email = "mark@pernotto.com" }]
+authors = [{ name = "Mark A. Pernotto", email = "mark@pernotto.com" }]
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.12,<3.13"

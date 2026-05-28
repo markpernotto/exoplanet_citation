@@ -1,0 +1,24 @@
+{
+  "title": "Exoplanet Citation Atlas: a public citation-graph warehouse and 3D visualization platform for confirmed exoplanets",
+  "upload_type": "software",
+  "access_right": "open",
+  "license": "MIT",
+  "creators": [
+    {
+      "name": "Pernotto, Mark A.",
+      "orcid": "0009-0003-1100-4453",
+      "affiliation": "Facet Build, LLC"
+    }
+  ],
+  "description": "A public, daily-refreshed open-source data warehouse linking the NASA Exoplanet Archive's confirmed exoplanets to the papers that announced and characterized them. Citation coverage at 100% via a four-tier resolver (NASA ADS bibcode, arXiv API, ADS title search, manual triage); Gaia DR3 host-star enrichment; value-added literature harvests (atmospheres, derived measurements, inner-binary parameters); a FastAPI service over the warehouse; and a React + Three.js + WebXR frontend with per-vantage starfield reprojection. See README.md and CHANGELOG.md for details.",
+  "keywords": [
+    "exoplanets",
+    "NASA Exoplanet Archive",
+    "Gaia DR3",
+    "citation graph",
+    "data warehouse",
+    "circumbinary planets",
+    "astronomy visualization",
+    "open science"
+  ]
+}

@@ -46,7 +46,7 @@ export default function About() {
       <section style={{ marginTop: '2rem' }}>
         <h2>About</h2>
         <p style={{ lineHeight: 1.65, fontSize: '0.95rem' }}>
-          The Atlas is built and maintained by <strong>Mark Pernotto</strong>,
+          The Atlas is built and maintained by <strong>Mark A. Pernotto</strong>,
           an independent researcher with a BA in Computer Science and a Master
           of Library and Information Science (MLIS) including a Certificate of
           Advanced Studies in Digital Libraries. The project is developed at

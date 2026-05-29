@@ -25,7 +25,7 @@ host-star enrichment complete for all 4,358 enrichable hosts; **citation
 graph (`publications` + `planet_publications`) resolved for 6,287 /
 6,287 planets (100%)** via a 4-tier automated resolver (ADS bibcode →
 arXiv API → ADS title search → manual queue) plus a 7-row hand-resolved
-final pass for edge-case journal references; 78 unit tests + 13 dbt
+final pass for edge-case journal references; 167 unit tests + 12 dbt
 tests passing.
 
 See [PLAN.md](PLAN.md) for the full implementation roadmap and
@@ -66,8 +66,11 @@ computed from measured properties, not from a stock-image library.
   (TAP) → uploads CSV to Cloudflare R2 → appends sha256 manifest entry
 - **Loader** UPSERTs into Postgres (Neon) with 28 typed columns plus
   the full raw row preserved as JSONB
-- **dbt project** transforms raw → staging (`stg_pscomppars` view) with
-  13 data tests passing
+- **dbt staging + tests.** A single `stg_pscomppars` view over the latest raw
+  snapshot, refreshed by `dbt run` in the nightly pipeline, plus 12 schema tests
+  (not-null / unique / accepted-values) on the model and its sources. It is a
+  data-quality check on the raw layer; the downstream tables and the API are
+  built by SQL migrations and Python, not dbt models.
 - **Diff job** emits `NEW` / `REMOVED` / Tier-A / Tier-B `PARAMETER_CHANGE`
   events to `discovery_changes`, idempotent across re-runs. Auto-prunes
   `planets_snapshots` to a rolling 2-day window after the diff commits,
@@ -164,7 +167,7 @@ computed from measured properties, not from a stock-image library.
     auto-scales to a comfortable room-scale view; 6-DOF locomotion via
     controller thumbsticks. See [`docs/PROCEDURAL_RENDERING.md`](docs/PROCEDURAL_RENDERING.md)
     for the rendering pipeline and the per-vantage starfield direction.
-- **78 unit tests + 13 dbt tests** all green; CI workflow with ruff lint
+- **167 unit tests + 12 dbt schema tests** all green; CI workflow with ruff lint
 
 ---
 
@@ -297,8 +300,8 @@ make web-install # one-time
 make web         # http://localhost:5550 (proxies /api to :8000)
 
 # Other targets
-make test        # pytest, 64 tests
-make dbt-test    # 13 dbt data tests
+make test        # pytest -v, 167 tests
+make dbt-test    # 12 dbt schema tests
 make smoke-gaia  # one-shot Gaia DR3 client test
 make help        # list all targets
 ```
@@ -366,7 +369,7 @@ also mints a version-specific
 | Language (frontend) | TypeScript + React 18 | Mature, well-typed |
 | Warehouse | Postgres 16 (Neon free tier) | dbt-friendly, free tier sufficient |
 | Object storage | Cloudflare R2 | S3-compatible, zero egress fees |
-| Transform | dbt-postgres 1.11 | Industry-standard SQL transform layer |
+| Staging + data tests | dbt-postgres 1.11 | One `stg_pscomppars` view + schema tests on the raw snapshot; downstream transforms are SQL migrations + Python |
 | Orchestration | GitHub Actions cron | Daily batch is fine; no need for Airflow at this scale |
 | API | FastAPI | Lightweight, typed, automatic OpenAPI docs |
 | Frontend | Vite + React + TypeScript | Modern, fast, good DX |

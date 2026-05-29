@@ -642,7 +642,7 @@ def derived_measurements(
             cur.execute(
                 f"""
                 SELECT d.pl_name, p.hostname, d.quantity, d.value, d.unc_hi, d.unc_lo,
-                       d.unit, d.model, d.bibcode, d.curator_note
+                       d.unit, d.model, d.bibcode, d.curator_note, d.provenance
                 FROM planet_derived_measurements d
                 LEFT JOIN planets_current p ON p.pl_name = d.pl_name
                 {where}
@@ -1232,7 +1232,7 @@ def planet_scene(pl_name: str) -> SceneResponse:
             cur.execute(
                 """
                 SELECT pl_name, NULL::text AS hostname, quantity, value, unc_hi, unc_lo,
-                       unit, model, bibcode, curator_note
+                       unit, model, bibcode, curator_note, provenance
                 FROM planet_derived_measurements
                 WHERE pl_name = %s
                 ORDER BY quantity

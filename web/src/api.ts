@@ -110,6 +110,7 @@ export type DerivedMeasurementRow = {
   model: string | null;
   bibcode: string | null;
   curator_note: string | null;
+  provenance: string; // 'curated' | 'nasa_exoplanet_archive'
 };
 
 export type PlanetDetail = {

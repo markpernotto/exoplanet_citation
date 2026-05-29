@@ -32,6 +32,10 @@ export default function ScenePage() {
   const [paused, setPaused] = useState(true);          // start paused (per plan)
   const [speed, setSpeed] = useState(1);               // 0.25 / 1 / 4 / 16
   const [panelCollapsed, setPanelCollapsed] = useState(false);
+  // Stellar reference frame (spin axis + equator ring) on/off. Defaults on so
+  // obliquity systems keep their existing visual; the toggle lets the user
+  // hide the overlay for a clean view or when it gets noisy.
+  const [showStellarReference, setShowStellarReference] = useState(true);
 
   // Parse the URL hash once on initial mount. viewMode + orbital clock are
   // initialized from it (must happen before Canvas first renders so the
@@ -142,6 +146,12 @@ export default function ScenePage() {
   // The focal planet's display radius — used as the camera's vertical offset
   // above the planet center in surface mode (so we're standing ON it, not in it).
   const surfaceOffset = focalRadius * 1.1;
+  // Whether the focal scene has anything for the spin-axis toggle to control.
+  // Drives whether the toggle button appears in PlaybackControls at all, so
+  // there is no dangling control on systems where it would do nothing.
+  const hasStellarReference =
+    focalObliquity(scene.derived_measurements, scene.planet.pl_name) != null
+    || focalStellarRotationDays(scene.derived_measurements, scene.planet.pl_name) != null;
   // sunWorldPos was declared at the top of the component (alongside other
   // hooks) to satisfy React's rules-of-hooks. It's used here to point the
   // surface-view camera tracker at the sun, which always lives at origin.
@@ -158,6 +168,8 @@ export default function ScenePage() {
         paused={paused} setPaused={setPaused}
         speed={speed} setSpeed={setSpeed}
         viewMode={viewMode} setViewMode={setViewMode}
+        showStellarReference={showStellarReference} setShowStellarReference={setShowStellarReference}
+        hasStellarReference={hasStellarReference}
       />
       {/* Re-mount the Canvas on viewMode change so the camera + controls swap
           cleanly. Slight perf hit on toggle, but no stale-state bugs. */}
@@ -220,13 +232,14 @@ export default function ScenePage() {
               to divide by the scale factor. */}
           <VRSceneScale maxOrbit={maxOrbit}>
             {viewMode === 'system' ? (
-              <SceneContents scene={scene} paused={paused} speed={speed} clockRef={clockRef} />
+              <SceneContents scene={scene} paused={paused} speed={speed} clockRef={clockRef} showStellarReference={showStellarReference} />
             ) : (
               <SceneContents
                 scene={scene} paused={paused} speed={speed}
                 clockRef={clockRef}
                 hideFocal
                 focalPosOut={focalPosRef}
+                showStellarReference={showStellarReference}
               />
             )}
           </VRSceneScale>
@@ -355,26 +368,81 @@ type Obliquity = {
   kind: 'true' | 'projected';
   bibcode: string | null;
   note: string | null;
+  provenance: string; // 'curated' | 'nasa_exoplanet_archive'
 };
+
+// Best derived row for a quantity on the focal planet, preferring a curated
+// deep-dive over a catalog bulk-promote when both exist for the same planet.
+function bestDerived(
+  derived: DerivedMeasurementRow[], plName: string, quantity: string,
+): DerivedMeasurementRow | undefined {
+  let best: DerivedMeasurementRow | undefined;
+  for (const d of derived) {
+    if (d.pl_name !== plName || d.value == null || d.quantity !== quantity) continue;
+    if (!best || (d.provenance === 'curated' && best.provenance !== 'curated')) best = d;
+  }
+  return best;
+}
 
 function focalObliquity(
   derived: DerivedMeasurementRow[], plName: string,
 ): Obliquity | null {
-  let projected: DerivedMeasurementRow | undefined;
-  let trueObl: DerivedMeasurementRow | undefined;
-  for (const d of derived) {
-    if (d.pl_name !== plName || d.value == null) continue;
-    if (d.quantity === 'true_obliquity') trueObl = d;
-    else if (d.quantity === 'projected_obliquity') projected = d;
-  }
-  const pick = trueObl ?? projected;
+  const trueObl = bestDerived(derived, plName, 'true_obliquity');
+  const projected = bestDerived(derived, plName, 'projected_obliquity');
+  const pick = trueObl ?? projected; // true (de-projected 3-D) wins when present
   if (!pick || pick.value == null) return null;
   return {
     deg: pick.value,
     kind: trueObl ? 'true' : 'projected',
     bibcode: pick.bibcode,
     note: pick.curator_note,
+    provenance: pick.provenance,
   };
+}
+
+// Host-star rotation period (days) for the focal planet, if catalog/curated
+// data carries it. Drives the visible star rotation in the scene.
+function focalStellarRotationDays(
+  derived: DerivedMeasurementRow[], plName: string,
+): number | null {
+  const row = bestDerived(derived, plName, 'stellar_rotation_period');
+  return row?.value ?? null;
+}
+
+function provenanceLabel(p: string): string {
+  return p === 'curated'
+    ? 'curated deep-dive'
+    : 'NASA Exoplanet Archive (default parameter set)';
+}
+
+// Statistical starspot latitude from rotation period. Fast rotators (P < a few
+// days) carry high-latitude / near-polar spots — observed across decades of
+// Doppler imaging of young, active stars (Strassmeier 2002 review and on);
+// Sun-like slow rotators (P > 25 d) place spots in the low-latitude butterfly
+// band ~15-25° (Hathaway 2015, Living Reviews "The Solar Cycle"). Linear
+// interp between these regimes gives a per-star latitude derived from a
+// measured quantity (st_rotp), with only the longitude + hemisphere left as
+// a deterministic name-hash convention (same honesty model as the orbit Ω).
+function spotLatitudeDeg(rotationPeriodDays: number): number {
+  const P = Math.min(25, Math.max(3, rotationPeriodDays));
+  const t = (25 - P) / (25 - 3); // 0 at the slow end, 1 at the fast end
+  return 15 + (70 - 15) * t;
+}
+
+function spotDirection(rotationPeriodDays: number, plName: string): THREE.Vector3 {
+  const latMag = spotLatitudeDeg(rotationPeriodDays);
+  let h = 2166136261;
+  for (let i = 0; i < plName.length; i++) h = Math.imul(h ^ plName.charCodeAt(i), 16777619);
+  const hashed = h >>> 0;
+  const lonDeg = hashed % 360;
+  const hemisphere = ((hashed >>> 9) & 1) ? 1 : -1; // north or south
+  const lat = (hemisphere * latMag * Math.PI) / 180;
+  const lon = (lonDeg * Math.PI) / 180;
+  return new THREE.Vector3(
+    Math.cos(lat) * Math.cos(lon),
+    Math.sin(lat),
+    Math.cos(lat) * Math.sin(lon),
+  );
 }
 
 // Line of nodes for the obliquity tilt, chosen perpendicular to the default
@@ -457,6 +525,12 @@ function InfoPanel({
 
   const distance_pc = host_star?.distance_gspphot_pc ?? planet.sy_dist ?? planet.distance_manual_pc;
   const obliquity = focalObliquity(scene.derived_measurements, planet.pl_name);
+  const rotp = bestDerived(scene.derived_measurements, planet.pl_name, 'stellar_rotation_period');
+  const vsini = bestDerived(scene.derived_measurements, planet.pl_name, 'stellar_vsini');
+  const planetSpin = bestDerived(scene.derived_measurements, planet.pl_name, 'rotation_velocity');
+  const planetSpinPeriodHours = planetSpin?.value && planet.pl_rade
+    ? (2 * Math.PI * planet.pl_rade * 6371) / planetSpin.value / 3600
+    : null;
 
   return (
     <div
@@ -531,7 +605,10 @@ function InfoPanel({
               ? 'Sky-projected angle between the stellar spin axis and the orbital plane (Rossiter-McLaughlin). The true 3-D node orientation is unknown, so the tilt direction shown is illustrative; the magnitude is the measurement.'
               : 'De-projected 3-D angle between the stellar spin axis and the orbital plane. The scene tilts the orbit, not the planet body.'}
           </p>
-          {obliquity.note && (
+          <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', color: 'var(--fg-muted)' }}>
+            Source: {provenanceLabel(obliquity.provenance)}
+          </p>
+          {obliquity.provenance === 'curated' && obliquity.note && (
             <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
               {obliquity.note}
             </p>
@@ -539,6 +616,102 @@ function InfoPanel({
           {obliquity.bibcode && (
             <a
               href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(obliquity.bibcode)}/abstract`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ fontSize: '0.74rem' }}
+            >
+              ADS →
+            </a>
+          )}
+        </Section>
+      )}
+
+      {/* Host-star rotation — catalog/curated st_rotp + st_vsin. The rotation
+          period drives the visible star spin in the scene. */}
+      {(rotp || vsini) && (
+        <Section
+          label="Host-star rotation"
+          open={openSections.has('starspin')}
+          onToggle={() => toggle('starspin')}
+        >
+          <dl style={{ margin: '0 0 0.4rem', display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.15rem 0.6rem', fontSize: '0.8rem' }}>
+            {rotp?.value != null && (
+              <>
+                <dt style={{ color: 'var(--fg-muted)' }}>rotation period</dt>
+                <dd style={{ margin: 0 }}><strong>{rotp.value.toFixed(rotp.value < 10 ? 2 : 1)}</strong> days</dd>
+              </>
+            )}
+            {vsini?.value != null && (
+              <>
+                <dt style={{ color: 'var(--fg-muted)' }}>v sin i</dt>
+                <dd style={{ margin: 0 }}><strong>{vsini.value.toFixed(1)}</strong> km/s</dd>
+              </>
+            )}
+          </dl>
+          {rotp?.value != null && (
+            <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+              The star's visible rotation in the scene is driven by this period (rate stylized, like the orbit pacing), about the same spin axis the orbit tilts against.
+            </p>
+          )}
+          <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', color: 'var(--fg-muted)' }}>
+            Source: {provenanceLabel((rotp ?? vsini)!.provenance)}
+          </p>
+          <div style={{ display: 'flex', gap: '0.6rem', fontSize: '0.74rem' }}>
+            {rotp?.bibcode && (
+              <a href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(rotp.bibcode)}/abstract`} target="_blank" rel="noopener noreferrer">period: ADS →</a>
+            )}
+            {vsini?.bibcode && vsini.bibcode !== rotp?.bibcode && (
+              <a href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(vsini.bibcode)}/abstract`} target="_blank" rel="noopener noreferrer">v sin i: ADS →</a>
+            )}
+          </div>
+        </Section>
+      )}
+
+      {/* Planet axial rotation — currently only bet Pic b and AB Pic b have
+          measured rotation_velocity in derived_measurements. The body in the
+          scene visibly spins about a +Y reference axis at a stylized rate. */}
+      {planetSpin?.value != null && (
+        <Section
+          label="Planet rotation"
+          open={openSections.has('planetspin')}
+          onToggle={() => toggle('planetspin')}
+        >
+          <dl style={{ margin: '0 0 0.4rem', display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.15rem 0.6rem', fontSize: '0.8rem' }}>
+            <dt style={{ color: 'var(--fg-muted)' }}>rotation velocity</dt>
+            <dd style={{ margin: 0 }}>
+              <strong>{planetSpin.value.toFixed(0)}</strong> km/s
+              {planetSpin.unc_hi != null && planetSpin.unc_lo != null && (
+                <span style={{ color: 'var(--fg-muted)' }}> +{planetSpin.unc_hi.toFixed(0)} / -{planetSpin.unc_lo.toFixed(0)}</span>
+              )}
+            </dd>
+            {planetSpinPeriodHours != null && (
+              <>
+                <dt style={{ color: 'var(--fg-muted)' }}>rotation period</dt>
+                <dd style={{ margin: 0 }}>
+                  <strong>{planetSpinPeriodHours.toFixed(planetSpinPeriodHours < 5 ? 2 : 1)}</strong> hours
+                </dd>
+              </>
+            )}
+          </dl>
+          <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+            The planet visibly spins about a +Y reference axis. The true spin-axis orientation is not generally measured for exoplanets, so the axis shown is a convention; the rate is stylized like the orbit pacing, with relative rates preserved.
+          </p>
+          {planetSpin.model === 'CO line broadening' || (planetSpin.curator_note ?? '').toLowerCase().includes('vsin') ? (
+            <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+              Note: catalog v sin i bounds the true equatorial speed from below, so the period shown is an upper bound when the spin axis is inclined to our line of sight.
+            </p>
+          ) : null}
+          <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', color: 'var(--fg-muted)' }}>
+            Source: {provenanceLabel(planetSpin.provenance)}
+          </p>
+          {planetSpin.provenance === 'curated' && planetSpin.curator_note && (
+            <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+              {planetSpin.curator_note}
+            </p>
+          )}
+          {planetSpin.bibcode && (
+            <a
+              href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(planetSpin.bibcode)}/abstract`}
               target="_blank"
               rel="noopener noreferrer"
               style={{ fontSize: '0.74rem' }}
@@ -920,10 +1093,18 @@ function HashWriter({
 function PlaybackControls({
   paused, setPaused, speed, setSpeed,
   viewMode, setViewMode,
+  showStellarReference, setShowStellarReference,
+  hasStellarReference,
 }: {
   paused: boolean; setPaused: (p: boolean) => void;
   speed: number; setSpeed: (s: number) => void;
   viewMode: 'system' | 'surface'; setViewMode: (v: 'system' | 'surface') => void;
+  showStellarReference: boolean; setShowStellarReference: (v: boolean) => void;
+  /** True when the focal scene has something for the spin-axis toggle to
+      control (measured obliquity or a host-star rotation period). Used to
+      hide the display row entirely on systems where the toggle would be a
+      no-op, so the controls don't carry dangling buttons. */
+  hasStellarReference: boolean;
 }) {
   const isSurface = viewMode === 'surface';
   const [collapsed, setCollapsed] = useState(false);
@@ -1008,6 +1189,31 @@ function PlaybackControls({
           </button>
         ))}
       </div>
+
+      {/* Display row: overlays toggle. Currently just the stellar reference
+          frame (spin axis + equator ring on obliquity systems). Hidden when
+          the focal scene has nothing for it to control, so the controls
+          don't carry a dangling button. */}
+      {hasStellarReference && (
+      <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', marginTop: '0.55rem', flexWrap: 'wrap' }}>
+        <span style={{ color: 'var(--fg-muted)' }}>display</span>
+        <button
+          onClick={() => setShowStellarReference(!showStellarReference)}
+          title="Toggle the stellar spin axis (and obliquity equator ring, when present)"
+          style={{
+            background: showStellarReference ? 'var(--fg)' : 'transparent',
+            color: showStellarReference ? '#0b0d12' : 'var(--fg-muted)',
+            border: '1px solid var(--border)',
+            padding: '0.15rem 0.5rem',
+            borderRadius: 3,
+            cursor: 'pointer',
+            fontSize: '0.75rem',
+          }}
+        >
+          spin axis {showStellarReference ? 'on' : 'off'}
+        </button>
+      </div>
+      )}
 
       <p style={{ margin: '0.55rem 0 0', fontSize: '0.7rem', color: 'var(--fg-muted)', lineHeight: 1.45 }}>
         {isSurface
@@ -1360,6 +1566,7 @@ function SceneContents({
   scene, paused, speed, clockRef,
   hideFocal = false,
   focalPosOut,
+  showStellarReference = true,
 }: {
   scene: SceneResponse;
   paused: boolean;
@@ -1375,6 +1582,9 @@ function SceneContents({
       into this ref every frame so a parent component (the surface-view
       camera follower) can read it. */
   focalPosOut?: React.MutableRefObject<THREE.Vector3>;
+  /** Toggles the stellar spin axis + (when obliquity is present) equator
+      ring overlay. Driven from PlaybackControls. */
+  showStellarReference?: boolean;
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -1430,6 +1640,38 @@ function SceneContents({
   const focalRenderTilt = obliquity
     ? { inc: (obliquity.deg * Math.PI) / 180, omega: OBLIQUITY_NODE_OMEGA }
     : focalTilt;
+
+  // Host-star rotation period (days), if known: drives a visible star rotation
+  // about its spin axis (+Y, the axis the obliquity tilt references).
+  const stellarRotationDays = useMemo(
+    () => focalStellarRotationDays(scene.derived_measurements, planet.pl_name),
+    [scene.derived_measurements, planet.pl_name],
+  );
+
+  // Starspot direction (object space) for the host photosphere. Latitude
+  // comes from the rotation period (stellarRotationDays) via the published
+  // statistical correlation; longitude + hemisphere are name-hashed so each
+  // star gets a distinct, deterministic spot location.
+  const stellarSpotDir = useMemo(() => {
+    if (stellarRotationDays == null || stellarRotationDays <= 0) return null;
+    return spotDirection(stellarRotationDays, planet.pl_name);
+  }, [stellarRotationDays, planet.pl_name]);
+
+  // Focal planet's axial spin, derived from rotation_velocity (km/s) + radius.
+  // Rate is stylized like the orbit pacing (a 10-hour rotator turns once per
+  // ~12 s); faster/slower relative rates are preserved. Spin direction is +Y
+  // by convention — the true planetary spin-axis orientation is essentially
+  // unmeasured for exoplanets. Currently lights up bet Pic b (Snellen 2014,
+  // ~8 h) and AB Pic b (Palma-Bifani 2023, vsini-derived ~1.9 h), the only
+  // two planets with rotation_velocity harvested into derived_measurements.
+  const planetSpinOmega = useMemo(() => {
+    const row = bestDerived(scene.derived_measurements, planet.pl_name, 'rotation_velocity');
+    if (!row?.value || row.value <= 0 || planet.pl_rade == null) return null;
+    const R_km = planet.pl_rade * 6371; // 1 R_Earth
+    const periodHours = (2 * Math.PI * R_km) / row.value / 3600;
+    const clamped = Math.min(200, Math.max(0.5, periodHours));
+    return ((2 * Math.PI) / 12) * (10 / clamped); // rad/sec
+  }, [scene.derived_measurements, planet.pl_name, planet.pl_rade]);
 
   // Animation clock — accumulates real seconds × speed when not paused.
   // Each planet derives its current orbital angle from this single shared time.
@@ -1495,7 +1737,7 @@ function SceneContents({
           its own StellarCorona so both stars in a binary get a halo. */}
       {planet.cb_flag === 1
         ? <BinaryPhotospheres radius={sunRadius} color={sun_color_hex} teff={planet.st_teff} paused={paused} speed={speed} />
-        : <Photosphere radius={sunRadius} color={sun_color_hex} teff={planet.st_teff} />
+        : <Photosphere radius={sunRadius} color={sun_color_hex} teff={planet.st_teff} rotationPeriodDays={stellarRotationDays} spotDir={stellarSpotDir} />
       }
       {/* Sun light: decay=1.7 (slightly less aggressive than physical 1/r²).
           Pure inverse-square crushes outer planets visually faster than the
@@ -1545,8 +1787,18 @@ function SceneContents({
           The faint equatorial ring is where the orbit would lie at zero
           obliquity; the angle between it and the tilted orbit above IS the
           obliquity. */}
-      {obliquity && (
-        <StellarSpinReference orbsmax={focalOrbsmax} />
+      {/* Reference frame:
+           - equator ring only when an obliquity is measured (it is the
+             reference plane the orbit tilts against);
+           - spin axis whenever the scene has anything pinned to it
+             (obliquity OR a stellar rotation period we are animating);
+           - both togglable from PlaybackControls. */}
+      {(obliquity || stellarRotationDays != null) && showStellarReference && (
+        <StellarSpinReference
+          orbsmax={focalOrbsmax}
+          showAxis
+          showEquator={!!obliquity}
+        />
       )}
       {siblings
         .filter((s) => s.pl_name !== planet.pl_name && s.pl_orbsmax != null)
@@ -1582,6 +1834,7 @@ function SceneContents({
               name={planet.pl_name}
               onHover={setHovered}
               atmosphereTint={atmosphereTintFromMolecules(scene.atmospheric_detections)}
+              rotationOmegaRad={planetSpinOmega}
             />
             {hovered === planet.pl_name && <PlanetLabel name={planet.pl_name} subtitle="(focal)" />}
           </>
@@ -1775,7 +2028,7 @@ function spectralTypeToColor(spectype: string | null): string {
 // atmospheric path) and subtle granulation noise. Result: a soft, alive
 // edge rather than a hard sharp circle.
 
-function Photosphere({ radius, color, teff }: { radius: number; color: string; teff: number | null }) {
+function Photosphere({ radius, color, teff, rotationPeriodDays, spotDir }: { radius: number; color: string; teff: number | null; rotationPeriodDays?: number | null; spotDir?: THREE.Vector3 | null }) {
   // Opaque shader — must write depth properly so orbit lines and planets
   // behind the sun get occluded. The "soft edge" is achieved by the corona
   // (drawn additively over and around the photosphere edge), not by making
@@ -1819,10 +2072,16 @@ function Photosphere({ radius, color, teff }: { radius: number; color: string; t
   saturated.b *= 1.0 - cool * 0.85;
   const material = useMemo(() => new THREE.ShaderMaterial({
     uniforms: {
-      uColor: { value: saturated },
-      uTime:  { value: 0 },
-      uHdr:   { value: hdrScale },
+      uColor:         { value: saturated },
+      uTime:          { value: 0 },
+      uHdr:           { value: hdrScale },
       uLogDepthBufFC: { value: 0 },
+      // Starspot uniforms, updated by a useEffect below. A dark patch fixed in
+      // object space; the mesh's group rotation moves it across the visible
+      // disc, which is precisely the photometric signal (spot crossing the
+      // disc) astronomers use to measure stellar rotation in the first place.
+      uSpotDir:       { value: new THREE.Vector3(0, 1, 0) },
+      uSpotIntensity: { value: 0 },
     },
     // Manual log-depth path for XR parity, scoped to Photosphere. This shader
     // is custom and paired with a depth pre-pass; keeping depth math explicit
@@ -1853,6 +2112,8 @@ function Photosphere({ radius, color, teff }: { radius: number; color: string; t
       uniform float uTime;
       uniform float uHdr;
       uniform float uLogDepthBufFC;
+      uniform vec3 uSpotDir;
+      uniform float uSpotIntensity;
       varying vec3 vNormal;
       varying vec3 vViewDir;
       varying vec3 vWorldPos;
@@ -1888,6 +2149,17 @@ function Photosphere({ radius, color, teff }: { radius: number; color: string; t
         float granule = (noise(np) - 0.5) * 0.5 + (noise(np * 2.3) - 0.5) * 0.25;
         float surf = 1.0 + granule * 0.10;
 
+        // Starspot. Object-space; the parent group rotates the mesh so the
+        // spot transits the visible disc at the rotation rate. spotFalloff
+        // is 1 inside ~15° of the spot center, 0 outside ~17°, with a soft
+        // edge between. Spot brightness drops to 20% of the surrounding
+        // photosphere (sunspot umbra is ~30% of the quiet-Sun brightness;
+        // we go a touch darker so it reads through the HDR + bloom).
+        vec3 nLocal = normalize(vWorldPos);
+        float spotCos = dot(nLocal, uSpotDir);
+        float spotFalloff = smoothstep(0.956, 0.978, spotCos);
+        surf *= mix(1.0, 0.20, spotFalloff * uSpotIntensity);
+
         float mu = max(0.0, dot(vNormal, vViewDir));
         float limb = mix(0.15, 1.0, pow(mu, 0.7));
 
@@ -1905,6 +2177,25 @@ function Photosphere({ radius, color, teff }: { radius: number; color: string; t
     toneMapped: true,
   }), [color, hdrScale]);
 
+  // Push the starspot uniforms when the spot direction changes (or vanishes).
+  // The material itself is memoised on color/hdrScale only, so spot changes do
+  // not recreate it; we just update the uniform values in place.
+  useEffect(() => {
+    if (spotDir) {
+      material.uniforms.uSpotDir.value.copy(spotDir);
+      material.uniforms.uSpotIntensity.value = 1.0;
+    } else {
+      material.uniforms.uSpotIntensity.value = 0.0;
+    }
+  }, [material, spotDir]);
+
+  // Spin axis = +Y, the same axis the obliquity tilt references. Rate is
+  // stylized like the orbit pacing (true periods are days; at 60-sec orbits a
+  // real rate would be imperceptible or absurd): a 10-day rotator turns once
+  // per ~30 s, faster rotators visibly faster, slower slower. Only rotates
+  // when a rotation period is known; otherwise the granulation drift alone
+  // animates the surface, as before.
+  const spinGroup = useRef<THREE.Group>(null);
   useFrame((state) => {
     material.uniforms.uTime.value = state.clock.getElapsedTime();
     const xrCamera = state.gl.xr.getCamera();
@@ -1913,6 +2204,11 @@ function Photosphere({ radius, color, teff }: { radius: number; color: string; t
     const fallbackFar = Number.isFinite(state.camera.far) && state.camera.far > 0 ? state.camera.far : 1000;
     const safeFar = Number.isFinite(activeFar) && activeFar > 0 ? activeFar : fallbackFar;
     material.uniforms.uLogDepthBufFC.value = 2.0 / (Math.log(safeFar + 1.0) / Math.LN2);
+    if (spinGroup.current && rotationPeriodDays && rotationPeriodDays > 0) {
+      const clampedP = Math.min(200, Math.max(0.2, rotationPeriodDays));
+      const omega = ((2 * Math.PI) / 30) * (10 / clampedP); // rad/sec
+      spinGroup.current.rotation.y = state.clock.getElapsedTime() * omega;
+    }
   });
 
   // Two-pass rendering to GUARANTEE the sun occludes anything behind it:
@@ -1940,12 +2236,19 @@ function Photosphere({ radius, color, teff }: { radius: number; color: string; t
   );
   return (
     <>
-      <mesh material={depthOnlyMaterial} renderOrder={-100}>
-        <sphereGeometry args={[radius, 64, 64]} />
-      </mesh>
-      <mesh material={material} renderOrder={10}>
-        <sphereGeometry args={[radius, 64, 64]} />
-      </mesh>
+      {/* Both photosphere meshes spin together about +Y so depth pre-pass and
+          color pass stay coincident; a sphere is rotation-symmetric so the
+          depth occlusion is unaffected, and the granulation (sampled in object
+          space) visibly rotates with the disc. The corona is a camera-facing
+          billboard, so it stays outside the spin group. */}
+      <group ref={spinGroup}>
+        <mesh material={depthOnlyMaterial} renderOrder={-100}>
+          <sphereGeometry args={[radius, 64, 64]} />
+        </mesh>
+        <mesh material={material} renderOrder={10}>
+          <sphereGeometry args={[radius, 64, 64]} />
+        </mesh>
+      </group>
       {/* Corona uses a TAMER hdr than the photosphere disc. The disc's
           hdrScale ramps up to 2.78 for the coolest M-dwarfs (perceptual
           compensation — deep red has low eye sensitivity, so the disc
@@ -2202,7 +2505,7 @@ function OrbitRing({
 // the true sky orientation of the stellar spin axis is unknown (that's why
 // λ is sky-projected), so +Y is a chosen reference, consistent with the XZ
 // reference plane used everywhere else in the scene.
-function StellarSpinReference({ orbsmax }: { orbsmax: number }) {
+function StellarSpinReference({ orbsmax, showAxis = true, showEquator = true }: { orbsmax: number; showAxis?: boolean; showEquator?: boolean }) {
   const ringGeom = useMemo(() => {
     const N = 192;
     const positions = new Float32Array((N + 1) * 3);
@@ -2241,8 +2544,8 @@ function StellarSpinReference({ orbsmax }: { orbsmax: number }) {
 
   return (
     <>
-      <primitive object={new THREE.Line(ringGeom, ringMat)} />
-      <primitive object={new THREE.Line(axisGeom, axisMat)} />
+      {showEquator && <primitive object={new THREE.Line(ringGeom, ringMat)} />}
+      {showAxis && <primitive object={new THREE.Line(axisGeom, axisMat)} />}
     </>
   );
 }
@@ -2413,6 +2716,7 @@ function PlanetBody({
   onHover,
   onClick,
   atmosphereTint,
+  rotationOmegaRad,
 }: {
   position: [number, number, number];
   radius: number;
@@ -2428,6 +2732,13 @@ function PlanetBody({
       water → pale blue, CO2 → tan, etc. Only meaningful for the focal planet
       (siblings don't get per-planet atmosphere data fetched). */
   atmosphereTint?: string;
+  /** Visible axial spin rate in rad/sec (stylized from real rotation_velocity).
+      When provided, the planet body + atmosphere rotate about +Y, the same
+      reference axis the obliquity tilt uses. The hit mesh stays still (it is
+      sphere-symmetric anyway and rotating it would only complicate pointer
+      events). +Y is a convention; planetary spin-axis orientation is not
+      generally measured for exoplanets. */
+  rotationOmegaRad?: number | null;
 }) {
   const visual = useMemo(
     () => planetVisual(pl_eqt, pl_dens, pl_rade),
@@ -2437,6 +2748,13 @@ function PlanetBody({
   const isIcyOrCold = visual.bodyType === 'rocky' && (pl_eqt ?? 999) < 273;
   // Hit-mesh: invisible larger sphere for generous click/hover targeting.
   const hitRadius = Math.max(radius * 2.5, radius + 0.005);
+
+  const spinGroup = useRef<THREE.Group>(null);
+  useFrame((state) => {
+    if (spinGroup.current && rotationOmegaRad && rotationOmegaRad > 0) {
+      spinGroup.current.rotation.y = state.clock.getElapsedTime() * rotationOmegaRad;
+    }
+  });
 
   // Procedural body material: gas giants get faint latitude bands; cold rocky
   // planets get polar ice caps; everything else stays flat-color (with
@@ -2467,22 +2785,22 @@ function PlanetBody({
         <sphereGeometry args={[hitRadius, 8, 8]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
-      {/* Planet body */}
-      <mesh material={bodyMaterial}>
-        <sphereGeometry args={[radius, emphasized ? 128 : 64, emphasized ? 128 : 64]} />
-      </mesh>
-      {/* Gas giant atmospheric halo: a slightly-larger sphere with a fresnel
-          shader. Bright at the silhouette (where you'd see through more
-          atmosphere from outside), transparent toward the center (where you
-          look straight down through thin atmosphere). The atmospheric tint
-          color comes from molecule detections when available, otherwise the
-          planet's own color slightly desaturated. */}
-      {isGasGiant && (
-        <PlanetAtmosphere
-          radius={radius * 1.08}
-          color={atmosphereTint ?? visual.fillColor}
-        />
-      )}
+      {/* Body + atmosphere co-rotate about +Y when an axial spin rate is set.
+          The body shader's noise samples object-space position, so rotating
+          the mesh visibly rotates the surface pattern. The atmosphere is
+          sphere-symmetric (Fresnel-only), unaffected by the rotation but
+          kept inside the spin group so it always tracks the body cleanly. */}
+      <group ref={spinGroup}>
+        <mesh material={bodyMaterial}>
+          <sphereGeometry args={[radius, emphasized ? 128 : 64, emphasized ? 128 : 64]} />
+        </mesh>
+        {isGasGiant && (
+          <PlanetAtmosphere
+            radius={radius * 1.08}
+            color={atmosphereTint ?? visual.fillColor}
+          />
+        )}
+      </group>
     </group>
   );
 }

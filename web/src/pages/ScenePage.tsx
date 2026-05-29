@@ -5,7 +5,7 @@ import { Html, OrbitControls } from '@react-three/drei';
 import { Bloom, EffectComposer } from '@react-three/postprocessing';
 import { createXRStore, useXR, useXRControllerLocomotion, XR, XROrigin } from '@react-three/xr';
 import * as THREE from 'three';
-import { api, type BinaryCompanion, type DiscoveryPaper, type OrbitalGeometryRecord, type SceneResponse } from '../api';
+import { api, type BinaryCompanion, type DerivedMeasurementRow, type DiscoveryPaper, type OrbitalGeometryRecord, type SceneResponse } from '../api';
 import LoadingBar from '../components/LoadingBar';
 import { estimateStarRadiusRsun, planetVisual } from '../procedural';
 import { humanizeHours } from '../lib/units';
@@ -341,6 +341,49 @@ function applyOrbitTilt(
   ];
 }
 
+// Spin-orbit obliquity (Rossiter-McLaughlin) for the focal planet: the angle
+// between the host star's spin axis and the planet's orbital plane. This is
+// NOT the planet's own axial tilt — it describes how the orbit sits relative
+// to the star's equator. Prefer the de-projected 3-D angle (true obliquity ψ)
+// where it exists; otherwise fall back to the sky-projected angle (λ), which
+// only fixes the tilt as seen on the sky. The true line-of-nodes orientation
+// is unknown either way, so the rendered tilt DIRECTION is a deterministic
+// visual choice (see OBLIQUITY_NODE_OMEGA), the same honesty convention as
+// the Ω-from-name-hash used for mutual inclinations.
+type Obliquity = {
+  deg: number; // measured value, verbatim (can be negative or >180)
+  kind: 'true' | 'projected';
+  bibcode: string | null;
+  note: string | null;
+};
+
+function focalObliquity(
+  derived: DerivedMeasurementRow[], plName: string,
+): Obliquity | null {
+  let projected: DerivedMeasurementRow | undefined;
+  let trueObl: DerivedMeasurementRow | undefined;
+  for (const d of derived) {
+    if (d.pl_name !== plName || d.value == null) continue;
+    if (d.quantity === 'true_obliquity') trueObl = d;
+    else if (d.quantity === 'projected_obliquity') projected = d;
+  }
+  const pick = trueObl ?? projected;
+  if (!pick || pick.value == null) return null;
+  return {
+    deg: pick.value,
+    kind: trueObl ? 'true' : 'projected',
+    bibcode: pick.bibcode,
+    note: pick.curator_note,
+  };
+}
+
+// Line of nodes for the obliquity tilt, chosen perpendicular to the default
+// camera azimuth so a polar/retrograde orbit swings up/down across the view
+// (legible) instead of edge-on. Derived from camPos = [orbsmax·1.8, ·0.7,
+// ·1.4] looking at [orbsmax, 0, 0]: azimuth = atan2(Δz, Δx) = atan2(1.4, 0.8);
+// the orbsmax scale cancels, so this is a constant.
+const OBLIQUITY_NODE_OMEGA = Math.atan2(1.4, 0.8) + Math.PI / 2;
+
 function planetDisplayRadius(pl_rade: number | null, pl_orbsmax: number | null): number {
   const truthAU = (pl_rade ?? 1) * REARTH_IN_AU;
   const exaggerated = truthAU * BODY_EXAG;
@@ -413,6 +456,7 @@ function InfoPanel({
   });
 
   const distance_pc = host_star?.distance_gspphot_pc ?? planet.sy_dist ?? planet.distance_manual_pc;
+  const obliquity = focalObliquity(scene.derived_measurements, planet.pl_name);
 
   return (
     <div
@@ -467,6 +511,43 @@ function InfoPanel({
             : 'survivable on temperature alone'}
         </dd>
       </dl>
+
+      {/* Spin-orbit obliquity — only present for the curated Tilted &
+          Tumbling systems. The scene tilts the orbit relative to the star's
+          equator to match this angle. */}
+      {obliquity && (
+        <Section
+          label="Spin-orbit obliquity"
+          open={openSections.has('obliq')}
+          onToggle={() => toggle('obliq')}
+        >
+          <p style={{ margin: '0 0 0.3rem', fontSize: '0.82rem' }}>
+            {obliquity.kind === 'true' ? 'True obliquity ψ' : 'Projected obliquity λ'}
+            {' = '}
+            <strong>{obliquity.deg.toFixed(1)}°</strong>
+          </p>
+          <p style={{ margin: '0 0 0.4rem', fontSize: '0.74rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+            {obliquity.kind === 'projected'
+              ? 'Sky-projected angle between the stellar spin axis and the orbital plane (Rossiter-McLaughlin). The true 3-D node orientation is unknown, so the tilt direction shown is illustrative; the magnitude is the measurement.'
+              : 'De-projected 3-D angle between the stellar spin axis and the orbital plane. The scene tilts the orbit, not the planet body.'}
+          </p>
+          {obliquity.note && (
+            <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+              {obliquity.note}
+            </p>
+          )}
+          {obliquity.bibcode && (
+            <a
+              href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(obliquity.bibcode)}/abstract`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ fontSize: '0.74rem' }}
+            >
+              ADS →
+            </a>
+          )}
+        </Section>
+      )}
 
       {/* Sky position */}
       <Section
@@ -1336,6 +1417,20 @@ function SceneContents({
   );
   const focalTilt = tiltMap.get(planet.pl_name) ?? { inc: 0, omega: 0 };
 
+  // Spin-orbit obliquity tilts the focal orbit relative to the star's equator
+  // (the XZ reference plane; spin axis = +Y). It takes precedence over the
+  // mutual-inclination tilt for the focal planet — the curated obliquity
+  // systems are single hot Jupiters whose focalTilt is {0,0} anyway, so this
+  // is effectively "use the obliquity when we have it." Rendered against a
+  // StellarSpinReference (equatorial ring + spin axis) so the tilt is legible.
+  const obliquity = useMemo(
+    () => focalObliquity(scene.derived_measurements, planet.pl_name),
+    [scene.derived_measurements, planet.pl_name],
+  );
+  const focalRenderTilt = obliquity
+    ? { inc: (obliquity.deg * Math.PI) / 180, omega: OBLIQUITY_NODE_OMEGA }
+    : focalTilt;
+
   // Animation clock — accumulates real seconds × speed when not paused.
   // Each planet derives its current orbital angle from this single shared time.
   // Lifted to ScenePage and passed in via clockRef so it can be initialized
@@ -1370,7 +1465,7 @@ function SceneContents({
 
     const M = (clock.current / FOCAL_SECS_PER_ORBIT) * 2 * Math.PI;
     const [fx0, , fz0] = keplerPosition(focalOrbsmax, planet.pl_orbeccen ?? 0, M);
-    const [fx, fy, fz] = applyOrbitTilt(fx0, fz0, focalTilt.inc, focalTilt.omega);
+    const [fx, fy, fz] = applyOrbitTilt(fx0, fz0, focalRenderTilt.inc, focalRenderTilt.omega);
     if (focalGroup.current) focalGroup.current.position.set(fx, fy, fz);
     // Expose focal world position for surface-mode camera tracking
     if (focalPosOut) focalPosOut.current.set(fx, fy, fz);
@@ -1442,9 +1537,17 @@ function SceneContents({
         eccen={planet.pl_orbeccen ?? 0}
         color="#7ad6ff"
         opacity={0.55}
-        inc={focalTilt.inc}
-        omega={focalTilt.omega}
+        inc={focalRenderTilt.inc}
+        omega={focalRenderTilt.omega}
       />
+      {/* Stellar equator + spin axis — only when the focal planet carries a
+          measured spin-orbit obliquity, so ordinary scenes are unchanged.
+          The faint equatorial ring is where the orbit would lie at zero
+          obliquity; the angle between it and the tilted orbit above IS the
+          obliquity. */}
+      {obliquity && (
+        <StellarSpinReference orbsmax={focalOrbsmax} />
+      )}
       {siblings
         .filter((s) => s.pl_name !== planet.pl_name && s.pl_orbsmax != null)
         .map((s) => {
@@ -2090,6 +2193,58 @@ function OrbitRing({
   );
 
   return <primitive object={new THREE.Line(geometry, material)} />;
+}
+
+// Reference frame for spin-orbit obliquity: a faint ring in the stellar
+// equatorial plane (XZ) at the focal orbit's scale, plus the spin axis
+// through the poles (±Y). The tilted focal orbit is drawn against this, so
+// the obliquity reads as the angle between the two rings. Convention only:
+// the true sky orientation of the stellar spin axis is unknown (that's why
+// λ is sky-projected), so +Y is a chosen reference, consistent with the XZ
+// reference plane used everywhere else in the scene.
+function StellarSpinReference({ orbsmax }: { orbsmax: number }) {
+  const ringGeom = useMemo(() => {
+    const N = 192;
+    const positions = new Float32Array((N + 1) * 3);
+    for (let i = 0; i <= N; i++) {
+      const t = (i / N) * Math.PI * 2;
+      positions[i * 3 + 0] = orbsmax * Math.cos(t);
+      positions[i * 3 + 1] = 0;
+      positions[i * 3 + 2] = orbsmax * Math.sin(t);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    return g;
+  }, [orbsmax]);
+
+  const axisGeom = useMemo(() => {
+    const L = orbsmax * 1.18;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(
+      new Float32Array([0, -L, 0, 0, L, 0]), 3,
+    ));
+    return g;
+  }, [orbsmax]);
+
+  const ringMat = useMemo(
+    () => new THREE.LineBasicMaterial({
+      color: '#3f5d6b', transparent: true, opacity: 0.38, depthWrite: false,
+    }),
+    [],
+  );
+  const axisMat = useMemo(
+    () => new THREE.LineBasicMaterial({
+      color: '#5a7d8c', transparent: true, opacity: 0.5, depthWrite: false,
+    }),
+    [],
+  );
+
+  return (
+    <>
+      <primitive object={new THREE.Line(ringGeom, ringMat)} />
+      <primitive object={new THREE.Line(axisGeom, axisMat)} />
+    </>
+  );
 }
 
 // ── Per-vantage starfield + diffuse galaxy skydome ─────────────────────

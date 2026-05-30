@@ -376,10 +376,26 @@ type Obliquity = {
 function bestDerived(
   derived: DerivedMeasurementRow[], plName: string, quantity: string,
 ): DerivedMeasurementRow | undefined {
+  // Selection priority:
+  //   1. provenance = 'curated' beats everything else (curated deep dives win
+  //      over catalog bulk-promotes for the same planet+quantity).
+  //   2. Within the same provenance class, prefer the bibcode that sorts
+  //      lexicographically LAST. NASA EA bibcodes start with the publication
+  //      year (e.g. 2021PNAS..., 2014Natur...), so this picks the most recent
+  //      paper. More importantly it gives a stable, deterministic choice
+  //      independent of DB row order / array order: without a tie-breaker,
+  //      two same-provenance rows would resolve to whichever came first in
+  //      the scene payload, which is undefined.
   let best: DerivedMeasurementRow | undefined;
   for (const d of derived) {
     if (d.pl_name !== plName || d.value == null || d.quantity !== quantity) continue;
-    if (!best || (d.provenance === 'curated' && best.provenance !== 'curated')) best = d;
+    if (!best) { best = d; continue; }
+    const dCurated = d.provenance === 'curated';
+    const bestCurated = best.provenance === 'curated';
+    if (dCurated && !bestCurated) { best = d; continue; }
+    if (!dCurated && bestCurated) continue;
+    // Same provenance class: most-recent bibcode wins (stable tie-breaker).
+    if ((d.bibcode ?? '') > (best.bibcode ?? '')) best = d;
   }
   return best;
 }
@@ -1213,7 +1229,7 @@ function PlaybackControls({
         <button
           type="button"
           role="switch"
-          aria-pressed={showStellarReference}
+          aria-checked={showStellarReference}
           aria-label={`Stellar spin axis overlay, currently ${showStellarReference ? 'on' : 'off'}`}
           onClick={() => setShowStellarReference(!showStellarReference)}
           title="Toggle the stellar spin axis (and obliquity equator ring, when present)"

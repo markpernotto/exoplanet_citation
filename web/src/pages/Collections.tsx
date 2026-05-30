@@ -574,7 +574,15 @@ function CompositionTable({ rows, themeQuery }: { rows: DerivedMeasurementRow[] 
   // rotation, etc.) live in the scene InfoPanel where they belong; this
   // collection is the curated-interiors / abundances story.
   const compositionRows = rows.filter((r) => isCompositionQuantity(r.quantity));
-  if (compositionRows.length === 0) return <p style={{ color: 'var(--fg-muted)' }}>No derived measurements found.</p>;
+  if (compositionRows.length === 0) {
+    return (
+      <p style={{ color: 'var(--fg-muted)' }}>
+        {rows.length === 0
+          ? 'No derived measurements found.'
+          : 'No composition-type derived measurements yet. Dynamical quantities (obliquity, rotation, etc.) exist in the data but live in the scene InfoPanel, not in this collection.'}
+      </p>
+    );
+  }
   const systems = new Map<string, DerivedMeasurementRow[]>();
   for (const r of compositionRows) {
     const k = r.hostname ?? '—';

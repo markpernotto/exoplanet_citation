@@ -586,9 +586,12 @@ function InfoPanel({
         </dd>
       </dl>
 
-      {/* Spin-orbit obliquity — only present for the curated Tilted &
-          Tumbling systems. The scene tilts the orbit relative to the star's
-          equator to match this angle. */}
+      {/* Spin-orbit obliquity. Lights up for any focal planet with a
+          projected or true obliquity in derived_measurements — that is the
+          5 curated "Tilted & Tumbling" deep dives plus the ~228 systems
+          bulk-promoted from the NASA Exoplanet Archive (migration 086). The
+          scene tilts the orbit relative to the star's equator to match this
+          angle, and the provenance line distinguishes curated from catalog. */}
       {obliquity && (
         <Section
           label="Spin-orbit obliquity"
@@ -1650,12 +1653,14 @@ function SceneContents({
 
   // Starspot direction (object space) for the host photosphere. Latitude
   // comes from the rotation period (stellarRotationDays) via the published
-  // statistical correlation; longitude + hemisphere are name-hashed so each
-  // star gets a distinct, deterministic spot location.
+  // statistical correlation; longitude + hemisphere are hashed on the host
+  // identifier so siblings of the same star resolve to the SAME spot location
+  // (the spot is a stellar feature, not a per-planet one — hashing on pl_name
+  // would jump the spot whenever the user navigates between siblings).
   const stellarSpotDir = useMemo(() => {
     if (stellarRotationDays == null || stellarRotationDays <= 0) return null;
-    return spotDirection(stellarRotationDays, planet.pl_name);
-  }, [stellarRotationDays, planet.pl_name]);
+    return spotDirection(stellarRotationDays, planet.hostname);
+  }, [stellarRotationDays, planet.hostname]);
 
   // Focal planet's axial spin, derived from rotation_velocity (km/s) + radius.
   // Rate is stylized like the orbit pacing (a 10-hour rotator turns once per
@@ -2175,7 +2180,7 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spotDir }: { rad
     depthWrite: true,
     depthTest: true,
     toneMapped: true,
-  }), [color, hdrScale]);
+  }), [color, hdrScale, teff]);
 
   // Push the starspot uniforms when the spot direction changes (or vanishes).
   // The material itself is memoised on color/hdrScale only, so spot changes do
@@ -2542,10 +2547,17 @@ function StellarSpinReference({ orbsmax, showAxis = true, showEquator = true }: 
     [],
   );
 
+  // Memoise the Line instances so React renders that flip the visibility
+  // toggles (showAxis / showEquator) do not allocate new THREE.Line wrappers
+  // each pass. The instances stay stable for the life of this component;
+  // geometry + material identity already covers the only cases where the
+  // line content changes (orbsmax-driven scale).
+  const ringLine = useMemo(() => new THREE.Line(ringGeom, ringMat), [ringGeom, ringMat]);
+  const axisLine = useMemo(() => new THREE.Line(axisGeom, axisMat), [axisGeom, axisMat]);
   return (
     <>
-      {showEquator && <primitive object={new THREE.Line(ringGeom, ringMat)} />}
-      {showAxis && <primitive object={new THREE.Line(axisGeom, axisMat)} />}
+      {showEquator && <primitive object={ringLine} />}
+      {showAxis && <primitive object={axisLine} />}
     </>
   );
 }

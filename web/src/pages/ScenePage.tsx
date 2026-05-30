@@ -2166,10 +2166,11 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spotDir }: { rad
 
         // Starspot. Object-space; the parent group rotates the mesh so the
         // spot transits the visible disc at the rotation rate. spotFalloff
-        // is 1 inside ~15° of the spot center, 0 outside ~17°, with a soft
-        // edge between. Spot brightness drops to 20% of the surrounding
-        // photosphere (sunspot umbra is ~30% of the quiet-Sun brightness;
-        // we go a touch darker so it reads through the HDR + bloom).
+        // is 1 inside ~12° of the spot center (cos 0.978) and 0 outside ~17°
+        // (cos 0.956), with the smoothstep handling the soft ~5° transition
+        // between. Spot brightness drops to 20% of the surrounding photosphere
+        // (sunspot umbra is ~30% of quiet-Sun brightness; we go a touch darker
+        // so it reads through the HDR + bloom).
         vec3 nLocal = normalize(vWorldPos);
         float spotCos = dot(nLocal, uSpotDir);
         float spotFalloff = smoothstep(0.956, 0.978, spotCos);
@@ -2193,8 +2194,8 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spotDir }: { rad
   }), [color, hdrScale, teff]);
 
   // Push the starspot uniforms when the spot direction changes (or vanishes).
-  // The material itself is memoised on color/hdrScale only, so spot changes do
-  // not recreate it; we just update the uniform values in place.
+  // The material itself is memoised on color/hdrScale/teff, so spot changes
+  // do not recreate it; we just update the uniform values in place.
   useEffect(() => {
     if (spotDir) {
       material.uniforms.uSpotDir.value.copy(spotDir);

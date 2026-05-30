@@ -7,7 +7,7 @@ import PlanetCard from '../components/PlanetCard';
 import { collectFacts } from '../lib/derived';
 import { formatMass, formatRadius, formatTemperature, humanizeHours, useUnitsMode, type Formatted, type UnitsMode } from '../lib/units';
 import { plainText } from '../lib/html';
-import { fmtMeasure, quantityLabel } from '../lib/composition';
+import { fmtMeasure, isCompositionQuantity, quantityLabel } from '../lib/composition';
 
 export default function PlanetDetail() {
   const { plName = '' } = useParams<{ plName: string }>();
@@ -434,7 +434,10 @@ function DiscoverySection({ planet, paper, publications, sectionDelay = 0 }: { p
 // composition, elemental abundances, metal budgets. Renders nothing for planets
 // with no curated measurements. Source paper is also in the citation graph below.
 function CompositionSection({ rows }: { rows: DerivedMeasurementRow[] | null }) {
-  if (!rows || rows.length === 0) return null;
+  // Filter to actual composition-type quantities — dynamical rows (obliquity,
+  // rotation, etc.) appear on the scene page, not in this section.
+  const compositionRows = rows?.filter((r) => isCompositionQuantity(r.quantity)) ?? null;
+  if (!compositionRows || compositionRows.length === 0) return null;
   const adsUrl = (b: string) => `https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(b)}/abstract`;
   return (
     <section style={{ marginTop: '2rem' }}>
@@ -455,8 +458,12 @@ function CompositionSection({ rows }: { rows: DerivedMeasurementRow[] | null }) 
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={r.quantity}>
+            {compositionRows.map((r, i) => (
+              // The DB PK is (pl_name, quantity, bibcode), so multiple rows
+              // for the same quantity from different papers are allowed.
+              // Include bibcode (or row index when bibcode is null) so React
+              // does not collide keys and re-use the wrong rows.
+              <tr key={`${r.quantity}|${r.bibcode ?? i}`}>
                 <td title={r.curator_note ?? undefined}>{quantityLabel(r.quantity)}</td>
                 <td style={{ whiteSpace: 'nowrap' }}>{fmtMeasure(r)}</td>
                 <td style={{ color: 'var(--fg-muted)', fontSize: '0.85rem' }}>{r.model ?? ''}</td>

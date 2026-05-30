@@ -81,6 +81,29 @@ export function quantityLabel(q: string): string {
   return QUANTITY_LABEL[q] ?? q;
 }
 
+// Quantities that genuinely belong under "Interiors & composition" — interior
+// structure, elemental abundances, and bulk atmospheric makeup. Used to scope
+// the Composition collection (Collections.tsx) and the per-planet Composition
+// block (PlanetDetail.tsx) so that dynamical quantities (obliquity, rotation,
+// orbital geometry, energy budgets) don't get mixed in — they belong on their
+// own pages or in the scene InfoPanel. Important for the v0.2 bulk-promote
+// (migrations 086/087) where ~3,000 obliquity + stellar-spin rows would
+// otherwise swamp the curated composition deep-dives.
+const COMPOSITION_QUANTITIES = new Set<string>([
+  // Interior structure
+  'core_mass_fraction', 'fe_mg_molar', 'metal_mass_fraction',
+  'total_metal_mass', 'metals_from_solids', 'metals_from_gas',
+  'envelope_mass_fraction', 'water_mass_fraction',
+  // Elemental abundances (relative to solar)
+  'C/H', 'O/H', 'S/H', 'N/H',
+  // Bulk atmospheric composition
+  'metallicity', 'C/O', 'mean_molecular_weight',
+]);
+
+export function isCompositionQuantity(q: string): boolean {
+  return COMPOSITION_QUANTITIES.has(q);
+}
+
 // e.g. "4.2 +0.9/−0.8 × solar". Uncertainty is asymmetric (unc_hi / unc_lo).
 export function fmtMeasure(r: DerivedMeasurementRow): string {
   if (r.value == null) return '';

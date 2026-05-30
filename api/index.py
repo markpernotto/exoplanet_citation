@@ -621,28 +621,55 @@ def atmospheres() -> AtmospheresResponse:
     return AtmospheresResponse(rows=[AtmosphereRow(**r) for r in rows])
 
 
+# Quantities scoped to the "Interiors & composition" category. Kept in sync
+# with web/src/lib/composition.ts COMPOSITION_QUANTITIES — duplicated rather
+# than shared because the lists are read at different layers, but small enough
+# that drift is easy to spot in review. Dynamical quantities (obliquity,
+# rotation, etc.) deliberately omitted: they appear in the scene InfoPanel.
+COMPOSITION_QUANTITIES = (
+    "core_mass_fraction", "fe_mg_molar", "metal_mass_fraction",
+    "total_metal_mass", "metals_from_solids", "metals_from_gas",
+    "envelope_mass_fraction", "water_mass_fraction",
+    "C/H", "O/H", "S/H", "N/H",
+    "metallicity", "C/O", "mean_molecular_weight",
+)
+
+
 @app.get("/api/derived-measurements", response_model=DerivedMeasurementsResponse, tags=["planets"])
 def derived_measurements(
     pl_name: str | None = Query(None, description="Restrict to one planet"),
+    category: str | None = Query(
+        None,
+        description=(
+            "Restrict to a quantity category. Currently supported: 'composition' "
+            "(interiors / abundances / bulk atmospheric makeup). Anything else is "
+            "ignored and all quantities are returned."
+        ),
+    ),
 ) -> DerivedMeasurementsResponse:
     """Literature-derived scalar properties (planet_derived_measurements).
 
     Interior composition, elemental abundances, and metal budgets, each with its
     asymmetric uncertainty, the modelling assumption, and the source paper. The
     hostname is joined in so consumers can group by system. Powers the composition
-    collection and the per-planet Composition block.
+    collection and the per-planet Composition block, where `category=composition`
+    keeps the bulk-promoted dynamical rows (migrations 086/087) off the wire.
     """
-    where = ""
+    where_clauses: list[str] = []
     params: list = []
     if pl_name is not None:
-        where = "WHERE d.pl_name = %s"
+        where_clauses.append("d.pl_name = %s")
         params.append(pl_name)
+    if category == "composition":
+        where_clauses.append("d.quantity = ANY(%s)")
+        params.append(list(COMPOSITION_QUANTITIES))
+    where = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
     with _connect() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 f"""
                 SELECT d.pl_name, p.hostname, d.quantity, d.value, d.unc_hi, d.unc_lo,
-                       d.unit, d.model, d.bibcode, d.curator_note
+                       d.unit, d.model, d.bibcode, d.curator_note, d.provenance
                 FROM planet_derived_measurements d
                 LEFT JOIN planets_current p ON p.pl_name = d.pl_name
                 {where}
@@ -1232,7 +1259,7 @@ def planet_scene(pl_name: str) -> SceneResponse:
             cur.execute(
                 """
                 SELECT pl_name, NULL::text AS hostname, quantity, value, unc_hi, unc_lo,
-                       unit, model, bibcode, curator_note
+                       unit, model, bibcode, curator_note, provenance
                 FROM planet_derived_measurements
                 WHERE pl_name = %s
                 ORDER BY quantity

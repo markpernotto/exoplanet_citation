@@ -338,6 +338,7 @@ class DerivedMeasurementRow(BaseModel):
     model: str | None  # modelling assumption / caveat
     bibcode: str | None
     curator_note: str | None
+    provenance: str  # 'curated' | 'nasa_exoplanet_archive'
 
 
 class DerivedMeasurementsResponse(BaseModel):

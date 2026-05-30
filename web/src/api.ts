@@ -110,6 +110,7 @@ export type DerivedMeasurementRow = {
   model: string | null;
   bibcode: string | null;
   curator_note: string | null;
+  provenance: string; // 'curated' | 'nasa_exoplanet_archive'
 };
 
 export type PlanetDetail = {
@@ -346,8 +347,13 @@ export const api = {
 
   atmospheres: () => get<{ rows: AtmosphereRow[] }>('/api/atmospheres'),
 
-  derivedMeasurements: (plName?: string) =>
-    get<{ rows: DerivedMeasurementRow[] }>(`/api/derived-measurements${plName ? `?pl_name=${encodeURIComponent(plName)}` : ''}`),
+  derivedMeasurements: (plName?: string, category?: 'composition') => {
+    const qs = new URLSearchParams();
+    if (plName) qs.set('pl_name', plName);
+    if (category) qs.set('category', category);
+    const s = qs.toString();
+    return get<{ rows: DerivedMeasurementRow[] }>(`/api/derived-measurements${s ? `?${s}` : ''}`);
+  },
   planetsList: (params: { limit?: number; offset?: number; q?: string; year?: number; discovery_method?: string; cb_flag?: number; has_geometry?: boolean; min_mass?: number; min_eccen?: number; sy_pnum_min?: number; sy_snum_min?: number; multi_paper?: boolean } = {}) => {
     const qs = new URLSearchParams();
     if (params.limit !== undefined) qs.set('limit', String(params.limit));

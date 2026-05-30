@@ -3,7 +3,7 @@ import { Link, useLocation, useParams } from 'react-router-dom';
 import { api, type AtmosphereRow, type DerivedMeasurementRow, type InnerBinaryRow, type PlanetSummary, type SystemGeometryRow, type TopAuthor } from '../api';
 import { COLLECTION_BY_KEY, type Collection } from '../lib/collections';
 import LoadingBar from '../components/LoadingBar';
-import { fmtMeasure, quantityLabel } from '../lib/composition';
+import { fmtMeasure, isCompositionQuantity, quantityLabel } from '../lib/composition';
 
 // Curated from the cb_flag audit: the three microlensing entries whose published
 // solutions do not unambiguously place the planet outside both stars. (The audit
@@ -73,7 +73,7 @@ export default function Collections() {
       return;
     }
     if (key === 'composition') {
-      api.derivedMeasurements().then((r) => setDerived(r.rows)).catch(() => setDerived([]));
+      api.derivedMeasurements(undefined, 'composition').then((r) => setDerived(r.rows)).catch(() => setDerived([]));
       return;
     }
     if (key === 'top-discoverers') {
@@ -570,18 +570,30 @@ function AtmosphereTable({ rows, themeQuery }: { rows: AtmosphereRow[] | null; t
 
 function CompositionTable({ rows, themeQuery }: { rows: DerivedMeasurementRow[] | null; themeQuery: string }) {
   if (rows === null) return <LoadingBar loading={true} />;
-  if (rows.length === 0) return <p style={{ color: 'var(--fg-muted)' }}>No derived measurements found.</p>;
+  // Scope to actual composition-type quantities. Dynamical rows (obliquity,
+  // rotation, etc.) live in the scene InfoPanel where they belong; this
+  // collection is the curated-interiors / abundances story.
+  const compositionRows = rows.filter((r) => isCompositionQuantity(r.quantity));
+  if (compositionRows.length === 0) {
+    return (
+      <p style={{ color: 'var(--fg-muted)' }}>
+        {rows.length === 0
+          ? 'No derived measurements found.'
+          : 'No composition-type derived measurements yet. Dynamical quantities (obliquity, rotation, etc.) exist in the data but live in the scene InfoPanel, not in this collection.'}
+      </p>
+    );
+  }
   const systems = new Map<string, DerivedMeasurementRow[]>();
-  for (const r of rows) {
+  for (const r of compositionRows) {
     const k = r.hostname ?? '—';
     const arr = systems.get(k);
     if (arr) arr.push(r); else systems.set(k, [r]);
   }
-  const planets = new Set(rows.map((r) => r.pl_name)).size;
+  const planets = new Set(compositionRows.map((r) => r.pl_name)).size;
   return (
     <Reveal>
       <p style={{ margin: '0 0 1.25rem', fontSize: '0.9rem', color: 'var(--fg-muted)', lineHeight: 1.6 }}>
-        <strong style={{ color: 'var(--fg)' }}>{rows.length}</strong> derived values across{' '}
+        <strong style={{ color: 'var(--fg)' }}>{compositionRows.length}</strong> derived values across{' '}
         <strong style={{ color: 'var(--fg)' }}>{planets}</strong> planets, grouped by system. Each carries its
         asymmetric uncertainty, the modelling assumption it depends on, and the source paper.
       </p>
@@ -599,8 +611,11 @@ function CompositionTable({ rows, themeQuery }: { rows: DerivedMeasurementRow[] 
               </tr>
             </thead>
             <tbody>
-              {hostRows.map((r) => (
-                <tr key={`${r.pl_name}-${r.quantity}`}>
+              {hostRows.map((r, i) => (
+                // PK is (pl_name, quantity, bibcode); include bibcode so
+                // multiple cited rows for the same planet+quantity do not
+                // collide on the React key.
+                <tr key={`${r.pl_name}-${r.quantity}|${r.bibcode ?? i}`}>
                   <td><Link to={`/planets/${encodeURIComponent(r.pl_name)}${themeQuery}`}>{r.pl_name}</Link></td>
                   <td title={r.curator_note ?? undefined}>{quantityLabel(r.quantity)}</td>
                   <td style={{ whiteSpace: 'nowrap' }}>{fmtMeasure(r)}</td>

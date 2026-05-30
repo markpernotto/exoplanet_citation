@@ -142,20 +142,37 @@ def insolation_label(pl_insol_earth: float | None) -> str | None:
     return "dark"
 
 
+def _insolation_from_lum(planet: dict) -> float | None:
+    """Insolation at the planet's orbit, relative to Earth, derived from
+    measured stellar luminosity and orbital distance: F/F_earth = (L/Lsun) /
+    orbsmax² (with orbsmax in AU). Used as a fallback when the catalog row's
+    pl_insol is missing — st_lum + pl_orbsmax cover many systems pl_insol
+    doesn't. Both inputs are typed catalog columns; st_lum is log10(L/Lsun).
+    """
+    st_lum = planet.get("st_lum")
+    orbsmax = planet.get("pl_orbsmax")
+    if st_lum is None or orbsmax is None or orbsmax <= 0:
+        return None
+    return (10 ** st_lum) / (orbsmax ** 2)
+
+
 def derive_scene_hints(planet: dict) -> dict:
     """Compose all scene_hints from a planet detail dict.
 
-    Expected planet keys (any may be None): st_teff, st_rad, pl_orbsmax,
-    pl_orbper, pl_insol, pl_eqt, pl_dens, pl_rade.
+    Expected planet keys (any may be None): st_teff, st_rad, st_lum,
+    pl_orbsmax, pl_orbper, pl_insol, pl_eqt, pl_dens, pl_rade.
     """
     body_type = body_type_from_density(planet.get("pl_dens"), planet.get("pl_rade"))
+    insol = planet.get("pl_insol")
+    if insol is None:
+        insol = _insolation_from_lum(planet)
     return {
         "sun_color_hex":             teff_to_rgb_hex(planet.get("st_teff")),
         "sun_angular_size_deg":      sun_angular_size_deg(planet.get("st_rad"),
                                                           planet.get("pl_orbsmax")),
         "day_length_hours":          day_length_hours(planet.get("pl_orbper")),
-        "insolation_relative_earth": planet.get("pl_insol"),
-        "insolation_label":          insolation_label(planet.get("pl_insol")),
+        "insolation_relative_earth": insol,
+        "insolation_label":          insolation_label(insol),
         "body_type":                 body_type,
         "death_seconds":             death_seconds_estimate(planet.get("pl_eqt"), body_type),
     }

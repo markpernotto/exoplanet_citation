@@ -438,37 +438,62 @@ function provenanceLabel(p: string): string {
   }
 }
 
-// Statistical starspot latitude from rotation period. Fast rotators (P < a few
-// days) carry high-latitude / near-polar spots — observed across decades of
-// Doppler imaging of young, active stars (Strassmeier 2002 review and on);
-// Sun-like slow rotators (P > 25 d) place spots in the low-latitude butterfly
-// band ~15-25° (Hathaway 2015, Living Reviews "The Solar Cycle"). Linear
-// interp between these regimes gives a per-star latitude derived from a
-// measured quantity (st_rotp), with only the longitude + hemisphere left as
-// a deterministic name-hash convention (same honesty model as the orbit Ω).
-function spotLatitudeDeg(rotationPeriodDays: number): number {
-  const P = Math.min(25, Math.max(3, rotationPeriodDays));
-  const t = (25 - P) / (25 - 3); // 0 at the slow end, 1 at the fast end
-  return 15 + (70 - 15) * t;
-}
+// Starspot parameters derived from the host's rotation period and identifier:
+// - latitude (Strassmeier-Hathaway correlation: fast rotators carry high-
+//   latitude / near-polar spots; slow Sun-like rotators carry low-latitude
+//   ones). Now a smooth exponential decay (lat ≈ 80·exp(-P/15)) instead of a
+//   linear-then-clamped formula — the previous clamp at P=25 piled most of
+//   the catalog at exactly 15°, which made every slow rotator look the same.
+// - hemisphere + longitude from a well-mixed parity hash of the hostname.
+//   The previous implementation read bit 9 of an FNV hash for hemisphere and
+//   that bit was ~80% one-sided across real hosts; XORing all bits down gives
+//   a genuine 50/50 split, and the longitude pulls from a separately-mixed
+//   slice so the two aren't correlated.
+// - angular size: spot radius scales with rotation rate (fast → big polar
+//   cap, slow → small spot), which mirrors the magnetic activity scaling
+//   (faster = more active = larger spot coverage).
+type StarSpotProps = {
+  dir: THREE.Vector3;
+  innerCos: number; // cos of inner-edge angular radius (full-dark center)
+  outerCos: number; // cos of outer-edge angular radius (zero spot beyond)
+};
 
-function spotDirection(rotationPeriodDays: number, hostKey: string): THREE.Vector3 {
-  // hostKey is the *host star* identifier (typically planet.hostname); the
-  // spot is a stellar feature, so siblings of the same star resolve to the
-  // same hash and the spot stays put across navigation between them.
-  const latMag = spotLatitudeDeg(rotationPeriodDays);
+function starSpotProps(rotationPeriodDays: number, hostKey: string): StarSpotProps {
+  const P = Math.max(0.5, rotationPeriodDays);
+
+  // Smooth latitude distribution, ~80° at very fast → 0° at very slow.
+  const latMag = 80 * Math.exp(-P / 15);
+
+  // FNV-1a hash, then collapse to parity for hemisphere so the split is
+  // genuinely 50/50; use a higher slice for longitude so the two are
+  // independent.
   let h = 2166136261;
   for (let i = 0; i < hostKey.length; i++) h = Math.imul(h ^ hostKey.charCodeAt(i), 16777619);
-  const hashed = h >>> 0;
-  const lonDeg = hashed % 360;
-  const hemisphere = ((hashed >>> 9) & 1) ? 1 : -1; // north or south
+  let parity = h >>> 0;
+  parity ^= parity >>> 16; parity ^= parity >>> 8;
+  parity ^= parity >>> 4;  parity ^= parity >>> 2; parity ^= parity >>> 1;
+  const hemisphere = (parity & 1) ? 1 : -1;
+  const lonDeg = ((h >>> 8) >>> 0) % 360;
+
   const lat = (hemisphere * latMag * Math.PI) / 180;
   const lon = (lonDeg * Math.PI) / 180;
-  return new THREE.Vector3(
+  const dir = new THREE.Vector3(
     Math.cos(lat) * Math.cos(lon),
     Math.sin(lat),
     Math.cos(lat) * Math.sin(lon),
   );
+
+  // Angular size, also rotation-rate driven. Fast rotators are magnetically
+  // active and carry big polar caps; slow Sun-like rotators carry tiny low-
+  // latitude spots. Range ~3° (very slow) to ~22° (very fast); calibrated
+  // closer to real sunspot-group sizes (~3-10° on the Sun) rather than the
+  // generously visual range of the previous formula. Soft edge ~30% of total.
+  const outerDeg = 3 + 20 / (1 + P / 10);
+  const innerDeg = outerDeg * 0.7;
+  const outerCos = Math.cos((outerDeg * Math.PI) / 180);
+  const innerCos = Math.cos((innerDeg * Math.PI) / 180);
+
+  return { dir, innerCos, outerCos };
 }
 
 // Line of nodes for the obliquity tilt, chosen perpendicular to the default
@@ -1410,15 +1435,18 @@ function PostProcessing() {
         /* mipmapBlur produces the wide, smooth Gaussian-pyramid halo
            that reads as a real stellar corona. levels={4} keeps the
            pyramid shallow to prevent the frame-spanning dome bug.
-           Threshold 0.30 catches the full photosphere disc — cool
-           stars and hot stars alike get a generous halo. Side effect:
-           bright companion stars and well-lit planets get some bloom
-           too. */
-        intensity={1.7}
-        luminanceThreshold={0.30}
+           Threshold 0.60 is high enough that only the bright center of
+           the photosphere disc feeds the bloom kernel — the limb-darkened
+           edges fall below threshold, so the bloom no longer bleeds back
+           across the disc and washes out surface detail (starspots,
+           granulation). The StellarCorona billboard handles the soft
+           visible halo on its own; this layer is just the extra glow
+           atop the very brightest pixels. */
+        intensity={1.0}
+        luminanceThreshold={1.0}
         luminanceSmoothing={0.25}
         mipmapBlur
-        radius={0.9}
+        radius={0.7}
         levels={4}
       />
     </EffectComposer>
@@ -1681,15 +1709,13 @@ function SceneContents({
     [scene.derived_measurements, planet.pl_name],
   );
 
-  // Starspot direction (object space) for the host photosphere. Latitude
-  // comes from the rotation period (stellarRotationDays) via the published
-  // statistical correlation; longitude + hemisphere are hashed on the host
-  // identifier so siblings of the same star resolve to the SAME spot location
-  // (the spot is a stellar feature, not a per-planet one — hashing on pl_name
-  // would jump the spot whenever the user navigates between siblings).
-  const stellarSpotDir = useMemo(() => {
+  // Full starspot parameters (position + size) derived from the host's
+  // rotation period and identifier. Sibling planets share a star and
+  // therefore share a spot — hashing on hostname, not pl_name, keeps the
+  // spot fixed across navigation between siblings.
+  const stellarSpot = useMemo(() => {
     if (stellarRotationDays == null || stellarRotationDays <= 0) return null;
-    return spotDirection(stellarRotationDays, planet.hostname);
+    return starSpotProps(stellarRotationDays, planet.hostname);
   }, [stellarRotationDays, planet.hostname]);
 
   // Focal planet's axial spin, derived from rotation_velocity (km/s) + radius.
@@ -1707,6 +1733,20 @@ function SceneContents({
     const clamped = Math.min(200, Math.max(0.5, periodHours));
     return ((2 * Math.PI) / 12) * (10 / clamped); // rad/sec
   }, [scene.derived_measurements, planet.pl_name, planet.pl_rade]);
+
+  // Stellar halo intensity, driven by data: the star's apparent flux at the
+  // planet's orbit (scene_hints.insolation_relative_earth = L_star / orbsmax²
+  // in Earth units, computed from measured st_lum and pl_orbsmax). This is
+  // the same physics that gives a brighter point source a wider visible PSF
+  // in the eye / a camera. Log-scaled and clamped to a sensible visual range
+  // so cold outer planets get a tight subtle glow, Earth-like get a moderate
+  // halo, and hot inner planets get a wide bright one. Falls back to 0.4
+  // (Sun-at-Earth-equivalent) when the data is missing.
+  const haloIntensity = useMemo(() => {
+    const insol = scene.scene_hints.insolation_relative_earth;
+    if (insol == null || insol <= 0) return 0.4;
+    return Math.min(0.75, Math.max(0.25, 0.4 + 0.12 * Math.log10(insol)));
+  }, [scene.scene_hints.insolation_relative_earth]);
 
   // Animation clock — accumulates real seconds × speed when not paused.
   // Each planet derives its current orbital angle from this single shared time.
@@ -1772,7 +1812,7 @@ function SceneContents({
           its own StellarCorona so both stars in a binary get a halo. */}
       {planet.cb_flag === 1
         ? <BinaryPhotospheres radius={sunRadius} color={sun_color_hex} teff={planet.st_teff} paused={paused} speed={speed} />
-        : <Photosphere radius={sunRadius} color={sun_color_hex} teff={planet.st_teff} rotationPeriodDays={stellarRotationDays} spotDir={stellarSpotDir} />
+        : <Photosphere radius={sunRadius} color={sun_color_hex} teff={planet.st_teff} rotationPeriodDays={stellarRotationDays} spot={stellarSpot} haloIntensity={haloIntensity} />
       }
       {/* Sun light: decay=1.7 (slightly less aggressive than physical 1/r²).
           Pure inverse-square crushes outer planets visually faster than the
@@ -2063,7 +2103,7 @@ function spectralTypeToColor(spectype: string | null): string {
 // atmospheric path) and subtle granulation noise. Result: a soft, alive
 // edge rather than a hard sharp circle.
 
-function Photosphere({ radius, color, teff, rotationPeriodDays, spotDir }: { radius: number; color: string; teff: number | null; rotationPeriodDays?: number | null; spotDir?: THREE.Vector3 | null }) {
+function Photosphere({ radius, color, teff, rotationPeriodDays, spot, haloIntensity = 0.4 }: { radius: number; color: string; teff: number | null; rotationPeriodDays?: number | null; spot?: StarSpotProps | null; haloIntensity?: number }) {
   // Opaque shader — must write depth properly so orbit lines and planets
   // behind the sun get occluded. The "soft edge" is achieved by the corona
   // (drawn additively over and around the photosphere edge), not by making
@@ -2090,21 +2130,34 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spotDir }: { rad
   // bug was at uncapped hot * 0.0008 → KELT-9 reaching 4.5× by itself).
   const hot = Math.max(0, teffK - 5778);
   const bonus = 1.0 + Math.min(1.5, hot * 0.0006);
-  // Base 2.0 × warmth × bonus → uHdr range: ~2.8 (TRAPPIST-1) → 2.0 (Sun)
-  // → ~5.0 (KELT-9 and hotter). Cool stars get a generous red halo, hot
-  // stars stay intensely bright, and the range stays well below the
-  // mipmapBlur dome threshold.
-  const hdrScale = 2.0 * warmth * bonus;
-  // Saturation push for cool stars: suppress green and (more aggressively)
-  // blue so the photosphere reads as deep RED, not orange. The Tanner-Helland
-  // blackbody approximation gives a perceptually accurate "neutral-eye" color
-  // that's actually quite orange for M-dwarfs (#ffa24c at 2566K). Real M-dwarfs
-  // would look much redder to a human, and bloom over dark space turns the
-  // generic orange into muddy brown — neither is what we want. Pushing G/B
-  // down rebalances toward a hauntingly-red look that survives bloom.
+  // Base 0.8 × warmth × bonus → uHdr range: ~1.1 (TRAPPIST-1) → 0.8 (Sun)
+  // → ~2.0 (KELT-9 and hotter). Tuned so the bulk of the disc surface sits
+  // below the Bloom luminanceThreshold and stops feeding bleed back across
+  // the photosphere; only the bright center contributes to bloom now, which
+  // keeps surface detail (granulation, starspots) legible. Cool stars still
+  // read as red (warmth boost + per-channel saturation push); hot stars
+  // still get the dramatic bonus, just less crushingly so.
+  const hdrScale = 0.8 * warmth * bonus;
+  // Two-sided temperature tint, driven by measured st_teff, so F/G/K/M
+  // stars are visibly distinguishable instead of all sitting in the
+  // near-white blackbody dead zone. Real blackbody colors at 4500-7000K
+  // are honest-but-subtle (broad spectra, tints in the "barely tinted
+  // off-white" range); for the renderer's purposes we exaggerate the
+  // tint linearly off solar (5778K), pushing cool stars toward red and
+  // hot stars toward blue so spectral class reads from across the room.
+  // Sun-anchored: G-type at solar T gets effectively neutral; the further
+  // a star sits from 5778K in either direction, the stronger the tint.
+  // Cool tint ramp: full saturation push by ~3300K (deep M dwarf).
+  // Hot tint ramp: full push by ~10000K (early B / late A).
+  const coolColor = Math.max(0, Math.min(1, (5778 - teffK) / 2500));
+  const hotTint   = Math.max(0, Math.min(1, (teffK - 5778) / 4200));
   const saturated = new THREE.Color(color);
-  saturated.g *= 1.0 - cool * 0.7;
-  saturated.b *= 1.0 - cool * 0.85;
+  // Cool: suppress G + B → deeper orange / red (TRAPPIST-1, K dwarfs).
+  saturated.g *= 1.0 - coolColor * 0.7;
+  saturated.b *= 1.0 - coolColor * 0.85;
+  // Hot: suppress R + a little G → blue / blue-white (KELT-9, A/B stars).
+  saturated.r *= 1.0 - hotTint * 0.45;
+  saturated.g *= 1.0 - hotTint * 0.15;
   const material = useMemo(() => new THREE.ShaderMaterial({
     uniforms: {
       uColor:         { value: saturated },
@@ -2115,8 +2168,12 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spotDir }: { rad
       // object space; the mesh's group rotation moves it across the visible
       // disc, which is precisely the photometric signal (spot crossing the
       // disc) astronomers use to measure stellar rotation in the first place.
+      // Size (inner/outer cosines) is also data-driven (rotation rate) so
+      // active stars carry visibly bigger spots than slow Sun-like ones.
       uSpotDir:       { value: new THREE.Vector3(0, 1, 0) },
       uSpotIntensity: { value: 0 },
+      uSpotInnerCos:  { value: 0.990 },
+      uSpotOuterCos:  { value: 0.978 },
     },
     // Manual log-depth path for XR parity, scoped to Photosphere. This shader
     // is custom and paired with a depth pre-pass; keeping depth math explicit
@@ -2149,6 +2206,8 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spotDir }: { rad
       uniform float uLogDepthBufFC;
       uniform vec3 uSpotDir;
       uniform float uSpotIntensity;
+      uniform float uSpotInnerCos;
+      uniform float uSpotOuterCos;
       varying vec3 vNormal;
       varying vec3 vViewDir;
       varying vec3 vWorldPos;
@@ -2185,19 +2244,33 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spotDir }: { rad
         float surf = 1.0 + granule * 0.10;
 
         // Starspot. Object-space; the parent group rotates the mesh so the
-        // spot transits the visible disc at the rotation rate. spotFalloff
-        // is 1 inside ~12° of the spot center (cos 0.978) and 0 outside ~17°
-        // (cos 0.956), with the smoothstep handling the soft ~5° transition
-        // between. Spot brightness drops to 20% of the surrounding photosphere
-        // (sunspot umbra is ~30% of quiet-Sun brightness; we go a touch darker
-        // so it reads through the HDR + bloom).
+        // spot transits the visible disc at the rotation rate. Inner / outer
+        // cosines are data-driven uniforms — slow Sun-like rotators get a
+        // small low-latitude spot (~3-5° outer); fast rotators get a big
+        // polar-cap-ish spot (~20°+ outer). Brightness drops to 50% of the
+        // surrounding photosphere (slightly above real sunspot umbra ~30%
+        // of quiet-Sun).
+        //
+        // Edge noise: real sunspot groups are irregular, not perfect
+        // circles. We perturb the spot's effective threshold by surface
+        // noise sampled in object space, so the boundary wobbles by ~±3°
+        // and reads as an organic blot instead of a stamped disc.
         vec3 nLocal = normalize(vWorldPos);
         float spotCos = dot(nLocal, uSpotDir);
-        float spotFalloff = smoothstep(0.956, 0.978, spotCos);
-        surf *= mix(1.0, 0.20, spotFalloff * uSpotIntensity);
+        float spotEdgeNoise = (noise(nLocal * 6.0) - 0.5) * 0.018;
+        float spotFalloff = smoothstep(uSpotOuterCos + spotEdgeNoise,
+                                       uSpotInnerCos + spotEdgeNoise,
+                                       spotCos);
+        surf *= mix(1.0, 0.50, spotFalloff * uSpotIntensity);
 
+        // Limb darkening. Floor at 0.25 — the disc still reads as a 3-D
+        // sphere (1.0 at center → 0.25 at silhouette, a 4× falloff that
+        // gives clear center-to-edge shading) and the silhouette is now
+        // dim enough that when the additive corona kicks in at the edge,
+        // the transition is gradual rather than a hard brightness step.
+        // Linear (no pow) keeps the falloff gentle across the whole disc.
         float mu = max(0.0, dot(vNormal, vViewDir));
-        float limb = mix(0.15, 1.0, pow(mu, 0.7));
+        float limb = mix(0.25, 1.0, mu);
 
         // HDR multiplier is per-star (computed JS-side from teff). Cool
         // stars use a smaller boost so ACES doesn't desaturate their reds
@@ -2213,17 +2286,19 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spotDir }: { rad
     toneMapped: true,
   }), [color, hdrScale, teff]);
 
-  // Push the starspot uniforms when the spot direction changes (or vanishes).
+  // Push the starspot uniforms when the spot props change (or vanish).
   // The material itself is memoised on color/hdrScale/teff, so spot changes
   // do not recreate it; we just update the uniform values in place.
   useEffect(() => {
-    if (spotDir) {
-      material.uniforms.uSpotDir.value.copy(spotDir);
+    if (spot) {
+      material.uniforms.uSpotDir.value.copy(spot.dir);
       material.uniforms.uSpotIntensity.value = 1.0;
+      material.uniforms.uSpotInnerCos.value = spot.innerCos;
+      material.uniforms.uSpotOuterCos.value = spot.outerCos;
     } else {
       material.uniforms.uSpotIntensity.value = 0.0;
     }
-  }, [material, spotDir]);
+  }, [material, spot]);
 
   // Spin axis = +Y, the same axis the obliquity tilt references. Rate is
   // stylized like the orbit pacing (true periods are days; at 60-sec orbits a
@@ -2285,20 +2360,30 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spotDir }: { rad
           <sphereGeometry args={[radius, 64, 64]} />
         </mesh>
       </group>
-      {/* Corona uses a TAMER hdr than the photosphere disc. The disc's
-          hdrScale ramps up to 2.78 for the coolest M-dwarfs (perceptual
-          compensation — deep red has low eye sensitivity, so the disc
-          needs the boost to read as a glowing star rather than a brown
-          smudge). The corona is additive on top of the disc, and on
-          desktop it blends with Bloom into a soft glow regardless of
-          amplitude — but Bloom is off in XR (single 2D framebuffer
-          black-screens stereo), so the same 2.78 corona renders as a
-          hard oversaturated red ring around a TRAPPIST-1-class M-dwarf.
-          Capping the corona's uHdr at Sun-level (2.0) keeps cool-star
-          halos subtle in VR without altering the disc's perceptual
-          brightness, and tames hot-star halos (KELT-9 was hitting 5.0)
-          to a saner additive contribution. */}
-      <StellarCorona radius={radius} color={saturated} hdrScale={Math.min(hdrScale, 2.0)} />
+      {/* Two-layer corona, modelled on the long-tail PSF a real bright
+          point source produces in the eye / a camera:
+          - INNER (sizeMult=2.5, peakAlpha=1.0): bright halo hugging the
+            disc edge. This is what dominates the visible glow in normal
+            views, and is compact enough that a planet in front fully
+            occludes it.
+          - OUTER (sizeMult=6, peakAlpha=0.12): wide soft aura extending
+            far past the disc. Dim enough to be subtle in normal views,
+            but gives the halo a long gradient tail. During an eclipse,
+            this layer also depth-occludes, leaving only the small fringe
+            beyond the planet's silhouette — much closer to what a real
+            eclipse photo shows (corona extending past the moon).
+          Both are scaled by haloIntensity (data-driven from the star's
+          apparent flux at the planet's orbit, st_lum + pl_orbsmax). */}
+      <StellarCorona radius={radius} color={saturated} hdrScale={haloIntensity} sizeMult={2.5} peakAlpha={1.0} />
+      {/* Outer: overlaps the inner (default startUv = disc edge) so the two
+          layers' alpha profiles add into a single continuous gradient
+          rather than meeting at a discontinuity. This is also closer to
+          the real PSF physics — a bright source's profile is one
+          monotonic distribution that can be decomposed into a bright core
+          plus a faint long tail, not two concentric rings. peakAlpha 0.25
+          keeps the outer layer subtle enough not to over-brighten the
+          inner halo, while still extending visibly out to 6× sun radius. */}
+      <StellarCorona radius={radius} color={saturated} hdrScale={haloIntensity} sizeMult={6.0} peakAlpha={0.25} />
     </>
   );
 }
@@ -2325,17 +2410,32 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spotDir }: { rad
 // default depth-sorted transparent pass.
 function StellarCorona({
   radius, color, hdrScale,
+  sizeMult = 2.5,
+  peakAlpha = 1.0,
+  startUv,
 }: {
   radius: number; color: THREE.Color; hdrScale: number;
+  /** Billboard size as a multiple of the photosphere radius. */
+  sizeMult?: number;
+  /** Multiplier on the halo's peak alpha. */
+  peakAlpha?: number;
+  /** UV radius at which the gradient starts (peak alpha). Defaults to
+      1/sizeMult (the photosphere disc edge). For the outer of a two-layer
+      stack, set this to where the inner corona ends so the outer does NOT
+      overlap and add brightness on top of the inner; it then contributes
+      purely as a wide soft tail past the inner halo. */
+  startUv?: number;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
-  // Billboard half-extent: corona extends to 3.5× the photosphere radius.
-  const billboardHalf = radius * 3.5;
+  const billboardHalf = radius * sizeMult;
+  const discEdgeUv = startUv ?? 1.0 / sizeMult;
 
   const material = useMemo(() => new THREE.ShaderMaterial({
     uniforms: {
-      uColor: { value: color.clone() },
-      uHdr:   { value: hdrScale },
+      uColor:      { value: color.clone() },
+      uHdr:        { value: hdrScale },
+      uDiscEdgeUv: { value: discEdgeUv },
+      uPeakAlpha:  { value: peakAlpha },
     },
     vertexShader: `
       varying vec2 vUv;
@@ -2347,6 +2447,8 @@ function StellarCorona({
     fragmentShader: `
       uniform vec3  uColor;
       uniform float uHdr;
+      uniform float uDiscEdgeUv;
+      uniform float uPeakAlpha;
       varying vec2  vUv;
 
       void main() {
@@ -2355,14 +2457,13 @@ function StellarCorona({
         float r = length(c);
         if (r > 1.0) discard;
 
-        // Multi-stop radial profile:
-        //   r = 0       → fade-in begins (photosphere sphere covers this region)
-        //   r ≈ 0.25    → corona onset, alpha reaches 1.0
-        //   r ≈ 0.25–0.40 → broad peak zone (inner corona)
-        //   r > 0.40    → smooth halo tail decaying to 0 at r = 1.0
-        float inner = smoothstep(0.0, 0.25, r);
-        float outer = 1.0 - smoothstep(0.40, 1.0, r);
-        float alpha  = inner * outer;
+        // Monotonic gradient-to-transparent halo: peak alpha at the disc
+        // edge (r = 1/sizeMult), smoothly fading to zero at the billboard
+        // edge (r = 1.0). The "glow" you see IS this falloff. Overall scale
+        // is set by uHdr (data-driven from apparent flux) and uPeakAlpha
+        // (per-instance — 1.0 for the bright inner corona, 0.10-0.15 for
+        // an outer wide dim layer that paints a long soft tail).
+        float alpha = (1.0 - smoothstep(uDiscEdgeUv, 1.0, r)) * uPeakAlpha;
 
         // Additive: bright fragments add light to whatever is behind them.
         // uHdr mirrors the photosphere's HDR multiplier so cool stars get a
@@ -2377,9 +2478,11 @@ function StellarCorona({
     side:        THREE.FrontSide,
   // Depend on colour channels because the THREE.Color object reference
   // is recreated each render but the channel values only change when the
-  // star changes.  hdrScale captures the temperature-driven brightness.
+  // star changes.  hdrScale captures the temperature-driven brightness;
+  // discEdgeUv + peakAlpha capture per-instance shape so the inner and
+  // outer corona compile to distinct materials.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [color.r, color.g, color.b, hdrScale]);
+  }), [color.r, color.g, color.b, hdrScale, discEdgeUv, peakAlpha]);
 
   // Orient the billboard to face the camera every frame using lookAt, which
   // resolves through the full parent-transform chain.  Prefer this over
@@ -2922,10 +3025,14 @@ function buildPlanetBodyMaterial({
 
         // Lighting: sun is at world origin. Direction from planet surface
         // toward the sun is -normalize(worldPos). Both vectors are now in
-        // world space, so the dot product is camera-independent.
+        // world space, so the dot product is camera-independent. Ambient
+        // dialled down to 0.08 so the night-side / silhouette reads as
+        // properly dim (this is space — there's essentially no diffuse
+        // skylight), giving planets a clear phase/terminator look and
+        // making transit silhouettes pop against a bright sun.
         vec3 lightDir = normalize(-vWorldPos);
         float diffuse = max(0.0, dot(vNormal, lightDir));
-        float ambient = 0.18;
+        float ambient = 0.08;
         float lighting = diffuse + ambient;
 
         vec3 col = uColor;

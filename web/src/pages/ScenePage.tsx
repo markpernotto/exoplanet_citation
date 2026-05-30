@@ -425,6 +425,46 @@ function focalStellarRotationDays(
   return row?.value ?? null;
 }
 
+// Thermal emission color for a body at temperature T (Kelvin). Stylized for
+// visibility — below ~800K the surface is essentially dark (peak emission in
+// the IR, no visible glow); above ~1500K it reads as cherry-red; above
+// ~4000K it's near-white. Brightness ramps sub-linearly so day/night
+// contrast reads dramatically without saturating mid-range. Channel values
+// above 1.0 (very hot) trigger bloom — correct for ultra-hot Jupiters.
+function thermalEmissionColor(T: number): THREE.Color {
+  if (T < 800) return new THREE.Color(0.04, 0.03, 0.02); // below visible emission
+  const brightness = Math.min(2.0, Math.max(0.1, (T - 700) / 1700));
+  const r = 1.0;
+  const g = Math.min(1.0, Math.max(0.0, (T - 1000) / 2200));
+  const b = Math.min(0.8, Math.max(0.0, (T - 2800) / 2500));
+  return new THREE.Color(r * brightness, g * brightness, b * brightness);
+}
+
+type PhaseCurve = { dayside: THREE.Color; nightside: THREE.Color };
+
+// Day/night thermal-emission colors for the focal planet, when measured
+// dayside_temperature exists and is hot enough (~1200K+) that thermal
+// radiation dominates the visible appearance rather than reflected light.
+// Below that threshold, reflected starlight is the right model and the
+// standard reflection-based shader path stays in charge.
+// If nightside_temperature is missing, we estimate it from the dayside via
+// a simple heat-redistribution falloff: ultra-hot atmospheres lose energy
+// to radiation faster than circulation can redistribute it, so they carry
+// larger day-night contrast (KELT-9 b-class); cooler hot Jupiters
+// (WASP-43 b-class) redistribute more efficiently.
+function focalPhaseCurve(
+  derived: DerivedMeasurementRow[], plName: string,
+): PhaseCurve | null {
+  const day = bestDerived(derived, plName, 'dayside_temperature');
+  if (!day?.value || day.value < 1200) return null;
+  const night = bestDerived(derived, plName, 'nightside_temperature');
+  const T_night = night?.value ?? day.value * Math.exp(-day.value / 4000);
+  return {
+    dayside: thermalEmissionColor(day.value),
+    nightside: thermalEmissionColor(T_night),
+  };
+}
+
 function provenanceLabel(p: string): string {
   // Explicit mapping rather than "curated vs not-curated", because the DB
   // column intentionally has no CHECK constraint (so future provenance
@@ -1734,6 +1774,18 @@ function SceneContents({
     return ((2 * Math.PI) / 12) * (10 / clamped); // rad/sec
   }, [scene.derived_measurements, planet.pl_name, planet.pl_rade]);
 
+  // Day/night thermal emission colors for the focal planet, if the dayside
+  // is hot enough that thermal radiation dominates the visible appearance.
+  // When present, the body shader switches from sun-direction reflective
+  // lighting to a smooth blend between thermal colors so the measured
+  // day/night temperature contrast actually reads visually (the hottest
+  // Jupiters glow white-hot on the lit side; their night sides can be
+  // ~half that or dimmer).
+  const phaseCurve = useMemo(
+    () => focalPhaseCurve(scene.derived_measurements, planet.pl_name),
+    [scene.derived_measurements, planet.pl_name],
+  );
+
   // Stellar halo intensity, driven by data: the star's apparent flux at the
   // planet's orbit (scene_hints.insolation_relative_earth = L_star / orbsmax²
   // in Earth units, computed from measured st_lum and pl_orbsmax). This is
@@ -1910,6 +1962,7 @@ function SceneContents({
               onHover={setHovered}
               atmosphereTint={atmosphereTintFromMolecules(scene.atmospheric_detections)}
               rotationOmegaRad={planetSpinOmega}
+              phaseCurve={phaseCurve}
             />
             {hovered === planet.pl_name && <PlanetLabel name={planet.pl_name} subtitle="(focal)" />}
           </>
@@ -2879,6 +2932,7 @@ function PlanetBody({
   onClick,
   atmosphereTint,
   rotationOmegaRad,
+  phaseCurve,
 }: {
   position: [number, number, number];
   radius: number;
@@ -2901,6 +2955,11 @@ function PlanetBody({
       events). +Y is a convention; planetary spin-axis orientation is not
       generally measured for exoplanets. */
   rotationOmegaRad?: number | null;
+  /** Measured day/night thermal-emission colors. When provided, the shader
+      switches to thermal-blend lighting (hot dayside, dim nightside) instead
+      of the reflective sun-direction default. Driven by curated dayside_/
+      nightside_temperature from phase-curve papers. */
+  phaseCurve?: PhaseCurve | null;
 }) {
   const visual = useMemo(
     () => planetVisual(pl_eqt, pl_dens, pl_rade),
@@ -2927,8 +2986,9 @@ function PlanetBody({
       fillColor: visual.fillColor,
       glow: visual.glow,
       isCold: isIcyOrCold,
+      phaseCurve: phaseCurve ?? null,
     }),
-    [visual.bodyType, visual.fillColor, visual.glow, isIcyOrCold],
+    [visual.bodyType, visual.fillColor, visual.glow, isIcyOrCold, phaseCurve],
   );
 
   return (
@@ -2972,16 +3032,24 @@ function PlanetBody({
 const planetMaterialCache = new Map<string, THREE.ShaderMaterial>();
 
 function buildPlanetBodyMaterial({
-  bodyType, fillColor, glow, isCold,
+  bodyType, fillColor, glow, isCold, phaseCurve,
 }: {
   bodyType: string; fillColor: string; glow: boolean; isCold: boolean;
+  phaseCurve?: PhaseCurve | null;
 }): THREE.ShaderMaterial {
-  const key = `${bodyType}|${fillColor}|${glow}|${isCold}`;
+  // Cache key includes phase-curve color fingerprints so phase-curve planets
+  // get their own material rather than sharing with non-phase-curve planets
+  // that happen to match on body type / color / glow / isCold.
+  const phaseKey = phaseCurve
+    ? `|p:${phaseCurve.dayside.getHexString()}-${phaseCurve.nightside.getHexString()}`
+    : '';
+  const key = `${bodyType}|${fillColor}|${glow}|${isCold}${phaseKey}`;
   const cached = planetMaterialCache.get(key);
   if (cached) return cached;
 
   const isGasGiant = bodyType === 'gas_giant';
   const showIceCaps = bodyType === 'rocky' && isCold;
+  const hasPhaseCurve = phaseCurve != null;
 
   const mat = new THREE.ShaderMaterial({
     transparent: false,
@@ -2993,6 +3061,9 @@ function buildPlanetBodyMaterial({
       uEmissive:        { value: glow ? 0.15 : 0.0 },
       uShowBands:       { value: isGasGiant ? 1.0 : 0.0 },
       uShowIceCaps:     { value: showIceCaps ? 1.0 : 0.0 },
+      uHasPhaseCurve:   { value: hasPhaseCurve ? 1.0 : 0.0 },
+      uDaysideColor:    { value: (phaseCurve?.dayside ?? new THREE.Color(0, 0, 0)).clone() },
+      uNightsideColor:  { value: (phaseCurve?.nightside ?? new THREE.Color(0, 0, 0)).clone() },
     },
     vertexShader: `
       #include <common>
@@ -3013,57 +3084,71 @@ function buildPlanetBodyMaterial({
     fragmentShader: `
       #include <common>
       #include <logdepthbuf_pars_fragment>
-      uniform vec3 uColor;
+      uniform vec3  uColor;
       uniform float uEmissive;
       uniform float uShowBands;
       uniform float uShowIceCaps;
+      uniform float uHasPhaseCurve;
+      uniform vec3  uDaysideColor;
+      uniform vec3  uNightsideColor;
       varying vec3 vNormal;
       varying vec3 vWorldPos;
 
       void main() {
         #include <logdepthbuf_fragment>
 
-        // Lighting: sun is at world origin. Direction from planet surface
-        // toward the sun is -normalize(worldPos). Both vectors are now in
-        // world space, so the dot product is camera-independent. Ambient
-        // dialled down to 0.08 so the night-side / silhouette reads as
-        // properly dim (this is space — there's essentially no diffuse
-        // skylight), giving planets a clear phase/terminator look and
-        // making transit silhouettes pop against a bright sun.
+        // Sun is at world origin; direction from planet surface to sun is
+        // -normalize(worldPos). Used by both lighting paths.
         vec3 lightDir = normalize(-vWorldPos);
-        float diffuse = max(0.0, dot(vNormal, lightDir));
-        float ambient = 0.08;
-        float lighting = diffuse + ambient;
+        float dotNL = dot(vNormal, lightDir);
 
-        vec3 col = uColor;
+        vec3 col;
+        if (uHasPhaseCurve > 0.5) {
+          // Thermal phase-curve mode (hot Jupiters with measured day/night
+          // temps). The colors already encode brightness via blackbody
+          // emission, so we don't apply a separate diffuse/ambient — the
+          // dayside is bright because it's hot, the nightside is dim
+          // because it's cool.
+          //
+          // Soft terminator: smoothstep over a wide ~90° band (cos -0.4 to
+          // 0.4) so the day/night transition reads as the gentle gradient
+          // an atmospheric body really has, not a hard shadow line. Real
+          // hot Jupiters are tidally locked with strong equatorial jets
+          // that smear the substellar heat peak across a wide swath of the
+          // disc. The pow(t, 1.6) bias makes the dim half take longer to
+          // brighten so the dim-to-bright ramp doesn't visually overshoot
+          // toward the bright side under our perceptual gamma.
+          float t = smoothstep(-0.4, 0.4, dotNL);
+          t = pow(t, 1.6);
+          col = mix(uNightsideColor, uDaysideColor, t);
+        } else {
+          // Reflective mode: sun-direction diffuse + small ambient floor
+          // (~0.08 — space has essentially no skylight, so the night side
+          // is dim by design, giving planets a clear phase/terminator look
+          // and making transit silhouettes pop against a bright sun).
+          float lighting = max(0.0, dotNL) + 0.08;
+          col = uColor * lighting;
+          col += uColor * uEmissive;
+        }
 
         // Latitude — for a unit sphere with normal pointing outward, the
         // y-component of the world-frame normal IS the sine of the latitude.
-        // We approximate with the local normal's y component since planets
-        // aren't tilted in our scene.
-        float lat = vNormal.y;             // -1 (south pole) → 1 (north pole)
+        float lat = vNormal.y;
         float absLat = abs(lat);
 
-        // Gas giant bands: subtle horizontal stripes from latitude. ~12 bands
-        // across the sphere. Modulation is small (±8%) so it reads as
-        // "differential rotation banding" without claiming specific colors.
+        // Gas giant bands modulate brightness in both lighting modes — they
+        // are surface features regardless of where the heat comes from.
         if (uShowBands > 0.5) {
           float bands = sin(lat * 12.0) * 0.5 + 0.5;
           col *= mix(0.92, 1.08, bands);
         }
 
-        // Ice caps: brighten and shift toward white near the poles. Only
-        // applied when the planet is rocky AND cold (eqt < 273K). The
-        // smoothstep gives a soft transition rather than a hard line.
+        // Ice caps only apply to cold rocky planets, which never have
+        // phase-curve mode (gating threshold is dayside > 1200K).
         if (uShowIceCaps > 0.5) {
           float capStrength = smoothstep(0.55, 0.85, absLat);
           col = mix(col, vec3(0.88, 0.92, 0.96), capStrength * 0.85);
         }
-
-        col *= lighting;
-
-        // Emissive add for hot worlds (lava glow on rocky, hot-Jupiter glow)
-        col += uColor * uEmissive;
 
         gl_FragColor = vec4(col, 1.0);
       }

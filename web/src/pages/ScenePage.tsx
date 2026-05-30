@@ -410,9 +410,16 @@ function focalStellarRotationDays(
 }
 
 function provenanceLabel(p: string): string {
-  return p === 'curated'
-    ? 'curated deep-dive'
-    : 'NASA Exoplanet Archive (default parameter set)';
+  // Explicit mapping rather than "curated vs not-curated", because the DB
+  // column intentionally has no CHECK constraint (so future provenance
+  // sources can be added freely without a migration). An unknown value
+  // falls through to the raw string instead of being silently mislabelled
+  // as NASA EA.
+  switch (p) {
+    case 'curated': return 'curated deep-dive';
+    case 'nasa_exoplanet_archive': return 'NASA Exoplanet Archive (default parameter set)';
+    default: return p;
+  }
 }
 
 // Statistical starspot latitude from rotation period. Fast rotators (P < a few
@@ -429,10 +436,13 @@ function spotLatitudeDeg(rotationPeriodDays: number): number {
   return 15 + (70 - 15) * t;
 }
 
-function spotDirection(rotationPeriodDays: number, plName: string): THREE.Vector3 {
+function spotDirection(rotationPeriodDays: number, hostKey: string): THREE.Vector3 {
+  // hostKey is the *host star* identifier (typically planet.hostname); the
+  // spot is a stellar feature, so siblings of the same star resolve to the
+  // same hash and the spot stays put across navigation between them.
   const latMag = spotLatitudeDeg(rotationPeriodDays);
   let h = 2166136261;
-  for (let i = 0; i < plName.length; i++) h = Math.imul(h ^ plName.charCodeAt(i), 16777619);
+  for (let i = 0; i < hostKey.length; i++) h = Math.imul(h ^ hostKey.charCodeAt(i), 16777619);
   const hashed = h >>> 0;
   const lonDeg = hashed % 360;
   const hemisphere = ((hashed >>> 9) & 1) ? 1 : -1; // north or south
@@ -2554,6 +2564,22 @@ function StellarSpinReference({ orbsmax, showAxis = true, showEquator = true }: 
   // line content changes (orbsmax-driven scale).
   const ringLine = useMemo(() => new THREE.Line(ringGeom, ringMat), [ringGeom, ringMat]);
   const axisLine = useMemo(() => new THREE.Line(axisGeom, axisMat), [axisGeom, axisMat]);
+
+  // Three.js Line objects do NOT auto-dispose their geometry/material, and
+  // R3F won't reliably dispose resources behind a <primitive>. Without these
+  // cleanups, navigating between scenes (component unmount) and orbsmax
+  // changes (new geometry buffers) would each leak GPU buffers. Geometry is
+  // disposed when it changes or the component unmounts; materials only on
+  // unmount, since they have no deps.
+  useEffect(() => () => {
+    ringGeom.dispose();
+    axisGeom.dispose();
+  }, [ringGeom, axisGeom]);
+  useEffect(() => () => {
+    ringMat.dispose();
+    axisMat.dispose();
+  }, [ringMat, axisMat]);
+
   return (
     <>
       {showEquator && <primitive object={ringLine} />}

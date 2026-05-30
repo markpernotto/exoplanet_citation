@@ -73,7 +73,7 @@ export default function Collections() {
       return;
     }
     if (key === 'composition') {
-      api.derivedMeasurements().then((r) => setDerived(r.rows)).catch(() => setDerived([]));
+      api.derivedMeasurements(undefined, 'composition').then((r) => setDerived(r.rows)).catch(() => setDerived([]));
       return;
     }
     if (key === 'top-discoverers') {

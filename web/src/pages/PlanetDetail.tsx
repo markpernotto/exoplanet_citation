@@ -458,8 +458,12 @@ function CompositionSection({ rows }: { rows: DerivedMeasurementRow[] | null }) 
             </tr>
           </thead>
           <tbody>
-            {compositionRows.map((r) => (
-              <tr key={r.quantity}>
+            {compositionRows.map((r, i) => (
+              // The DB PK is (pl_name, quantity, bibcode), so multiple rows
+              // for the same quantity from different papers are allowed.
+              // Include bibcode (or row index when bibcode is null) so React
+              // does not collide keys and re-use the wrong rows.
+              <tr key={`${r.quantity}|${r.bibcode ?? i}`}>
                 <td title={r.curator_note ?? undefined}>{quantityLabel(r.quantity)}</td>
                 <td style={{ whiteSpace: 'nowrap' }}>{fmtMeasure(r)}</td>
                 <td style={{ color: 'var(--fg-muted)', fontSize: '0.85rem' }}>{r.model ?? ''}</td>

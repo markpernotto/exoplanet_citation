@@ -1211,6 +1211,10 @@ function PlaybackControls({
       <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', marginTop: '0.55rem', flexWrap: 'wrap' }}>
         <span style={{ color: 'var(--fg-muted)' }}>display</span>
         <button
+          type="button"
+          role="switch"
+          aria-pressed={showStellarReference}
+          aria-label={`Stellar spin axis overlay, currently ${showStellarReference ? 'on' : 'off'}`}
           onClick={() => setShowStellarReference(!showStellarReference)}
           title="Toggle the stellar spin axis (and obliquity equator ring, when present)"
           style={{

@@ -611,8 +611,11 @@ function CompositionTable({ rows, themeQuery }: { rows: DerivedMeasurementRow[] 
               </tr>
             </thead>
             <tbody>
-              {hostRows.map((r) => (
-                <tr key={`${r.pl_name}-${r.quantity}`}>
+              {hostRows.map((r, i) => (
+                // PK is (pl_name, quantity, bibcode); include bibcode so
+                // multiple cited rows for the same planet+quantity do not
+                // collide on the React key.
+                <tr key={`${r.pl_name}-${r.quantity}|${r.bibcode ?? i}`}>
                   <td><Link to={`/planets/${encodeURIComponent(r.pl_name)}${themeQuery}`}>{r.pl_name}</Link></td>
                   <td title={r.curator_note ?? undefined}>{quantityLabel(r.quantity)}</td>
                   <td style={{ whiteSpace: 'nowrap' }}>{fmtMeasure(r)}</td>

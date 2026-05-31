@@ -617,6 +617,65 @@ function focalMassLoss(
   };
 }
 
+// Curated reflective albedo for the focal planet. Modulates the planet body's
+// reflected-light brightness in the renderer's "reflective" lighting mode
+// (the phase-curve / thermal-emission path is left alone — those planets are
+// emission-dominated and albedo doesn't drive their visible appearance).
+// Reference albedo of 0.30 is treated as the baseline (factor = 1.0); higher
+// values brighten reflection, lower values darken it. Prefer geometric_albedo
+// when present; fall back to bond_albedo.
+//
+// HD 189733 b carries a wavelength-dependent albedo (high in the blue,
+// suppressed beyond ~450 nm by sodium absorption). The curator note flags
+// this and the helper returns a non-null `reflectionTint` so the renderer
+// can tint reflected starlight blue — the famous "deep cobalt" visual.
+type FocalAlbedo = {
+  value: number;                  // 0-1 fraction
+  kind: 'geometric' | 'bond';
+  uncHi: number | null;
+  uncLo: number | null;
+  isUpperLimit: boolean;          // true when stored value is a non-detection bound
+  model: string | null;
+  bibcode: string | null;
+  curatorNote: string | null;
+  provenance: string;
+  reflectionTint: string | null;  // hex color for blue-leaning reflection (HD 189733 b)
+};
+
+function focalAlbedo(
+  derived: DerivedMeasurementRow[], plName: string,
+): FocalAlbedo | null {
+  // Geometric is the direct measurement of dayside reflectivity, so prefer
+  // it when both are available. Bond is what's reported for Kepler-10 b and
+  // a few others.
+  const geom = bestDerived(derived, plName, 'geometric_albedo');
+  const bond = bestDerived(derived, plName, 'bond_albedo');
+  const row = geom ?? bond;
+  if (!row?.value || row.value < 0) return null;
+  const kind: 'geometric' | 'bond' = geom != null ? 'geometric' : 'bond';
+  const note = (row.curator_note ?? '').toLowerCase();
+  const model = (row.model ?? '').toLowerCase();
+  // Wavelength-dependent / blue-tinted reflection (HD 189733 b). The
+  // curator note explicitly describes the deep-blue visual; we encode
+  // that as a reflection color the shader can mix into the body color.
+  const reflectionTint = (note.includes('blue') && note.includes('tint'))
+    || note.includes('deep-blue')
+    || note.includes('cobalt')
+    ? '#1a55c8' : null;
+  return {
+    value: row.value,
+    kind,
+    uncHi: row.unc_hi,
+    uncLo: row.unc_lo,
+    isUpperLimit: model.includes('upper limit'),
+    model: row.model,
+    bibcode: row.bibcode,
+    curatorNote: row.curator_note,
+    provenance: row.provenance,
+    reflectionTint,
+  };
+}
+
 function provenanceLabel(p: string): string {
   // Explicit mapping rather than "curated vs not-curated", because the DB
   // column intentionally has no CHECK constraint (so future provenance
@@ -798,6 +857,7 @@ function InfoPanel({
   const cpdDustMass = bestDerived(scene.derived_measurements, planet.pl_name, 'circumplanetary_disk_dust_mass');
   const cpdAccretion = bestDerived(scene.derived_measurements, planet.pl_name, 'accretion_rate');
   const massLoss = focalMassLoss(scene.derived_measurements, planet.pl_name);
+  const albedo = focalAlbedo(scene.derived_measurements, planet.pl_name);
   const oblateness = focalStellarOblateness(
     scene.derived_measurements, planet.pl_name, planet.st_rad, planet.st_mass,
   );
@@ -963,8 +1023,24 @@ function InfoPanel({
             Centrifugal flattening from the host's measured spin: f ≈ Ω²R³/(2GM). The scene squashes the photosphere along its spin axis by the same factor — the equator stays at the catalog radius, the poles shrink. Below 0.5% the section doesn't appear because the squash isn't visible.
           </p>
           <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', color: 'var(--fg-muted)' }}>
-            Derived from <strong>{rotp?.value != null ? 'rotation period' : 'v sin i'}</strong>, <strong>st_rad</strong>, <strong>st_mass</strong> — no curation step.
+            Derived from <strong>{rotp?.value != null ? 'rotation period' : 'v sin i'}</strong>, <strong>st_rad</strong>, <strong>st_mass</strong> — no new curation step, but the rotation input has a paper.
           </p>
+          {(() => {
+            // Surface the underlying rotation paper directly in this section.
+            // Researchers hitting "Stellar oblateness" first shouldn't have to
+            // open "Host-star rotation" separately to find the citation.
+            const source = rotp?.value != null ? rotp : vsini;
+            if (!source?.bibcode) return null;
+            return (
+              <a
+                href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(source.bibcode)}/abstract`}
+                target="_blank" rel="noopener noreferrer"
+                style={{ fontSize: '0.74rem' }}
+              >
+                {rotp?.value != null ? 'rotation period' : 'v sin i'}: ADS →
+              </a>
+            );
+          })()}
         </Section>
       )}
 
@@ -1126,6 +1202,72 @@ function InfoPanel({
           {massLoss.bibcode && (
             <a
               href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(massLoss.bibcode)}/abstract`}
+              target="_blank" rel="noopener noreferrer"
+              style={{ fontSize: '0.74rem' }}
+            >
+              ADS →
+            </a>
+          )}
+        </Section>
+      )}
+
+      {/* Reflective albedo — currently 11 planets carry a curated
+          geometric_albedo or bond_albedo row (migration 089 + WASP-80 b /
+          GJ 1214 b from prior migrations). The scene modulates the planet
+          body's reflected-light brightness by the measured value; HD 189733 b
+          also gets a blue reflection tint (wavelength-dependent albedo,
+          high in blue, suppressed in red by sodium). Phase-curve planets
+          (KELT-9 b-class) bypass the reflective path entirely so albedo
+          isn't applied to them. */}
+      {albedo && (
+        <Section
+          label="Albedo"
+          open={openSections.has('albedo')}
+          onToggle={() => toggle('albedo')}
+        >
+          <p style={{ margin: '0 0 0.4rem', fontSize: '0.82rem' }}>
+            {albedo.isUpperLimit ? (
+              <>
+                {albedo.kind === 'geometric' ? 'Geometric albedo A_g' : 'Bond albedo A_B'}{' '}
+                <strong>&lt; {albedo.value.toFixed(3)}</strong>{' '}
+                <span style={{ color: 'var(--fg-muted)' }}>(non-detection)</span>
+              </>
+            ) : (
+              <>
+                {albedo.kind === 'geometric' ? 'Geometric albedo A_g' : 'Bond albedo A_B'}{' '}
+                <strong>= {albedo.value.toFixed(albedo.value < 0.1 ? 4 : 2)}</strong>
+                {albedo.uncHi != null && albedo.uncLo != null && (
+                  <span style={{ color: 'var(--fg-muted)' }}>
+                    {' '}{albedo.uncHi === albedo.uncLo
+                      ? `± ${albedo.uncHi.toFixed(albedo.uncHi < 0.1 ? 3 : 2)}`
+                      : `+${albedo.uncHi.toFixed(2)} / -${albedo.uncLo.toFixed(2)}`}
+                  </span>
+                )}
+              </>
+            )}
+          </p>
+          <p style={{ margin: '0 0 0.4rem', fontSize: '0.74rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+            {albedo.kind === 'geometric'
+              ? "Geometric albedo: ratio of brightness at zero phase angle to a flat Lambertian surface. The scene scales reflected-light brightness by this measurement; the reference baseline is 0.30."
+              : "Bond albedo: fraction of incident bolometric energy reflected by the planet. Drives reflected-light brightness in the scene relative to the 0.30 reference baseline."}
+            {albedo.reflectionTint && ' Because this planet\'s albedo is much higher in the blue than the red (sodium absorption in the upper atmosphere), its reflected starlight is tinted blue in the scene — the famous deep-cobalt color reported by Evans et al.'}
+          </p>
+          {albedo.model && (
+            <p style={{ margin: '0 0 0.4rem', fontSize: '0.74rem', color: 'var(--fg-muted)' }}>
+              Method: {albedo.model}
+            </p>
+          )}
+          <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', color: 'var(--fg-muted)' }}>
+            Source: {provenanceLabel(albedo.provenance)}
+          </p>
+          {albedo.curatorNote && (
+            <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+              {albedo.curatorNote}
+            </p>
+          )}
+          {albedo.bibcode && (
+            <a
+              href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(albedo.bibcode)}/abstract`}
               target="_blank" rel="noopener noreferrer"
               style={{ fontSize: '0.74rem' }}
             >
@@ -2137,6 +2279,16 @@ function SceneContents({
     [scene.derived_measurements, planet.pl_name],
   );
 
+  // Curated reflective albedo for the focal planet. Modulates planet-body
+  // reflected-light brightness; HD 189733 b also gets the blue reflection
+  // tint. 11 planets currently qualify (migration 089 + WASP-80 b /
+  // GJ 1214 b from prior migrations). Phase-curve planets (KELT-9 b-class)
+  // are unaffected since the shader's emission path doesn't read albedo.
+  const albedo = useMemo(
+    () => focalAlbedo(scene.derived_measurements, planet.pl_name),
+    [scene.derived_measurements, planet.pl_name],
+  );
+
   // Stellar halo intensity, driven by data: the star's apparent flux at the
   // planet's orbit (scene_hints.insolation_relative_earth = L_star / orbsmax²
   // in Earth units, computed from measured st_lum and pl_orbsmax). This is
@@ -2327,6 +2479,8 @@ function SceneContents({
               atmosphereTint={atmosphereTintFromMolecules(scene.atmospheric_detections)}
               rotationOmegaRad={planetSpinOmega}
               phaseCurve={phaseCurve}
+              albedo={albedo?.value ?? null}
+              reflectionTint={albedo?.reflectionTint ?? null}
             />
             {hovered === planet.pl_name && <PlanetLabel name={planet.pl_name} subtitle="(focal)" />}
           </>
@@ -3349,6 +3503,8 @@ function PlanetBody({
   atmosphereTint,
   rotationOmegaRad,
   phaseCurve,
+  albedo,
+  reflectionTint,
 }: {
   position: [number, number, number];
   radius: number;
@@ -3376,6 +3532,15 @@ function PlanetBody({
       of the reflective sun-direction default. Driven by curated dayside_/
       nightside_temperature from phase-curve papers. */
   phaseCurve?: PhaseCurve | null;
+  /** Measured geometric or Bond albedo (0-1 fraction). Modulates reflected-
+      light brightness in the reflective lighting mode only — the phase-curve
+      path is unaffected because those planets are thermal-emission dominated.
+      Default 0.30 (reference albedo, factor = 1.0). */
+  albedo?: number | null;
+  /** Hex color tint applied to reflected starlight for planets with
+      wavelength-dependent albedo (currently HD 189733 b, "deep cobalt blue").
+      Null leaves the body color unmixed. */
+  reflectionTint?: string | null;
 }) {
   const visual = useMemo(
     () => planetVisual(pl_eqt, pl_dens, pl_rade),
@@ -3395,7 +3560,8 @@ function PlanetBody({
 
   // Procedural body material: gas giants get faint latitude bands; cold rocky
   // planets get polar ice caps; everything else stays flat-color (with
-  // emissive for hot lava worlds).
+  // emissive for hot lava worlds). Albedo + reflectionTint modulate the
+  // reflective lighting path (thermal phase-curve mode is unaffected).
   const bodyMaterial = useMemo(
     () => buildPlanetBodyMaterial({
       bodyType: visual.bodyType,
@@ -3403,8 +3569,10 @@ function PlanetBody({
       glow: visual.glow,
       isCold: isIcyOrCold,
       phaseCurve: phaseCurve ?? null,
+      albedo: albedo ?? null,
+      reflectionTint: reflectionTint ?? null,
     }),
-    [visual.bodyType, visual.fillColor, visual.glow, isIcyOrCold, phaseCurve],
+    [visual.bodyType, visual.fillColor, visual.glow, isIcyOrCold, phaseCurve, albedo, reflectionTint],
   );
 
   return (
@@ -3770,24 +3938,45 @@ function EscapingAtmosphereTail({
 const planetMaterialCache = new Map<string, THREE.ShaderMaterial>();
 
 function buildPlanetBodyMaterial({
-  bodyType, fillColor, glow, isCold, phaseCurve,
+  bodyType, fillColor, glow, isCold, phaseCurve, albedo, reflectionTint,
 }: {
   bodyType: string; fillColor: string; glow: boolean; isCold: boolean;
   phaseCurve?: PhaseCurve | null;
+  albedo?: number | null;
+  reflectionTint?: string | null;
 }): THREE.ShaderMaterial {
   // Cache key includes phase-curve color fingerprints so phase-curve planets
   // get their own material rather than sharing with non-phase-curve planets
-  // that happen to match on body type / color / glow / isCold.
+  // that happen to match on body type / color / glow / isCold. Albedo +
+  // reflectionTint also fingerprinted so curated planets don't share material
+  // with their visual twins.
   const phaseKey = phaseCurve
     ? `|p:${phaseCurve.dayside.getHexString()}-${phaseCurve.nightside.getHexString()}`
     : '';
-  const key = `${bodyType}|${fillColor}|${glow}|${isCold}${phaseKey}`;
+  // Quantize albedo to 2 decimal places for the cache key — avoids fragmenting
+  // the cache on floating-point precision noise.
+  const albedoKey = albedo != null ? `|a:${albedo.toFixed(2)}` : '';
+  const tintKey = reflectionTint ? `|t:${reflectionTint}` : '';
+  const key = `${bodyType}|${fillColor}|${glow}|${isCold}${phaseKey}${albedoKey}${tintKey}`;
   const cached = planetMaterialCache.get(key);
   if (cached) return cached;
 
   const isGasGiant = bodyType === 'gas_giant';
   const showIceCaps = bodyType === 'rocky' && isCold;
   const hasPhaseCurve = phaseCurve != null;
+
+  // Albedo factor: measured / reference (0.30). Default 1.0 when unmeasured
+  // so existing rendering is unchanged. No min floor — TrES-2 b (A_g ~ 0.025
+  // → factor 0.083) is the darkest exoplanet known and should read very
+  // dark; the ambient term in the shader also scales with this factor so
+  // dark planets don't carry a constant brightness floor.
+  const albedoFactor = albedo != null ? albedo / 0.30 : 1.0;
+  // Tint is a direct color mix into the body color (NOT multiplied — that
+  // would zero out non-overlapping channels). HD 189733 b uses a saturated
+  // deep cobalt so the blue reads through even on the planet's underlying
+  // warm-ish hot-Jupiter base color.
+  const tintColor = reflectionTint ? new THREE.Color(reflectionTint) : new THREE.Color(1, 1, 1);
+  const tintStrength = reflectionTint ? 0.85 : 0.0;
 
   const mat = new THREE.ShaderMaterial({
     transparent: false,
@@ -3802,6 +3991,9 @@ function buildPlanetBodyMaterial({
       uHasPhaseCurve:   { value: hasPhaseCurve ? 1.0 : 0.0 },
       uDaysideColor:    { value: (phaseCurve?.dayside ?? new THREE.Color(0, 0, 0)).clone() },
       uNightsideColor:  { value: (phaseCurve?.nightside ?? new THREE.Color(0, 0, 0)).clone() },
+      uAlbedoFactor:    { value: albedoFactor },
+      uReflectionTint:  { value: tintColor },
+      uTintStrength:    { value: tintStrength },
     },
     vertexShader: `
       #include <common>
@@ -3829,6 +4021,9 @@ function buildPlanetBodyMaterial({
       uniform float uHasPhaseCurve;
       uniform vec3  uDaysideColor;
       uniform vec3  uNightsideColor;
+      uniform float uAlbedoFactor;
+      uniform vec3  uReflectionTint;
+      uniform float uTintStrength;
       varying vec3 vNormal;
       varying vec3 vWorldPos;
 
@@ -3846,7 +4041,8 @@ function buildPlanetBodyMaterial({
           // temps). The colors already encode brightness via blackbody
           // emission, so we don't apply a separate diffuse/ambient — the
           // dayside is bright because it's hot, the nightside is dim
-          // because it's cool.
+          // because it's cool. Albedo doesn't apply here: these planets are
+          // emission-dominated and reflected starlight is a small fraction.
           //
           // Soft terminator: smoothstep over a wide ~90° band (cos -0.4 to
           // 0.4) so the day/night transition reads as the gentle gradient
@@ -3860,12 +4056,22 @@ function buildPlanetBodyMaterial({
           t = pow(t, 1.6);
           col = mix(uNightsideColor, uDaysideColor, t);
         } else {
-          // Reflective mode: sun-direction diffuse + small ambient floor
-          // (~0.08 — space has essentially no skylight, so the night side
-          // is dim by design, giving planets a clear phase/terminator look
-          // and making transit silhouettes pop against a bright sun).
-          float lighting = max(0.0, dotNL) + 0.08;
-          col = uColor * lighting;
+          // Reflective mode: sun-direction diffuse + small ambient floor.
+          // Both terms scale with uAlbedoFactor (measured/0.30; default 1.0
+          // when unmeasured, so unmeasured planets keep the original
+          // ambient = 0.08 baseline). For TrES-2 b (factor ~ 0.083) BOTH
+          // diffuse and ambient drop, so the body genuinely reads near-
+          // black instead of bottoming out at the ambient floor.
+          //
+          // uReflectionTint is mixed directly into the body color (not
+          // multiplied — multiplying blue × warm-brown zeroes the
+          // non-overlapping channels and the tint disappears). For
+          // HD 189733 b this lets the deep-cobalt blue actually show
+          // through on a hot-Jupiter base color.
+          float diffuse = max(0.0, dotNL) * uAlbedoFactor;
+          float ambient = 0.08 * uAlbedoFactor;
+          vec3 reflectColor = mix(uColor, uReflectionTint, uTintStrength);
+          col = reflectColor * (diffuse + ambient);
           col += uColor * uEmissive;
         }
 

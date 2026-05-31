@@ -438,6 +438,7 @@ _PLANET_DETAIL_COLS = """
     (raw_row->>'cb_flag')::int AS cb_flag,
     discoverymethod, disc_year, disc_facility, disc_telescope, disc_instrument, disc_refname,
     pl_orbper, pl_orbsmax, pl_orbeccen,
+    NULLIF(raw_row->>'pl_orblper','')::double precision AS pl_orblper,
     pl_rade, pl_bmasse, pl_dens, pl_eqt, pl_insol,
     st_teff, st_rad, st_mass, st_lum, st_spectype, st_dist,
     sy_dist, ra, dec, gaia_dr3_id,

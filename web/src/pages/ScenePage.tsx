@@ -101,7 +101,8 @@ export default function ScenePage() {
   // the visible photosphere look like a thin crescent against the corona's
   // wider visible area, which read as "two distinct suns."
   const orbsmax = scene.planet.pl_orbsmax ?? 1;
-  const focalRadius = planetDisplayRadius(scene.planet.pl_rade, orbsmax);
+  const focalSunRadius = sunDisplayRadius(scene.planet.st_rad, innermostPeriapsis(scene), orbsmax);
+  const focalRadius = planetDisplayRadius(scene.planet.pl_rade, orbsmax, scene.planet.st_rad, focalSunRadius);
   // Distance from focal target. Big enough that sun + planet both fit in FOV.
   const camPos: [number, number, number] = [
     orbsmax * 1.8,
@@ -354,6 +355,25 @@ function applyOrbitTilt(
   ];
 }
 
+// Rotate a position within the orbital plane by the argument of periastron ω.
+// keplerPosition produces orbits with periapsis on +X by construction; the
+// catalog's measured pl_orblper says where periapsis really points in the
+// orbital plane (measured from the ascending node in the direction of motion).
+// This rotation is applied BEFORE applyOrbitTilt so periapsis ends up in the
+// correct direction within the eventually-tilted plane.
+function rotateInPlane(x: number, z: number, argPeriRad: number): [number, number] {
+  if (argPeriRad === 0) return [x, z];
+  const c = Math.cos(argPeriRad), s = Math.sin(argPeriRad);
+  return [x * c - z * s, x * s + z * c];
+}
+
+// Convert a catalog pl_orblper (degrees, may be null) to radians for the
+// in-plane rotation. Null/undefined falls back to 0 (no rotation) so planets
+// without a measured value keep the existing arbitrary periapsis at +X.
+function argPeriRad(deg: number | null | undefined): number {
+  return deg == null ? 0 : (deg * Math.PI) / 180;
+}
+
 // Spin-orbit obliquity (Rossiter-McLaughlin) for the focal planet: the angle
 // between the host star's spin axis and the planet's orbital plane. This is
 // NOT the planet's own axial tilt — it describes how the orbit sits relative
@@ -441,6 +461,44 @@ function thermalEmissionColor(T: number): THREE.Color {
 }
 
 type PhaseCurve = { dayside: THREE.Color; nightside: THREE.Color };
+
+// Circumplanetary disk presence + dust mass for the focal planet. Currently
+// only PDS 70 c has a resolved CPD measurement (Benisty et al. 2021, ~0.031
+// M_earth of dust); PDS 70 b has a measured accretion rate which we treat
+// as a softer indicator that *something* dusty surrounds the forming planet.
+// When this returns non-null, the renderer draws a flat dust ring around the
+// planet body (the canonical "disk-feeding-a-forming-planet" look from the
+// VLT/ALMA images of PDS 70).
+type CircumplanetaryDisk = {
+  dustMassMEarth: number | null;       // null when only an accretion-rate hint exists
+  bibcode: string | null;
+  curatorNote: string | null;
+};
+
+function focalCircumplanetaryDisk(
+  derived: DerivedMeasurementRow[], plName: string,
+): CircumplanetaryDisk | null {
+  const mass = bestDerived(derived, plName, 'circumplanetary_disk_dust_mass');
+  if (mass) {
+    return {
+      dustMassMEarth: mass.value,
+      bibcode: mass.bibcode,
+      curatorNote: mass.curator_note,
+    };
+  }
+  // Fall back to accretion-rate evidence (PDS 70 b has Wagner 2018 accretion
+  // but no resolved disc yet). Still warrants a disk render — the accretion
+  // requires a feeding reservoir.
+  const accretion = bestDerived(derived, plName, 'accretion_rate');
+  if (accretion) {
+    return {
+      dustMassMEarth: null,
+      bibcode: accretion.bibcode,
+      curatorNote: accretion.curator_note,
+    };
+  }
+  return null;
+}
 
 // Day/night thermal-emission colors for the focal planet, when measured
 // dayside_temperature exists and is hot enough (~1200K+) that thermal
@@ -543,7 +601,12 @@ function starSpotProps(rotationPeriodDays: number, hostKey: string): StarSpotPro
 // the orbsmax scale cancels, so this is a constant.
 const OBLIQUITY_NODE_OMEGA = Math.atan2(1.4, 0.8) + Math.PI / 2;
 
-function planetDisplayRadius(pl_rade: number | null, pl_orbsmax: number | null): number {
+function planetDisplayRadius(
+  pl_rade: number | null,
+  pl_orbsmax: number | null,
+  st_rad?: number | null,
+  sunDisplayAU?: number,
+): number {
   const truthAU = (pl_rade ?? 1) * REARTH_IN_AU;
   const exaggerated = truthAU * BODY_EXAG;
   const orbsmax = pl_orbsmax ?? 1;
@@ -554,7 +617,26 @@ function planetDisplayRadius(pl_rade: number | null, pl_orbsmax: number | null):
   // disappears below sub-pixel even on a 4K screen. Floor at ~0.5° apparent
   // ensures the planet renders as at least a small visible disc.
   const visibilityFloor = orbsmax * 0.007;
-  return Math.max(MIN_PLANET_AU, Math.min(Math.max(exaggerated, visibilityFloor), orbitCap));
+  let radius = Math.max(MIN_PLANET_AU, Math.min(Math.max(exaggerated, visibilityFloor), orbitCap));
+
+  // Star-vs-planet hierarchy cap. When the catalog says the host star is
+  // genuinely larger than the planet (essentially every main-sequence host,
+  // 5-100× the planet's true radius), cap the rendered planet at the rendered
+  // sun so the visual hierarchy matches reality. Necessary mainly for
+  // high-eccentricity orbits (HD 80606 b at e=0.93, etc.): the sun's display
+  // gets squeezed by its periapsis-fraction cap, and without this rule the
+  // planet would dwarf the star on screen — opposite of reality.
+  // Truth-gated: the check trueSunAU > truePlanetAU exempts the handful of
+  // systems where the planet really IS bigger (DP Leo b around a white dwarf;
+  // WISEP J1217+1626 A b around a Y/T brown dwarf), so we don't distort those.
+  if (st_rad != null && pl_rade != null && sunDisplayAU != null) {
+    const trueSunAU = st_rad * RSUN_IN_AU;
+    const truePlanetAU = pl_rade * REARTH_IN_AU;
+    if (trueSunAU > truePlanetAU && radius > sunDisplayAU) {
+      radius = sunDisplayAU;
+    }
+  }
+  return radius;
 }
 
 // Smallest periapsis (closest approach to the star) across all planets in the
@@ -619,6 +701,8 @@ function InfoPanel({
   const rotp = bestDerived(scene.derived_measurements, planet.pl_name, 'stellar_rotation_period');
   const vsini = bestDerived(scene.derived_measurements, planet.pl_name, 'stellar_vsini');
   const planetSpin = bestDerived(scene.derived_measurements, planet.pl_name, 'rotation_velocity');
+  const cpdDustMass = bestDerived(scene.derived_measurements, planet.pl_name, 'circumplanetary_disk_dust_mass');
+  const cpdAccretion = bestDerived(scene.derived_measurements, planet.pl_name, 'accretion_rate');
   const planetSpinPeriodHours = planetSpin?.value && planet.pl_rade
     ? (2 * Math.PI * planet.pl_rade * 6371) / planetSpin.value / 3600
     : null;
@@ -813,6 +897,66 @@ function InfoPanel({
               ADS →
             </a>
           )}
+        </Section>
+      )}
+
+      {/* Circumplanetary disc — currently only PDS 70 b and c (the famous
+          forming-planet system). Explains what the dust ring in the scene
+          IS, so first-time viewers aren't left wondering why this planet has
+          a halo and others don't. */}
+      {(cpdDustMass || cpdAccretion) && (
+        <Section
+          label="Circumplanetary disk"
+          open={openSections.has('cpd')}
+          onToggle={() => toggle('cpd')}
+        >
+          <p style={{ margin: '0 0 0.5rem', fontSize: '0.78rem', lineHeight: 1.5 }}>
+            This planet is still forming and is surrounded by a disc of dust and
+            gas it accretes from. The dust band in the scene is a stylized
+            rendering of that circumplanetary disc — same physical structure
+            VLT/ALMA imaged directly around the PDS 70 planets, the first ever
+            resolved.
+          </p>
+          <dl style={{ margin: '0 0 0.4rem', display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.15rem 0.6rem', fontSize: '0.8rem' }}>
+            {cpdDustMass?.value != null && (
+              <>
+                <dt style={{ color: 'var(--fg-muted)' }}>dust mass</dt>
+                <dd style={{ margin: 0 }}>
+                  <strong>{cpdDustMass.value}</strong> M⊕
+                </dd>
+              </>
+            )}
+            {cpdAccretion?.value != null && (
+              <>
+                <dt style={{ color: 'var(--fg-muted)' }}>accretion rate</dt>
+                <dd style={{ margin: 0 }}>
+                  <strong>{cpdAccretion.value.toExponential(1)}</strong> M♃/yr
+                </dd>
+              </>
+            )}
+          </dl>
+          <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', color: 'var(--fg-muted)' }}>
+            Source: {provenanceLabel((cpdDustMass ?? cpdAccretion)!.provenance)}
+          </p>
+          {(cpdDustMass ?? cpdAccretion)?.curator_note && (
+            <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+              {(cpdDustMass ?? cpdAccretion)!.curator_note}
+            </p>
+          )}
+          <div style={{ display: 'flex', gap: '0.6rem', fontSize: '0.74rem' }}>
+            {cpdDustMass?.bibcode && (
+              <a
+                href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(cpdDustMass.bibcode)}/abstract`}
+                target="_blank" rel="noopener noreferrer"
+              >dust mass: ADS →</a>
+            )}
+            {cpdAccretion?.bibcode && cpdAccretion.bibcode !== cpdDustMass?.bibcode && (
+              <a
+                href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(cpdAccretion.bibcode)}/abstract`}
+                target="_blank" rel="noopener noreferrer"
+              >accretion: ADS →</a>
+            )}
+          </div>
         </Section>
       )}
 
@@ -1716,6 +1860,7 @@ function SceneContents({
   const focalOrbsmax = planet.pl_orbsmax ?? 1;
   const innermost = innermostPeriapsis(scene);
   const sunRadius = sunDisplayRadius(planet.st_rad, innermost, focalOrbsmax);
+  const focalPlanetRadius = planetDisplayRadius(planet.pl_rade, focalOrbsmax, planet.st_rad, sunRadius);
 
   // Mutual-inclination map keyed by planet name. ups And d (30° vs c),
   // 55 Cnc e (17° vs b), and Kepler-419 c (9° vs b) are the visible
@@ -1786,6 +1931,16 @@ function SceneContents({
     [scene.derived_measurements, planet.pl_name],
   );
 
+  // Circumplanetary disk for the focal planet, if the catalog/curated data
+  // says one exists. Currently only PDS 70 b and c carry this (Wagner 2018
+  // accretion rate; Benisty 2021 resolved dust mass). When present, a flat
+  // dust ring is drawn around the planet body at a few planet-radii scale —
+  // the canonical "forming planet feeding from its disc" look.
+  const circumplanetaryDisk = useMemo(
+    () => focalCircumplanetaryDisk(scene.derived_measurements, planet.pl_name),
+    [scene.derived_measurements, planet.pl_name],
+  );
+
   // Stellar halo intensity, driven by data: the star's apparent flux at the
   // planet's orbit (scene_hints.insolation_relative_earth = L_star / orbsmax²
   // in Earth units, computed from measured st_lum and pl_orbsmax). This is
@@ -1833,7 +1988,10 @@ function SceneContents({
     if (!paused) clock.current += delta * speed;
 
     const M = (clock.current / FOCAL_SECS_PER_ORBIT) * 2 * Math.PI;
-    const [fx0, , fz0] = keplerPosition(focalOrbsmax, planet.pl_orbeccen ?? 0, M);
+    const [fx0_raw, , fz0_raw] = keplerPosition(focalOrbsmax, planet.pl_orbeccen ?? 0, M);
+    // In-plane rotation by the measured argument of periastron, so periapsis
+    // points in the catalogued direction instead of arbitrarily on +X.
+    const [fx0, fz0] = rotateInPlane(fx0_raw, fz0_raw, argPeriRad(planet.pl_orblper));
     const [fx, fy, fz] = applyOrbitTilt(fx0, fz0, focalRenderTilt.inc, focalRenderTilt.omega);
     if (focalGroup.current) focalGroup.current.position.set(fx, fy, fz);
     // Expose focal world position for surface-mode camera tracking
@@ -1842,7 +2000,8 @@ function SceneContents({
       const s = siblings.find((x) => x.pl_name === plName);
       if (!s || s.pl_orbsmax == null) return;
       const M = meanAnomaly(s.pl_orbper, s.pl_name);
-      const [x0, , z0] = keplerPosition(s.pl_orbsmax, s.pl_orbeccen ?? 0, M);
+      const [x0_raw, , z0_raw] = keplerPosition(s.pl_orbsmax, s.pl_orbeccen ?? 0, M);
+      const [x0, z0] = rotateInPlane(x0_raw, z0_raw, argPeriRad(s.pl_orblper));
       const tilt = tiltMap.get(plName) ?? { inc: 0, omega: 0 };
       const [x, y, z] = applyOrbitTilt(x0, z0, tilt.inc, tilt.omega);
       group.position.set(x, y, z);
@@ -1908,6 +2067,7 @@ function SceneContents({
         opacity={0.55}
         inc={focalRenderTilt.inc}
         omega={focalRenderTilt.omega}
+        argPeri={argPeriRad(planet.pl_orblper)}
       />
       {/* Stellar equator + spin axis — only when the focal planet carries a
           measured spin-orbit obliquity, so ordinary scenes are unchanged.
@@ -1940,6 +2100,7 @@ function SceneContents({
               opacity={0.45}
               inc={t.inc}
               omega={t.omega}
+              argPeri={argPeriRad(s.pl_orblper)}
             />
           );
         })}
@@ -1953,7 +2114,7 @@ function SceneContents({
           <>
             <PlanetBody
               position={[0, 0, 0]}
-              radius={planetDisplayRadius(planet.pl_rade, focalOrbsmax)}
+              radius={focalPlanetRadius}
               pl_eqt={planet.pl_eqt}
               pl_dens={planet.pl_dens}
               pl_rade={planet.pl_rade}
@@ -1967,6 +2128,15 @@ function SceneContents({
             {hovered === planet.pl_name && <PlanetLabel name={planet.pl_name} subtitle="(focal)" />}
           </>
         )}
+        {/* Circumplanetary disk — sibling of PlanetBody (not nested inside
+            it) so it stays visible in surface mode, where PlanetBody is
+            hidden because the camera is standing on the planet. From the
+            surface vantage you should still see the disc stretching across
+            the sky like a flat band. Sits flat in the orbital plane (XZ)
+            around the planet's position. */}
+        {circumplanetaryDisk && (
+          <CircumplanetaryDiskRing planetRadius={focalPlanetRadius} />
+        )}
       </group>
 
       {/* Siblings — clickable to jump perspective, hover shows name */}
@@ -1979,7 +2149,7 @@ function SceneContents({
           >
             <PlanetBody
               position={[0, 0, 0]}
-              radius={planetDisplayRadius(s.pl_rade, s.pl_orbsmax!)}
+              radius={planetDisplayRadius(s.pl_rade, s.pl_orbsmax!, planet.st_rad, sunRadius)}
               pl_eqt={s.pl_eqt}
               pl_dens={s.pl_dens}
               pl_rade={s.pl_rade}
@@ -2640,10 +2810,15 @@ function shiftTowardRed(hex: string): string {
 // even at extreme zoom.
 
 function OrbitRing({
-  orbsmax, eccen, color, opacity, inc = 0, omega = 0,
+  orbsmax, eccen, color, opacity, inc = 0, omega = 0, argPeri = 0,
 }: {
   orbsmax: number; eccen: number; color: string; opacity: number;
   inc?: number; omega?: number;
+  /** Argument of periastron (radians). Rotates the ellipse within its plane
+      so periapsis points in the catalogued direction. Composes with omega
+      (longitude of ascending node) and inc to give the orbit its measured
+      3-D orientation. */
+  argPeri?: number;
 }) {
   // Native three.js Line (gl_LINES, 1px width) instead of drei's Line2
   // wrapper. Line2 renders thick lines as instanced quad strips and its
@@ -2652,9 +2827,10 @@ function OrbitRing({
   // depth-test correctly per fragment.
   //
   // Inclination + Ω tilt the entire ellipse out of the xz plane using
-  // the same applyOrbitTilt rotation as the planet position calc, so
-  // the rendered planet sits exactly on its rendered orbital path
-  // even when both are tilted.
+  // the same applyOrbitTilt rotation as the planet position calc, and
+  // argPeri rotates it in the plane first so periapsis points in the
+  // catalogued direction. The rendered planet sits exactly on its rendered
+  // orbital path even when all three are nonzero.
   const geometry = useMemo(() => {
     const a = orbsmax;
     const e = Math.max(0, Math.min(0.99, eccen));
@@ -2663,10 +2839,15 @@ function OrbitRing({
     const positions = new Float32Array((N + 1) * 3);
     const cosI = Math.cos(inc), sinI = Math.sin(inc);
     const cosO = Math.cos(omega), sinO = Math.sin(omega);
+    const cosW = Math.cos(argPeri), sinW = Math.sin(argPeri);
     for (let i = 0; i <= N; i++) {
       const t = (i / N) * Math.PI * 2;
-      const x0 = a * Math.cos(t) - a * e;
-      const z0 = b * Math.sin(t);
+      const x_raw = a * Math.cos(t) - a * e;
+      const z_raw = b * Math.sin(t);
+      // In-plane rotation by argument of periastron
+      const x0 = x_raw * cosW - z_raw * sinW;
+      const z0 = x_raw * sinW + z_raw * cosW;
+      // Inclination + Ω tilt
       positions[i * 3 + 0] = x0 * cosO + z0 * cosI * sinO;
       positions[i * 3 + 1] = -z0 * sinI;
       positions[i * 3 + 2] = -x0 * sinO + z0 * cosI * cosO;
@@ -2674,7 +2855,7 @@ function OrbitRing({
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     return g;
-  }, [orbsmax, eccen, inc, omega]);
+  }, [orbsmax, eccen, inc, omega, argPeri]);
 
   const material = useMemo(
     () => new THREE.LineBasicMaterial({
@@ -3023,7 +3204,109 @@ function PlanetBody({
           />
         )}
       </group>
+      {/* Note: the circumplanetary disk is rendered by the *parent* group
+          (SceneContents) as a sibling of PlanetBody, NOT inside this
+          component. That way it stays visible in surface mode (where we
+          hide the planet body because the camera is standing on it) —
+          you should still see the dust stretching across the sky when
+          you're inside the disc. */}
     </group>
+  );
+}
+
+// Circumplanetary disk ring. Flat dust ring around a forming planet, lying
+// in the orbital plane (XZ in our scene since the orbit is in XZ by default).
+// Inner edge sits just outside the planet body so it reads as separate from
+// the planet's atmosphere; outer edge extends ~4× planet radius. Alpha tapers
+// at both edges so the disc fades into space rather than terminating sharply.
+// Currently only renders for PDS 70 b and c (the only systems with curated
+// circumplanetary_disk_dust_mass / accretion_rate measurements); future
+// curation of debris-disk extents would let bet Pic, HR 8799, etc. carry
+// system-level rings via a separate component.
+function CircumplanetaryDiskRing({ planetRadius }: { planetRadius: number }) {
+  // Inner radius is INSIDE the planet body, so the planet's own depth mask
+  // hides the geometric inner edge — the visible inner boundary becomes the
+  // alpha gradient instead of a hard ring. Outer extends well past the
+  // visible cutoff so the shader fades to zero before any geometric edge
+  // would show.
+  const innerRadius = planetRadius * 0.5;
+  const outerRadius = planetRadius * 5.0;
+
+  const material = useMemo(() => new THREE.ShaderMaterial({
+    uniforms: {
+      uColor: { value: new THREE.Color('#b08868') }, // dusty brown
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 uColor;
+      varying vec2 vUv;
+
+      // 2D value noise for dust granularity.
+      float hash2(vec2 p) {
+        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+      }
+      float noise2(vec2 p) {
+        vec2 i = floor(p), f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        return mix(
+          mix(hash2(i),                hash2(i + vec2(1, 0)), f.x),
+          mix(hash2(i + vec2(0, 1)),   hash2(i + vec2(1, 1)), f.x),
+          f.y);
+      }
+
+      void main() {
+        // Envelope: smooth fade-in at the inner edge (across the first 35%
+        // of the radial range — well past the planet's silhouette at uv.y
+        // ~0.11 — so the disc has no brightness step where it emerges from
+        // behind the planet body) combined with a power decay outward for
+        // the dust accumulating around the forming planet.
+        float r = vUv.y;
+        float fadeIn = smoothstep(0.0, 0.35, r);
+        float decay  = pow(1.0 - r, 1.3);
+        float envelope = fadeIn * decay;
+
+        // Multi-octave noise so the dust reads as clumpy material with
+        // structure on multiple scales — not a uniformly-painted decal.
+        vec2 c = vUv * 2.0 - 1.0;
+        float ang = atan(c.y, c.x);
+        float n1 = noise2(vec2(r * 10.0,  ang * 4.0));
+        float n2 = noise2(vec2(r * 24.0,  ang * 11.0));
+        float n3 = noise2(vec2(r * 55.0,  ang * 24.0));
+        float dust = 0.25 + 0.40 * n1 + 0.25 * n2 + 0.15 * n3;
+
+        // Faint radial banding so the disc has visible structure (dust
+        // lanes / gaps) rather than a continuous gradient.
+        float bands = 0.75 + 0.25 * sin(r * 22.0 + n1 * 3.0);
+
+        // Three.js AdditiveBlending uses src.rgb * srcAlpha + dst.rgb (the
+        // non-premultiplied path), so the shader should output the base
+        // color in rgb and let the alpha gate the additive contribution —
+        // NOT premultiply rgb by intensity (that would square it). Smooth
+        // inner fade-in plus additive ensures the dust emerges from behind
+        // the planet's silhouette as a gentle glow.
+        float intensity = envelope * dust * bands * 0.7;
+        intensity = clamp(intensity, 0.0, 0.9);
+
+        gl_FragColor = vec4(uColor, intensity);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    depthTest: true,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
+  }), []);
+
+  return (
+    <mesh material={material} rotation={[-Math.PI / 2, 0, 0]}>
+      <ringGeometry args={[innerRadius, outerRadius, 256]} />
+    </mesh>
   );
 }
 

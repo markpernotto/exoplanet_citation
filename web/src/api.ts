@@ -128,6 +128,7 @@ export type PlanetDetail = {
   pl_orbper: number | null;
   pl_orbsmax: number | null;
   pl_orbeccen: number | null;
+  pl_orblper: number | null; // argument of periastron, degrees
   pl_rade: number | null;
   pl_bmasse: number | null;
   pl_dens: number | null;

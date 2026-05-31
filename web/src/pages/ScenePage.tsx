@@ -523,6 +523,56 @@ function focalPhaseCurve(
   };
 }
 
+// Atmospheric mass loss for the focal planet. Drives the comet-like exosphere
+// tail rendered downstream of (or upstream of, for HAT-P-67 b) the planet body.
+// Currently 8 planets carry a mass_loss_rate row in derived_measurements
+// (migration 088 + Kepler-1520 b from 036). Mechanism classification reads
+// the `model` column to color the tail: hydrogen-escape tails are blue
+// (Lyman-alpha-tracer palette), helium-escape tails are pink/red (He I 10833
+// metastable palette), Kepler-1520 b's dust is warm gray-brown.
+type EscapeMechanism = 'hydrogen' | 'helium' | 'dust';
+type FocalMassLoss = {
+  value: number;                  // M_earth / Gyr
+  uncHi: number | null;
+  uncLo: number | null;
+  mechanism: EscapeMechanism;
+  leading: boolean;               // tail extends ahead of orbital motion (HAT-P-67 b)
+  model: string | null;
+  bibcode: string | null;
+  curatorNote: string | null;
+  provenance: string;
+};
+
+function classifyEscapeMechanism(model: string | null): EscapeMechanism {
+  const m = (model ?? '').toLowerCase();
+  if (m.includes('helium') || m.includes('he ') || m.includes('roche-lobe')) return 'helium';
+  if (m.includes('hydrogen') || m.includes('hydrodynamic') || m.includes('lyman')) return 'hydrogen';
+  if (m.includes('dust')) return 'dust';
+  return 'hydrogen';
+}
+
+function focalMassLoss(
+  derived: DerivedMeasurementRow[], plName: string,
+): FocalMassLoss | null {
+  const row = bestDerived(derived, plName, 'mass_loss_rate');
+  if (!row?.value || row.value <= 0) return null;
+  const note = (row.curator_note ?? '').toLowerCase();
+  // HAT-P-67 b is the canonical pre-transit (leading) tail case; the curator
+  // note for those rows says so explicitly.
+  const leading = note.includes('leading') || note.includes('pre-transit');
+  return {
+    value: row.value,
+    uncHi: row.unc_hi,
+    uncLo: row.unc_lo,
+    mechanism: classifyEscapeMechanism(row.model),
+    leading,
+    model: row.model,
+    bibcode: row.bibcode,
+    curatorNote: row.curator_note,
+    provenance: row.provenance,
+  };
+}
+
 function provenanceLabel(p: string): string {
   // Explicit mapping rather than "curated vs not-curated", because the DB
   // column intentionally has no CHECK constraint (so future provenance
@@ -703,6 +753,7 @@ function InfoPanel({
   const planetSpin = bestDerived(scene.derived_measurements, planet.pl_name, 'rotation_velocity');
   const cpdDustMass = bestDerived(scene.derived_measurements, planet.pl_name, 'circumplanetary_disk_dust_mass');
   const cpdAccretion = bestDerived(scene.derived_measurements, planet.pl_name, 'accretion_rate');
+  const massLoss = focalMassLoss(scene.derived_measurements, planet.pl_name);
   const planetSpinPeriodHours = planetSpin?.value && planet.pl_rade
     ? (2 * Math.PI * planet.pl_rade * 6371) / planetSpin.value / 3600
     : null;
@@ -957,6 +1008,58 @@ function InfoPanel({
               >accretion: ADS →</a>
             )}
           </div>
+        </Section>
+      )}
+
+      {/* Atmospheric escape — currently 8 planets carry curated mass_loss_rate
+          rows (migration 088 + Kepler-1520 b from 036). Explains the colored
+          comet-like tail in the scene and credits the measurement paper. */}
+      {massLoss && (
+        <Section
+          label="Atmospheric escape"
+          open={openSections.has('escape')}
+          onToggle={() => toggle('escape')}
+        >
+          <p style={{ margin: '0 0 0.5rem', fontSize: '0.78rem', lineHeight: 1.5 }}>
+            {massLoss.mechanism === 'hydrogen'
+              ? 'This planet is losing hydrogen from its upper atmosphere, traced in Lyman-alpha transit observations. The blue tail in the scene is a stylized rendering of that escaping exosphere.'
+              : massLoss.mechanism === 'helium'
+              ? 'This planet is losing helium from its upper atmosphere, traced via the 1083 nm metastable helium triplet. The pink tail in the scene is a stylized rendering of that escaping exosphere.'
+              : 'This planet is disintegrating — surface material vaporizes and forms a trailing dust cloud, occulting the host star asymmetrically each transit.'}
+            {massLoss.leading && ' Unusually, the tail leads the planet in its orbit (pre-transit ingress), consistent with Roche-lobe overflow advected into the stellar rest frame.'}
+          </p>
+          <dl style={{ margin: '0 0 0.4rem', display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.15rem 0.6rem', fontSize: '0.8rem' }}>
+            <dt style={{ color: 'var(--fg-muted)' }}>mass loss</dt>
+            <dd style={{ margin: 0 }}>
+              <strong>{massLoss.value < 0.01 ? massLoss.value.toExponential(1) : massLoss.value.toFixed(massLoss.value < 1 ? 3 : 1)}</strong> M⊕/Gyr
+              {massLoss.uncHi != null && massLoss.uncLo != null && (
+                <span style={{ color: 'var(--fg-muted)' }}> ± {massLoss.uncHi.toFixed(massLoss.uncHi < 1 ? 2 : 1)}</span>
+              )}
+            </dd>
+            {massLoss.model && (
+              <>
+                <dt style={{ color: 'var(--fg-muted)' }}>mechanism</dt>
+                <dd style={{ margin: 0, fontSize: '0.78rem' }}>{massLoss.model}</dd>
+              </>
+            )}
+          </dl>
+          <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', color: 'var(--fg-muted)' }}>
+            Source: {provenanceLabel(massLoss.provenance)}
+          </p>
+          {massLoss.curatorNote && (
+            <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+              {massLoss.curatorNote}
+            </p>
+          )}
+          {massLoss.bibcode && (
+            <a
+              href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(massLoss.bibcode)}/abstract`}
+              target="_blank" rel="noopener noreferrer"
+              style={{ fontSize: '0.74rem' }}
+            >
+              ADS →
+            </a>
+          )}
         </Section>
       )}
 
@@ -1941,6 +2044,17 @@ function SceneContents({
     [scene.derived_measurements, planet.pl_name],
   );
 
+  // Mass-loss / escaping-atmosphere tail for the focal planet, if the catalog
+  // / curated data carries a mass_loss_rate row. 8 planets currently qualify
+  // (migration 088 + Kepler-1520 b from 036). The tail is rendered in its own
+  // world-frame group (sibling of focalGroup) because focalGroup only
+  // translates, and the tail needs an extra rotation each frame to point
+  // along the orbital tangent (trailing or leading).
+  const massLoss = useMemo(
+    () => focalMassLoss(scene.derived_measurements, planet.pl_name),
+    [scene.derived_measurements, planet.pl_name],
+  );
+
   // Stellar halo intensity, driven by data: the star's apparent flux at the
   // planet's orbit (scene_hints.insolation_relative_earth = L_star / orbsmax²
   // in Earth units, computed from measured st_lum and pl_orbsmax). This is
@@ -1961,6 +2075,7 @@ function SceneContents({
   // from the URL hash and survive Canvas remounts on viewMode toggle.
   const clock = clockRef;
   const focalGroup = useRef<THREE.Group>(null);
+  const tailGroup = useRef<THREE.Group>(null);
   const siblingRefs = useRef<Map<string, THREE.Group>>(new Map());
 
   // Smart-default pacing: focal planet completes its orbit in 60 sec at 1×.
@@ -1996,6 +2111,12 @@ function SceneContents({
     if (focalGroup.current) focalGroup.current.position.set(fx, fy, fz);
     // Expose focal world position for surface-mode camera tracking
     if (focalPosOut) focalPosOut.current.set(fx, fy, fz);
+    // Escaping-atmosphere tail. Parent group is positioned at the focal
+    // planet; the ribbon component samples the orbit itself each frame to
+    // build a spine that curves along the orbital path (leading or trailing).
+    if (tailGroup.current && massLoss) {
+      tailGroup.current.position.set(fx, fy, fz);
+    }
     siblingRefs.current.forEach((group, plName) => {
       const s = siblings.find((x) => x.pl_name === plName);
       if (!s || s.pl_orbsmax == null) return;
@@ -2138,6 +2259,32 @@ function SceneContents({
           <CircumplanetaryDiskRing planetRadius={focalPlanetRadius} />
         )}
       </group>
+
+      {/* Escaping-atmosphere tail — ribbon that follows the orbit. The
+          parent group is positioned at the focal planet world coords; the
+          ribbon component samples the same Kepler pipeline (keplerPosition
+          → rotateInPlane → applyOrbitTilt) backward in M (or forward, for
+          HAT-P-67 b's leading helium tail) and rebuilds its spine each
+          frame, so the tail literally traces the curved orbit instead of
+          shooting off as a straight tangent. */}
+      {massLoss && (
+        <group ref={tailGroup}>
+          <EscapingAtmosphereTail
+            planetRadius={focalPlanetRadius}
+            mechanism={massLoss.mechanism}
+            logMassLoss={Math.log10(massLoss.value)}
+            maxLength={focalOrbsmax * 0.3}
+            orbsmax={focalOrbsmax}
+            eccen={planet.pl_orbeccen ?? 0}
+            argPeri={argPeriRad(planet.pl_orblper)}
+            inc={focalRenderTilt.inc}
+            omega={focalRenderTilt.omega}
+            leading={massLoss.leading}
+            clockRef={clock}
+            focalSecsPerOrbit={FOCAL_SECS_PER_ORBIT}
+          />
+        </group>
+      )}
 
       {/* Siblings — clickable to jump perspective, hover shows name */}
       {siblings
@@ -3308,6 +3455,226 @@ function CircumplanetaryDiskRing({ planetRadius }: { planetRadius: number }) {
       <ringGeometry args={[innerRadius, outerRadius, 256]} />
     </mesh>
   );
+}
+
+// Escaping-atmosphere tail. A flat plane lying in the orbital plane (XZ in
+// the local frame), starting at the planet body and stretching along local +X.
+// The wrapper group sets position to focal-planet world coords and rotates so
+// local +X points along the orbital tangent (trailing for normal escape,
+// leading for HAT-P-67 b's pre-transit helium tail).
+//
+// Length scales with log10(mass_loss_rate), spreading the 4-orders-of-
+// magnitude range (0.0016 → 105.7 M_earth/Gyr) across a visually-readable
+// 6-50 planet-radii window. Width tapers from ~2 R_p at the body to ~6 R_p
+// at the far end (comet-style flare). Color is set by escape mechanism:
+// hydrogen Lyman-alpha tracers read blue, helium 1083 nm metastable tracers
+// read pink/red, Kepler-1520 b dust reads warm gray-brown.
+function EscapingAtmosphereTail({
+  planetRadius, mechanism, logMassLoss, maxLength,
+  orbsmax, eccen, argPeri, inc, omega,
+  leading, clockRef, focalSecsPerOrbit,
+}: {
+  planetRadius: number;
+  mechanism: EscapeMechanism;
+  logMassLoss: number;
+  maxLength: number;
+  orbsmax: number;
+  eccen: number;
+  argPeri: number;
+  inc: number;
+  omega: number;
+  leading: boolean;
+  clockRef: React.MutableRefObject<number>;
+  focalSecsPerOrbit: number;
+}) {
+  const N = 32;
+  const lengthRp = Math.min(50, Math.max(5, 5 + 8 * (logMassLoss + 3)));
+  // Length is capped to a fraction of orbsmax so close-in giants don't blow
+  // out (planetRadius * 50 can be many orbits long for HAT-P-67 b-class).
+  const length = Math.min(planetRadius * lengthRp, maxLength);
+  // The tail covers Δ_M ≈ length / orbsmax radians of mean anomaly along the
+  // orbit. Close enough for visual purposes; eccentricity warps the mapping
+  // but our 30%-of-orbsmax cap keeps it in the small-arc regime.
+  const deltaM = length / orbsmax;
+  // Where does the planet body sit along the tail length? Used by the
+  // shader's fade-in so the head doesn't punch through the silhouette.
+  const bodyFrac = planetRadius / length;
+  // Ribbon width: tip is wider than head (escaping gas diffuses with
+  // distance), capped at planetRadius units that scale with length so
+  // short tails aren't disproportionately fat.
+  const baseHalfWidth = Math.min(planetRadius * 0.8, length * 0.04);
+  const tipHalfWidth  = Math.min(planetRadius * 2.5, length * 0.10);
+
+  const colorHex = mechanism === 'hydrogen' ? '#4a8fcf'
+                 : mechanism === 'helium'   ? '#e57c8c'
+                                            : '#b08868';
+
+  // Orbital plane normal — perpendicular to the orbital plane in scene frame.
+  // Derived from the same inc/omega convention as applyOrbitTilt: Y in source
+  // orbit frame maps to (-sin Ω sin i, -cos i, -cos Ω sin i) after Ry(Ω)·Rx(i).
+  // Sign doesn't matter — we only use it to get an in-plane perpendicular via
+  // cross(tangent, normal), and either sign gives a valid side direction.
+  const orbitNormal = useMemo(() => {
+    const sI = Math.sin(inc), cI = Math.cos(inc);
+    const sO = Math.sin(omega), cO = Math.cos(omega);
+    return new THREE.Vector3(-sO * sI, -cI, -cO * sI).normalize();
+  }, [inc, omega]);
+
+  // Ribbon BufferGeometry: (N+1) spine points × 2 vertices = 2(N+1) vertices,
+  // 2N triangles. UVs and index buffer are static — only positions get
+  // recomputed each frame as the planet's M advances. Allocated once via
+  // useMemo, mutated in-place in useFrame to avoid per-frame GC.
+  const geometry = useMemo(() => {
+    const g = new THREE.BufferGeometry();
+    const positions = new Float32Array((N + 1) * 2 * 3);
+    const uvs = new Float32Array((N + 1) * 2 * 2);
+    const indices = new Uint16Array(N * 2 * 3);
+    for (let i = 0; i <= N; i++) {
+      const u = i / N;
+      uvs[i * 4 + 0] = u; uvs[i * 4 + 1] = 0;
+      uvs[i * 4 + 2] = u; uvs[i * 4 + 3] = 1;
+    }
+    for (let i = 0; i < N; i++) {
+      const a = i * 2, b = i * 2 + 1, c = (i + 1) * 2, d = (i + 1) * 2 + 1;
+      const off = i * 6;
+      indices[off + 0] = a; indices[off + 1] = c; indices[off + 2] = b;
+      indices[off + 3] = b; indices[off + 4] = c; indices[off + 5] = d;
+    }
+    g.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    g.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+    g.setIndex(new THREE.BufferAttribute(indices, 1));
+    g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), length * 2);
+    return g;
+  }, [length]);
+
+  // Recompute spine positions every frame so the ribbon tracks the planet's
+  // M as the orbit advances. The parent tailGroup is positioned at the focal
+  // planet (sample 0 in world frame), so each vertex is written in LOCAL
+  // coords as (sample_i_world − sample_0_world).
+  const tmpSpine = useMemo(() => Array.from({ length: N + 1 }, () => new THREE.Vector3()), []);
+  const tmpTangent = useMemo(() => new THREE.Vector3(), []);
+  const tmpSide = useMemo(() => new THREE.Vector3(), []);
+  useFrame(() => {
+    const M0 = (clockRef.current / focalSecsPerOrbit) * 2 * Math.PI;
+    const dirSign = leading ? 1 : -1;
+    // Sample world positions along the orbit.
+    for (let i = 0; i <= N; i++) {
+      const t = i / N;
+      const M_i = M0 + dirSign * t * deltaM;
+      const [x0r, , z0r] = keplerPosition(orbsmax, eccen, M_i);
+      const [x0, z0] = rotateInPlane(x0r, z0r, argPeri);
+      const [x, y, z] = applyOrbitTilt(x0, z0, inc, omega);
+      tmpSpine[i].set(x, y, z);
+    }
+    // For leading tails (HAT-P-67 b): shift the head toward the L1 Lagrange
+    // point (star-facing side of the planet) so the visible source isn't the
+    // planet's center. The offset fades to zero by t≈0.2 so the rest of the
+    // tail still sits on the orbit ring. Physically the L1 point is between
+    // the planet center and the star; once material crosses L1 it drops into
+    // a closer, faster orbit and pulls ahead of the planet — this offset
+    // makes the "escaping toward the star, then leading" story readable
+    // without changing the curve.
+    const sample0 = tmpSpine[0];
+    let l1x = 0, l1y = 0, l1z = 0;
+    if (leading) {
+      const r = Math.hypot(sample0.x, sample0.y, sample0.z);
+      if (r > 1e-9) {
+        const k = (planetRadius * 0.8) / r;
+        l1x = -sample0.x * k;
+        l1y = -sample0.y * k;
+        l1z = -sample0.z * k;
+      }
+    }
+    const positions = geometry.attributes.position.array as Float32Array;
+    for (let i = 0; i <= N; i++) {
+      const t = i / N;
+      // Tangent via finite difference along the spine.
+      const prev = tmpSpine[Math.max(0, i - 1)];
+      const next = tmpSpine[Math.min(N, i + 1)];
+      tmpTangent.subVectors(next, prev).normalize();
+      // Side = perpendicular to tangent, in the orbital plane.
+      tmpSide.crossVectors(tmpTangent, orbitNormal).normalize();
+      const halfW = baseHalfWidth + (tipHalfWidth - baseHalfWidth) * t;
+      // L1-offset weight: 1 at the head, 0 by t≈0.2.
+      const headLerp = Math.max(0, 1 - t * 5);
+      const px = tmpSpine[i].x - sample0.x + l1x * headLerp;
+      const py = tmpSpine[i].y - sample0.y + l1y * headLerp;
+      const pz = tmpSpine[i].z - sample0.z + l1z * headLerp;
+      const off = i * 6;
+      positions[off + 0] = px - halfW * tmpSide.x;
+      positions[off + 1] = py - halfW * tmpSide.y;
+      positions[off + 2] = pz - halfW * tmpSide.z;
+      positions[off + 3] = px + halfW * tmpSide.x;
+      positions[off + 4] = py + halfW * tmpSide.y;
+      positions[off + 5] = pz + halfW * tmpSide.z;
+    }
+    geometry.attributes.position.needsUpdate = true;
+  });
+
+  const material = useMemo(() => new THREE.ShaderMaterial({
+    uniforms: {
+      uColor: { value: new THREE.Color(colorHex) },
+      uBodyFrac: { value: bodyFrac },
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 uColor;
+      uniform float uBodyFrac;
+      varying vec2 vUv;
+
+      float hash2(vec2 p) {
+        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+      }
+      float noise2(vec2 p) {
+        vec2 i = floor(p), f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        return mix(
+          mix(hash2(i),              hash2(i + vec2(1, 0)), f.x),
+          mix(hash2(i + vec2(0, 1)), hash2(i + vec2(1, 1)), f.x),
+          f.y);
+      }
+
+      void main() {
+        // vUv.x: 0 at planet → 1 at tip. vUv.y: 0..1 across the ribbon.
+        float u = vUv.x;
+        float v = vUv.y - 0.5;
+
+        // Hide the region inside the planet silhouette, then ramp up.
+        float fadeIn = smoothstep(uBodyFrac * 0.5, uBodyFrac * 1.4, u);
+        // Soft tip cutoff so the geometric end of the ribbon doesn't show.
+        float tipFade = 1.0 - smoothstep(0.75, 1.0, u);
+        // Exponential density falloff from the head.
+        float distFromHead = max(0.0, u - uBodyFrac * 1.4);
+        float density = exp(-distFromHead * 3.0);
+        // Tight gaussian lateral so the ribbon's bounding rectangle stays
+        // out of the visible envelope.
+        float widthFrac = 0.30 + 0.10 * u;
+        float lateral = exp(-pow(v / widthFrac, 2.0) * 3.5);
+        // Multi-octave wisp to break up the solid look.
+        vec2 q = vec2(u * 6.0, v * 5.0 + u * 2.0);
+        float n1 = noise2(q);
+        float n2 = noise2(q * 2.7);
+        float n3 = noise2(q * 6.3);
+        float wisp = 0.25 + 0.45 * n1 + 0.20 * n2 + 0.10 * n3;
+        float intensity = fadeIn * tipFade * density * lateral * wisp * 1.4;
+        intensity = clamp(intensity, 0.0, 0.95);
+        gl_FragColor = vec4(uColor, intensity);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    depthTest: true,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
+  }), [colorHex, bodyFrac]);
+
+  return <mesh geometry={geometry} material={material} />;
 }
 
 // Shared cache so the same (bodyType, fillColor, ...) doesn't allocate a new

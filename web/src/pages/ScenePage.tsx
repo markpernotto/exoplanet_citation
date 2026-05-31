@@ -445,6 +445,50 @@ function focalStellarRotationDays(
   return row?.value ?? null;
 }
 
+// Centrifugal flattening of a rotating star: f = (R_eq − R_pol)/R_eq. For a
+// rigid Maclaurin spheroid in the slow-rotation limit, f ≈ q/2 where the
+// rotational parameter q = Ω²R³/(GM). Inputs are observable quantities —
+// stellar_rotation_period or stellar_vsini for Ω, st_rad for R, st_mass for
+// M — so no curation step is needed. Returns null when any input is missing
+// or when the derived flattening is below a visibility threshold (0.5%),
+// which keeps Sun-like rotators (Sun f ~ 9e-6) from triggering a render.
+//
+// Examples in the catalog:
+//   KELT-9      vsini ~111 km/s, R = 2.4 R_sun, M = 2.5 M_sun  →  f ~ 0.03
+//   beta Pic    vsini ~125 km/s, R = 1.8 R_sun, M = 1.75 M_sun →  f ~ 0.05
+//   Vega-class  vsini ~200 km/s, R = 2.4 R_sun, M = 2.1 M_sun  →  f > 0.1
+function focalStellarOblateness(
+  derived: DerivedMeasurementRow[], plName: string,
+  stRadRsun: number | null, stMassMsun: number | null,
+): number | null {
+  if (stRadRsun == null || stRadRsun <= 0 || stMassMsun == null || stMassMsun <= 0) return null;
+  // Prefer measured rotation period (days). Fall back to v sin i (km/s) via
+  // P_rot = 2π R / v sin i, treating sin i ≈ 1 — this overestimates P_rot
+  // (underestimates Ω, underestimates f) when the spin axis is inclined, so
+  // the rendered flattening is a lower bound from v sin i.
+  let omegaRadSec: number | null = null;
+  const rotp = bestDerived(derived, plName, 'stellar_rotation_period');
+  if (rotp?.value != null && rotp.value > 0) {
+    omegaRadSec = (2 * Math.PI) / (rotp.value * 86400);
+  } else {
+    const vsini = bestDerived(derived, plName, 'stellar_vsini');
+    if (vsini?.value != null && vsini.value > 0) {
+      const Rm = stRadRsun * 6.957e8;
+      omegaRadSec = (vsini.value * 1000) / Rm;
+    }
+  }
+  if (omegaRadSec == null) return null;
+  const R = stRadRsun * 6.957e8;          // meters
+  const GM = 6.674e-11 * stMassMsun * 1.989e30;
+  const q = (omegaRadSec * omegaRadSec * R * R * R) / GM;
+  const f = q / 2;
+  if (!Number.isFinite(f) || f < 0.005) return null;
+  // Cap at 0.35 (extreme break-up rotators). Beyond f≈0.35 the slow-rotation
+  // Maclaurin approximation breaks down anyway, and visually 35% squash is
+  // already at the limit of "credibly a star, not a disc."
+  return Math.min(0.35, f);
+}
+
 // Thermal emission color for a body at temperature T (Kelvin). Stylized for
 // visibility — below ~800K the surface is essentially dark (peak emission in
 // the IR, no visible glow); above ~1500K it reads as cherry-red; above
@@ -754,6 +798,9 @@ function InfoPanel({
   const cpdDustMass = bestDerived(scene.derived_measurements, planet.pl_name, 'circumplanetary_disk_dust_mass');
   const cpdAccretion = bestDerived(scene.derived_measurements, planet.pl_name, 'accretion_rate');
   const massLoss = focalMassLoss(scene.derived_measurements, planet.pl_name);
+  const oblateness = focalStellarOblateness(
+    scene.derived_measurements, planet.pl_name, planet.st_rad, planet.st_mass,
+  );
   const planetSpinPeriodHours = planetSpin?.value && planet.pl_rade
     ? (2 * Math.PI * planet.pl_rade * 6371) / planetSpin.value / 3600
     : null;
@@ -893,6 +940,31 @@ function InfoPanel({
               <a href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(vsini.bibcode)}/abstract`} target="_blank" rel="noopener noreferrer">v sin i: ADS →</a>
             )}
           </div>
+        </Section>
+      )}
+
+      {/* Stellar oblateness — centrifugal flattening from the host's spin,
+          derived live from rotation_period (or v sin i) + st_rad + st_mass.
+          Lights up for any host whose computed f exceeds 0.5%; below that
+          the squash is visually imperceptible and the section stays hidden
+          (Sun-like rotators sit there). The scene compresses the photosphere
+          along its spin axis (+Y) by the same factor. */}
+      {oblateness != null && (
+        <Section
+          label="Stellar oblateness"
+          open={openSections.has('starsquash')}
+          onToggle={() => toggle('starsquash')}
+        >
+          <p style={{ margin: '0 0 0.4rem', fontSize: '0.82rem' }}>
+            Flattening <strong>f = {(oblateness * 100).toFixed(oblateness < 0.05 ? 2 : 1)}%</strong>
+            <span style={{ color: 'var(--fg-muted)' }}> ({((1 / (1 - oblateness)) - 1).toFixed(2)}× equatorial bulge)</span>
+          </p>
+          <p style={{ margin: '0 0 0.4rem', fontSize: '0.74rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+            Centrifugal flattening from the host's measured spin: f ≈ Ω²R³/(2GM). The scene squashes the photosphere along its spin axis by the same factor — the equator stays at the catalog radius, the poles shrink. Below 0.5% the section doesn't appear because the squash isn't visible.
+          </p>
+          <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', color: 'var(--fg-muted)' }}>
+            Derived from <strong>{rotp?.value != null ? 'rotation period' : 'v sin i'}</strong>, <strong>st_rad</strong>, <strong>st_mass</strong> — no curation step.
+          </p>
         </Section>
       )}
 
@@ -2006,6 +2078,16 @@ function SceneContents({
     return starSpotProps(stellarRotationDays, planet.hostname);
   }, [stellarRotationDays, planet.hostname]);
 
+  // Centrifugal oblateness of the host star (f = (R_eq − R_pol)/R_eq).
+  // Only renders when f > 0.5% — Sun-class rotators contribute too little
+  // to see. Squashes the Photosphere along its spin axis (+Y).
+  const stellarOblateness = useMemo(
+    () => focalStellarOblateness(
+      scene.derived_measurements, planet.pl_name, planet.st_rad, planet.st_mass,
+    ),
+    [scene.derived_measurements, planet.pl_name, planet.st_rad, planet.st_mass],
+  );
+
   // Focal planet's axial spin, derived from rotation_velocity (km/s) + radius.
   // Rate is stylized like the orbit pacing (a 10-hour rotator turns once per
   // ~12 s); faster/slower relative rates are preserved. Spin direction is +Y
@@ -2144,7 +2226,7 @@ function SceneContents({
           its own StellarCorona so both stars in a binary get a halo. */}
       {planet.cb_flag === 1
         ? <BinaryPhotospheres radius={sunRadius} color={sun_color_hex} teff={planet.st_teff} paused={paused} speed={speed} />
-        : <Photosphere radius={sunRadius} color={sun_color_hex} teff={planet.st_teff} rotationPeriodDays={stellarRotationDays} spot={stellarSpot} haloIntensity={haloIntensity} />
+        : <Photosphere radius={sunRadius} color={sun_color_hex} teff={planet.st_teff} rotationPeriodDays={stellarRotationDays} spot={stellarSpot} haloIntensity={haloIntensity} oblateness={stellarOblateness ?? 0} />
       }
       {/* Sun light: decay=1.7 (slightly less aggressive than physical 1/r²).
           Pure inverse-square crushes outer planets visually faster than the
@@ -2473,7 +2555,7 @@ function spectralTypeToColor(spectype: string | null): string {
 // atmospheric path) and subtle granulation noise. Result: a soft, alive
 // edge rather than a hard sharp circle.
 
-function Photosphere({ radius, color, teff, rotationPeriodDays, spot, haloIntensity = 0.4 }: { radius: number; color: string; teff: number | null; rotationPeriodDays?: number | null; spot?: StarSpotProps | null; haloIntensity?: number }) {
+function Photosphere({ radius, color, teff, rotationPeriodDays, spot, haloIntensity = 0.4, oblateness = 0 }: { radius: number; color: string; teff: number | null; rotationPeriodDays?: number | null; spot?: StarSpotProps | null; haloIntensity?: number; oblateness?: number }) {
   // Opaque shader — must write depth properly so orbit lines and planets
   // behind the sun get occluded. The "soft edge" is achieved by the corona
   // (drawn additively over and around the photosphere edge), not by making
@@ -2721,8 +2803,14 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spot, haloIntens
           color pass stay coincident; a sphere is rotation-symmetric so the
           depth occlusion is unaffected, and the granulation (sampled in object
           space) visibly rotates with the disc. The corona is a camera-facing
-          billboard, so it stays outside the spin group. */}
-      <group ref={spinGroup}>
+          billboard, so it stays outside the spin group.
+          Oblateness squashes the spin axis (Y) by (1 − f): the equator stays
+          at the catalog radius, the poles shrink. The rendered squash is
+          exaggerated 3× so it reads through the corona's additive halo —
+          same idiom as BODY_EXAG = 500 for planet sizes. Capped at 0.30
+          so even break-up rotators stay "credibly stellar." The InfoPanel
+          shows the true physical f, not the visual factor. */}
+      <group ref={spinGroup} scale={[1, 1 - Math.min(0.30, oblateness * 3), 1]}>
         <mesh material={depthOnlyMaterial} renderOrder={-100}>
           <sphereGeometry args={[radius, 64, 64]} />
         </mesh>

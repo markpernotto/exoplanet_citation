@@ -36,6 +36,16 @@ export default function ScenePage() {
   // obliquity systems keep their existing visual; the toggle lets the user
   // hide the overlay for a clean view or when it gets noisy.
   const [showStellarReference, setShowStellarReference] = useState(true);
+  // Debris-disk axis (normal vector perpendicular to the disk plane). Separate
+  // toggle from the stellar spin axis so the user can show one without the
+  // other — useful on systems like HR 8799 that have both, or systems with
+  // a disk but no measured stellar rotation.
+  const [showDebrisDiskAxis, setShowDebrisDiskAxis] = useState(true);
+  // Align the camera so the (first) debris disk normal is "up" on screen.
+  // Off by default — the user opts in to this reorientation when they want
+  // a physics-natural view (disk horizontal, axis vertical) instead of the
+  // arbitrary default camera angle.
+  const [alignToDiskAxis, setAlignToDiskAxis] = useState(false);
 
   // Parse the URL hash once on initial mount. viewMode + orbital clock are
   // initialized from it (must happen before Canvas first renders so the
@@ -153,6 +163,12 @@ export default function ScenePage() {
   const hasStellarReference =
     focalObliquity(scene.derived_measurements, scene.planet.pl_name) != null
     || focalStellarRotationDays(scene.derived_measurements, scene.planet.pl_name) != null;
+  // Whether the focal scene has at least one debris disk with a MEASURED
+  // inclination (the axis indicator + axis-aligned view only make sense for
+  // measured tilts; ε Eri / 51 Eri belts have no inclination so they don't
+  // contribute). Drives the disk-axis + align-to-disk toggles' visibility.
+  const debrisDisksForFocal = focalDebrisDisks(scene.derived_measurements, scene.planet.pl_name);
+  const hasInclinedDebrisDisk = debrisDisksForFocal.some((b) => b.inclinationDeg != null);
   // sunWorldPos was declared at the top of the component (alongside other
   // hooks) to satisfy React's rules-of-hooks. It's used here to point the
   // surface-view camera tracker at the sun, which always lives at origin.
@@ -171,6 +187,9 @@ export default function ScenePage() {
         viewMode={viewMode} setViewMode={setViewMode}
         showStellarReference={showStellarReference} setShowStellarReference={setShowStellarReference}
         hasStellarReference={hasStellarReference}
+        showDebrisDiskAxis={showDebrisDiskAxis} setShowDebrisDiskAxis={setShowDebrisDiskAxis}
+        alignToDiskAxis={alignToDiskAxis} setAlignToDiskAxis={setAlignToDiskAxis}
+        hasInclinedDebrisDisk={hasInclinedDebrisDisk}
       />
       {/* Re-mount the Canvas on viewMode change so the camera + controls swap
           cleanly. Slight perf hit on toggle, but no stale-state bugs. */}
@@ -233,7 +252,12 @@ export default function ScenePage() {
               to divide by the scale factor. */}
           <VRSceneScale maxOrbit={maxOrbit}>
             {viewMode === 'system' ? (
-              <SceneContents scene={scene} paused={paused} speed={speed} clockRef={clockRef} showStellarReference={showStellarReference} />
+              <SceneContents
+                scene={scene} paused={paused} speed={speed} clockRef={clockRef}
+                showStellarReference={showStellarReference}
+                showDebrisDiskAxis={showDebrisDiskAxis}
+                alignToDiskAxis={alignToDiskAxis}
+              />
             ) : (
               <SceneContents
                 scene={scene} paused={paused} speed={speed}
@@ -241,6 +265,8 @@ export default function ScenePage() {
                 hideFocal
                 focalPosOut={focalPosRef}
                 showStellarReference={showStellarReference}
+                showDebrisDiskAxis={showDebrisDiskAxis}
+                alignToDiskAxis={alignToDiskAxis}
               />
             )}
           </VRSceneScale>
@@ -689,6 +715,123 @@ function provenanceLabel(p: string): string {
   }
 }
 
+// System-level debris disk for the focal planet's host star. 5 systems
+// currently carry curated debris_disk_* rows (migration 090): bet Pic b,
+// HR 8799 b, HD 95086 b, eps Eri b, 51 Eri b (which has two belts —
+// warm at 5.5 AU, cold at 82 AU). Each belt's rows share one bibcode
+// (the primary source paper), so grouping by bibcode reconstructs the
+// per-belt geometry. A belt with no debris_disk_outer_au row is a
+// single-radius SED fit (Patel/Riviere-Marichalar for 51 Eri); the
+// renderer draws it as a narrow ring centered on the inner_au value.
+type FocalDebrisDiskBelt = {
+  innerAu: number;
+  outerAu: number | null;          // null for SED-fit single-radius belts
+  inclinationDeg: number | null;   // null when no source paper quotes one
+  inclinationUncHi: number | null;
+  inclinationUncLo: number | null;
+  model: string | null;            // "Kepler bandpass occultation", etc.
+  bibcode: string | null;
+  curatorNote: string | null;
+  provenance: string;
+  // Curated dust temperature (migration 091). Drives the renderer's
+  // per-belt color: ~45-55 K is cool blue-gray (sub-mm cold dust), ~85 K
+  // is neutral, ~180 K reads as warm orange-brown (mid-IR warm dust).
+  // Null for belts where no paper quotes a temperature (eps Eri b).
+  dustTemperatureK: number | null;
+  dustTemperatureUncHi: number | null;
+  dustTemperatureUncLo: number | null;
+  // Temperature paper bibcode — often DIFFERENT from the geometry paper
+  // (HR 8799 geometry from Booth 2016, temperature from Su 2009; HD 95086
+  // geometry from Su 2017, temperature from Su 2015). Both deserve their
+  // own citation in the InfoPanel.
+  dustTemperatureBibcode: string | null;
+};
+
+function focalDebrisDisks(
+  derived: DerivedMeasurementRow[], plName: string,
+): FocalDebrisDiskBelt[] {
+  // Pull all debris_disk_* rows for this planet, then group by bibcode —
+  // each unique bibcode is one belt. (β Pic has one belt with 3 rows
+  // sharing Dent 2014; 51 Eri has two belts, each its own bibcode.)
+  const rows = derived.filter(
+    (r) => r.pl_name === plName && r.quantity.startsWith('debris_disk_'),
+  );
+  if (rows.length === 0) return [];
+  const byBibcode = new Map<string, DerivedMeasurementRow[]>();
+  for (const r of rows) {
+    const key = r.bibcode ?? `__nobib_${r.quantity}_${r.value}`;
+    const list = byBibcode.get(key) ?? [];
+    list.push(r);
+    byBibcode.set(key, list);
+  }
+  const belts: FocalDebrisDiskBelt[] = [];
+  for (const group of byBibcode.values()) {
+    const inner = group.find((r) => r.quantity === 'debris_disk_inner_au');
+    const outer = group.find((r) => r.quantity === 'debris_disk_outer_au');
+    const inc = group.find((r) => r.quantity === 'debris_disk_inclination_deg');
+    const temp = group.find((r) => r.quantity === 'debris_disk_dust_temperature_k');
+    if (!inner?.value) continue;
+    const anchor = inner;
+    belts.push({
+      innerAu: inner.value,
+      outerAu: outer?.value ?? null,
+      inclinationDeg: inc?.value ?? null,
+      inclinationUncHi: inc?.unc_hi ?? null,
+      inclinationUncLo: inc?.unc_lo ?? null,
+      model: anchor.model,
+      bibcode: anchor.bibcode,
+      curatorNote: anchor.curator_note,
+      provenance: anchor.provenance,
+      dustTemperatureK: temp?.value ?? null,
+      dustTemperatureUncHi: temp?.unc_hi ?? null,
+      dustTemperatureUncLo: temp?.unc_lo ?? null,
+      dustTemperatureBibcode: temp?.bibcode ?? null,
+    });
+  }
+  // Orphan-temperature fallback: when a planet's temperature row has a
+  // DIFFERENT bibcode from the geometry row (HR 8799: Booth 2016 geometry
+  // + Su 2009 temperature; HD 95086: Su 2017 geometry + Su 2015 temperature),
+  // the bibcode-grouping above puts the temperature in a separate group
+  // without inner_au, so it gets dropped. For single-belt planets we
+  // attach the orphan temperature to that belt. Multi-belt systems
+  // (51 Eri) get bibcode-matched temperatures via the loop above.
+  const orphanTemps = rows.filter(
+    (r) => r.quantity === 'debris_disk_dust_temperature_k'
+      && !belts.some((b) => b.dustTemperatureBibcode === r.bibcode),
+  );
+  if (orphanTemps.length === 1 && belts.length === 1 && belts[0].dustTemperatureK == null) {
+    const t = orphanTemps[0];
+    belts[0].dustTemperatureK = t.value;
+    belts[0].dustTemperatureUncHi = t.unc_hi;
+    belts[0].dustTemperatureUncLo = t.unc_lo;
+    belts[0].dustTemperatureBibcode = t.bibcode;
+  }
+  // Sort by inner radius so the warm/inner belt renders first; helps the
+  // 51 Eri case (warm 5.5 AU + cold 82 AU) look ordered in the InfoPanel.
+  belts.sort((a, b) => a.innerAu - b.innerAu);
+  return belts;
+}
+
+// Dust color from temperature (K). Cold dust (~40-60 K, sub-mm regime)
+// reads as cool blue-gray; warm dust (~150-250 K, mid-IR regime) reads as
+// warm orange-brown. Two-segment linear interpolation through a neutral
+// brown midpoint at ~100 K. Returns the legacy generic-dust brown when
+// temperature is not measured. Output is a hex string for ShaderMaterial
+// uColor uniform.
+function dustColorHex(tKelvin: number | null): string {
+  if (tKelvin == null) return '#9a8060'; // legacy generic dust
+  const cold: [number, number, number] = [90, 106, 136];   // 40 K — cool blue-gray
+  const mid:  [number, number, number] = [154, 128, 96];   // 100 K — neutral brown (= #9a8060)
+  const warm: [number, number, number] = [192, 128, 80];   // 200 K — warm orange-brown
+  const lerp = (a: [number,number,number], b: [number,number,number], t: number) =>
+    [0,1,2].map((i) => Math.round(a[i] + Math.max(0, Math.min(1, t)) * (b[i] - a[i])));
+  const channels = tKelvin <= 100
+    ? lerp(cold, mid, (tKelvin - 40) / 60)
+    : lerp(mid, warm, (tKelvin - 100) / 100);
+  const hex = (n: number) => n.toString(16).padStart(2, '0');
+  return `#${hex(channels[0])}${hex(channels[1])}${hex(channels[2])}`;
+}
+
 // Starspot parameters derived from the host's rotation period and identifier:
 // - latitude (Strassmeier-Hathaway correlation: fast rotators carry high-
 //   latitude / near-polar spots; slow Sun-like rotators carry low-latitude
@@ -858,6 +1001,7 @@ function InfoPanel({
   const cpdAccretion = bestDerived(scene.derived_measurements, planet.pl_name, 'accretion_rate');
   const massLoss = focalMassLoss(scene.derived_measurements, planet.pl_name);
   const albedo = focalAlbedo(scene.derived_measurements, planet.pl_name);
+  const debrisDisks = focalDebrisDisks(scene.derived_measurements, planet.pl_name);
   const oblateness = focalStellarOblateness(
     scene.derived_measurements, planet.pl_name, planet.st_rad, planet.st_mass,
   );
@@ -1277,6 +1421,127 @@ function InfoPanel({
         </Section>
       )}
 
+      {/* System-level debris disk(s). Currently 5 systems qualify
+          (migration 090): bet Pic, HR 8799, HD 95086, eps Eri, 51 Eri.
+          51 Eri has TWO belts (warm + cold) — each entry in `debrisDisks`
+          carries its own bibcode and is rendered as a separate row block.
+          The scene draws each belt as a wide flat ring (or narrow ring
+          for SED-fit single-radius belts) around the host star at AU
+          scale. Inclination from the same paper tilts the ring when
+          measured. */}
+      {debrisDisks.length > 0 && (
+        <Section
+          label={debrisDisks.length > 1 ? `Debris disks · ${debrisDisks.length}` : 'Debris disk'}
+          open={openSections.has('debris')}
+          onToggle={() => toggle('debris')}
+        >
+          <p style={{ margin: '0 0 0.5rem', fontSize: '0.78rem', lineHeight: 1.5 }}>
+            {debrisDisks.length === 1
+              ? 'A resolved debris disk has been measured around the host star. The scene shows it as a wide dusty ring at the measured AU scale.'
+              : `${debrisDisks.length} distinct debris belts have been measured around the host star (warm inner + cold outer, the same architecture as HR 8799 and HD 95086). Each is shown at its measured AU scale.`}
+          </p>
+          {debrisDisks.map((belt, i) => {
+            const isSingleRadius = belt.outerAu == null;
+            return (
+              <div
+                key={`belt-${belt.bibcode ?? i}`}
+                style={{
+                  margin: '0 0 0.6rem',
+                  paddingTop: i === 0 ? 0 : '0.5rem',
+                  borderTop: i === 0 ? 'none' : '1px solid var(--border)',
+                }}
+              >
+                <dl style={{ margin: '0 0 0.3rem', display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.15rem 0.6rem', fontSize: '0.8rem' }}>
+                  {isSingleRadius ? (
+                    <>
+                      <dt style={{ color: 'var(--fg-muted)' }}>blackbody radius</dt>
+                      <dd style={{ margin: 0 }}>
+                        <strong>{belt.innerAu.toFixed(belt.innerAu < 10 ? 1 : 0)}</strong> AU
+                      </dd>
+                    </>
+                  ) : (
+                    <>
+                      <dt style={{ color: 'var(--fg-muted)' }}>inner edge</dt>
+                      <dd style={{ margin: 0 }}><strong>{belt.innerAu.toFixed(0)}</strong> AU</dd>
+                      <dt style={{ color: 'var(--fg-muted)' }}>outer edge</dt>
+                      <dd style={{ margin: 0 }}><strong>{belt.outerAu!.toFixed(0)}</strong> AU</dd>
+                    </>
+                  )}
+                  {belt.inclinationDeg != null && (
+                    <>
+                      <dt style={{ color: 'var(--fg-muted)' }}>inclination</dt>
+                      <dd style={{ margin: 0 }}>
+                        <strong>{belt.inclinationDeg.toFixed(belt.inclinationDeg < 10 ? 2 : 1)}°</strong>
+                        {belt.inclinationUncHi != null && belt.inclinationUncLo != null && (
+                          <span style={{ color: 'var(--fg-muted)' }}>
+                            {' '}{belt.inclinationUncHi === belt.inclinationUncLo
+                              ? `± ${belt.inclinationUncHi}`
+                              : `+${belt.inclinationUncHi}/-${belt.inclinationUncLo}`}
+                          </span>
+                        )}
+                      </dd>
+                    </>
+                  )}
+                  {belt.dustTemperatureK != null && (
+                    <>
+                      <dt style={{ color: 'var(--fg-muted)' }}>dust temperature</dt>
+                      <dd style={{ margin: 0 }}>
+                        <strong>{belt.dustTemperatureK}</strong> K
+                        {belt.dustTemperatureUncHi != null && belt.dustTemperatureUncLo != null && (
+                          <span style={{ color: 'var(--fg-muted)' }}>
+                            {' '}{belt.dustTemperatureUncHi === belt.dustTemperatureUncLo
+                              ? `± ${belt.dustTemperatureUncHi}`
+                              : `+${belt.dustTemperatureUncHi}/-${belt.dustTemperatureUncLo}`}
+                          </span>
+                        )}
+                      </dd>
+                    </>
+                  )}
+                </dl>
+                {belt.model && (
+                  <p style={{ margin: '0 0 0.3rem', fontSize: '0.74rem', color: 'var(--fg-muted)' }}>
+                    {isSingleRadius ? 'SED fit' : 'Method'}: {belt.model}
+                  </p>
+                )}
+                {isSingleRadius && (
+                  <p style={{ margin: '0 0 0.3rem', fontSize: '0.72rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+                    Single-radius blackbody fit, not resolved imaging — the rendered ring is intentionally narrow to reflect this.
+                  </p>
+                )}
+                <p style={{ margin: '0 0 0.3rem', fontSize: '0.72rem', color: 'var(--fg-muted)' }}>
+                  Source: {provenanceLabel(belt.provenance)}
+                </p>
+                {belt.curatorNote && (
+                  <p style={{ margin: '0 0 0.3rem', fontSize: '0.72rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+                    {belt.curatorNote}
+                  </p>
+                )}
+                <div style={{ display: 'flex', gap: '0.6rem', fontSize: '0.74rem' }}>
+                  {belt.bibcode && (
+                    <a
+                      href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(belt.bibcode)}/abstract`}
+                      target="_blank" rel="noopener noreferrer"
+                    >
+                      {belt.dustTemperatureBibcode && belt.dustTemperatureBibcode !== belt.bibcode
+                        ? 'geometry: ADS →'
+                        : 'ADS →'}
+                    </a>
+                  )}
+                  {belt.dustTemperatureBibcode && belt.dustTemperatureBibcode !== belt.bibcode && (
+                    <a
+                      href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(belt.dustTemperatureBibcode)}/abstract`}
+                      target="_blank" rel="noopener noreferrer"
+                    >
+                      temperature: ADS →
+                    </a>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </Section>
+      )}
+
       {/* Sky position */}
       <Section
         label="Sky position"
@@ -1650,11 +1915,19 @@ function PlaybackControls({
   viewMode, setViewMode,
   showStellarReference, setShowStellarReference,
   hasStellarReference,
+  showDebrisDiskAxis, setShowDebrisDiskAxis,
+  alignToDiskAxis, setAlignToDiskAxis,
+  hasInclinedDebrisDisk,
 }: {
   paused: boolean; setPaused: (p: boolean) => void;
   speed: number; setSpeed: (s: number) => void;
   viewMode: 'system' | 'surface'; setViewMode: (v: 'system' | 'surface') => void;
   showStellarReference: boolean; setShowStellarReference: (v: boolean) => void;
+  /** True when the focal system has at least one debris disk with a
+      measured inclination (the toggles below only make sense in that case). */
+  showDebrisDiskAxis: boolean; setShowDebrisDiskAxis: (v: boolean) => void;
+  alignToDiskAxis: boolean; setAlignToDiskAxis: (v: boolean) => void;
+  hasInclinedDebrisDisk: boolean;
   /** True when the focal scene has something for the spin-axis toggle to
       control (measured obliquity or a host-star rotation period). Used to
       hide the display row entirely on systems where the toggle would be a
@@ -1749,28 +2022,72 @@ function PlaybackControls({
           frame (spin axis + equator ring on obliquity systems). Hidden when
           the focal scene has nothing for it to control, so the controls
           don't carry a dangling button. */}
-      {hasStellarReference && (
+      {(hasStellarReference || hasInclinedDebrisDisk) && (
       <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', marginTop: '0.55rem', flexWrap: 'wrap' }}>
         <span style={{ color: 'var(--fg-muted)' }}>display</span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={showStellarReference}
-          aria-label={`Stellar spin axis overlay, currently ${showStellarReference ? 'on' : 'off'}`}
-          onClick={() => setShowStellarReference(!showStellarReference)}
-          title="Toggle the stellar spin axis (and obliquity equator ring, when present)"
-          style={{
-            background: showStellarReference ? 'var(--fg)' : 'transparent',
-            color: showStellarReference ? '#0b0d12' : 'var(--fg-muted)',
-            border: '1px solid var(--border)',
-            padding: '0.15rem 0.5rem',
-            borderRadius: 3,
-            cursor: 'pointer',
-            fontSize: '0.75rem',
-          }}
-        >
-          spin axis {showStellarReference ? 'on' : 'off'}
-        </button>
+        {hasStellarReference && (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={showStellarReference}
+            aria-label={`Stellar spin axis overlay, currently ${showStellarReference ? 'on' : 'off'}`}
+            onClick={() => setShowStellarReference(!showStellarReference)}
+            title="Toggle the stellar spin axis (and obliquity equator ring, when present)"
+            style={{
+              background: showStellarReference ? 'var(--fg)' : 'transparent',
+              color: showStellarReference ? '#0b0d12' : 'var(--fg-muted)',
+              border: '1px solid var(--border)',
+              padding: '0.15rem 0.5rem',
+              borderRadius: 3,
+              cursor: 'pointer',
+              fontSize: '0.75rem',
+            }}
+          >
+            spin axis {showStellarReference ? 'on' : 'off'}
+          </button>
+        )}
+        {hasInclinedDebrisDisk && (
+          <>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={showDebrisDiskAxis}
+              aria-label={`Debris-disk axis overlay, currently ${showDebrisDiskAxis ? 'on' : 'off'}`}
+              onClick={() => setShowDebrisDiskAxis(!showDebrisDiskAxis)}
+              title="Toggle the line perpendicular to the debris-disk plane"
+              style={{
+                background: showDebrisDiskAxis ? 'var(--fg)' : 'transparent',
+                color: showDebrisDiskAxis ? '#0b0d12' : 'var(--fg-muted)',
+                border: '1px solid var(--border)',
+                padding: '0.15rem 0.5rem',
+                borderRadius: 3,
+                cursor: 'pointer',
+                fontSize: '0.75rem',
+              }}
+            >
+              disk axis {showDebrisDiskAxis ? 'on' : 'off'}
+            </button>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={alignToDiskAxis}
+              aria-label={`Align camera view to debris-disk axis, currently ${alignToDiskAxis ? 'on' : 'off'}`}
+              onClick={() => setAlignToDiskAxis(!alignToDiskAxis)}
+              title="Reorient the camera so the debris-disk axis points straight up on screen"
+              style={{
+                background: alignToDiskAxis ? 'var(--fg)' : 'transparent',
+                color: alignToDiskAxis ? '#0b0d12' : 'var(--fg-muted)',
+                border: '1px solid var(--border)',
+                padding: '0.15rem 0.5rem',
+                borderRadius: 3,
+                cursor: 'pointer',
+                fontSize: '0.75rem',
+              }}
+            >
+              align to disk {alignToDiskAxis ? 'on' : 'off'}
+            </button>
+          </>
+        )}
       </div>
       )}
 
@@ -2129,6 +2446,8 @@ function SceneContents({
   hideFocal = false,
   focalPosOut,
   showStellarReference = true,
+  showDebrisDiskAxis = true,
+  alignToDiskAxis = false,
 }: {
   scene: SceneResponse;
   paused: boolean;
@@ -2147,6 +2466,13 @@ function SceneContents({
   /** Toggles the stellar spin axis + (when obliquity is present) equator
       ring overlay. Driven from PlaybackControls. */
   showStellarReference?: boolean;
+  /** Toggles the debris-disk axis (normal vector perpendicular to disk plane).
+      Independent from the stellar spin axis. */
+  showDebrisDiskAxis?: boolean;
+  /** When true, the camera's up vector is set to the (first inclined) debris-
+      disk normal so the disk appears horizontal and its axis vertical on
+      screen — a "physics-natural" viewing frame. */
+  alignToDiskAxis?: boolean;
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -2286,6 +2612,16 @@ function SceneContents({
   // are unaffected since the shader's emission path doesn't read albedo.
   const albedo = useMemo(
     () => focalAlbedo(scene.derived_measurements, planet.pl_name),
+    [scene.derived_measurements, planet.pl_name],
+  );
+
+  // System-level debris disks for the focal planet's host star (5 systems
+  // qualify post-migration 090: bet Pic, HR 8799, HD 95086, eps Eri, 51 Eri).
+  // Returns one entry per belt — 51 Eri has both a warm and cold belt, the
+  // others have one. Rendered as wide flat rings around the host at the
+  // AU scale of the orbit.
+  const debrisDisks = useMemo(
+    () => focalDebrisDisks(scene.derived_measurements, planet.pl_name),
     [scene.derived_measurements, planet.pl_name],
   );
 
@@ -2442,6 +2778,46 @@ function SceneContents({
           showEquator={!!obliquity}
         />
       )}
+
+      {/* System-level debris disks. Centered on origin (host star), in AU
+          scale, rendered as wide flat rings in the orbital reference plane
+          (XZ) with inclination applied per belt. 5 systems qualify today
+          (bet Pic, HR 8799, HD 95086, eps Eri, 51 Eri). Stacking order:
+          rendered before sibling orbit rings + planet bodies so opaque
+          planets occlude the disc as they pass through it (depthTest=true
+          inside SystemDebrisDiskRing). */}
+      {debrisDisks.map((belt) => (
+        <SystemDebrisDiskRing
+          key={`debris-${belt.bibcode ?? belt.innerAu}`}
+          belt={belt}
+        />
+      ))}
+
+      {/* Disk normal axis — one line per belt with a measured inclination,
+          controlled by its OWN toggle (showDebrisDiskAxis) separately from
+          the stellar spin axis. Helps visualize the disk-plane orientation
+          for inclined disks (bet Pic ~89° = nearly along line of sight,
+          HR 8799 = 40°, HD 95086 = 30°). eps Eri and 51 Eri belts have no
+          measured inclination so they're skipped. */}
+      {showDebrisDiskAxis && debrisDisks.map((belt) => (
+        belt.inclinationDeg != null && (
+          <DebrisDiskAxis
+            key={`disk-axis-${belt.bibcode ?? belt.innerAu}`}
+            length={(belt.outerAu ?? belt.innerAu * 1.1) * 1.2}
+            inclinationDeg={belt.inclinationDeg}
+          />
+        )
+      ))}
+
+      {/* Align-camera-to-disk: sets the camera's up vector to the (first
+          inclined) debris-disk's normal direction, so the disk appears
+          horizontal and its axis vertical on screen. Toggleable from
+          PlaybackControls; off by default. The effect runs whenever the
+          toggle flips, the focal scene changes, or the disk set changes. */}
+      <CameraAxisAlignment
+        align={alignToDiskAxis}
+        debrisDisks={debrisDisks}
+      />
       {siblings
         .filter((s) => s.pl_name !== planet.pl_name && s.pl_orbsmax != null)
         .map((s) => {
@@ -3335,6 +3711,72 @@ function StellarSpinReference({ orbsmax, showAxis = true, showEquator = true }: 
   );
 }
 
+// Sets the camera's up vector to the (first inclined) debris-disk's normal
+// when toggled on. Effect: looking at the system, the disk appears horizontal
+// (perpendicular to "up") and its axis appears vertical on screen. Reverts
+// to world +Y up when toggled off so the user can return to the default
+// scene orientation without reloading. Lives inside Canvas so it has access
+// to useThree() for the camera instance.
+function CameraAxisAlignment({
+  align, debrisDisks,
+}: {
+  align: boolean; debrisDisks: FocalDebrisDiskBelt[];
+}) {
+  const { camera, invalidate } = useThree();
+  // Pick the first belt with a measured inclination as the alignment target.
+  // For multi-belt systems (51 Eri) inclinations aren't measured anyway, so
+  // this consistently picks the inclined belt for HR 8799 / HD 95086 / β Pic.
+  const target = debrisDisks.find((b) => b.inclinationDeg != null) ?? null;
+  useEffect(() => {
+    if (align && target?.inclinationDeg != null) {
+      // Disk normal direction (same math as DebrisDiskAxis): (0, cos i, sin i)
+      // in world space, with the disk rotation [-π/2 + i, 0, 0] applied to
+      // a ringGeometry's natural +Z normal.
+      const incRad = (target.inclinationDeg * Math.PI) / 180;
+      camera.up.set(0, Math.cos(incRad), Math.sin(incRad));
+    } else {
+      camera.up.set(0, 1, 0);
+    }
+    camera.updateMatrixWorld(true);
+    invalidate();
+  }, [align, target?.inclinationDeg, camera, invalidate]);
+  return null;
+}
+
+// Axis line perpendicular to a curated debris-disk's plane. The disk's
+// rotation is [-PI/2 + incRad, 0, 0] around the X axis (see
+// SystemDebrisDiskRing); applying that rotation to the ringGeometry's
+// natural +Z normal gives a world-space normal of (0, cos(incRad),
+// sin(incRad)), so the axis line extends along ±(0, cos i, sin i) from
+// the host. Toggled by the same showStellarReference checkbox as the
+// stellar spin axis — both are "reference geometry" overlays.
+function DebrisDiskAxis({
+  length, inclinationDeg, color = '#a08866',
+}: {
+  length: number; inclinationDeg: number; color?: string;
+}) {
+  const incRad = (inclinationDeg * Math.PI) / 180;
+  const ny = Math.cos(incRad);
+  const nz = Math.sin(incRad);
+  const geom = useMemo(() => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(
+      new Float32Array([
+        0, -length * ny, -length * nz,
+        0,  length * ny,  length * nz,
+      ]), 3,
+    ));
+    return g;
+  }, [length, ny, nz]);
+  const mat = useMemo(() => new THREE.LineBasicMaterial({
+    color, transparent: true, opacity: 0.5, depthWrite: false,
+  }), [color]);
+  const line = useMemo(() => new THREE.Line(geom, mat), [geom, mat]);
+  useEffect(() => () => { geom.dispose(); }, [geom]);
+  useEffect(() => () => { mat.dispose(); }, [mat]);
+  return <primitive object={line} />;
+}
+
 // ── Per-vantage starfield + diffuse galaxy skydome ─────────────────────
 // Phase 2/3/4: fetches a server-rendered equirectangular PNG from
 // /api/starfield/:plName.png that contains both the per-vantage star
@@ -3667,12 +4109,14 @@ function CircumplanetaryDiskRing({ planetRadius }: { planetRadius: number }) {
         // Envelope: smooth fade-in at the inner edge (across the first 35%
         // of the radial range — well past the planet's silhouette at uv.y
         // ~0.11 — so the disc has no brightness step where it emerges from
-        // behind the planet body) combined with a power decay outward for
-        // the dust accumulating around the forming planet.
+        // behind the planet body) combined with a gentle outward decay AND
+        // an explicit outer-edge fade-out so the dust tapers softly into
+        // space instead of cutting off at the ring's geometric edge.
         float r = vUv.y;
-        float fadeIn = smoothstep(0.0, 0.35, r);
-        float decay  = pow(1.0 - r, 1.3);
-        float envelope = fadeIn * decay;
+        float fadeIn  = smoothstep(0.0, 0.35, r);
+        float fadeOut = 1.0 - smoothstep(0.65, 1.0, r);
+        float decay   = pow(1.0 - r * 0.6, 1.1);
+        float envelope = fadeIn * fadeOut * decay;
 
         // Multi-octave noise so the dust reads as clumpy material with
         // structure on multiple scales — not a uniformly-painted decal.
@@ -3687,14 +4131,13 @@ function CircumplanetaryDiskRing({ planetRadius }: { planetRadius: number }) {
         // lanes / gaps) rather than a continuous gradient.
         float bands = 0.75 + 0.25 * sin(r * 22.0 + n1 * 3.0);
 
-        // Three.js AdditiveBlending uses src.rgb * srcAlpha + dst.rgb (the
-        // non-premultiplied path), so the shader should output the base
-        // color in rgb and let the alpha gate the additive contribution —
-        // NOT premultiply rgb by intensity (that would square it). Smooth
-        // inner fade-in plus additive ensures the dust emerges from behind
-        // the planet's silhouette as a gentle glow.
-        float intensity = envelope * dust * bands * 0.7;
-        intensity = clamp(intensity, 0.0, 0.9);
+        // Per-layer intensity dropped to 0.04 because we stack 25 layers
+        // via NormalBlending (1 - (1-0.04*peak)^25 ≈ 0.45 at full overlap).
+        // At the silhouette where only a few layers contribute, alpha is
+        // ~0.04-0.10 giving a truly soft edge — same approach as the
+        // system-level debris disks.
+        float intensity = envelope * dust * bands * 0.04;
+        intensity = clamp(intensity, 0.0, 0.08);
 
         gl_FragColor = vec4(uColor, intensity);
       }
@@ -3702,14 +4145,218 @@ function CircumplanetaryDiskRing({ planetRadius }: { planetRadius: number }) {
     transparent: true,
     depthWrite: false,
     depthTest: true,
-    blending: THREE.AdditiveBlending,
+    blending: THREE.NormalBlending,
     side: THREE.DoubleSide,
   }), []);
 
+  // 25 stacked rings along +Y (disk normal — CPD sits flat in XZ with no
+  // inclination data). Thickness = 5% of the radial width so the layers
+  // pack densely enough to read as a continuous 3D thickness rather than
+  // discrete rings. Same trick as SystemDebrisDiskRing — softens the
+  // silhouette at the projected ellipse's minor-axis ends when viewed at
+  // any angle.
+  const N_LAYERS = 25;
+  const totalThickness = (outerRadius - innerRadius) * 0.05;
+  const layerStep = totalThickness / (N_LAYERS - 1);
   return (
-    <mesh material={material} rotation={[-Math.PI / 2, 0, 0]}>
-      <ringGeometry args={[innerRadius, outerRadius, 256]} />
-    </mesh>
+    <group>
+      {Array.from({ length: N_LAYERS }, (_, i) => {
+        const offset = -totalThickness / 2 + i * layerStep;
+        return (
+          <mesh
+            key={i}
+            material={material}
+            position={[0, offset, 0]}
+            rotation={[-Math.PI / 2, 0, 0]}
+          >
+            <ringGeometry args={[innerRadius, outerRadius, 256]} />
+          </mesh>
+        );
+      })}
+    </group>
+  );
+}
+
+// System-level debris disk ring around the host star. Renders one curated
+// belt as a wide flat ring in the XZ plane (the orbital reference plane),
+// centered on the host (origin) — distinct from CircumplanetaryDiskRing
+// which sits around a single forming planet at planet-radii scale. AU
+// scale: the inner/outer radii are real AU values, so visible to the same
+// camera that views the planet orbits.
+//
+// For belts with a single-radius SED fit (51 Eri warm/cold), outerAu is
+// null and the renderer draws a narrow ring (width = ~20% of innerAu)
+// centered on innerAu — honest about the lack of a resolved-imaging
+// outer edge.
+//
+// Inclination tilts the disk plane: 0° = coplanar with orbit (face-on in
+// the default scene), 90° = edge-on. When inclinationDeg is null we render
+// coplanar with the focal orbit plane (no extra tilt).
+function SystemDebrisDiskRing({ belt }: { belt: FocalDebrisDiskBelt }) {
+  // Single-radius SED fits (51 Eri belts): render as a narrow ring
+  // (width = 20% of inner radius) centered on the blackbody radius.
+  //
+  // Resolved-imaging belts (β Pic, HR 8799, HD 95086, ε Eri): geometric
+  // ring extends 5% inside the cited inner edge and 40% past the cited
+  // outer edge. The cited bounds become "this is where the parent-body
+  // belt is" and the halo extension represents the small-grain dust
+  // pushed outward by stellar radiation pressure — Booth 2016's HR 8799
+  // paper explicitly describes this "halo of small grains" beyond the
+  // parent belt. Brightness peaks at the inner edge and tapers
+  // continuously to zero at the geometric outer, so the visible ring
+  // never has a hard cutoff at the cited boundary.
+  const isSingleRadius = belt.outerAu == null;
+  // Geometry extends WELL inward of cited bounds so the inner fade-in spans
+  // many AU and reads as a visibly gradual gradient.
+  //
+  // Broad belt (resolved imaging): inner = citedInner * 0.65 (35% inward),
+  //   outer = citedOuter * 1.1 (10% outward). For HD 95086 this gives a
+  //   ~37 AU inner fade region before reaching the cited inner.
+  //
+  // Single-radius SED fit (51 Eri warm at 5.5 AU, cold at 82 AU): the cited
+  //   "radius" is a single blackbody-fit value, not a measured ring extent.
+  //   The geometric ring is widened to inner = innerAu * 0.5 and outer =
+  //   innerAu * 1.5, giving the bell curve a radial range equal to the
+  //   cited radius itself — enough for the stacked-ring thickness effect
+  //   to register visibly (otherwise the 5%-of-width thickness collapses
+  //   to near-zero AU for small cited radii like the 5.5 AU warm belt).
+  const inner = isSingleRadius ? belt.innerAu * 0.5 : belt.innerAu * 0.65;
+  const outer = isSingleRadius
+    ? belt.innerAu * 1.5
+    : (belt.outerAu ?? belt.innerAu * 1.1) * 1.1;
+
+  const material = useMemo(() => {
+    return new THREE.ShaderMaterial({
+    uniforms: {
+      // Per-belt color from curated dust temperature (migration 091 — see
+      // dustColorHex). Belts without a temperature row fall back to the
+      // legacy generic dust brown so existing visuals don't change for
+      // belts where temperature isn't measured (eps Eri b).
+      uColor: { value: new THREE.Color(dustColorHex(belt.dustTemperatureK)) },
+      uIsSingleRadius: { value: isSingleRadius ? 1.0 : 0.0 },
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 uColor;
+      uniform float uIsSingleRadius;
+      varying vec2 vUv;
+
+      float hash2(vec2 p) {
+        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+      }
+      float noise2(vec2 p) {
+        vec2 i = floor(p), f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        return mix(
+          mix(hash2(i),              hash2(i + vec2(1, 0)), f.x),
+          mix(hash2(i + vec2(0, 1)), hash2(i + vec2(1, 1)), f.x),
+          f.y);
+      }
+
+      void main() {
+        float r = vUv.y;   // 0 at geometric inner, 1 at geometric outer
+        float envelope;
+        if (uIsSingleRadius > 0.5) {
+          // Narrow ring case: peak at r=0.5, fade to edges. This is the
+          // honest visual for SED-fit single-radius belts (51 Eri).
+          envelope = smoothstep(0.0, 0.40, r) * (1.0 - smoothstep(0.60, 1.0, r));
+        } else {
+          // Soft cloud with SQUARED envelope for much more gradual edges.
+          // The bell-curve smoothstep already produces a smooth fade, but
+          // its rise is "fast" near the edges — alpha hits ~5% (perceptual
+          // visibility threshold) at r ~ 0.1, which the eye reads as a
+          // defined boundary. Squaring the envelope pushes that visibility
+          // threshold out to r ~ 0.3, giving the inner fade THREE TIMES as
+          // much radial space to read as gradient before it becomes
+          // visible. Peak (r=0.5) stays at 1.0 so the central disk reads
+          // at the same brightness as before.
+          float fadeIn  = smoothstep(0.0, 0.5, r);
+          float fadeOut = 1.0 - smoothstep(0.5, 1.0, r);
+          envelope = fadeIn * fadeOut;
+          envelope = envelope * envelope;
+        }
+
+        // Dust noise + bands restored — multi-octave value noise gives the
+        // disk visible clumpy structure (matching ALMA mm-grain imagery),
+        // multiplied by the bell-curve envelope so it fades to invisible
+        // at both geometric ring boundaries.
+        vec2 c = vUv * 2.0 - 1.0;
+        float ang = atan(c.y, c.x);
+        float n1 = noise2(vec2(r * 8.0,  ang * 3.0));
+        float n2 = noise2(vec2(r * 20.0, ang * 8.0));
+        float n3 = noise2(vec2(r * 48.0, ang * 18.0));
+        float dust = 0.30 + 0.40 * n1 + 0.20 * n2 + 0.10 * n3;
+        float bands = 0.88 + 0.12 * sin(r * 18.0 + n1 * 2.5);
+        // Per-layer intensity dropped to 0.025 because 25 layers are
+        // stacked via NormalBlending. At full overlap: composited alpha
+        // = 1 - (1 - 0.025*peak)^25 ≈ 0.30, similar to the original
+        // single-layer peak. At the silhouette (where only 1-3 layers
+        // overlap due to perspective), composited alpha is ~0.04-0.10,
+        // giving a true gradient silhouette instead of a hard edge.
+        float intensity = envelope * dust * bands * 0.025;
+        intensity = clamp(intensity, 0.0, 0.05);
+        gl_FragColor = vec4(uColor, intensity);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    depthTest: true,
+    // NormalBlending (vs the previous AdditiveBlending) so soft
+    // mathematical fade-outs at the inner/outer edges read as truly
+    // transparent regions, not faintly-additive brown tinting the
+    // dark space. The "hard edge" perception was an artifact of
+    // additive blending against pure black; normal alpha blending
+    // makes low-alpha pixels show the background through cleanly.
+    blending: THREE.NormalBlending,
+    side: THREE.DoubleSide,
+    });
+  }, [isSingleRadius, belt.dustTemperatureK]);
+
+  // Disk inclination: rotate the ring around +X axis by inclination degrees.
+  // The disk plane (XZ after the -π/2 rotation) is perpendicular to a normal
+  // vector that's at angle incRad from +Y. Stacking multiple rings along
+  // this normal gives the disk genuine 3D vertical thickness, which softens
+  // the silhouette at the projected ellipse's minor-axis ends — those
+  // points get more screen pixels for the alpha to fade through, instead of
+  // the flat-ring case where the radial direction collapses there.
+  const incRad = belt.inclinationDeg != null
+    ? (belt.inclinationDeg * Math.PI) / 180
+    : 0;
+  // Disk normal direction in world frame: (0, cos i, sin i). Each stacked
+  // ring is offset along this direction.
+  const ny = Math.cos(incRad);
+  const nz = Math.sin(incRad);
+  // Total vertical thickness = 5% of the radial width. Spread across MANY
+  // layers (25) tightly packed so adjacent rings overlap visually and the
+  // discrete bands of the previous 7-layer attempt become a continuous
+  // gradient. For HD 95086 (cited width 214 AU): 11 AU total thickness,
+  // ~0.5 AU layer spacing — well below visual sampling threshold at any
+  // realistic zoom.
+  const N_LAYERS = 25;
+  const totalThickness = (outer - inner) * 0.05;
+  const layerStep = totalThickness / (N_LAYERS - 1);
+  return (
+    <group>
+      {Array.from({ length: N_LAYERS }, (_, i) => {
+        const offset = -totalThickness / 2 + i * layerStep;
+        return (
+          <mesh
+            key={i}
+            material={material}
+            position={[0, offset * ny, offset * nz]}
+            rotation={[-Math.PI / 2 + incRad, 0, 0]}
+          >
+            <ringGeometry args={[inner, outer, 256]} />
+          </mesh>
+        );
+      })}
+    </group>
   );
 }
 

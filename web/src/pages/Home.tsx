@@ -103,15 +103,21 @@ export default function Home() {
     }
   }, []);
 
-  // Search mode: fetch planets + authors in parallel on query change
+  // Search mode: fetch planets + authors in parallel on query change.
+  // Authors endpoint requires q.length >= 2 (server-side Pydantic constraint);
+  // skip it for single-character queries to avoid a 422 in DevTools noise.
   useEffect(() => {
     if (!query) return;
     api.planetsList({ q: query, limit: 50 })
       .then(setSearchResults)
       .catch((e) => setError(e.message));
-    api.authorsSearch(query)
-      .then((r) => setAuthorResults(r.authors))
-      .catch(() => setAuthorResults([]));
+    if (query.length >= 2) {
+      api.authorsSearch(query)
+        .then((r) => setAuthorResults(r.authors))
+        .catch(() => setAuthorResults([]));
+    } else {
+      setAuthorResults([]);
+    }
   }, [query]);
 
   // Default mode: kick off the first page

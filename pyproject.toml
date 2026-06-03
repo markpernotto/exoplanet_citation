@@ -21,7 +21,12 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
     "pydantic>=2.8",
-    "dbt-postgres>=1.8",
+    # Cap below 2.0 to stay on the Python dbt-core line. dbt-core 2.0
+    # is the new "dbt Fusion" rewrite which only supports Snowflake /
+    # BigQuery / Databricks / Redshift; the nightly fails with dbt1005
+    # if pip resolves to it.
+    "dbt-core>=1.8,<2.0",
+    "dbt-postgres>=1.8,<2.0",
 ]
 
 [project.optional-dependencies]

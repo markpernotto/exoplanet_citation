@@ -258,6 +258,13 @@ class BinaryCompanion(BaseModel):
     component_mag_v: float | None
     component_spectype: str | None
     source_catalog: str
+    # True when this row represents a tight inner-binary partner (the
+    # second star of a close pair the planet orbits), not a wide
+    # companion to navigate to. Inner-binary partners are already
+    # rendered as the two suns of BinaryPhotospheres at the host's
+    # position in the 3D scene, so the HUD should suppress arrows for
+    # them.
+    inner_binary: bool | None = None
 
 
 class AtmosphericObservation(BaseModel):

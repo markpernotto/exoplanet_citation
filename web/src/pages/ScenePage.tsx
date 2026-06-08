@@ -46,6 +46,23 @@ export default function ScenePage() {
   // a physics-natural view (disk horizontal, axis vertical) instead of the
   // arbitrary default camera angle.
   const [alignToDiskAxis, setAlignToDiskAxis] = useState(false);
+  // In-scene ruler: two-endpoint interactive measurement tool in the
+  // orbital plane. User drags the endpoints to read AU distances between
+  // arbitrary points. Off by default. `rulerDragging` lifts the drag
+  // state so OrbitControls can be disabled while an endpoint is being
+  // dragged (otherwise the camera fights the handles).
+  const [showRuler, setShowRuler] = useState(false);
+  const [rulerDragging, setRulerDragging] = useState(false);
+  // Companion-star HUD: a fixed-position panel listing companions with
+  // arrows that rotate to point toward each body's actual 3D position.
+  // Default on — the whole point is awareness of companions that sit
+  // outside the focal planet's orbital plane. The shared ref is the
+  // bridge between the in-Canvas tracker (writer) and the panel
+  // (reader); see CompanionHUDTracker / CompanionHUDPanel.
+  const [showCompanions, setShowCompanions] = useState(true);
+  const companionDirectionsRef = useRef<
+    Map<string, { deg: number; inView: boolean }>
+  >(new Map());
 
   // Parse the URL hash once on initial mount. viewMode + orbital clock are
   // initialized from it (must happen before Canvas first renders so the
@@ -190,7 +207,22 @@ export default function ScenePage() {
         showDebrisDiskAxis={showDebrisDiskAxis} setShowDebrisDiskAxis={setShowDebrisDiskAxis}
         alignToDiskAxis={alignToDiskAxis} setAlignToDiskAxis={setAlignToDiskAxis}
         hasInclinedDebrisDisk={hasInclinedDebrisDisk}
+        showRuler={showRuler} setShowRuler={setShowRuler}
+        showCompanions={showCompanions} setShowCompanions={setShowCompanions}
+        hasCompanions={scene.binary_companions.length > 0}
       />
+      {showCompanions && scene.binary_companions.length > 0 && (
+        <CompanionHUDPanel
+          companions={fillCompanionPositionAngles(
+            dropUnpointableCompanions(
+              dropSelfReferenceCompanions(scene.planet.hostname, scene.binary_companions),
+            ),
+          )}
+          hostname={scene.planet.hostname}
+          systemDistancePc={scene.host_star?.distance_gspphot_pc ?? scene.planet.sy_dist ?? scene.planet.distance_manual_pc ?? null}
+          directionsRef={companionDirectionsRef}
+        />
+      )}
       {/* Re-mount the Canvas on viewMode change so the camera + controls swap
           cleanly. Slight perf hit on toggle, but no stale-state bugs. */}
       <Canvas
@@ -228,6 +260,7 @@ export default function ScenePage() {
               enablePan={true}
               minDistance={focalRadius * 1.5}
               maxDistance={maxOrbitOrCompanion * 4 + 5}
+              enabled={!rulerDragging}
             />
           )}
           {viewMode === 'surface' && (
@@ -254,9 +287,14 @@ export default function ScenePage() {
             {viewMode === 'system' ? (
               <SceneContents
                 scene={scene} paused={paused} speed={speed} clockRef={clockRef}
+                focalPosOut={focalPosRef}
                 showStellarReference={showStellarReference}
                 showDebrisDiskAxis={showDebrisDiskAxis}
                 alignToDiskAxis={alignToDiskAxis}
+                showRuler={showRuler}
+                onRulerDragChange={setRulerDragging}
+                showCompanions={showCompanions}
+                companionDirectionsRef={companionDirectionsRef}
               />
             ) : (
               <SceneContents
@@ -267,6 +305,10 @@ export default function ScenePage() {
                 showStellarReference={showStellarReference}
                 showDebrisDiskAxis={showDebrisDiskAxis}
                 alignToDiskAxis={alignToDiskAxis}
+                showRuler={showRuler}
+                onRulerDragChange={setRulerDragging}
+                showCompanions={showCompanions}
+                companionDirectionsRef={companionDirectionsRef}
               />
             )}
           </VRSceneScale>
@@ -1574,8 +1616,13 @@ function InfoPanel({
           onToggle={() => toggle('comp')}
         >
           <p style={{ margin: '0 0 0.4rem', fontSize: '0.74rem', color: 'var(--fg-muted)' }}>
-            {planet.pl_name} orbits the primary only. Other components are
-            shown in the scene at their projected positions.
+            {planet.cb_flag === 1
+              ? <>{planet.pl_name} is circumbinary — it orbits the close
+                  inner pair shown at the center of the scene, not a
+                  single primary star. Wide companions (if any) are shown
+                  at their projected positions.</>
+              : <>{planet.pl_name} orbits the primary only. Other components
+                  are shown in the scene at their projected positions.</>}
           </p>
           {scene.binary_companions.map((c, i) => {
             const sepAU = c.separation_arcsec != null && distance_pc != null
@@ -1598,14 +1645,16 @@ function InfoPanel({
                   )}
                 </div>
                 <div style={{ color: 'var(--fg-muted)', fontSize: '0.74rem' }}>
-                  {sepAU != null ? (
+                  {c.inner_binary ? (
+                    <>inner-binary partner — {planet.pl_name} orbits both</>
+                  ) : sepAU != null ? (
                     <>~{sepAU >= 10 ? sepAU.toFixed(0) : sepAU.toFixed(1)} AU projected
                       {c.position_angle_deg != null && <> · PA {c.position_angle_deg.toFixed(0)}°</>}
                     </>
                   ) : 'separation unknown'}
                   {c.source_catalog && <> · {c.source_catalog}</>}
                 </div>
-                {insideOrbit && (
+                {!c.inner_binary && insideOrbit && (
                   <div style={{ color: 'var(--tier-b)', fontSize: '0.72rem', marginTop: '0.15rem' }}>
                     inside {planet.pl_name}'s orbit — look toward the host, not past it
                   </div>
@@ -1918,6 +1967,8 @@ function PlaybackControls({
   showDebrisDiskAxis, setShowDebrisDiskAxis,
   alignToDiskAxis, setAlignToDiskAxis,
   hasInclinedDebrisDisk,
+  showRuler, setShowRuler,
+  showCompanions, setShowCompanions, hasCompanions,
 }: {
   paused: boolean; setPaused: (p: boolean) => void;
   speed: number; setSpeed: (s: number) => void;
@@ -1933,6 +1984,13 @@ function PlaybackControls({
       hide the display row entirely on systems where the toggle would be a
       no-op, so the controls don't carry dangling buttons. */
   hasStellarReference: boolean;
+  /** In-scene ruler toggle. Always available since every system has scale
+      worth measuring, so no hasX gate. */
+  showRuler: boolean; setShowRuler: (v: boolean) => void;
+  /** Companion-direction HUD toggle. Gated on the system actually having
+      binary/triple companions so we don't render an inert button. */
+  showCompanions: boolean; setShowCompanions: (v: boolean) => void;
+  hasCompanions: boolean;
 }) {
   const isSurface = viewMode === 'surface';
   const [collapsed, setCollapsed] = useState(false);
@@ -2018,13 +2076,53 @@ function PlaybackControls({
         ))}
       </div>
 
-      {/* Display row: overlays toggle. Currently just the stellar reference
-          frame (spin axis + equator ring on obliquity systems). Hidden when
-          the focal scene has nothing for it to control, so the controls
-          don't carry a dangling button. */}
-      {(hasStellarReference || hasInclinedDebrisDisk) && (
+      {/* Display row: overlays toggles. Stellar reference frame and debris-
+          disk axes are gated on the scene having something for them to
+          control; the ruler is always available since every system has scale
+          worth measuring. The row itself always renders now (the ruler
+          guarantees at least one button is present). */}
       <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', marginTop: '0.55rem', flexWrap: 'wrap' }}>
         <span style={{ color: 'var(--fg-muted)' }}>display</span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={showRuler}
+          aria-label={`In-scene AU ruler, currently ${showRuler ? 'on' : 'off'}`}
+          onClick={() => setShowRuler(!showRuler)}
+          title="Toggle a glowing AU scale bar in the orbital plane"
+          style={{
+            background: showRuler ? 'var(--fg)' : 'transparent',
+            color: showRuler ? '#0b0d12' : 'var(--fg-muted)',
+            border: '1px solid var(--border)',
+            padding: '0.15rem 0.5rem',
+            borderRadius: 3,
+            cursor: 'pointer',
+            fontSize: '0.75rem',
+          }}
+        >
+          ruler {showRuler ? 'on' : 'off'}
+        </button>
+        {hasCompanions && (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={showCompanions}
+            aria-label={`Off-screen companion-star indicators, currently ${showCompanions ? 'on' : 'off'}`}
+            onClick={() => setShowCompanions(!showCompanions)}
+            title="Toggle screen-edge markers pointing toward off-screen companion stars"
+            style={{
+              background: showCompanions ? 'var(--fg)' : 'transparent',
+              color: showCompanions ? '#0b0d12' : 'var(--fg-muted)',
+              border: '1px solid var(--border)',
+              padding: '0.15rem 0.5rem',
+              borderRadius: 3,
+              cursor: 'pointer',
+              fontSize: '0.75rem',
+            }}
+          >
+            companions {showCompanions ? 'on' : 'off'}
+          </button>
+        )}
         {hasStellarReference && (
           <button
             type="button"
@@ -2089,7 +2187,6 @@ function PlaybackControls({
           </>
         )}
       </div>
-      )}
 
       <p style={{ margin: '0.55rem 0 0', fontSize: '0.7rem', color: 'var(--fg-muted)', lineHeight: 1.45 }}>
         {isSurface
@@ -2448,6 +2545,10 @@ function SceneContents({
   showStellarReference = true,
   showDebrisDiskAxis = true,
   alignToDiskAxis = false,
+  showRuler = false,
+  onRulerDragChange,
+  showCompanions = true,
+  companionDirectionsRef,
 }: {
   scene: SceneResponse;
   paused: boolean;
@@ -2473,6 +2574,19 @@ function SceneContents({
       disk normal so the disk appears horizontal and its axis vertical on
       screen — a "physics-natural" viewing frame. */
   alignToDiskAxis?: boolean;
+  /** Toggles the in-scene AU ruler. Rendered in the orbital reference plane
+      regardless of focal mode. Off by default. */
+  showRuler?: boolean;
+  /** Notified when the user starts/ends dragging a ruler endpoint, so the
+      parent can disable OrbitControls during the drag. */
+  onRulerDragChange?: (dragging: boolean) => void;
+  /** Toggles the off-screen companion-star HUD markers. Default true; the
+      caller passes the boolean and the marker components honor it. */
+  showCompanions?: boolean;
+  /** Shared Map that the in-Canvas tracker writes companion direction
+      angles + in-view flags into, and the out-of-Canvas HUD panel reads
+      from. Lifted to ScenePage so both sides share one instance. */
+  companionDirectionsRef?: CompanionDirectionRef;
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -2501,6 +2615,23 @@ function SceneContents({
   }
 
   const focalOrbsmax = planet.pl_orbsmax ?? 1;
+
+  // Filter then fill, in order:
+  //   1. drop self-reference rows (16 Cyg B's bogus "B" entry)
+  //   2. drop unpointable rows (inner-binary "Ab" partners with NULL
+  //      separation_arcsec — they're already part of the BinaryPhotospheres
+  //      at origin and listing them as separate companions creates HUD
+  //      arrows that point at nothing)
+  //   3. spread remaining NULL-PA companions evenly so tight unresolved
+  //      binaries (Kepler-444 BC, etc.) render at distinct 3D positions
+  const filledCompanions = useMemo(
+    () => fillCompanionPositionAngles(
+      dropUnpointableCompanions(
+        dropSelfReferenceCompanions(planet.hostname, scene.binary_companions),
+      ),
+    ),
+    [scene.binary_companions, planet.hostname],
+  );
   const innermost = innermostPeriapsis(scene);
   const sunRadius = sunDisplayRadius(planet.st_rad, innermost, focalOrbsmax);
   const focalPlanetRadius = planetDisplayRadius(planet.pl_rade, focalOrbsmax, planet.st_rad, sunRadius);
@@ -2760,6 +2891,24 @@ function SceneContents({
         omega={focalRenderTilt.omega}
         argPeri={argPeriRad(planet.pl_orblper)}
       />
+
+      {/* In-scene AU ruler. Two-endpoint interactive measurement tool
+          living in the orbital reference plane (XZ). User drags either
+          handle to read distances between arbitrary points. Endpoints
+          default to "locked" — A pinned to the host star at the origin,
+          B following the focal planet's animated position each frame —
+          so toggling the ruler on immediately shows the live star-to-
+          planet distance. Dragging either handle unlocks it. */}
+      {showRuler && (
+        <SystemRuler
+          maxOrbit={Math.max(
+            focalOrbsmax,
+            ...siblings.map((s) => s.pl_orbsmax ?? 0),
+          )}
+          onDragChange={onRulerDragChange}
+          focalPosRef={focalPosOut}
+        />
+      )}
       {/* Stellar equator + spin axis — only when the focal planet carries a
           measured spin-orbit obliquity, so ordinary scenes are unchanged.
           The faint equatorial ring is where the orbit would lie at zero
@@ -2921,8 +3070,11 @@ function SceneContents({
         ))}
 
       {/* Companion stars (static — they orbit on millennia timescales,
-          irrelevant at our 60-sec-per-orbit pacing) */}
-      {scene.binary_companions.map((c) => (
+          irrelevant at our 60-sec-per-orbit pacing). Position angles
+          are filled in for NULL-PA companions so tight unresolved
+          binaries (Kepler-444 BC, etc.) render at distinct positions
+          like the 2D PlanetCard does, instead of stacking at PA=0. */}
+      {filledCompanions.map((c) => (
         <CompanionStar
           key={c.component_designation}
           companion={c}
@@ -2934,7 +3086,277 @@ function SceneContents({
           hostRsun={planet.st_rad}
         />
       ))}
+
+      {/* Companion HUD tracker: invisible component inside the Canvas
+          that uses useFrame to project each companion's position to
+          screen space and write the direction angle + in-view flag
+          into a shared ref. The fixed-position HUD panel (outside the
+          Canvas, in ScenePage) reads from the same ref. */}
+      {showCompanions && companionDirectionsRef && (
+        <CompanionHUDTracker
+          companions={filledCompanions}
+          systemDistancePc={scene.host_star?.distance_gspphot_pc ?? scene.planet.sy_dist ?? scene.planet.distance_manual_pc ?? null}
+          directionsRef={companionDirectionsRef}
+        />
+      )}
     </>
+  );
+}
+
+// Format a companion's full system-relative name from the planet's host
+// hostname + the companion's catalog designation. Strips the trailing
+// component letter from hostname if present so "16 Cyg B" + "A" becomes
+// "16 Cyg A" (and not the confusing "16 Cyg B A"). For systems without a
+// trailing letter on the host (e.g. "Kepler-444" + "B") it just appends:
+// "Kepler-444 B".
+function companionFullName(hostname: string, designation: string): string {
+  const stem = hostname.replace(/\s+[A-Z]$/, '');
+  return `${stem} ${designation}`;
+}
+
+// Drop companion rows whose designation matches the host's trailing
+// component letter — these are self-references introduced by bulk WDS /
+// SIMBAD ingest, where the catalog stored both A→B and B→A relations and
+// the latter ends up as "16 Cyg B has a companion designated B." Real
+// curated rows never name a companion the same letter as the host.
+function dropSelfReferenceCompanions(
+  hostname: string,
+  companions: BinaryCompanion[],
+): BinaryCompanion[] {
+  const trailing = hostname.match(/\s+([A-Z])$/)?.[1];
+  if (!trailing) return companions;
+  return companions.filter((c) => c.component_designation !== trailing);
+}
+
+// Only keep companions the user can actually navigate to and find in
+// the 3D scene. Two reasons to drop:
+//   1. inner_binary = true — already rendered as one of the two suns
+//      of BinaryPhotospheres at the host position; the user is already
+//      looking at the body, no navigation needed
+//   2. separation_arcsec = null — no positional data, so we can't
+//      place a body or rotate an arrow toward one. Catches inner-binary
+//      partners from rows where inner_binary hasn't been set yet
+function dropUnpointableCompanions(
+  companions: BinaryCompanion[],
+): BinaryCompanion[] {
+  return companions.filter(
+    (c) => c.inner_binary !== true && c.separation_arcsec != null,
+  );
+}
+
+// Fill in missing position_angle_deg values by spreading companions evenly
+// around the circle by their index. Mirrors PlanetCard.tsx's 2D fallback
+// (line ~352) so both views agree: NULL PA → artistic spread, not all
+// stacked at 0°. Tight unresolved binaries like Kepler-444 BC have NULL
+// PAs in the catalog and would otherwise render at identical 3D positions
+// (B and C visually stacked, only one visible).
+function fillCompanionPositionAngles(
+  companions: BinaryCompanion[],
+): BinaryCompanion[] {
+  const N = companions.length;
+  return companions.map((c, i) => {
+    if (c.position_angle_deg != null) return c;
+    return { ...c, position_angle_deg: (i / Math.max(1, N)) * 360 };
+  });
+}
+
+// Shared placement helper for binary/triple companion stars. 1 AU subtends
+// 1 arcsec at 1 pc, so projected separation in AU is sep_arcsec * dist_pc.
+// Position angle (deg E of N) becomes the azimuthal direction in the XZ
+// plane; a fixed 30° lift out of the plane keeps wide companions visually
+// off the orbital plane the planets live in (since the true 3D orientation
+// is unknown).
+//
+// Returned by both the visible CompanionStar component and the HUD
+// tracker, so they place the companion at exactly the same world point.
+function companionScenePos(
+  companion: BinaryCompanion,
+  systemDistancePc: number | null,
+): { sepAU: number; position: [number, number, number] } | null {
+  if (companion.separation_arcsec == null || systemDistancePc == null) return null;
+  const sepAU = companion.separation_arcsec * systemDistancePc;
+  if (sepAU <= 0) return null;
+  const pa = ((companion.position_angle_deg ?? 0) * Math.PI) / 180;
+  const tiltY = Math.sin(0.52);   // ~30° lift above XZ plane
+  const planar = Math.cos(0.52);
+  return {
+    sepAU,
+    position: [
+      sepAU * Math.cos(pa) * planar,
+      sepAU * tiltY,
+      sepAU * Math.sin(pa) * planar,
+    ],
+  };
+}
+
+// Companion HUD: a fixed-position panel listing each companion with a
+// rotating arrow that points toward the body in 3D space. Stays put on
+// the screen; only the arrows rotate as the camera pans.
+//
+// Implementation is split:
+//
+//   * CompanionHUDTracker lives inside the Canvas (it needs useThree to
+//     read the camera). It mutates a shared CompanionDirectionRef map
+//     each frame with the current angle + in-view flag for each group.
+//
+//   * CompanionHUDPanel lives outside the Canvas as a regular DOM
+//     element. It re-renders at ~10Hz and reads the same ref to display
+//     the rotated arrows. No drei <Html> involvement, so the panel
+//     stays statically positioned regardless of camera motion.
+//
+// The shared-ref pattern keeps per-frame work in a useFrame (no React
+// re-renders 60×/sec) while letting the panel re-render at a sane rate.
+
+export type CompanionDirectionRef = React.MutableRefObject<
+  Map<string, { deg: number; inView: boolean }>
+>;
+
+function CompanionHUDTracker({
+  companions,
+  systemDistancePc,
+  directionsRef,
+}: {
+  companions: BinaryCompanion[];
+  systemDistancePc: number | null;
+  directionsRef: CompanionDirectionRef;
+}) {
+  const { camera } = useThree();
+  const worldVec = useMemo(() => new THREE.Vector3(), []);
+  const ndcVec = useMemo(() => new THREE.Vector3(), []);
+
+  // Threshold past which we call the body "off-screen" — i.e. the arrow
+  // should rotate, not show as in-view. Slightly inside the NDC edge
+  // so the body is comfortably visible before we flip the indicator.
+  const SCREEN_BOUND = 0.92;
+
+  useFrame(() => {
+    for (const c of companions) {
+      const placement = companionScenePos(c, systemDistancePc);
+      if (!placement) continue;
+      worldVec.set(...placement.position);
+      ndcVec.copy(worldVec).project(camera);
+
+      const behind = ndcVec.z > 1;
+      let nx = ndcVec.x;
+      let ny = ndcVec.y;
+      if (behind) { nx = -nx; ny = -ny; }
+
+      const inView = !behind
+        && Math.abs(nx) <= SCREEN_BOUND
+        && Math.abs(ny) <= SCREEN_BOUND;
+
+      // Arrow rotation: CSS rotate is clockwise-positive, atan2 is
+      // counter-clockwise-positive in NDC space (y-up), so negate.
+      const deg = -Math.atan2(ny, nx) * 180 / Math.PI;
+      directionsRef.current.set(c.component_designation, { deg, inView });
+    }
+  });
+
+  return null;
+}
+
+function CompanionHUDPanel({
+  companions,
+  hostname,
+  systemDistancePc,
+  directionsRef,
+}: {
+  companions: BinaryCompanion[];
+  /** Planet's host hostname (e.g. "16 Cyg B") — used to build the full
+      system-relative companion name (so the row reads "16 Cyg A · 815 AU"
+      instead of a confusing bare "A · 815 AU"). */
+  hostname: string;
+  systemDistancePc: number | null;
+  directionsRef: CompanionDirectionRef;
+}) {
+  // Force a re-render at ~10Hz to pick up the latest direction values
+  // from the ref. Cheaper than a 60Hz setState, smoother than 1Hz.
+  const [, forceUpdate] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => forceUpdate((n) => n + 1), 100);
+    return () => window.clearInterval(id);
+  }, []);
+
+  if (companions.length === 0) return null;
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        top: HEADER_OFFSET_PX + 44,   // sit just below the TopRightHUD row
+        right: 16,
+        zIndex: 9,
+        background: 'rgba(11, 13, 18, 0.88)',
+        border: '1px solid var(--border)',
+        borderRadius: 4,
+        padding: '0.45rem 0.6rem',
+        fontFamily: 'monospace',
+        fontSize: '0.72rem',
+        color: 'var(--fg)',
+        backdropFilter: 'blur(4px)',
+        pointerEvents: 'none',
+        userSelect: 'none',
+        minWidth: 140,
+      }}
+    >
+      <div
+        style={{
+          fontSize: '0.65rem',
+          color: 'var(--fg-muted)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.08em',
+          marginBottom: '0.35rem',
+        }}
+      >
+        Companions
+      </div>
+      {companions.map((c) => {
+        const placement = companionScenePos(c, systemDistancePc);
+        const accent = spectralTypeToColor(c.component_spectype);
+        const dir = directionsRef.current.get(c.component_designation);
+        const deg = dir?.deg ?? 0;
+        const inView = dir?.inView ?? false;
+        return (
+          <div
+            key={c.component_designation}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '2px 0',
+              fontWeight: 600,
+              lineHeight: 1.4,
+            }}
+          >
+            {/* Arrow: rotates to point in the companion's direction when
+                off-screen; replaced by a static dot when the body is
+                already in view (no nav needed). */}
+            <span
+              style={{
+                color: accent,
+                fontSize: '1.1rem',
+                lineHeight: 1,
+                width: '1.2em',
+                textAlign: 'center',
+                display: 'inline-block',
+                transform: inView ? 'none' : `rotate(${deg}deg)`,
+                transformOrigin: 'center',
+              }}
+            >
+              {inView ? '●' : '➤'}
+            </span>
+            <span style={{ flex: 1 }}>
+              {companionFullName(hostname, c.component_designation)}
+              {placement && (
+                <span style={{ color: 'var(--fg-muted)', marginLeft: 6 }}>
+                  {formatAU(placement.sepAU)} AU
+                </span>
+              )}
+            </span>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -2965,22 +3387,9 @@ function CompanionStar({
   // sep_arcsec * distance_pc. We have no information on the line-of-sight
   // component, so the companion's true distance from the primary is at least
   // this and unknown how much more.
-  if (companion.separation_arcsec == null || systemDistancePc == null) return null;
-  const sepAU = companion.separation_arcsec * systemDistancePc;
-  if (sepAU <= 0) return null;
-
-  // Position angle (degrees east of north on the sky) used to give each
-  // companion a distinct direction. Tilt 30° off the orbital plane so wide
-  // companions visually sit "off to the side" rather than mixed in with the
-  // planet orbits — honest about the unknown 3D orientation.
-  const pa = ((companion.position_angle_deg ?? 0) * Math.PI) / 180;
-  const tiltY = Math.sin(0.52);   // ~30° lift above XZ plane
-  const planar = Math.cos(0.52);
-  const position: [number, number, number] = [
-    sepAU * Math.cos(pa) * planar,
-    sepAU * tiltY,
-    sepAU * Math.sin(pa) * planar,
-  ];
+  const placement = companionScenePos(companion, systemDistancePc);
+  if (!placement) return null;
+  const { sepAU, position } = placement;
 
   const color = spectralTypeToColor(companion.component_spectype);
   const teff = estimateStarTeff(companion.component_spectype);
@@ -3028,7 +3437,11 @@ function CompanionStar({
   // prevent collisions between companion designations and planet names.
   const labelName = `${hostname} ${companion.component_designation}`;
   const kindLabel = companionKind(companion.component_spectype);
-  const subtitleParts = [companion.component_spectype, kindLabel].filter(Boolean) as string[];
+  const subtitleParts = [
+    companion.component_spectype,
+    kindLabel,
+    `${formatAU(sepAU)} AU`,
+  ].filter(Boolean) as string[];
   const subtitle = subtitleParts.length > 0 ? subtitleParts.join(' · ') : 'companion star';
   return (
     <group position={position}>
@@ -3708,6 +4121,282 @@ function StellarSpinReference({ orbsmax, showAxis = true, showEquator = true }: 
       {showEquator && <primitive object={ringLine} />}
       {showAxis && <primitive object={axisLine} />}
     </>
+  );
+}
+
+// Format an AU value for the distance label. Adaptive precision based on
+// magnitude: small distances need decimals to read meaningfully ("0.05 AU"),
+// large distances don't ("142 AU"). Keeps the label compact at every scale.
+function formatAU(v: number): string {
+  if (v >= 100) return v.toFixed(0);
+  if (v >= 10) return v.toFixed(1);
+  if (v >= 1) return v.toFixed(2);
+  if (v >= 0.1) return v.toFixed(3);
+  return v.toFixed(4);
+}
+
+// Interactive AU ruler. Two draggable endpoint handles in the orbital
+// reference plane (XZ); a glowing spine connects them; an HTML label at
+// the midpoint shows the live AU distance.
+//
+// Default behavior: A locked to host (origin), B locked to focal planet
+// (read each frame from focalPosRef). Dragging either handle unlocks it.
+// To re-lock, toggle the ruler off and on.
+//
+// Sizing: handles + spine thickness are scaled per-frame from camera
+// distance so they keep a consistent pixel size at every zoom and across
+// the 0.05 AU - 100+ AU system-scale range. World-space sizing produced
+// huge handles on hot-Jupiter systems and invisible handles on wide-orbit
+// debris-disk systems.
+//
+// State visual encoding:
+//   - Locked handle: cyan-green (#7fffd6) — "attached"
+//   - Unlocked / freehand: amber (#ffd76e)
+//   - Currently dragging: bright yellow (#fff080)
+function SystemRuler({
+  maxOrbit,
+  onDragChange,
+  focalPosRef,
+}: {
+  maxOrbit: number;
+  onDragChange?: (dragging: boolean) => void;
+  focalPosRef?: React.MutableRefObject<THREE.Vector3>;
+}) {
+  // Endpoint positions live in refs (not state) so the per-frame lock
+  // tracking doesn't trigger React re-renders 60×/sec. Only the values
+  // that drive visible state (label text, handle color, dragging flag)
+  // go through useState.
+  const aRef = useRef<[number, number, number]>([0, 0, 0]);
+  // Initialize B to focal planet position on mount (useEffect runs after
+  // initial render, by which time focalPosRef.current is set). useFrame
+  // then keeps it in sync via the lock loop. Default of [0,0,0] is a
+  // fine placeholder for the single render-frame before mount finishes.
+  const bRef = useRef<[number, number, number]>([0, 0, 0]);
+  useEffect(() => {
+    const p = focalPosRef?.current;
+    if (p && (p.x !== 0 || p.z !== 0)) bRef.current = [p.x, p.y, p.z];
+    else bRef.current = [maxOrbit * 0.5, 0, 0];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const [lockedA, setLockedA] = useState(true);
+  const [lockedB, setLockedB] = useState(true);
+  const [dragging, setDragging] = useState<null | 'A' | 'B'>(null);
+  // Distance label + midpoint position update at a throttled rate (~10
+  // Hz) to avoid 60fps re-renders. Bundled together because they're
+  // visually coupled — the label has to track the spine midpoint.
+  const [labelInfo, setLabelInfo] = useState<{
+    pos: [number, number, number];
+    text: string;
+  }>({ pos: [0, 0, 0], text: '0 AU' });
+
+  // Bubble drag state up so OrbitControls can be disabled during drag.
+  useEffect(() => {
+    onDragChange?.(dragging !== null);
+  }, [dragging, onDragChange]);
+
+  const meshARef = useRef<THREE.Mesh>(null);
+  const meshBRef = useRef<THREE.Mesh>(null);
+  const spineRef = useRef<THREE.Mesh>(null);
+  const lastLabelUpdate = useRef(0);
+
+  const { camera, gl } = useThree();
+
+  // While a drag is in progress, listen for pointer moves + up directly on
+  // the canvas. Bypasses R3F's mesh-routed event system so cursor moves
+  // over the host star, planet body, or off-canvas don't intercept the
+  // drag — and so pointer-up always fires and clears the drag state
+  // (which the camera-disable depends on).
+  useEffect(() => {
+    if (!dragging) return;
+    const canvas = gl.domElement;
+    const raycaster = new THREE.Raycaster();
+    const ndc = new THREE.Vector2();
+
+    const onMove = (e: PointerEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      ndc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      ndc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(ndc, camera);
+      const ray = raycaster.ray;
+      if (Math.abs(ray.direction.y) < 1e-9) return;
+      const t = -ray.origin.y / ray.direction.y;
+      if (t < 0) return;
+      const x = ray.origin.x + t * ray.direction.x;
+      const z = ray.origin.z + t * ray.direction.z;
+      if (dragging === 'A') aRef.current = [x, 0, z];
+      else if (dragging === 'B') bRef.current = [x, 0, z];
+    };
+    const onUp = () => setDragging(null);
+
+    canvas.addEventListener('pointermove', onMove);
+    canvas.addEventListener('pointerup', onUp);
+    canvas.addEventListener('pointercancel', onUp);
+    return () => {
+      canvas.removeEventListener('pointermove', onMove);
+      canvas.removeEventListener('pointerup', onUp);
+      canvas.removeEventListener('pointercancel', onUp);
+    };
+  }, [dragging, gl, camera]);
+
+  // Constants
+  const SPINE_COLOR = '#fff3d6';
+  const HANDLE_COLOR_LOCKED = '#7fffd6';
+  const HANDLE_COLOR_IDLE = '#ffd76e';
+  const HANDLE_COLOR_DRAG = '#fff080';
+  // Handle radius as a fraction of camera distance, so handles stay a
+  // consistent on-screen size. ~1.5% of camera distance reads as a
+  // grabbable handle at default FOV.
+  const HANDLE_SCREEN_FRAC = 0.018;
+  // Spine thickness relative to handle radius.
+  const SPINE_THICKNESS_FRAC = 0.12;
+
+  function handleColor(side: 'A' | 'B', locked: boolean): string {
+    if (dragging === side) return HANDLE_COLOR_DRAG;
+    return locked ? HANDLE_COLOR_LOCKED : HANDLE_COLOR_IDLE;
+  }
+
+  // Per-frame: update locked endpoints from refs, update handle scales
+  // based on camera distance, update spine geometry (position + rotation
+  // + scale), and update the distance label at a throttled rate. Endpoint
+  // positions and the spine are TRUE 3D so locked-to-planet correctly
+  // tracks tilted/obliquity orbits like WASP-107 b. Freehand drags are
+  // still Y=0-constrained (the drag raycast hits the orbital plane), so
+  // a dragged endpoint snaps back to the reference plane.
+  useFrame(() => {
+    // Lock tracking — full 3D for the planet so we follow inclined orbits.
+    if (lockedA) aRef.current = [0, 0, 0];
+    if (lockedB && focalPosRef?.current) {
+      const p = focalPosRef.current;
+      bRef.current = [p.x, p.y, p.z];
+    }
+
+    const a = aRef.current;
+    const b = bRef.current;
+    const ax = a[0], ay = a[1], az = a[2];
+    const bx = b[0], by = b[1], bz = b[2];
+    const dx = bx - ax, dy = by - ay, dz = bz - az;
+    const length = Math.hypot(dx, dy, dz);
+
+    // Handle positions + screen-space scale
+    if (meshARef.current) {
+      meshARef.current.position.set(ax, ay, az);
+      const dist = camera.position.distanceTo(meshARef.current.position);
+      meshARef.current.scale.setScalar(dist * HANDLE_SCREEN_FRAC);
+    }
+    if (meshBRef.current) {
+      meshBRef.current.position.set(bx, by, bz);
+      const dist = camera.position.distanceTo(meshBRef.current.position);
+      meshBRef.current.scale.setScalar(dist * HANDLE_SCREEN_FRAC);
+    }
+
+    // Spine: midpoint, length, orientation in full 3D
+    if (spineRef.current && length > 1e-6) {
+      const mx = (ax + bx) / 2, my = (ay + by) / 2, mz = (az + bz) / 2;
+      spineRef.current.position.set(mx, my, mz);
+      // Orient base-+Y cylinder to point along (b - a) in 3D.
+      const dir = new THREE.Vector3(dx / length, dy / length, dz / length);
+      spineRef.current.quaternion.setFromUnitVectors(
+        new THREE.Vector3(0, 1, 0),
+        dir,
+      );
+      // Scale: x/z control radius (screen-space), y controls length
+      // (true AU distance).
+      const dist = camera.position.distanceTo(spineRef.current.position);
+      const radiusScale = dist * HANDLE_SCREEN_FRAC * SPINE_THICKNESS_FRAC;
+      spineRef.current.scale.set(radiusScale, length, radiusScale);
+      spineRef.current.visible = true;
+    } else if (spineRef.current) {
+      spineRef.current.visible = false;
+    }
+
+    // Throttled label update: every ~100ms is plenty for a readout, and
+    // keeps React re-renders to ~10 Hz instead of 60 Hz.
+    const now = performance.now();
+    if (now - lastLabelUpdate.current > 100) {
+      lastLabelUpdate.current = now;
+      const mx = (ax + bx) / 2, my = (ay + by) / 2, mz = (az + bz) / 2;
+      setLabelInfo({ pos: [mx, my, mz], text: `${formatAU(length)} AU` });
+    }
+  });
+
+  return (
+    <group>
+      {/* Spine: cylinder with unit radius + unit length, scaled per-frame
+          via the spineRef in useFrame above. */}
+      <mesh ref={spineRef}>
+        <cylinderGeometry args={[1, 1, 1, 8]} />
+        <meshStandardMaterial
+          color={SPINE_COLOR}
+          emissive={SPINE_COLOR}
+          emissiveIntensity={1.4}
+          toneMapped={false}
+        />
+      </mesh>
+
+      {/* Endpoint A handle. Pointer-down kicks off the drag; the canvas-
+          level pointermove + pointerup listeners (mounted via useEffect
+          while `dragging` is set) drive the actual move and release.
+          Putting the listeners on the canvas instead of the mesh means
+          cursor moves over other meshes or off-screen don't break the
+          drag. */}
+      <mesh
+        ref={meshARef}
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          setLockedA(false);
+          setDragging('A');
+        }}
+      >
+        <sphereGeometry args={[1, 16, 12]} />
+        <meshStandardMaterial
+          color={handleColor('A', lockedA)}
+          emissive={handleColor('A', lockedA)}
+          emissiveIntensity={dragging === 'A' ? 2.0 : 1.2}
+          toneMapped={false}
+        />
+      </mesh>
+
+      {/* Endpoint B handle. Identical to A. */}
+      <mesh
+        ref={meshBRef}
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          setLockedB(false);
+          setDragging('B');
+        }}
+      >
+        <sphereGeometry args={[1, 16, 12]} />
+        <meshStandardMaterial
+          color={handleColor('B', lockedB)}
+          emissive={handleColor('B', lockedB)}
+          emissiveIntensity={dragging === 'B' ? 2.0 : 1.2}
+          toneMapped={false}
+        />
+      </mesh>
+
+      {/* Live distance label, HTML-overlaid in 3D space. Stays a constant
+          CSS pixel size regardless of zoom. Position + text update at the
+          throttled rate set inside useFrame. */}
+      <Html
+        position={labelInfo.pos}
+        center
+        style={{
+          pointerEvents: 'none',
+          color: SPINE_COLOR,
+          fontSize: '0.85rem',
+          fontWeight: 600,
+          background: 'rgba(11, 13, 18, 0.7)',
+          padding: '2px 6px',
+          borderRadius: 3,
+          border: `1px solid ${SPINE_COLOR}`,
+          whiteSpace: 'nowrap',
+          fontFamily: 'monospace',
+        }}
+      >
+        {labelInfo.text}
+      </Html>
+    </group>
   );
 }
 

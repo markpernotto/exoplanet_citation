@@ -264,10 +264,15 @@ function DiscoverySection({ planet, paper, publications, sectionDelay = 0 }: { p
     ? `https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(paper.bibcode)}/abstract`
     : ref?.url ?? null;
   // Find the publication that matches the discovery paper bibcode and pull its sibling planets.
+  // Dedupe — the underlying /api/planets/{name}/publications query uses array_agg without
+  // DISTINCT, so a planet linked to one publication via multiple planet_publications rows
+  // (e.g. role 'announce' AND role 'follow-up') shows up twice. React then warns about
+  // duplicate keys.
   const coPlanets = (() => {
     if (!paper || !publications) return [];
     const match = publications.find((p) => p.bibcode === paper.bibcode);
-    return match?.co_planets ?? [];
+    if (!match?.co_planets) return [];
+    return Array.from(new Set(match.co_planets));
   })();
   const hasMeta = !!(planet.disc_facility || planet.disc_telescope || planet.disc_instrument);
 
@@ -763,12 +768,25 @@ function CompanionsSection({
       <h2>System stars</h2>
       <div className="card">
         <p style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', color: 'var(--fg-muted)' }}>
-          <strong>{planet.pl_name}</strong> orbits the primary star <strong>{planet.hostname}</strong> only.
-          {' '}{companions.length === 1
-            ? 'One additional stellar component is recorded'
-            : `${companions.length} additional stellar components are recorded`}
-          {' '}in this system — they sit far enough from the planet's orbit not to disturb it,
-          but they're part of the same gravitationally bound family.
+          {planet.cb_flag === 1 ? (
+            <>
+              <strong>{planet.pl_name}</strong> is circumbinary — it orbits the close{' '}
+              <strong>{planet.hostname}</strong> inner pair, not a single primary star.
+              {' '}{companions.length === 1
+                ? 'One additional stellar component is recorded'
+                : `${companions.length} additional stellar components are recorded`}
+              {' '}in this system; the inner-binary partner is one of them.
+            </>
+          ) : (
+            <>
+              <strong>{planet.pl_name}</strong> orbits the primary star <strong>{planet.hostname}</strong> only.
+              {' '}{companions.length === 1
+                ? 'One additional stellar component is recorded'
+                : `${companions.length} additional stellar components are recorded`}
+              {' '}in this system — they sit far enough from the planet's orbit not to disturb it,
+              but they're part of the same gravitationally bound family.
+            </>
+          )}
         </p>
         <ul className="siblings-list">
           {companions.map((c) => {
@@ -783,10 +801,16 @@ function CompanionsSection({
                 <strong>{planet.hostname} {c.component_designation}</strong>
                 <span className="muted">
                   {c.component_spectype && <> · {c.component_spectype}</>}
-                  {sepAU != null && <> · ~{sepAU >= 10 ? sepAU.toFixed(0) : sepAU.toFixed(1)} AU projected</>}
-                  {c.position_angle_deg != null && <> · PA {c.position_angle_deg.toFixed(0)}°</>}
+                  {c.inner_binary
+                    ? <> · <span style={{ color: 'var(--accent)' }}>inner-binary partner</span> ({planet.pl_name} orbits both)</>
+                    : (
+                      <>
+                        {sepAU != null && <> · ~{sepAU >= 10 ? sepAU.toFixed(0) : sepAU.toFixed(1)} AU projected</>}
+                        {c.position_angle_deg != null && <> · PA {c.position_angle_deg.toFixed(0)}°</>}
+                        {insideOrbit && <> · <span style={{ color: 'var(--tier-b)' }}>inside {planet.pl_name}'s orbit</span></>}
+                      </>
+                    )}
                   {c.source_catalog && <> · {c.source_catalog}</>}
-                  {insideOrbit && <> · <span style={{ color: 'var(--tier-b)' }}>inside {planet.pl_name}'s orbit</span></>}
                 </span>
                 {desc?.summary && (
                   <p style={{ margin: '0.25rem 0 0', fontSize: '0.78rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>

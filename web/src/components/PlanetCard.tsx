@@ -400,7 +400,7 @@ export default function PlanetCard({ planet, siblings, bp_rp, companions, distan
             <g key={c.component_designation}>
               <circle cx={cx} cy={cy} r={displayCompanionCorona} fill={`url(#comp-corona-${id}-${i})`} />
               <circle cx={cx} cy={cy} r={displayCompanionRadius} fill={color} opacity={0.95}>
-                <title>{c.component_designation}{titleSuffix} — {kind}; {planet.pl_name} orbits the primary only{insideOrbit ? ' — companion is inside the orbit' : ''}</title>
+                <title>{c.component_designation}{titleSuffix} — {kind}{c.inner_binary ? ' (inner-binary partner)' : ''}; {planet.pl_name} {planet.cb_flag === 1 ? 'orbits the close inner binary' : 'orbits the primary only'}{!c.inner_binary && insideOrbit ? ' — companion is inside the orbit' : ''}</title>
               </circle>
               <text x={cx} y={cy + 22} textAnchor="middle" fill="#9099aa"
                     fontSize="10" fontFamily="-apple-system, sans-serif">
@@ -719,7 +719,7 @@ export default function PlanetCard({ planet, siblings, bp_rp, companions, distan
             <g key={`comp-multi-${c.component_designation}`}>
               <circle cx={cx} cy={cy} r={15} fill={`url(#comp-corona-multi-${id}-${i})`} />
               <circle cx={cx} cy={cy} r={5.5} fill={color} opacity={0.95}>
-                <title>{c.component_designation}{titleSuffix} — {kind}; {planet.pl_name} orbits the primary only{insideOrbit ? ' — companion is inside the orbit' : ''}</title>
+                <title>{c.component_designation}{titleSuffix} — {kind}{c.inner_binary ? ' (inner-binary partner)' : ''}; {planet.pl_name} {planet.cb_flag === 1 ? 'orbits the close inner binary' : 'orbits the primary only'}{!c.inner_binary && insideOrbit ? ' — companion is inside the orbit' : ''}</title>
               </circle>
               <text x={cx} y={cy + 22} textAnchor="middle" fill="#9099aa"
                     fontSize="10" fontFamily="-apple-system, sans-serif">

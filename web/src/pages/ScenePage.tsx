@@ -36,6 +36,16 @@ export default function ScenePage() {
   // obliquity systems keep their existing visual; the toggle lets the user
   // hide the overlay for a clean view or when it gets noisy.
   const [showStellarReference, setShowStellarReference] = useState(true);
+  // Debris-disk axis (normal vector perpendicular to the disk plane). Separate
+  // toggle from the stellar spin axis so the user can show one without the
+  // other — useful on systems like HR 8799 that have both, or systems with
+  // a disk but no measured stellar rotation.
+  const [showDebrisDiskAxis, setShowDebrisDiskAxis] = useState(true);
+  // Align the camera so the (first) debris disk normal is "up" on screen.
+  // Off by default — the user opts in to this reorientation when they want
+  // a physics-natural view (disk horizontal, axis vertical) instead of the
+  // arbitrary default camera angle.
+  const [alignToDiskAxis, setAlignToDiskAxis] = useState(false);
 
   // Parse the URL hash once on initial mount. viewMode + orbital clock are
   // initialized from it (must happen before Canvas first renders so the
@@ -101,7 +111,8 @@ export default function ScenePage() {
   // the visible photosphere look like a thin crescent against the corona's
   // wider visible area, which read as "two distinct suns."
   const orbsmax = scene.planet.pl_orbsmax ?? 1;
-  const focalRadius = planetDisplayRadius(scene.planet.pl_rade, orbsmax);
+  const focalSunRadius = sunDisplayRadius(scene.planet.st_rad, innermostPeriapsis(scene), orbsmax);
+  const focalRadius = planetDisplayRadius(scene.planet.pl_rade, orbsmax, scene.planet.st_rad, focalSunRadius);
   // Distance from focal target. Big enough that sun + planet both fit in FOV.
   const camPos: [number, number, number] = [
     orbsmax * 1.8,
@@ -152,6 +163,12 @@ export default function ScenePage() {
   const hasStellarReference =
     focalObliquity(scene.derived_measurements, scene.planet.pl_name) != null
     || focalStellarRotationDays(scene.derived_measurements, scene.planet.pl_name) != null;
+  // Whether the focal scene has at least one debris disk with a MEASURED
+  // inclination (the axis indicator + axis-aligned view only make sense for
+  // measured tilts; ε Eri / 51 Eri belts have no inclination so they don't
+  // contribute). Drives the disk-axis + align-to-disk toggles' visibility.
+  const debrisDisksForFocal = focalDebrisDisks(scene.derived_measurements, scene.planet.pl_name);
+  const hasInclinedDebrisDisk = debrisDisksForFocal.some((b) => b.inclinationDeg != null);
   // sunWorldPos was declared at the top of the component (alongside other
   // hooks) to satisfy React's rules-of-hooks. It's used here to point the
   // surface-view camera tracker at the sun, which always lives at origin.
@@ -170,6 +187,9 @@ export default function ScenePage() {
         viewMode={viewMode} setViewMode={setViewMode}
         showStellarReference={showStellarReference} setShowStellarReference={setShowStellarReference}
         hasStellarReference={hasStellarReference}
+        showDebrisDiskAxis={showDebrisDiskAxis} setShowDebrisDiskAxis={setShowDebrisDiskAxis}
+        alignToDiskAxis={alignToDiskAxis} setAlignToDiskAxis={setAlignToDiskAxis}
+        hasInclinedDebrisDisk={hasInclinedDebrisDisk}
       />
       {/* Re-mount the Canvas on viewMode change so the camera + controls swap
           cleanly. Slight perf hit on toggle, but no stale-state bugs. */}
@@ -232,7 +252,12 @@ export default function ScenePage() {
               to divide by the scale factor. */}
           <VRSceneScale maxOrbit={maxOrbit}>
             {viewMode === 'system' ? (
-              <SceneContents scene={scene} paused={paused} speed={speed} clockRef={clockRef} showStellarReference={showStellarReference} />
+              <SceneContents
+                scene={scene} paused={paused} speed={speed} clockRef={clockRef}
+                showStellarReference={showStellarReference}
+                showDebrisDiskAxis={showDebrisDiskAxis}
+                alignToDiskAxis={alignToDiskAxis}
+              />
             ) : (
               <SceneContents
                 scene={scene} paused={paused} speed={speed}
@@ -240,6 +265,8 @@ export default function ScenePage() {
                 hideFocal
                 focalPosOut={focalPosRef}
                 showStellarReference={showStellarReference}
+                showDebrisDiskAxis={showDebrisDiskAxis}
+                alignToDiskAxis={alignToDiskAxis}
               />
             )}
           </VRSceneScale>
@@ -354,6 +381,25 @@ function applyOrbitTilt(
   ];
 }
 
+// Rotate a position within the orbital plane by the argument of periastron ω.
+// keplerPosition produces orbits with periapsis on +X by construction; the
+// catalog's measured pl_orblper says where periapsis really points in the
+// orbital plane (measured from the ascending node in the direction of motion).
+// This rotation is applied BEFORE applyOrbitTilt so periapsis ends up in the
+// correct direction within the eventually-tilted plane.
+function rotateInPlane(x: number, z: number, argPeriRad: number): [number, number] {
+  if (argPeriRad === 0) return [x, z];
+  const c = Math.cos(argPeriRad), s = Math.sin(argPeriRad);
+  return [x * c - z * s, x * s + z * c];
+}
+
+// Convert a catalog pl_orblper (degrees, may be null) to radians for the
+// in-plane rotation. Null/undefined falls back to 0 (no rotation) so planets
+// without a measured value keep the existing arbitrary periapsis at +X.
+function argPeriRad(deg: number | null | undefined): number {
+  return deg == null ? 0 : (deg * Math.PI) / 180;
+}
+
 // Spin-orbit obliquity (Rossiter-McLaughlin) for the focal planet: the angle
 // between the host star's spin axis and the planet's orbital plane. This is
 // NOT the planet's own axial tilt — it describes how the orbit sits relative
@@ -425,6 +471,237 @@ function focalStellarRotationDays(
   return row?.value ?? null;
 }
 
+// Centrifugal flattening of a rotating star: f = (R_eq − R_pol)/R_eq. For a
+// rigid Maclaurin spheroid in the slow-rotation limit, f ≈ q/2 where the
+// rotational parameter q = Ω²R³/(GM). Inputs are observable quantities —
+// stellar_rotation_period or stellar_vsini for Ω, st_rad for R, st_mass for
+// M — so no curation step is needed. Returns null when any input is missing
+// or when the derived flattening is below a visibility threshold (0.5%),
+// which keeps Sun-like rotators (Sun f ~ 9e-6) from triggering a render.
+//
+// Examples in the catalog:
+//   KELT-9      vsini ~111 km/s, R = 2.4 R_sun, M = 2.5 M_sun  →  f ~ 0.03
+//   beta Pic    vsini ~125 km/s, R = 1.8 R_sun, M = 1.75 M_sun →  f ~ 0.05
+//   Vega-class  vsini ~200 km/s, R = 2.4 R_sun, M = 2.1 M_sun  →  f > 0.1
+function focalStellarOblateness(
+  derived: DerivedMeasurementRow[], plName: string,
+  stRadRsun: number | null, stMassMsun: number | null,
+): number | null {
+  if (stRadRsun == null || stRadRsun <= 0 || stMassMsun == null || stMassMsun <= 0) return null;
+  // Prefer measured rotation period (days). Fall back to v sin i (km/s) via
+  // P_rot = 2π R / v sin i, treating sin i ≈ 1 — this overestimates P_rot
+  // (underestimates Ω, underestimates f) when the spin axis is inclined, so
+  // the rendered flattening is a lower bound from v sin i.
+  let omegaRadSec: number | null = null;
+  const rotp = bestDerived(derived, plName, 'stellar_rotation_period');
+  if (rotp?.value != null && rotp.value > 0) {
+    omegaRadSec = (2 * Math.PI) / (rotp.value * 86400);
+  } else {
+    const vsini = bestDerived(derived, plName, 'stellar_vsini');
+    if (vsini?.value != null && vsini.value > 0) {
+      const Rm = stRadRsun * 6.957e8;
+      omegaRadSec = (vsini.value * 1000) / Rm;
+    }
+  }
+  if (omegaRadSec == null) return null;
+  const R = stRadRsun * 6.957e8;          // meters
+  const GM = 6.674e-11 * stMassMsun * 1.989e30;
+  const q = (omegaRadSec * omegaRadSec * R * R * R) / GM;
+  const f = q / 2;
+  if (!Number.isFinite(f) || f < 0.005) return null;
+  // Cap at 0.35 (extreme break-up rotators). Beyond f≈0.35 the slow-rotation
+  // Maclaurin approximation breaks down anyway, and visually 35% squash is
+  // already at the limit of "credibly a star, not a disc."
+  return Math.min(0.35, f);
+}
+
+// Thermal emission color for a body at temperature T (Kelvin). Stylized for
+// visibility — below ~800K the surface is essentially dark (peak emission in
+// the IR, no visible glow); above ~1500K it reads as cherry-red; above
+// ~4000K it's near-white. Brightness ramps sub-linearly so day/night
+// contrast reads dramatically without saturating mid-range. Channel values
+// above 1.0 (very hot) trigger bloom — correct for ultra-hot Jupiters.
+function thermalEmissionColor(T: number): THREE.Color {
+  if (T < 800) return new THREE.Color(0.04, 0.03, 0.02); // below visible emission
+  const brightness = Math.min(2.0, Math.max(0.1, (T - 700) / 1700));
+  const r = 1.0;
+  const g = Math.min(1.0, Math.max(0.0, (T - 1000) / 2200));
+  const b = Math.min(0.8, Math.max(0.0, (T - 2800) / 2500));
+  return new THREE.Color(r * brightness, g * brightness, b * brightness);
+}
+
+type PhaseCurve = { dayside: THREE.Color; nightside: THREE.Color };
+
+// Circumplanetary disk presence + dust mass for the focal planet. Currently
+// only PDS 70 c has a resolved CPD measurement (Benisty et al. 2021, ~0.031
+// M_earth of dust); PDS 70 b has a measured accretion rate which we treat
+// as a softer indicator that *something* dusty surrounds the forming planet.
+// When this returns non-null, the renderer draws a flat dust ring around the
+// planet body (the canonical "disk-feeding-a-forming-planet" look from the
+// VLT/ALMA images of PDS 70).
+type CircumplanetaryDisk = {
+  dustMassMEarth: number | null;       // null when only an accretion-rate hint exists
+  bibcode: string | null;
+  curatorNote: string | null;
+};
+
+function focalCircumplanetaryDisk(
+  derived: DerivedMeasurementRow[], plName: string,
+): CircumplanetaryDisk | null {
+  const mass = bestDerived(derived, plName, 'circumplanetary_disk_dust_mass');
+  if (mass) {
+    return {
+      dustMassMEarth: mass.value,
+      bibcode: mass.bibcode,
+      curatorNote: mass.curator_note,
+    };
+  }
+  // Fall back to accretion-rate evidence (PDS 70 b has Wagner 2018 accretion
+  // but no resolved disc yet). Still warrants a disk render — the accretion
+  // requires a feeding reservoir.
+  const accretion = bestDerived(derived, plName, 'accretion_rate');
+  if (accretion) {
+    return {
+      dustMassMEarth: null,
+      bibcode: accretion.bibcode,
+      curatorNote: accretion.curator_note,
+    };
+  }
+  return null;
+}
+
+// Day/night thermal-emission colors for the focal planet, when measured
+// dayside_temperature exists and is hot enough (~1200K+) that thermal
+// radiation dominates the visible appearance rather than reflected light.
+// Below that threshold, reflected starlight is the right model and the
+// standard reflection-based shader path stays in charge.
+// If nightside_temperature is missing, we estimate it from the dayside via
+// a simple heat-redistribution falloff: ultra-hot atmospheres lose energy
+// to radiation faster than circulation can redistribute it, so they carry
+// larger day-night contrast (KELT-9 b-class); cooler hot Jupiters
+// (WASP-43 b-class) redistribute more efficiently.
+function focalPhaseCurve(
+  derived: DerivedMeasurementRow[], plName: string,
+): PhaseCurve | null {
+  const day = bestDerived(derived, plName, 'dayside_temperature');
+  if (!day?.value || day.value < 1200) return null;
+  const night = bestDerived(derived, plName, 'nightside_temperature');
+  const T_night = night?.value ?? day.value * Math.exp(-day.value / 4000);
+  return {
+    dayside: thermalEmissionColor(day.value),
+    nightside: thermalEmissionColor(T_night),
+  };
+}
+
+// Atmospheric mass loss for the focal planet. Drives the comet-like exosphere
+// tail rendered downstream of (or upstream of, for HAT-P-67 b) the planet body.
+// Currently 8 planets carry a mass_loss_rate row in derived_measurements
+// (migration 088 + Kepler-1520 b from 036). Mechanism classification reads
+// the `model` column to color the tail: hydrogen-escape tails are blue
+// (Lyman-alpha-tracer palette), helium-escape tails are pink/red (He I 10833
+// metastable palette), Kepler-1520 b's dust is warm gray-brown.
+type EscapeMechanism = 'hydrogen' | 'helium' | 'dust';
+type FocalMassLoss = {
+  value: number;                  // M_earth / Gyr
+  uncHi: number | null;
+  uncLo: number | null;
+  mechanism: EscapeMechanism;
+  leading: boolean;               // tail extends ahead of orbital motion (HAT-P-67 b)
+  model: string | null;
+  bibcode: string | null;
+  curatorNote: string | null;
+  provenance: string;
+};
+
+function classifyEscapeMechanism(model: string | null): EscapeMechanism {
+  const m = (model ?? '').toLowerCase();
+  if (m.includes('helium') || m.includes('he ') || m.includes('roche-lobe')) return 'helium';
+  if (m.includes('hydrogen') || m.includes('hydrodynamic') || m.includes('lyman')) return 'hydrogen';
+  if (m.includes('dust')) return 'dust';
+  return 'hydrogen';
+}
+
+function focalMassLoss(
+  derived: DerivedMeasurementRow[], plName: string,
+): FocalMassLoss | null {
+  const row = bestDerived(derived, plName, 'mass_loss_rate');
+  if (!row?.value || row.value <= 0) return null;
+  const note = (row.curator_note ?? '').toLowerCase();
+  // HAT-P-67 b is the canonical pre-transit (leading) tail case; the curator
+  // note for those rows says so explicitly.
+  const leading = note.includes('leading') || note.includes('pre-transit');
+  return {
+    value: row.value,
+    uncHi: row.unc_hi,
+    uncLo: row.unc_lo,
+    mechanism: classifyEscapeMechanism(row.model),
+    leading,
+    model: row.model,
+    bibcode: row.bibcode,
+    curatorNote: row.curator_note,
+    provenance: row.provenance,
+  };
+}
+
+// Curated reflective albedo for the focal planet. Modulates the planet body's
+// reflected-light brightness in the renderer's "reflective" lighting mode
+// (the phase-curve / thermal-emission path is left alone — those planets are
+// emission-dominated and albedo doesn't drive their visible appearance).
+// Reference albedo of 0.30 is treated as the baseline (factor = 1.0); higher
+// values brighten reflection, lower values darken it. Prefer geometric_albedo
+// when present; fall back to bond_albedo.
+//
+// HD 189733 b carries a wavelength-dependent albedo (high in the blue,
+// suppressed beyond ~450 nm by sodium absorption). The curator note flags
+// this and the helper returns a non-null `reflectionTint` so the renderer
+// can tint reflected starlight blue — the famous "deep cobalt" visual.
+type FocalAlbedo = {
+  value: number;                  // 0-1 fraction
+  kind: 'geometric' | 'bond';
+  uncHi: number | null;
+  uncLo: number | null;
+  isUpperLimit: boolean;          // true when stored value is a non-detection bound
+  model: string | null;
+  bibcode: string | null;
+  curatorNote: string | null;
+  provenance: string;
+  reflectionTint: string | null;  // hex color for blue-leaning reflection (HD 189733 b)
+};
+
+function focalAlbedo(
+  derived: DerivedMeasurementRow[], plName: string,
+): FocalAlbedo | null {
+  // Geometric is the direct measurement of dayside reflectivity, so prefer
+  // it when both are available. Bond is what's reported for Kepler-10 b and
+  // a few others.
+  const geom = bestDerived(derived, plName, 'geometric_albedo');
+  const bond = bestDerived(derived, plName, 'bond_albedo');
+  const row = geom ?? bond;
+  if (!row?.value || row.value < 0) return null;
+  const kind: 'geometric' | 'bond' = geom != null ? 'geometric' : 'bond';
+  const note = (row.curator_note ?? '').toLowerCase();
+  const model = (row.model ?? '').toLowerCase();
+  // Wavelength-dependent / blue-tinted reflection (HD 189733 b). The
+  // curator note explicitly describes the deep-blue visual; we encode
+  // that as a reflection color the shader can mix into the body color.
+  const reflectionTint = (note.includes('blue') && note.includes('tint'))
+    || note.includes('deep-blue')
+    || note.includes('cobalt')
+    ? '#1a55c8' : null;
+  return {
+    value: row.value,
+    kind,
+    uncHi: row.unc_hi,
+    uncLo: row.unc_lo,
+    isUpperLimit: model.includes('upper limit'),
+    model: row.model,
+    bibcode: row.bibcode,
+    curatorNote: row.curator_note,
+    provenance: row.provenance,
+    reflectionTint,
+  };
+}
+
 function provenanceLabel(p: string): string {
   // Explicit mapping rather than "curated vs not-curated", because the DB
   // column intentionally has no CHECK constraint (so future provenance
@@ -438,37 +715,179 @@ function provenanceLabel(p: string): string {
   }
 }
 
-// Statistical starspot latitude from rotation period. Fast rotators (P < a few
-// days) carry high-latitude / near-polar spots — observed across decades of
-// Doppler imaging of young, active stars (Strassmeier 2002 review and on);
-// Sun-like slow rotators (P > 25 d) place spots in the low-latitude butterfly
-// band ~15-25° (Hathaway 2015, Living Reviews "The Solar Cycle"). Linear
-// interp between these regimes gives a per-star latitude derived from a
-// measured quantity (st_rotp), with only the longitude + hemisphere left as
-// a deterministic name-hash convention (same honesty model as the orbit Ω).
-function spotLatitudeDeg(rotationPeriodDays: number): number {
-  const P = Math.min(25, Math.max(3, rotationPeriodDays));
-  const t = (25 - P) / (25 - 3); // 0 at the slow end, 1 at the fast end
-  return 15 + (70 - 15) * t;
+// System-level debris disk for the focal planet's host star. 5 systems
+// currently carry curated debris_disk_* rows (migration 090): bet Pic b,
+// HR 8799 b, HD 95086 b, eps Eri b, 51 Eri b (which has two belts —
+// warm at 5.5 AU, cold at 82 AU). Each belt's rows share one bibcode
+// (the primary source paper), so grouping by bibcode reconstructs the
+// per-belt geometry. A belt with no debris_disk_outer_au row is a
+// single-radius SED fit (Patel/Riviere-Marichalar for 51 Eri); the
+// renderer draws it as a narrow ring centered on the inner_au value.
+type FocalDebrisDiskBelt = {
+  innerAu: number;
+  outerAu: number | null;          // null for SED-fit single-radius belts
+  inclinationDeg: number | null;   // null when no source paper quotes one
+  inclinationUncHi: number | null;
+  inclinationUncLo: number | null;
+  model: string | null;            // "Kepler bandpass occultation", etc.
+  bibcode: string | null;
+  curatorNote: string | null;
+  provenance: string;
+  // Curated dust temperature (migration 091). Drives the renderer's
+  // per-belt color: ~45-55 K is cool blue-gray (sub-mm cold dust), ~85 K
+  // is neutral, ~180 K reads as warm orange-brown (mid-IR warm dust).
+  // Null for belts where no paper quotes a temperature (eps Eri b).
+  dustTemperatureK: number | null;
+  dustTemperatureUncHi: number | null;
+  dustTemperatureUncLo: number | null;
+  // Temperature paper bibcode — often DIFFERENT from the geometry paper
+  // (HR 8799 geometry from Booth 2016, temperature from Su 2009; HD 95086
+  // geometry from Su 2017, temperature from Su 2015). Both deserve their
+  // own citation in the InfoPanel.
+  dustTemperatureBibcode: string | null;
+};
+
+function focalDebrisDisks(
+  derived: DerivedMeasurementRow[], plName: string,
+): FocalDebrisDiskBelt[] {
+  // Pull all debris_disk_* rows for this planet, then group by bibcode —
+  // each unique bibcode is one belt. (β Pic has one belt with 3 rows
+  // sharing Dent 2014; 51 Eri has two belts, each its own bibcode.)
+  const rows = derived.filter(
+    (r) => r.pl_name === plName && r.quantity.startsWith('debris_disk_'),
+  );
+  if (rows.length === 0) return [];
+  const byBibcode = new Map<string, DerivedMeasurementRow[]>();
+  for (const r of rows) {
+    const key = r.bibcode ?? `__nobib_${r.quantity}_${r.value}`;
+    const list = byBibcode.get(key) ?? [];
+    list.push(r);
+    byBibcode.set(key, list);
+  }
+  const belts: FocalDebrisDiskBelt[] = [];
+  for (const group of byBibcode.values()) {
+    const inner = group.find((r) => r.quantity === 'debris_disk_inner_au');
+    const outer = group.find((r) => r.quantity === 'debris_disk_outer_au');
+    const inc = group.find((r) => r.quantity === 'debris_disk_inclination_deg');
+    const temp = group.find((r) => r.quantity === 'debris_disk_dust_temperature_k');
+    if (!inner?.value) continue;
+    const anchor = inner;
+    belts.push({
+      innerAu: inner.value,
+      outerAu: outer?.value ?? null,
+      inclinationDeg: inc?.value ?? null,
+      inclinationUncHi: inc?.unc_hi ?? null,
+      inclinationUncLo: inc?.unc_lo ?? null,
+      model: anchor.model,
+      bibcode: anchor.bibcode,
+      curatorNote: anchor.curator_note,
+      provenance: anchor.provenance,
+      dustTemperatureK: temp?.value ?? null,
+      dustTemperatureUncHi: temp?.unc_hi ?? null,
+      dustTemperatureUncLo: temp?.unc_lo ?? null,
+      dustTemperatureBibcode: temp?.bibcode ?? null,
+    });
+  }
+  // Orphan-temperature fallback: when a planet's temperature row has a
+  // DIFFERENT bibcode from the geometry row (HR 8799: Booth 2016 geometry
+  // + Su 2009 temperature; HD 95086: Su 2017 geometry + Su 2015 temperature),
+  // the bibcode-grouping above puts the temperature in a separate group
+  // without inner_au, so it gets dropped. For single-belt planets we
+  // attach the orphan temperature to that belt. Multi-belt systems
+  // (51 Eri) get bibcode-matched temperatures via the loop above.
+  const orphanTemps = rows.filter(
+    (r) => r.quantity === 'debris_disk_dust_temperature_k'
+      && !belts.some((b) => b.dustTemperatureBibcode === r.bibcode),
+  );
+  if (orphanTemps.length === 1 && belts.length === 1 && belts[0].dustTemperatureK == null) {
+    const t = orphanTemps[0];
+    belts[0].dustTemperatureK = t.value;
+    belts[0].dustTemperatureUncHi = t.unc_hi;
+    belts[0].dustTemperatureUncLo = t.unc_lo;
+    belts[0].dustTemperatureBibcode = t.bibcode;
+  }
+  // Sort by inner radius so the warm/inner belt renders first; helps the
+  // 51 Eri case (warm 5.5 AU + cold 82 AU) look ordered in the InfoPanel.
+  belts.sort((a, b) => a.innerAu - b.innerAu);
+  return belts;
 }
 
-function spotDirection(rotationPeriodDays: number, hostKey: string): THREE.Vector3 {
-  // hostKey is the *host star* identifier (typically planet.hostname); the
-  // spot is a stellar feature, so siblings of the same star resolve to the
-  // same hash and the spot stays put across navigation between them.
-  const latMag = spotLatitudeDeg(rotationPeriodDays);
+// Dust color from temperature (K). Cold dust (~40-60 K, sub-mm regime)
+// reads as cool blue-gray; warm dust (~150-250 K, mid-IR regime) reads as
+// warm orange-brown. Two-segment linear interpolation through a neutral
+// brown midpoint at ~100 K. Returns the legacy generic-dust brown when
+// temperature is not measured. Output is a hex string for ShaderMaterial
+// uColor uniform.
+function dustColorHex(tKelvin: number | null): string {
+  if (tKelvin == null) return '#9a8060'; // legacy generic dust
+  const cold: [number, number, number] = [90, 106, 136];   // 40 K — cool blue-gray
+  const mid:  [number, number, number] = [154, 128, 96];   // 100 K — neutral brown (= #9a8060)
+  const warm: [number, number, number] = [192, 128, 80];   // 200 K — warm orange-brown
+  const lerp = (a: [number,number,number], b: [number,number,number], t: number) =>
+    [0,1,2].map((i) => Math.round(a[i] + Math.max(0, Math.min(1, t)) * (b[i] - a[i])));
+  const channels = tKelvin <= 100
+    ? lerp(cold, mid, (tKelvin - 40) / 60)
+    : lerp(mid, warm, (tKelvin - 100) / 100);
+  const hex = (n: number) => n.toString(16).padStart(2, '0');
+  return `#${hex(channels[0])}${hex(channels[1])}${hex(channels[2])}`;
+}
+
+// Starspot parameters derived from the host's rotation period and identifier:
+// - latitude (Strassmeier-Hathaway correlation: fast rotators carry high-
+//   latitude / near-polar spots; slow Sun-like rotators carry low-latitude
+//   ones). Now a smooth exponential decay (lat ≈ 80·exp(-P/15)) instead of a
+//   linear-then-clamped formula — the previous clamp at P=25 piled most of
+//   the catalog at exactly 15°, which made every slow rotator look the same.
+// - hemisphere + longitude from a well-mixed parity hash of the hostname.
+//   The previous implementation read bit 9 of an FNV hash for hemisphere and
+//   that bit was ~80% one-sided across real hosts; XORing all bits down gives
+//   a genuine 50/50 split, and the longitude pulls from a separately-mixed
+//   slice so the two aren't correlated.
+// - angular size: spot radius scales with rotation rate (fast → big polar
+//   cap, slow → small spot), which mirrors the magnetic activity scaling
+//   (faster = more active = larger spot coverage).
+type StarSpotProps = {
+  dir: THREE.Vector3;
+  innerCos: number; // cos of inner-edge angular radius (full-dark center)
+  outerCos: number; // cos of outer-edge angular radius (zero spot beyond)
+};
+
+function starSpotProps(rotationPeriodDays: number, hostKey: string): StarSpotProps {
+  const P = Math.max(0.5, rotationPeriodDays);
+
+  // Smooth latitude distribution, ~80° at very fast → 0° at very slow.
+  const latMag = 80 * Math.exp(-P / 15);
+
+  // FNV-1a hash, then collapse to parity for hemisphere so the split is
+  // genuinely 50/50; use a higher slice for longitude so the two are
+  // independent.
   let h = 2166136261;
   for (let i = 0; i < hostKey.length; i++) h = Math.imul(h ^ hostKey.charCodeAt(i), 16777619);
-  const hashed = h >>> 0;
-  const lonDeg = hashed % 360;
-  const hemisphere = ((hashed >>> 9) & 1) ? 1 : -1; // north or south
+  let parity = h >>> 0;
+  parity ^= parity >>> 16; parity ^= parity >>> 8;
+  parity ^= parity >>> 4;  parity ^= parity >>> 2; parity ^= parity >>> 1;
+  const hemisphere = (parity & 1) ? 1 : -1;
+  const lonDeg = ((h >>> 8) >>> 0) % 360;
+
   const lat = (hemisphere * latMag * Math.PI) / 180;
   const lon = (lonDeg * Math.PI) / 180;
-  return new THREE.Vector3(
+  const dir = new THREE.Vector3(
     Math.cos(lat) * Math.cos(lon),
     Math.sin(lat),
     Math.cos(lat) * Math.sin(lon),
   );
+
+  // Angular size, also rotation-rate driven. Fast rotators are magnetically
+  // active and carry big polar caps; slow Sun-like rotators carry tiny low-
+  // latitude spots. Range ~3° (very slow) to ~22° (very fast); calibrated
+  // closer to real sunspot-group sizes (~3-10° on the Sun) rather than the
+  // generously visual range of the previous formula. Soft edge ~30% of total.
+  const outerDeg = 3 + 20 / (1 + P / 10);
+  const innerDeg = outerDeg * 0.7;
+  const outerCos = Math.cos((outerDeg * Math.PI) / 180);
+  const innerCos = Math.cos((innerDeg * Math.PI) / 180);
+
+  return { dir, innerCos, outerCos };
 }
 
 // Line of nodes for the obliquity tilt, chosen perpendicular to the default
@@ -478,7 +897,12 @@ function spotDirection(rotationPeriodDays: number, hostKey: string): THREE.Vecto
 // the orbsmax scale cancels, so this is a constant.
 const OBLIQUITY_NODE_OMEGA = Math.atan2(1.4, 0.8) + Math.PI / 2;
 
-function planetDisplayRadius(pl_rade: number | null, pl_orbsmax: number | null): number {
+function planetDisplayRadius(
+  pl_rade: number | null,
+  pl_orbsmax: number | null,
+  st_rad?: number | null,
+  sunDisplayAU?: number,
+): number {
   const truthAU = (pl_rade ?? 1) * REARTH_IN_AU;
   const exaggerated = truthAU * BODY_EXAG;
   const orbsmax = pl_orbsmax ?? 1;
@@ -489,7 +913,26 @@ function planetDisplayRadius(pl_rade: number | null, pl_orbsmax: number | null):
   // disappears below sub-pixel even on a 4K screen. Floor at ~0.5° apparent
   // ensures the planet renders as at least a small visible disc.
   const visibilityFloor = orbsmax * 0.007;
-  return Math.max(MIN_PLANET_AU, Math.min(Math.max(exaggerated, visibilityFloor), orbitCap));
+  let radius = Math.max(MIN_PLANET_AU, Math.min(Math.max(exaggerated, visibilityFloor), orbitCap));
+
+  // Star-vs-planet hierarchy cap. When the catalog says the host star is
+  // genuinely larger than the planet (essentially every main-sequence host,
+  // 5-100× the planet's true radius), cap the rendered planet at the rendered
+  // sun so the visual hierarchy matches reality. Necessary mainly for
+  // high-eccentricity orbits (HD 80606 b at e=0.93, etc.): the sun's display
+  // gets squeezed by its periapsis-fraction cap, and without this rule the
+  // planet would dwarf the star on screen — opposite of reality.
+  // Truth-gated: the check trueSunAU > truePlanetAU exempts the handful of
+  // systems where the planet really IS bigger (DP Leo b around a white dwarf;
+  // WISEP J1217+1626 A b around a Y/T brown dwarf), so we don't distort those.
+  if (st_rad != null && pl_rade != null && sunDisplayAU != null) {
+    const trueSunAU = st_rad * RSUN_IN_AU;
+    const truePlanetAU = pl_rade * REARTH_IN_AU;
+    if (trueSunAU > truePlanetAU && radius > sunDisplayAU) {
+      radius = sunDisplayAU;
+    }
+  }
+  return radius;
 }
 
 // Smallest periapsis (closest approach to the star) across all planets in the
@@ -554,6 +997,14 @@ function InfoPanel({
   const rotp = bestDerived(scene.derived_measurements, planet.pl_name, 'stellar_rotation_period');
   const vsini = bestDerived(scene.derived_measurements, planet.pl_name, 'stellar_vsini');
   const planetSpin = bestDerived(scene.derived_measurements, planet.pl_name, 'rotation_velocity');
+  const cpdDustMass = bestDerived(scene.derived_measurements, planet.pl_name, 'circumplanetary_disk_dust_mass');
+  const cpdAccretion = bestDerived(scene.derived_measurements, planet.pl_name, 'accretion_rate');
+  const massLoss = focalMassLoss(scene.derived_measurements, planet.pl_name);
+  const albedo = focalAlbedo(scene.derived_measurements, planet.pl_name);
+  const debrisDisks = focalDebrisDisks(scene.derived_measurements, planet.pl_name);
+  const oblateness = focalStellarOblateness(
+    scene.derived_measurements, planet.pl_name, planet.st_rad, planet.st_mass,
+  );
   const planetSpinPeriodHours = planetSpin?.value && planet.pl_rade
     ? (2 * Math.PI * planet.pl_rade * 6371) / planetSpin.value / 3600
     : null;
@@ -696,6 +1147,47 @@ function InfoPanel({
         </Section>
       )}
 
+      {/* Stellar oblateness — centrifugal flattening from the host's spin,
+          derived live from rotation_period (or v sin i) + st_rad + st_mass.
+          Lights up for any host whose computed f exceeds 0.5%; below that
+          the squash is visually imperceptible and the section stays hidden
+          (Sun-like rotators sit there). The scene compresses the photosphere
+          along its spin axis (+Y) by the same factor. */}
+      {oblateness != null && (
+        <Section
+          label="Stellar oblateness"
+          open={openSections.has('starsquash')}
+          onToggle={() => toggle('starsquash')}
+        >
+          <p style={{ margin: '0 0 0.4rem', fontSize: '0.82rem' }}>
+            Flattening <strong>f = {(oblateness * 100).toFixed(oblateness < 0.05 ? 2 : 1)}%</strong>
+            <span style={{ color: 'var(--fg-muted)' }}> ({((1 / (1 - oblateness)) - 1).toFixed(2)}× equatorial bulge)</span>
+          </p>
+          <p style={{ margin: '0 0 0.4rem', fontSize: '0.74rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+            Centrifugal flattening from the host's measured spin: f ≈ Ω²R³/(2GM). The scene squashes the photosphere along its spin axis by the same factor — the equator stays at the catalog radius, the poles shrink. Below 0.5% the section doesn't appear because the squash isn't visible.
+          </p>
+          <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', color: 'var(--fg-muted)' }}>
+            Derived from <strong>{rotp?.value != null ? 'rotation period' : 'v sin i'}</strong>, <strong>st_rad</strong>, <strong>st_mass</strong> — no new curation step, but the rotation input has a paper.
+          </p>
+          {(() => {
+            // Surface the underlying rotation paper directly in this section.
+            // Researchers hitting "Stellar oblateness" first shouldn't have to
+            // open "Host-star rotation" separately to find the citation.
+            const source = rotp?.value != null ? rotp : vsini;
+            if (!source?.bibcode) return null;
+            return (
+              <a
+                href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(source.bibcode)}/abstract`}
+                target="_blank" rel="noopener noreferrer"
+                style={{ fontSize: '0.74rem' }}
+              >
+                {rotp?.value != null ? 'rotation period' : 'v sin i'}: ADS →
+              </a>
+            );
+          })()}
+        </Section>
+      )}
+
       {/* Planet axial rotation — currently only bet Pic b and AB Pic b have
           measured rotation_velocity in derived_measurements. The body in the
           scene visibly spins about a +Y reference axis at a stylized rate. */}
@@ -748,6 +1240,305 @@ function InfoPanel({
               ADS →
             </a>
           )}
+        </Section>
+      )}
+
+      {/* Circumplanetary disc — currently only PDS 70 b and c (the famous
+          forming-planet system). Explains what the dust ring in the scene
+          IS, so first-time viewers aren't left wondering why this planet has
+          a halo and others don't. */}
+      {(cpdDustMass || cpdAccretion) && (
+        <Section
+          label="Circumplanetary disk"
+          open={openSections.has('cpd')}
+          onToggle={() => toggle('cpd')}
+        >
+          <p style={{ margin: '0 0 0.5rem', fontSize: '0.78rem', lineHeight: 1.5 }}>
+            This planet is still forming and is surrounded by a disc of dust and
+            gas it accretes from. The dust band in the scene is a stylized
+            rendering of that circumplanetary disc — same physical structure
+            VLT/ALMA imaged directly around the PDS 70 planets, the first ever
+            resolved.
+          </p>
+          <dl style={{ margin: '0 0 0.4rem', display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.15rem 0.6rem', fontSize: '0.8rem' }}>
+            {cpdDustMass?.value != null && (
+              <>
+                <dt style={{ color: 'var(--fg-muted)' }}>dust mass</dt>
+                <dd style={{ margin: 0 }}>
+                  <strong>{cpdDustMass.value}</strong> M⊕
+                </dd>
+              </>
+            )}
+            {cpdAccretion?.value != null && (
+              <>
+                <dt style={{ color: 'var(--fg-muted)' }}>accretion rate</dt>
+                <dd style={{ margin: 0 }}>
+                  <strong>{cpdAccretion.value.toExponential(1)}</strong> M♃/yr
+                </dd>
+              </>
+            )}
+          </dl>
+          <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', color: 'var(--fg-muted)' }}>
+            Source: {provenanceLabel((cpdDustMass ?? cpdAccretion)!.provenance)}
+          </p>
+          {(cpdDustMass ?? cpdAccretion)?.curator_note && (
+            <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+              {(cpdDustMass ?? cpdAccretion)!.curator_note}
+            </p>
+          )}
+          <div style={{ display: 'flex', gap: '0.6rem', fontSize: '0.74rem' }}>
+            {cpdDustMass?.bibcode && (
+              <a
+                href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(cpdDustMass.bibcode)}/abstract`}
+                target="_blank" rel="noopener noreferrer"
+              >dust mass: ADS →</a>
+            )}
+            {cpdAccretion?.bibcode && cpdAccretion.bibcode !== cpdDustMass?.bibcode && (
+              <a
+                href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(cpdAccretion.bibcode)}/abstract`}
+                target="_blank" rel="noopener noreferrer"
+              >accretion: ADS →</a>
+            )}
+          </div>
+        </Section>
+      )}
+
+      {/* Atmospheric escape — currently 8 planets carry curated mass_loss_rate
+          rows (migration 088 + Kepler-1520 b from 036). Explains the colored
+          comet-like tail in the scene and credits the measurement paper. */}
+      {massLoss && (
+        <Section
+          label="Atmospheric escape"
+          open={openSections.has('escape')}
+          onToggle={() => toggle('escape')}
+        >
+          <p style={{ margin: '0 0 0.5rem', fontSize: '0.78rem', lineHeight: 1.5 }}>
+            {massLoss.mechanism === 'hydrogen'
+              ? 'This planet is losing hydrogen from its upper atmosphere, traced in Lyman-alpha transit observations. The blue tail in the scene is a stylized rendering of that escaping exosphere.'
+              : massLoss.mechanism === 'helium'
+              ? 'This planet is losing helium from its upper atmosphere, traced via the 1083 nm metastable helium triplet. The pink tail in the scene is a stylized rendering of that escaping exosphere.'
+              : 'This planet is disintegrating — surface material vaporizes and forms a trailing dust cloud, occulting the host star asymmetrically each transit.'}
+            {massLoss.leading && ' Unusually, the tail leads the planet in its orbit (pre-transit ingress), consistent with Roche-lobe overflow advected into the stellar rest frame.'}
+          </p>
+          <dl style={{ margin: '0 0 0.4rem', display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.15rem 0.6rem', fontSize: '0.8rem' }}>
+            <dt style={{ color: 'var(--fg-muted)' }}>mass loss</dt>
+            <dd style={{ margin: 0 }}>
+              <strong>{massLoss.value < 0.01 ? massLoss.value.toExponential(1) : massLoss.value.toFixed(massLoss.value < 1 ? 3 : 1)}</strong> M⊕/Gyr
+              {massLoss.uncHi != null && massLoss.uncLo != null && (
+                <span style={{ color: 'var(--fg-muted)' }}> ± {massLoss.uncHi.toFixed(massLoss.uncHi < 1 ? 2 : 1)}</span>
+              )}
+            </dd>
+            {massLoss.model && (
+              <>
+                <dt style={{ color: 'var(--fg-muted)' }}>mechanism</dt>
+                <dd style={{ margin: 0, fontSize: '0.78rem' }}>{massLoss.model}</dd>
+              </>
+            )}
+          </dl>
+          <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', color: 'var(--fg-muted)' }}>
+            Source: {provenanceLabel(massLoss.provenance)}
+          </p>
+          {massLoss.curatorNote && (
+            <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+              {massLoss.curatorNote}
+            </p>
+          )}
+          {massLoss.bibcode && (
+            <a
+              href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(massLoss.bibcode)}/abstract`}
+              target="_blank" rel="noopener noreferrer"
+              style={{ fontSize: '0.74rem' }}
+            >
+              ADS →
+            </a>
+          )}
+        </Section>
+      )}
+
+      {/* Reflective albedo — currently 11 planets carry a curated
+          geometric_albedo or bond_albedo row (migration 089 + WASP-80 b /
+          GJ 1214 b from prior migrations). The scene modulates the planet
+          body's reflected-light brightness by the measured value; HD 189733 b
+          also gets a blue reflection tint (wavelength-dependent albedo,
+          high in blue, suppressed in red by sodium). Phase-curve planets
+          (KELT-9 b-class) bypass the reflective path entirely so albedo
+          isn't applied to them. */}
+      {albedo && (
+        <Section
+          label="Albedo"
+          open={openSections.has('albedo')}
+          onToggle={() => toggle('albedo')}
+        >
+          <p style={{ margin: '0 0 0.4rem', fontSize: '0.82rem' }}>
+            {albedo.isUpperLimit ? (
+              <>
+                {albedo.kind === 'geometric' ? 'Geometric albedo A_g' : 'Bond albedo A_B'}{' '}
+                <strong>&lt; {albedo.value.toFixed(3)}</strong>{' '}
+                <span style={{ color: 'var(--fg-muted)' }}>(non-detection)</span>
+              </>
+            ) : (
+              <>
+                {albedo.kind === 'geometric' ? 'Geometric albedo A_g' : 'Bond albedo A_B'}{' '}
+                <strong>= {albedo.value.toFixed(albedo.value < 0.1 ? 4 : 2)}</strong>
+                {albedo.uncHi != null && albedo.uncLo != null && (
+                  <span style={{ color: 'var(--fg-muted)' }}>
+                    {' '}{albedo.uncHi === albedo.uncLo
+                      ? `± ${albedo.uncHi.toFixed(albedo.uncHi < 0.1 ? 3 : 2)}`
+                      : `+${albedo.uncHi.toFixed(2)} / -${albedo.uncLo.toFixed(2)}`}
+                  </span>
+                )}
+              </>
+            )}
+          </p>
+          <p style={{ margin: '0 0 0.4rem', fontSize: '0.74rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+            {albedo.kind === 'geometric'
+              ? "Geometric albedo: ratio of brightness at zero phase angle to a flat Lambertian surface. The scene scales reflected-light brightness by this measurement; the reference baseline is 0.30."
+              : "Bond albedo: fraction of incident bolometric energy reflected by the planet. Drives reflected-light brightness in the scene relative to the 0.30 reference baseline."}
+            {albedo.reflectionTint && ' Because this planet\'s albedo is much higher in the blue than the red (sodium absorption in the upper atmosphere), its reflected starlight is tinted blue in the scene — the famous deep-cobalt color reported by Evans et al.'}
+          </p>
+          {albedo.model && (
+            <p style={{ margin: '0 0 0.4rem', fontSize: '0.74rem', color: 'var(--fg-muted)' }}>
+              Method: {albedo.model}
+            </p>
+          )}
+          <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', color: 'var(--fg-muted)' }}>
+            Source: {provenanceLabel(albedo.provenance)}
+          </p>
+          {albedo.curatorNote && (
+            <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+              {albedo.curatorNote}
+            </p>
+          )}
+          {albedo.bibcode && (
+            <a
+              href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(albedo.bibcode)}/abstract`}
+              target="_blank" rel="noopener noreferrer"
+              style={{ fontSize: '0.74rem' }}
+            >
+              ADS →
+            </a>
+          )}
+        </Section>
+      )}
+
+      {/* System-level debris disk(s). Currently 5 systems qualify
+          (migration 090): bet Pic, HR 8799, HD 95086, eps Eri, 51 Eri.
+          51 Eri has TWO belts (warm + cold) — each entry in `debrisDisks`
+          carries its own bibcode and is rendered as a separate row block.
+          The scene draws each belt as a wide flat ring (or narrow ring
+          for SED-fit single-radius belts) around the host star at AU
+          scale. Inclination from the same paper tilts the ring when
+          measured. */}
+      {debrisDisks.length > 0 && (
+        <Section
+          label={debrisDisks.length > 1 ? `Debris disks · ${debrisDisks.length}` : 'Debris disk'}
+          open={openSections.has('debris')}
+          onToggle={() => toggle('debris')}
+        >
+          <p style={{ margin: '0 0 0.5rem', fontSize: '0.78rem', lineHeight: 1.5 }}>
+            {debrisDisks.length === 1
+              ? 'A resolved debris disk has been measured around the host star. The scene shows it as a wide dusty ring at the measured AU scale.'
+              : `${debrisDisks.length} distinct debris belts have been measured around the host star (warm inner + cold outer, the same architecture as HR 8799 and HD 95086). Each is shown at its measured AU scale.`}
+          </p>
+          {debrisDisks.map((belt, i) => {
+            const isSingleRadius = belt.outerAu == null;
+            return (
+              <div
+                key={`belt-${belt.bibcode ?? i}`}
+                style={{
+                  margin: '0 0 0.6rem',
+                  paddingTop: i === 0 ? 0 : '0.5rem',
+                  borderTop: i === 0 ? 'none' : '1px solid var(--border)',
+                }}
+              >
+                <dl style={{ margin: '0 0 0.3rem', display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.15rem 0.6rem', fontSize: '0.8rem' }}>
+                  {isSingleRadius ? (
+                    <>
+                      <dt style={{ color: 'var(--fg-muted)' }}>blackbody radius</dt>
+                      <dd style={{ margin: 0 }}>
+                        <strong>{belt.innerAu.toFixed(belt.innerAu < 10 ? 1 : 0)}</strong> AU
+                      </dd>
+                    </>
+                  ) : (
+                    <>
+                      <dt style={{ color: 'var(--fg-muted)' }}>inner edge</dt>
+                      <dd style={{ margin: 0 }}><strong>{belt.innerAu.toFixed(0)}</strong> AU</dd>
+                      <dt style={{ color: 'var(--fg-muted)' }}>outer edge</dt>
+                      <dd style={{ margin: 0 }}><strong>{belt.outerAu!.toFixed(0)}</strong> AU</dd>
+                    </>
+                  )}
+                  {belt.inclinationDeg != null && (
+                    <>
+                      <dt style={{ color: 'var(--fg-muted)' }}>inclination</dt>
+                      <dd style={{ margin: 0 }}>
+                        <strong>{belt.inclinationDeg.toFixed(belt.inclinationDeg < 10 ? 2 : 1)}°</strong>
+                        {belt.inclinationUncHi != null && belt.inclinationUncLo != null && (
+                          <span style={{ color: 'var(--fg-muted)' }}>
+                            {' '}{belt.inclinationUncHi === belt.inclinationUncLo
+                              ? `± ${belt.inclinationUncHi}`
+                              : `+${belt.inclinationUncHi}/-${belt.inclinationUncLo}`}
+                          </span>
+                        )}
+                      </dd>
+                    </>
+                  )}
+                  {belt.dustTemperatureK != null && (
+                    <>
+                      <dt style={{ color: 'var(--fg-muted)' }}>dust temperature</dt>
+                      <dd style={{ margin: 0 }}>
+                        <strong>{belt.dustTemperatureK}</strong> K
+                        {belt.dustTemperatureUncHi != null && belt.dustTemperatureUncLo != null && (
+                          <span style={{ color: 'var(--fg-muted)' }}>
+                            {' '}{belt.dustTemperatureUncHi === belt.dustTemperatureUncLo
+                              ? `± ${belt.dustTemperatureUncHi}`
+                              : `+${belt.dustTemperatureUncHi}/-${belt.dustTemperatureUncLo}`}
+                          </span>
+                        )}
+                      </dd>
+                    </>
+                  )}
+                </dl>
+                {belt.model && (
+                  <p style={{ margin: '0 0 0.3rem', fontSize: '0.74rem', color: 'var(--fg-muted)' }}>
+                    {isSingleRadius ? 'SED fit' : 'Method'}: {belt.model}
+                  </p>
+                )}
+                {isSingleRadius && (
+                  <p style={{ margin: '0 0 0.3rem', fontSize: '0.72rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+                    Single-radius blackbody fit, not resolved imaging — the rendered ring is intentionally narrow to reflect this.
+                  </p>
+                )}
+                <p style={{ margin: '0 0 0.3rem', fontSize: '0.72rem', color: 'var(--fg-muted)' }}>
+                  Source: {provenanceLabel(belt.provenance)}
+                </p>
+                {belt.curatorNote && (
+                  <p style={{ margin: '0 0 0.3rem', fontSize: '0.72rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+                    {belt.curatorNote}
+                  </p>
+                )}
+                <div style={{ display: 'flex', gap: '0.6rem', fontSize: '0.74rem' }}>
+                  {belt.bibcode && (
+                    <a
+                      href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(belt.bibcode)}/abstract`}
+                      target="_blank" rel="noopener noreferrer"
+                    >
+                      {belt.dustTemperatureBibcode && belt.dustTemperatureBibcode !== belt.bibcode
+                        ? 'geometry: ADS →'
+                        : 'ADS →'}
+                    </a>
+                  )}
+                  {belt.dustTemperatureBibcode && belt.dustTemperatureBibcode !== belt.bibcode && (
+                    <a
+                      href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(belt.dustTemperatureBibcode)}/abstract`}
+                      target="_blank" rel="noopener noreferrer"
+                    >
+                      temperature: ADS →
+                    </a>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </Section>
       )}
 
@@ -1124,11 +1915,19 @@ function PlaybackControls({
   viewMode, setViewMode,
   showStellarReference, setShowStellarReference,
   hasStellarReference,
+  showDebrisDiskAxis, setShowDebrisDiskAxis,
+  alignToDiskAxis, setAlignToDiskAxis,
+  hasInclinedDebrisDisk,
 }: {
   paused: boolean; setPaused: (p: boolean) => void;
   speed: number; setSpeed: (s: number) => void;
   viewMode: 'system' | 'surface'; setViewMode: (v: 'system' | 'surface') => void;
   showStellarReference: boolean; setShowStellarReference: (v: boolean) => void;
+  /** True when the focal system has at least one debris disk with a
+      measured inclination (the toggles below only make sense in that case). */
+  showDebrisDiskAxis: boolean; setShowDebrisDiskAxis: (v: boolean) => void;
+  alignToDiskAxis: boolean; setAlignToDiskAxis: (v: boolean) => void;
+  hasInclinedDebrisDisk: boolean;
   /** True when the focal scene has something for the spin-axis toggle to
       control (measured obliquity or a host-star rotation period). Used to
       hide the display row entirely on systems where the toggle would be a
@@ -1223,28 +2022,72 @@ function PlaybackControls({
           frame (spin axis + equator ring on obliquity systems). Hidden when
           the focal scene has nothing for it to control, so the controls
           don't carry a dangling button. */}
-      {hasStellarReference && (
+      {(hasStellarReference || hasInclinedDebrisDisk) && (
       <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', marginTop: '0.55rem', flexWrap: 'wrap' }}>
         <span style={{ color: 'var(--fg-muted)' }}>display</span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={showStellarReference}
-          aria-label={`Stellar spin axis overlay, currently ${showStellarReference ? 'on' : 'off'}`}
-          onClick={() => setShowStellarReference(!showStellarReference)}
-          title="Toggle the stellar spin axis (and obliquity equator ring, when present)"
-          style={{
-            background: showStellarReference ? 'var(--fg)' : 'transparent',
-            color: showStellarReference ? '#0b0d12' : 'var(--fg-muted)',
-            border: '1px solid var(--border)',
-            padding: '0.15rem 0.5rem',
-            borderRadius: 3,
-            cursor: 'pointer',
-            fontSize: '0.75rem',
-          }}
-        >
-          spin axis {showStellarReference ? 'on' : 'off'}
-        </button>
+        {hasStellarReference && (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={showStellarReference}
+            aria-label={`Stellar spin axis overlay, currently ${showStellarReference ? 'on' : 'off'}`}
+            onClick={() => setShowStellarReference(!showStellarReference)}
+            title="Toggle the stellar spin axis (and obliquity equator ring, when present)"
+            style={{
+              background: showStellarReference ? 'var(--fg)' : 'transparent',
+              color: showStellarReference ? '#0b0d12' : 'var(--fg-muted)',
+              border: '1px solid var(--border)',
+              padding: '0.15rem 0.5rem',
+              borderRadius: 3,
+              cursor: 'pointer',
+              fontSize: '0.75rem',
+            }}
+          >
+            spin axis {showStellarReference ? 'on' : 'off'}
+          </button>
+        )}
+        {hasInclinedDebrisDisk && (
+          <>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={showDebrisDiskAxis}
+              aria-label={`Debris-disk axis overlay, currently ${showDebrisDiskAxis ? 'on' : 'off'}`}
+              onClick={() => setShowDebrisDiskAxis(!showDebrisDiskAxis)}
+              title="Toggle the line perpendicular to the debris-disk plane"
+              style={{
+                background: showDebrisDiskAxis ? 'var(--fg)' : 'transparent',
+                color: showDebrisDiskAxis ? '#0b0d12' : 'var(--fg-muted)',
+                border: '1px solid var(--border)',
+                padding: '0.15rem 0.5rem',
+                borderRadius: 3,
+                cursor: 'pointer',
+                fontSize: '0.75rem',
+              }}
+            >
+              disk axis {showDebrisDiskAxis ? 'on' : 'off'}
+            </button>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={alignToDiskAxis}
+              aria-label={`Align camera view to debris-disk axis, currently ${alignToDiskAxis ? 'on' : 'off'}`}
+              onClick={() => setAlignToDiskAxis(!alignToDiskAxis)}
+              title="Reorient the camera so the debris-disk axis points straight up on screen"
+              style={{
+                background: alignToDiskAxis ? 'var(--fg)' : 'transparent',
+                color: alignToDiskAxis ? '#0b0d12' : 'var(--fg-muted)',
+                border: '1px solid var(--border)',
+                padding: '0.15rem 0.5rem',
+                borderRadius: 3,
+                cursor: 'pointer',
+                fontSize: '0.75rem',
+              }}
+            >
+              align to disk {alignToDiskAxis ? 'on' : 'off'}
+            </button>
+          </>
+        )}
       </div>
       )}
 
@@ -1410,15 +2253,18 @@ function PostProcessing() {
         /* mipmapBlur produces the wide, smooth Gaussian-pyramid halo
            that reads as a real stellar corona. levels={4} keeps the
            pyramid shallow to prevent the frame-spanning dome bug.
-           Threshold 0.30 catches the full photosphere disc — cool
-           stars and hot stars alike get a generous halo. Side effect:
-           bright companion stars and well-lit planets get some bloom
-           too. */
-        intensity={1.7}
-        luminanceThreshold={0.30}
+           Threshold 0.60 is high enough that only the bright center of
+           the photosphere disc feeds the bloom kernel — the limb-darkened
+           edges fall below threshold, so the bloom no longer bleeds back
+           across the disc and washes out surface detail (starspots,
+           granulation). The StellarCorona billboard handles the soft
+           visible halo on its own; this layer is just the extra glow
+           atop the very brightest pixels. */
+        intensity={1.0}
+        luminanceThreshold={1.0}
         luminanceSmoothing={0.25}
         mipmapBlur
-        radius={0.9}
+        radius={0.7}
         levels={4}
       />
     </EffectComposer>
@@ -1600,6 +2446,8 @@ function SceneContents({
   hideFocal = false,
   focalPosOut,
   showStellarReference = true,
+  showDebrisDiskAxis = true,
+  alignToDiskAxis = false,
 }: {
   scene: SceneResponse;
   paused: boolean;
@@ -1618,6 +2466,13 @@ function SceneContents({
   /** Toggles the stellar spin axis + (when obliquity is present) equator
       ring overlay. Driven from PlaybackControls. */
   showStellarReference?: boolean;
+  /** Toggles the debris-disk axis (normal vector perpendicular to disk plane).
+      Independent from the stellar spin axis. */
+  showDebrisDiskAxis?: boolean;
+  /** When true, the camera's up vector is set to the (first inclined) debris-
+      disk normal so the disk appears horizontal and its axis vertical on
+      screen — a "physics-natural" viewing frame. */
+  alignToDiskAxis?: boolean;
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -1648,6 +2503,7 @@ function SceneContents({
   const focalOrbsmax = planet.pl_orbsmax ?? 1;
   const innermost = innermostPeriapsis(scene);
   const sunRadius = sunDisplayRadius(planet.st_rad, innermost, focalOrbsmax);
+  const focalPlanetRadius = planetDisplayRadius(planet.pl_rade, focalOrbsmax, planet.st_rad, sunRadius);
 
   // Mutual-inclination map keyed by planet name. ups And d (30° vs c),
   // 55 Cnc e (17° vs b), and Kepler-419 c (9° vs b) are the visible
@@ -1681,16 +2537,24 @@ function SceneContents({
     [scene.derived_measurements, planet.pl_name],
   );
 
-  // Starspot direction (object space) for the host photosphere. Latitude
-  // comes from the rotation period (stellarRotationDays) via the published
-  // statistical correlation; longitude + hemisphere are hashed on the host
-  // identifier so siblings of the same star resolve to the SAME spot location
-  // (the spot is a stellar feature, not a per-planet one — hashing on pl_name
-  // would jump the spot whenever the user navigates between siblings).
-  const stellarSpotDir = useMemo(() => {
+  // Full starspot parameters (position + size) derived from the host's
+  // rotation period and identifier. Sibling planets share a star and
+  // therefore share a spot — hashing on hostname, not pl_name, keeps the
+  // spot fixed across navigation between siblings.
+  const stellarSpot = useMemo(() => {
     if (stellarRotationDays == null || stellarRotationDays <= 0) return null;
-    return spotDirection(stellarRotationDays, planet.hostname);
+    return starSpotProps(stellarRotationDays, planet.hostname);
   }, [stellarRotationDays, planet.hostname]);
+
+  // Centrifugal oblateness of the host star (f = (R_eq − R_pol)/R_eq).
+  // Only renders when f > 0.5% — Sun-class rotators contribute too little
+  // to see. Squashes the Photosphere along its spin axis (+Y).
+  const stellarOblateness = useMemo(
+    () => focalStellarOblateness(
+      scene.derived_measurements, planet.pl_name, planet.st_rad, planet.st_mass,
+    ),
+    [scene.derived_measurements, planet.pl_name, planet.st_rad, planet.st_mass],
+  );
 
   // Focal planet's axial spin, derived from rotation_velocity (km/s) + radius.
   // Rate is stylized like the orbit pacing (a 10-hour rotator turns once per
@@ -1708,12 +2572,80 @@ function SceneContents({
     return ((2 * Math.PI) / 12) * (10 / clamped); // rad/sec
   }, [scene.derived_measurements, planet.pl_name, planet.pl_rade]);
 
+  // Day/night thermal emission colors for the focal planet, if the dayside
+  // is hot enough that thermal radiation dominates the visible appearance.
+  // When present, the body shader switches from sun-direction reflective
+  // lighting to a smooth blend between thermal colors so the measured
+  // day/night temperature contrast actually reads visually (the hottest
+  // Jupiters glow white-hot on the lit side; their night sides can be
+  // ~half that or dimmer).
+  const phaseCurve = useMemo(
+    () => focalPhaseCurve(scene.derived_measurements, planet.pl_name),
+    [scene.derived_measurements, planet.pl_name],
+  );
+
+  // Circumplanetary disk for the focal planet, if the catalog/curated data
+  // says one exists. Currently only PDS 70 b and c carry this (Wagner 2018
+  // accretion rate; Benisty 2021 resolved dust mass). When present, a flat
+  // dust ring is drawn around the planet body at a few planet-radii scale —
+  // the canonical "forming planet feeding from its disc" look.
+  const circumplanetaryDisk = useMemo(
+    () => focalCircumplanetaryDisk(scene.derived_measurements, planet.pl_name),
+    [scene.derived_measurements, planet.pl_name],
+  );
+
+  // Mass-loss / escaping-atmosphere tail for the focal planet, if the catalog
+  // / curated data carries a mass_loss_rate row. 8 planets currently qualify
+  // (migration 088 + Kepler-1520 b from 036). The tail is rendered in its own
+  // world-frame group (sibling of focalGroup) because focalGroup only
+  // translates, and the tail needs an extra rotation each frame to point
+  // along the orbital tangent (trailing or leading).
+  const massLoss = useMemo(
+    () => focalMassLoss(scene.derived_measurements, planet.pl_name),
+    [scene.derived_measurements, planet.pl_name],
+  );
+
+  // Curated reflective albedo for the focal planet. Modulates planet-body
+  // reflected-light brightness; HD 189733 b also gets the blue reflection
+  // tint. 11 planets currently qualify (migration 089 + WASP-80 b /
+  // GJ 1214 b from prior migrations). Phase-curve planets (KELT-9 b-class)
+  // are unaffected since the shader's emission path doesn't read albedo.
+  const albedo = useMemo(
+    () => focalAlbedo(scene.derived_measurements, planet.pl_name),
+    [scene.derived_measurements, planet.pl_name],
+  );
+
+  // System-level debris disks for the focal planet's host star (5 systems
+  // qualify post-migration 090: bet Pic, HR 8799, HD 95086, eps Eri, 51 Eri).
+  // Returns one entry per belt — 51 Eri has both a warm and cold belt, the
+  // others have one. Rendered as wide flat rings around the host at the
+  // AU scale of the orbit.
+  const debrisDisks = useMemo(
+    () => focalDebrisDisks(scene.derived_measurements, planet.pl_name),
+    [scene.derived_measurements, planet.pl_name],
+  );
+
+  // Stellar halo intensity, driven by data: the star's apparent flux at the
+  // planet's orbit (scene_hints.insolation_relative_earth = L_star / orbsmax²
+  // in Earth units, computed from measured st_lum and pl_orbsmax). This is
+  // the same physics that gives a brighter point source a wider visible PSF
+  // in the eye / a camera. Log-scaled and clamped to a sensible visual range
+  // so cold outer planets get a tight subtle glow, Earth-like get a moderate
+  // halo, and hot inner planets get a wide bright one. Falls back to 0.4
+  // (Sun-at-Earth-equivalent) when the data is missing.
+  const haloIntensity = useMemo(() => {
+    const insol = scene.scene_hints.insolation_relative_earth;
+    if (insol == null || insol <= 0) return 0.4;
+    return Math.min(0.75, Math.max(0.25, 0.4 + 0.12 * Math.log10(insol)));
+  }, [scene.scene_hints.insolation_relative_earth]);
+
   // Animation clock — accumulates real seconds × speed when not paused.
   // Each planet derives its current orbital angle from this single shared time.
   // Lifted to ScenePage and passed in via clockRef so it can be initialized
   // from the URL hash and survive Canvas remounts on viewMode toggle.
   const clock = clockRef;
   const focalGroup = useRef<THREE.Group>(null);
+  const tailGroup = useRef<THREE.Group>(null);
   const siblingRefs = useRef<Map<string, THREE.Group>>(new Map());
 
   // Smart-default pacing: focal planet completes its orbit in 60 sec at 1×.
@@ -1741,16 +2673,26 @@ function SceneContents({
     if (!paused) clock.current += delta * speed;
 
     const M = (clock.current / FOCAL_SECS_PER_ORBIT) * 2 * Math.PI;
-    const [fx0, , fz0] = keplerPosition(focalOrbsmax, planet.pl_orbeccen ?? 0, M);
+    const [fx0_raw, , fz0_raw] = keplerPosition(focalOrbsmax, planet.pl_orbeccen ?? 0, M);
+    // In-plane rotation by the measured argument of periastron, so periapsis
+    // points in the catalogued direction instead of arbitrarily on +X.
+    const [fx0, fz0] = rotateInPlane(fx0_raw, fz0_raw, argPeriRad(planet.pl_orblper));
     const [fx, fy, fz] = applyOrbitTilt(fx0, fz0, focalRenderTilt.inc, focalRenderTilt.omega);
     if (focalGroup.current) focalGroup.current.position.set(fx, fy, fz);
     // Expose focal world position for surface-mode camera tracking
     if (focalPosOut) focalPosOut.current.set(fx, fy, fz);
+    // Escaping-atmosphere tail. Parent group is positioned at the focal
+    // planet; the ribbon component samples the orbit itself each frame to
+    // build a spine that curves along the orbital path (leading or trailing).
+    if (tailGroup.current && massLoss) {
+      tailGroup.current.position.set(fx, fy, fz);
+    }
     siblingRefs.current.forEach((group, plName) => {
       const s = siblings.find((x) => x.pl_name === plName);
       if (!s || s.pl_orbsmax == null) return;
       const M = meanAnomaly(s.pl_orbper, s.pl_name);
-      const [x0, , z0] = keplerPosition(s.pl_orbsmax, s.pl_orbeccen ?? 0, M);
+      const [x0_raw, , z0_raw] = keplerPosition(s.pl_orbsmax, s.pl_orbeccen ?? 0, M);
+      const [x0, z0] = rotateInPlane(x0_raw, z0_raw, argPeriRad(s.pl_orblper));
       const tilt = tiltMap.get(plName) ?? { inc: 0, omega: 0 };
       const [x, y, z] = applyOrbitTilt(x0, z0, tilt.inc, tilt.omega);
       group.position.set(x, y, z);
@@ -1772,7 +2714,7 @@ function SceneContents({
           its own StellarCorona so both stars in a binary get a halo. */}
       {planet.cb_flag === 1
         ? <BinaryPhotospheres radius={sunRadius} color={sun_color_hex} teff={planet.st_teff} paused={paused} speed={speed} />
-        : <Photosphere radius={sunRadius} color={sun_color_hex} teff={planet.st_teff} rotationPeriodDays={stellarRotationDays} spotDir={stellarSpotDir} />
+        : <Photosphere radius={sunRadius} color={sun_color_hex} teff={planet.st_teff} rotationPeriodDays={stellarRotationDays} spot={stellarSpot} haloIntensity={haloIntensity} oblateness={stellarOblateness ?? 0} />
       }
       {/* Sun light: decay=1.7 (slightly less aggressive than physical 1/r²).
           Pure inverse-square crushes outer planets visually faster than the
@@ -1816,6 +2758,7 @@ function SceneContents({
         opacity={0.55}
         inc={focalRenderTilt.inc}
         omega={focalRenderTilt.omega}
+        argPeri={argPeriRad(planet.pl_orblper)}
       />
       {/* Stellar equator + spin axis — only when the focal planet carries a
           measured spin-orbit obliquity, so ordinary scenes are unchanged.
@@ -1835,6 +2778,46 @@ function SceneContents({
           showEquator={!!obliquity}
         />
       )}
+
+      {/* System-level debris disks. Centered on origin (host star), in AU
+          scale, rendered as wide flat rings in the orbital reference plane
+          (XZ) with inclination applied per belt. 5 systems qualify today
+          (bet Pic, HR 8799, HD 95086, eps Eri, 51 Eri). Stacking order:
+          rendered before sibling orbit rings + planet bodies so opaque
+          planets occlude the disc as they pass through it (depthTest=true
+          inside SystemDebrisDiskRing). */}
+      {debrisDisks.map((belt) => (
+        <SystemDebrisDiskRing
+          key={`debris-${belt.bibcode ?? belt.innerAu}`}
+          belt={belt}
+        />
+      ))}
+
+      {/* Disk normal axis — one line per belt with a measured inclination,
+          controlled by its OWN toggle (showDebrisDiskAxis) separately from
+          the stellar spin axis. Helps visualize the disk-plane orientation
+          for inclined disks (bet Pic ~89° = nearly along line of sight,
+          HR 8799 = 40°, HD 95086 = 30°). eps Eri and 51 Eri belts have no
+          measured inclination so they're skipped. */}
+      {showDebrisDiskAxis && debrisDisks.map((belt) => (
+        belt.inclinationDeg != null && (
+          <DebrisDiskAxis
+            key={`disk-axis-${belt.bibcode ?? belt.innerAu}`}
+            length={(belt.outerAu ?? belt.innerAu * 1.1) * 1.2}
+            inclinationDeg={belt.inclinationDeg}
+          />
+        )
+      ))}
+
+      {/* Align-camera-to-disk: sets the camera's up vector to the (first
+          inclined) debris-disk's normal direction, so the disk appears
+          horizontal and its axis vertical on screen. Toggleable from
+          PlaybackControls; off by default. The effect runs whenever the
+          toggle flips, the focal scene changes, or the disk set changes. */}
+      <CameraAxisAlignment
+        align={alignToDiskAxis}
+        debrisDisks={debrisDisks}
+      />
       {siblings
         .filter((s) => s.pl_name !== planet.pl_name && s.pl_orbsmax != null)
         .map((s) => {
@@ -1848,6 +2831,7 @@ function SceneContents({
               opacity={0.45}
               inc={t.inc}
               omega={t.omega}
+              argPeri={argPeriRad(s.pl_orblper)}
             />
           );
         })}
@@ -1861,7 +2845,7 @@ function SceneContents({
           <>
             <PlanetBody
               position={[0, 0, 0]}
-              radius={planetDisplayRadius(planet.pl_rade, focalOrbsmax)}
+              radius={focalPlanetRadius}
               pl_eqt={planet.pl_eqt}
               pl_dens={planet.pl_dens}
               pl_rade={planet.pl_rade}
@@ -1870,11 +2854,49 @@ function SceneContents({
               onHover={setHovered}
               atmosphereTint={atmosphereTintFromMolecules(scene.atmospheric_detections)}
               rotationOmegaRad={planetSpinOmega}
+              phaseCurve={phaseCurve}
+              albedo={albedo?.value ?? null}
+              reflectionTint={albedo?.reflectionTint ?? null}
             />
             {hovered === planet.pl_name && <PlanetLabel name={planet.pl_name} subtitle="(focal)" />}
           </>
         )}
+        {/* Circumplanetary disk — sibling of PlanetBody (not nested inside
+            it) so it stays visible in surface mode, where PlanetBody is
+            hidden because the camera is standing on the planet. From the
+            surface vantage you should still see the disc stretching across
+            the sky like a flat band. Sits flat in the orbital plane (XZ)
+            around the planet's position. */}
+        {circumplanetaryDisk && (
+          <CircumplanetaryDiskRing planetRadius={focalPlanetRadius} />
+        )}
       </group>
+
+      {/* Escaping-atmosphere tail — ribbon that follows the orbit. The
+          parent group is positioned at the focal planet world coords; the
+          ribbon component samples the same Kepler pipeline (keplerPosition
+          → rotateInPlane → applyOrbitTilt) backward in M (or forward, for
+          HAT-P-67 b's leading helium tail) and rebuilds its spine each
+          frame, so the tail literally traces the curved orbit instead of
+          shooting off as a straight tangent. */}
+      {massLoss && (
+        <group ref={tailGroup}>
+          <EscapingAtmosphereTail
+            planetRadius={focalPlanetRadius}
+            mechanism={massLoss.mechanism}
+            logMassLoss={Math.log10(massLoss.value)}
+            maxLength={focalOrbsmax * 0.3}
+            orbsmax={focalOrbsmax}
+            eccen={planet.pl_orbeccen ?? 0}
+            argPeri={argPeriRad(planet.pl_orblper)}
+            inc={focalRenderTilt.inc}
+            omega={focalRenderTilt.omega}
+            leading={massLoss.leading}
+            clockRef={clock}
+            focalSecsPerOrbit={FOCAL_SECS_PER_ORBIT}
+          />
+        </group>
+      )}
 
       {/* Siblings — clickable to jump perspective, hover shows name */}
       {siblings
@@ -1886,7 +2908,7 @@ function SceneContents({
           >
             <PlanetBody
               position={[0, 0, 0]}
-              radius={planetDisplayRadius(s.pl_rade, s.pl_orbsmax!)}
+              radius={planetDisplayRadius(s.pl_rade, s.pl_orbsmax!, planet.st_rad, sunRadius)}
               pl_eqt={s.pl_eqt}
               pl_dens={s.pl_dens}
               pl_rade={s.pl_rade}
@@ -2063,7 +3085,7 @@ function spectralTypeToColor(spectype: string | null): string {
 // atmospheric path) and subtle granulation noise. Result: a soft, alive
 // edge rather than a hard sharp circle.
 
-function Photosphere({ radius, color, teff, rotationPeriodDays, spotDir }: { radius: number; color: string; teff: number | null; rotationPeriodDays?: number | null; spotDir?: THREE.Vector3 | null }) {
+function Photosphere({ radius, color, teff, rotationPeriodDays, spot, haloIntensity = 0.4, oblateness = 0 }: { radius: number; color: string; teff: number | null; rotationPeriodDays?: number | null; spot?: StarSpotProps | null; haloIntensity?: number; oblateness?: number }) {
   // Opaque shader — must write depth properly so orbit lines and planets
   // behind the sun get occluded. The "soft edge" is achieved by the corona
   // (drawn additively over and around the photosphere edge), not by making
@@ -2090,21 +3112,34 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spotDir }: { rad
   // bug was at uncapped hot * 0.0008 → KELT-9 reaching 4.5× by itself).
   const hot = Math.max(0, teffK - 5778);
   const bonus = 1.0 + Math.min(1.5, hot * 0.0006);
-  // Base 2.0 × warmth × bonus → uHdr range: ~2.8 (TRAPPIST-1) → 2.0 (Sun)
-  // → ~5.0 (KELT-9 and hotter). Cool stars get a generous red halo, hot
-  // stars stay intensely bright, and the range stays well below the
-  // mipmapBlur dome threshold.
-  const hdrScale = 2.0 * warmth * bonus;
-  // Saturation push for cool stars: suppress green and (more aggressively)
-  // blue so the photosphere reads as deep RED, not orange. The Tanner-Helland
-  // blackbody approximation gives a perceptually accurate "neutral-eye" color
-  // that's actually quite orange for M-dwarfs (#ffa24c at 2566K). Real M-dwarfs
-  // would look much redder to a human, and bloom over dark space turns the
-  // generic orange into muddy brown — neither is what we want. Pushing G/B
-  // down rebalances toward a hauntingly-red look that survives bloom.
+  // Base 0.8 × warmth × bonus → uHdr range: ~1.1 (TRAPPIST-1) → 0.8 (Sun)
+  // → ~2.0 (KELT-9 and hotter). Tuned so the bulk of the disc surface sits
+  // below the Bloom luminanceThreshold and stops feeding bleed back across
+  // the photosphere; only the bright center contributes to bloom now, which
+  // keeps surface detail (granulation, starspots) legible. Cool stars still
+  // read as red (warmth boost + per-channel saturation push); hot stars
+  // still get the dramatic bonus, just less crushingly so.
+  const hdrScale = 0.8 * warmth * bonus;
+  // Two-sided temperature tint, driven by measured st_teff, so F/G/K/M
+  // stars are visibly distinguishable instead of all sitting in the
+  // near-white blackbody dead zone. Real blackbody colors at 4500-7000K
+  // are honest-but-subtle (broad spectra, tints in the "barely tinted
+  // off-white" range); for the renderer's purposes we exaggerate the
+  // tint linearly off solar (5778K), pushing cool stars toward red and
+  // hot stars toward blue so spectral class reads from across the room.
+  // Sun-anchored: G-type at solar T gets effectively neutral; the further
+  // a star sits from 5778K in either direction, the stronger the tint.
+  // Cool tint ramp: full saturation push by ~3300K (deep M dwarf).
+  // Hot tint ramp: full push by ~10000K (early B / late A).
+  const coolColor = Math.max(0, Math.min(1, (5778 - teffK) / 2500));
+  const hotTint   = Math.max(0, Math.min(1, (teffK - 5778) / 4200));
   const saturated = new THREE.Color(color);
-  saturated.g *= 1.0 - cool * 0.7;
-  saturated.b *= 1.0 - cool * 0.85;
+  // Cool: suppress G + B → deeper orange / red (TRAPPIST-1, K dwarfs).
+  saturated.g *= 1.0 - coolColor * 0.7;
+  saturated.b *= 1.0 - coolColor * 0.85;
+  // Hot: suppress R + a little G → blue / blue-white (KELT-9, A/B stars).
+  saturated.r *= 1.0 - hotTint * 0.45;
+  saturated.g *= 1.0 - hotTint * 0.15;
   const material = useMemo(() => new THREE.ShaderMaterial({
     uniforms: {
       uColor:         { value: saturated },
@@ -2115,8 +3150,12 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spotDir }: { rad
       // object space; the mesh's group rotation moves it across the visible
       // disc, which is precisely the photometric signal (spot crossing the
       // disc) astronomers use to measure stellar rotation in the first place.
+      // Size (inner/outer cosines) is also data-driven (rotation rate) so
+      // active stars carry visibly bigger spots than slow Sun-like ones.
       uSpotDir:       { value: new THREE.Vector3(0, 1, 0) },
       uSpotIntensity: { value: 0 },
+      uSpotInnerCos:  { value: 0.990 },
+      uSpotOuterCos:  { value: 0.978 },
     },
     // Manual log-depth path for XR parity, scoped to Photosphere. This shader
     // is custom and paired with a depth pre-pass; keeping depth math explicit
@@ -2149,6 +3188,8 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spotDir }: { rad
       uniform float uLogDepthBufFC;
       uniform vec3 uSpotDir;
       uniform float uSpotIntensity;
+      uniform float uSpotInnerCos;
+      uniform float uSpotOuterCos;
       varying vec3 vNormal;
       varying vec3 vViewDir;
       varying vec3 vWorldPos;
@@ -2185,19 +3226,33 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spotDir }: { rad
         float surf = 1.0 + granule * 0.10;
 
         // Starspot. Object-space; the parent group rotates the mesh so the
-        // spot transits the visible disc at the rotation rate. spotFalloff
-        // is 1 inside ~12° of the spot center (cos 0.978) and 0 outside ~17°
-        // (cos 0.956), with the smoothstep handling the soft ~5° transition
-        // between. Spot brightness drops to 20% of the surrounding photosphere
-        // (sunspot umbra is ~30% of quiet-Sun brightness; we go a touch darker
-        // so it reads through the HDR + bloom).
+        // spot transits the visible disc at the rotation rate. Inner / outer
+        // cosines are data-driven uniforms — slow Sun-like rotators get a
+        // small low-latitude spot (~3-5° outer); fast rotators get a big
+        // polar-cap-ish spot (~20°+ outer). Brightness drops to 50% of the
+        // surrounding photosphere (slightly above real sunspot umbra ~30%
+        // of quiet-Sun).
+        //
+        // Edge noise: real sunspot groups are irregular, not perfect
+        // circles. We perturb the spot's effective threshold by surface
+        // noise sampled in object space, so the boundary wobbles by ~±3°
+        // and reads as an organic blot instead of a stamped disc.
         vec3 nLocal = normalize(vWorldPos);
         float spotCos = dot(nLocal, uSpotDir);
-        float spotFalloff = smoothstep(0.956, 0.978, spotCos);
-        surf *= mix(1.0, 0.20, spotFalloff * uSpotIntensity);
+        float spotEdgeNoise = (noise(nLocal * 6.0) - 0.5) * 0.018;
+        float spotFalloff = smoothstep(uSpotOuterCos + spotEdgeNoise,
+                                       uSpotInnerCos + spotEdgeNoise,
+                                       spotCos);
+        surf *= mix(1.0, 0.50, spotFalloff * uSpotIntensity);
 
+        // Limb darkening. Floor at 0.25 — the disc still reads as a 3-D
+        // sphere (1.0 at center → 0.25 at silhouette, a 4× falloff that
+        // gives clear center-to-edge shading) and the silhouette is now
+        // dim enough that when the additive corona kicks in at the edge,
+        // the transition is gradual rather than a hard brightness step.
+        // Linear (no pow) keeps the falloff gentle across the whole disc.
         float mu = max(0.0, dot(vNormal, vViewDir));
-        float limb = mix(0.15, 1.0, pow(mu, 0.7));
+        float limb = mix(0.25, 1.0, mu);
 
         // HDR multiplier is per-star (computed JS-side from teff). Cool
         // stars use a smaller boost so ACES doesn't desaturate their reds
@@ -2213,17 +3268,19 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spotDir }: { rad
     toneMapped: true,
   }), [color, hdrScale, teff]);
 
-  // Push the starspot uniforms when the spot direction changes (or vanishes).
+  // Push the starspot uniforms when the spot props change (or vanish).
   // The material itself is memoised on color/hdrScale/teff, so spot changes
   // do not recreate it; we just update the uniform values in place.
   useEffect(() => {
-    if (spotDir) {
-      material.uniforms.uSpotDir.value.copy(spotDir);
+    if (spot) {
+      material.uniforms.uSpotDir.value.copy(spot.dir);
       material.uniforms.uSpotIntensity.value = 1.0;
+      material.uniforms.uSpotInnerCos.value = spot.innerCos;
+      material.uniforms.uSpotOuterCos.value = spot.outerCos;
     } else {
       material.uniforms.uSpotIntensity.value = 0.0;
     }
-  }, [material, spotDir]);
+  }, [material, spot]);
 
   // Spin axis = +Y, the same axis the obliquity tilt references. Rate is
   // stylized like the orbit pacing (true periods are days; at 60-sec orbits a
@@ -2276,8 +3333,14 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spotDir }: { rad
           color pass stay coincident; a sphere is rotation-symmetric so the
           depth occlusion is unaffected, and the granulation (sampled in object
           space) visibly rotates with the disc. The corona is a camera-facing
-          billboard, so it stays outside the spin group. */}
-      <group ref={spinGroup}>
+          billboard, so it stays outside the spin group.
+          Oblateness squashes the spin axis (Y) by (1 − f): the equator stays
+          at the catalog radius, the poles shrink. The rendered squash is
+          exaggerated 3× so it reads through the corona's additive halo —
+          same idiom as BODY_EXAG = 500 for planet sizes. Capped at 0.30
+          so even break-up rotators stay "credibly stellar." The InfoPanel
+          shows the true physical f, not the visual factor. */}
+      <group ref={spinGroup} scale={[1, 1 - Math.min(0.30, oblateness * 3), 1]}>
         <mesh material={depthOnlyMaterial} renderOrder={-100}>
           <sphereGeometry args={[radius, 64, 64]} />
         </mesh>
@@ -2285,20 +3348,30 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spotDir }: { rad
           <sphereGeometry args={[radius, 64, 64]} />
         </mesh>
       </group>
-      {/* Corona uses a TAMER hdr than the photosphere disc. The disc's
-          hdrScale ramps up to 2.78 for the coolest M-dwarfs (perceptual
-          compensation — deep red has low eye sensitivity, so the disc
-          needs the boost to read as a glowing star rather than a brown
-          smudge). The corona is additive on top of the disc, and on
-          desktop it blends with Bloom into a soft glow regardless of
-          amplitude — but Bloom is off in XR (single 2D framebuffer
-          black-screens stereo), so the same 2.78 corona renders as a
-          hard oversaturated red ring around a TRAPPIST-1-class M-dwarf.
-          Capping the corona's uHdr at Sun-level (2.0) keeps cool-star
-          halos subtle in VR without altering the disc's perceptual
-          brightness, and tames hot-star halos (KELT-9 was hitting 5.0)
-          to a saner additive contribution. */}
-      <StellarCorona radius={radius} color={saturated} hdrScale={Math.min(hdrScale, 2.0)} />
+      {/* Two-layer corona, modelled on the long-tail PSF a real bright
+          point source produces in the eye / a camera:
+          - INNER (sizeMult=2.5, peakAlpha=1.0): bright halo hugging the
+            disc edge. This is what dominates the visible glow in normal
+            views, and is compact enough that a planet in front fully
+            occludes it.
+          - OUTER (sizeMult=6, peakAlpha=0.12): wide soft aura extending
+            far past the disc. Dim enough to be subtle in normal views,
+            but gives the halo a long gradient tail. During an eclipse,
+            this layer also depth-occludes, leaving only the small fringe
+            beyond the planet's silhouette — much closer to what a real
+            eclipse photo shows (corona extending past the moon).
+          Both are scaled by haloIntensity (data-driven from the star's
+          apparent flux at the planet's orbit, st_lum + pl_orbsmax). */}
+      <StellarCorona radius={radius} color={saturated} hdrScale={haloIntensity} sizeMult={2.5} peakAlpha={1.0} />
+      {/* Outer: overlaps the inner (default startUv = disc edge) so the two
+          layers' alpha profiles add into a single continuous gradient
+          rather than meeting at a discontinuity. This is also closer to
+          the real PSF physics — a bright source's profile is one
+          monotonic distribution that can be decomposed into a bright core
+          plus a faint long tail, not two concentric rings. peakAlpha 0.25
+          keeps the outer layer subtle enough not to over-brighten the
+          inner halo, while still extending visibly out to 6× sun radius. */}
+      <StellarCorona radius={radius} color={saturated} hdrScale={haloIntensity} sizeMult={6.0} peakAlpha={0.25} />
     </>
   );
 }
@@ -2325,17 +3398,32 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spotDir }: { rad
 // default depth-sorted transparent pass.
 function StellarCorona({
   radius, color, hdrScale,
+  sizeMult = 2.5,
+  peakAlpha = 1.0,
+  startUv,
 }: {
   radius: number; color: THREE.Color; hdrScale: number;
+  /** Billboard size as a multiple of the photosphere radius. */
+  sizeMult?: number;
+  /** Multiplier on the halo's peak alpha. */
+  peakAlpha?: number;
+  /** UV radius at which the gradient starts (peak alpha). Defaults to
+      1/sizeMult (the photosphere disc edge). For the outer of a two-layer
+      stack, set this to where the inner corona ends so the outer does NOT
+      overlap and add brightness on top of the inner; it then contributes
+      purely as a wide soft tail past the inner halo. */
+  startUv?: number;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
-  // Billboard half-extent: corona extends to 3.5× the photosphere radius.
-  const billboardHalf = radius * 3.5;
+  const billboardHalf = radius * sizeMult;
+  const discEdgeUv = startUv ?? 1.0 / sizeMult;
 
   const material = useMemo(() => new THREE.ShaderMaterial({
     uniforms: {
-      uColor: { value: color.clone() },
-      uHdr:   { value: hdrScale },
+      uColor:      { value: color.clone() },
+      uHdr:        { value: hdrScale },
+      uDiscEdgeUv: { value: discEdgeUv },
+      uPeakAlpha:  { value: peakAlpha },
     },
     vertexShader: `
       varying vec2 vUv;
@@ -2347,6 +3435,8 @@ function StellarCorona({
     fragmentShader: `
       uniform vec3  uColor;
       uniform float uHdr;
+      uniform float uDiscEdgeUv;
+      uniform float uPeakAlpha;
       varying vec2  vUv;
 
       void main() {
@@ -2355,14 +3445,13 @@ function StellarCorona({
         float r = length(c);
         if (r > 1.0) discard;
 
-        // Multi-stop radial profile:
-        //   r = 0       → fade-in begins (photosphere sphere covers this region)
-        //   r ≈ 0.25    → corona onset, alpha reaches 1.0
-        //   r ≈ 0.25–0.40 → broad peak zone (inner corona)
-        //   r > 0.40    → smooth halo tail decaying to 0 at r = 1.0
-        float inner = smoothstep(0.0, 0.25, r);
-        float outer = 1.0 - smoothstep(0.40, 1.0, r);
-        float alpha  = inner * outer;
+        // Monotonic gradient-to-transparent halo: peak alpha at the disc
+        // edge (r = 1/sizeMult), smoothly fading to zero at the billboard
+        // edge (r = 1.0). The "glow" you see IS this falloff. Overall scale
+        // is set by uHdr (data-driven from apparent flux) and uPeakAlpha
+        // (per-instance — 1.0 for the bright inner corona, 0.10-0.15 for
+        // an outer wide dim layer that paints a long soft tail).
+        float alpha = (1.0 - smoothstep(uDiscEdgeUv, 1.0, r)) * uPeakAlpha;
 
         // Additive: bright fragments add light to whatever is behind them.
         // uHdr mirrors the photosphere's HDR multiplier so cool stars get a
@@ -2377,9 +3466,11 @@ function StellarCorona({
     side:        THREE.FrontSide,
   // Depend on colour channels because the THREE.Color object reference
   // is recreated each render but the channel values only change when the
-  // star changes.  hdrScale captures the temperature-driven brightness.
+  // star changes.  hdrScale captures the temperature-driven brightness;
+  // discEdgeUv + peakAlpha capture per-instance shape so the inner and
+  // outer corona compile to distinct materials.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [color.r, color.g, color.b, hdrScale]);
+  }), [color.r, color.g, color.b, hdrScale, discEdgeUv, peakAlpha]);
 
   // Orient the billboard to face the camera every frame using lookAt, which
   // resolves through the full parent-transform chain.  Prefer this over
@@ -2484,10 +3575,15 @@ function shiftTowardRed(hex: string): string {
 // even at extreme zoom.
 
 function OrbitRing({
-  orbsmax, eccen, color, opacity, inc = 0, omega = 0,
+  orbsmax, eccen, color, opacity, inc = 0, omega = 0, argPeri = 0,
 }: {
   orbsmax: number; eccen: number; color: string; opacity: number;
   inc?: number; omega?: number;
+  /** Argument of periastron (radians). Rotates the ellipse within its plane
+      so periapsis points in the catalogued direction. Composes with omega
+      (longitude of ascending node) and inc to give the orbit its measured
+      3-D orientation. */
+  argPeri?: number;
 }) {
   // Native three.js Line (gl_LINES, 1px width) instead of drei's Line2
   // wrapper. Line2 renders thick lines as instanced quad strips and its
@@ -2496,9 +3592,10 @@ function OrbitRing({
   // depth-test correctly per fragment.
   //
   // Inclination + Ω tilt the entire ellipse out of the xz plane using
-  // the same applyOrbitTilt rotation as the planet position calc, so
-  // the rendered planet sits exactly on its rendered orbital path
-  // even when both are tilted.
+  // the same applyOrbitTilt rotation as the planet position calc, and
+  // argPeri rotates it in the plane first so periapsis points in the
+  // catalogued direction. The rendered planet sits exactly on its rendered
+  // orbital path even when all three are nonzero.
   const geometry = useMemo(() => {
     const a = orbsmax;
     const e = Math.max(0, Math.min(0.99, eccen));
@@ -2507,10 +3604,15 @@ function OrbitRing({
     const positions = new Float32Array((N + 1) * 3);
     const cosI = Math.cos(inc), sinI = Math.sin(inc);
     const cosO = Math.cos(omega), sinO = Math.sin(omega);
+    const cosW = Math.cos(argPeri), sinW = Math.sin(argPeri);
     for (let i = 0; i <= N; i++) {
       const t = (i / N) * Math.PI * 2;
-      const x0 = a * Math.cos(t) - a * e;
-      const z0 = b * Math.sin(t);
+      const x_raw = a * Math.cos(t) - a * e;
+      const z_raw = b * Math.sin(t);
+      // In-plane rotation by argument of periastron
+      const x0 = x_raw * cosW - z_raw * sinW;
+      const z0 = x_raw * sinW + z_raw * cosW;
+      // Inclination + Ω tilt
       positions[i * 3 + 0] = x0 * cosO + z0 * cosI * sinO;
       positions[i * 3 + 1] = -z0 * sinI;
       positions[i * 3 + 2] = -x0 * sinO + z0 * cosI * cosO;
@@ -2518,7 +3620,7 @@ function OrbitRing({
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     return g;
-  }, [orbsmax, eccen, inc, omega]);
+  }, [orbsmax, eccen, inc, omega, argPeri]);
 
   const material = useMemo(
     () => new THREE.LineBasicMaterial({
@@ -2607,6 +3709,72 @@ function StellarSpinReference({ orbsmax, showAxis = true, showEquator = true }: 
       {showAxis && <primitive object={axisLine} />}
     </>
   );
+}
+
+// Sets the camera's up vector to the (first inclined) debris-disk's normal
+// when toggled on. Effect: looking at the system, the disk appears horizontal
+// (perpendicular to "up") and its axis appears vertical on screen. Reverts
+// to world +Y up when toggled off so the user can return to the default
+// scene orientation without reloading. Lives inside Canvas so it has access
+// to useThree() for the camera instance.
+function CameraAxisAlignment({
+  align, debrisDisks,
+}: {
+  align: boolean; debrisDisks: FocalDebrisDiskBelt[];
+}) {
+  const { camera, invalidate } = useThree();
+  // Pick the first belt with a measured inclination as the alignment target.
+  // For multi-belt systems (51 Eri) inclinations aren't measured anyway, so
+  // this consistently picks the inclined belt for HR 8799 / HD 95086 / β Pic.
+  const target = debrisDisks.find((b) => b.inclinationDeg != null) ?? null;
+  useEffect(() => {
+    if (align && target?.inclinationDeg != null) {
+      // Disk normal direction (same math as DebrisDiskAxis): (0, cos i, sin i)
+      // in world space, with the disk rotation [-π/2 + i, 0, 0] applied to
+      // a ringGeometry's natural +Z normal.
+      const incRad = (target.inclinationDeg * Math.PI) / 180;
+      camera.up.set(0, Math.cos(incRad), Math.sin(incRad));
+    } else {
+      camera.up.set(0, 1, 0);
+    }
+    camera.updateMatrixWorld(true);
+    invalidate();
+  }, [align, target?.inclinationDeg, camera, invalidate]);
+  return null;
+}
+
+// Axis line perpendicular to a curated debris-disk's plane. The disk's
+// rotation is [-PI/2 + incRad, 0, 0] around the X axis (see
+// SystemDebrisDiskRing); applying that rotation to the ringGeometry's
+// natural +Z normal gives a world-space normal of (0, cos(incRad),
+// sin(incRad)), so the axis line extends along ±(0, cos i, sin i) from
+// the host. Toggled by the same showStellarReference checkbox as the
+// stellar spin axis — both are "reference geometry" overlays.
+function DebrisDiskAxis({
+  length, inclinationDeg, color = '#a08866',
+}: {
+  length: number; inclinationDeg: number; color?: string;
+}) {
+  const incRad = (inclinationDeg * Math.PI) / 180;
+  const ny = Math.cos(incRad);
+  const nz = Math.sin(incRad);
+  const geom = useMemo(() => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(
+      new Float32Array([
+        0, -length * ny, -length * nz,
+        0,  length * ny,  length * nz,
+      ]), 3,
+    ));
+    return g;
+  }, [length, ny, nz]);
+  const mat = useMemo(() => new THREE.LineBasicMaterial({
+    color, transparent: true, opacity: 0.5, depthWrite: false,
+  }), [color]);
+  const line = useMemo(() => new THREE.Line(geom, mat), [geom, mat]);
+  useEffect(() => () => { geom.dispose(); }, [geom]);
+  useEffect(() => () => { mat.dispose(); }, [mat]);
+  return <primitive object={line} />;
 }
 
 // ── Per-vantage starfield + diffuse galaxy skydome ─────────────────────
@@ -2776,6 +3944,9 @@ function PlanetBody({
   onClick,
   atmosphereTint,
   rotationOmegaRad,
+  phaseCurve,
+  albedo,
+  reflectionTint,
 }: {
   position: [number, number, number];
   radius: number;
@@ -2798,6 +3969,20 @@ function PlanetBody({
       events). +Y is a convention; planetary spin-axis orientation is not
       generally measured for exoplanets. */
   rotationOmegaRad?: number | null;
+  /** Measured day/night thermal-emission colors. When provided, the shader
+      switches to thermal-blend lighting (hot dayside, dim nightside) instead
+      of the reflective sun-direction default. Driven by curated dayside_/
+      nightside_temperature from phase-curve papers. */
+  phaseCurve?: PhaseCurve | null;
+  /** Measured geometric or Bond albedo (0-1 fraction). Modulates reflected-
+      light brightness in the reflective lighting mode only — the phase-curve
+      path is unaffected because those planets are thermal-emission dominated.
+      Default 0.30 (reference albedo, factor = 1.0). */
+  albedo?: number | null;
+  /** Hex color tint applied to reflected starlight for planets with
+      wavelength-dependent albedo (currently HD 189733 b, "deep cobalt blue").
+      Null leaves the body color unmixed. */
+  reflectionTint?: string | null;
 }) {
   const visual = useMemo(
     () => planetVisual(pl_eqt, pl_dens, pl_rade),
@@ -2817,15 +4002,19 @@ function PlanetBody({
 
   // Procedural body material: gas giants get faint latitude bands; cold rocky
   // planets get polar ice caps; everything else stays flat-color (with
-  // emissive for hot lava worlds).
+  // emissive for hot lava worlds). Albedo + reflectionTint modulate the
+  // reflective lighting path (thermal phase-curve mode is unaffected).
   const bodyMaterial = useMemo(
     () => buildPlanetBodyMaterial({
       bodyType: visual.bodyType,
       fillColor: visual.fillColor,
       glow: visual.glow,
       isCold: isIcyOrCold,
+      phaseCurve: phaseCurve ?? null,
+      albedo: albedo ?? null,
+      reflectionTint: reflectionTint ?? null,
     }),
-    [visual.bodyType, visual.fillColor, visual.glow, isIcyOrCold],
+    [visual.bodyType, visual.fillColor, visual.glow, isIcyOrCold, phaseCurve, albedo, reflectionTint],
   );
 
   return (
@@ -2860,8 +4049,535 @@ function PlanetBody({
           />
         )}
       </group>
+      {/* Note: the circumplanetary disk is rendered by the *parent* group
+          (SceneContents) as a sibling of PlanetBody, NOT inside this
+          component. That way it stays visible in surface mode (where we
+          hide the planet body because the camera is standing on it) —
+          you should still see the dust stretching across the sky when
+          you're inside the disc. */}
     </group>
   );
+}
+
+// Circumplanetary disk ring. Flat dust ring around a forming planet, lying
+// in the orbital plane (XZ in our scene since the orbit is in XZ by default).
+// Inner edge sits just outside the planet body so it reads as separate from
+// the planet's atmosphere; outer edge extends ~4× planet radius. Alpha tapers
+// at both edges so the disc fades into space rather than terminating sharply.
+// Currently only renders for PDS 70 b and c (the only systems with curated
+// circumplanetary_disk_dust_mass / accretion_rate measurements); future
+// curation of debris-disk extents would let bet Pic, HR 8799, etc. carry
+// system-level rings via a separate component.
+function CircumplanetaryDiskRing({ planetRadius }: { planetRadius: number }) {
+  // Inner radius is INSIDE the planet body, so the planet's own depth mask
+  // hides the geometric inner edge — the visible inner boundary becomes the
+  // alpha gradient instead of a hard ring. Outer extends well past the
+  // visible cutoff so the shader fades to zero before any geometric edge
+  // would show.
+  const innerRadius = planetRadius * 0.5;
+  const outerRadius = planetRadius * 5.0;
+
+  const material = useMemo(() => new THREE.ShaderMaterial({
+    uniforms: {
+      uColor: { value: new THREE.Color('#b08868') }, // dusty brown
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 uColor;
+      varying vec2 vUv;
+
+      // 2D value noise for dust granularity.
+      float hash2(vec2 p) {
+        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+      }
+      float noise2(vec2 p) {
+        vec2 i = floor(p), f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        return mix(
+          mix(hash2(i),                hash2(i + vec2(1, 0)), f.x),
+          mix(hash2(i + vec2(0, 1)),   hash2(i + vec2(1, 1)), f.x),
+          f.y);
+      }
+
+      void main() {
+        // Envelope: smooth fade-in at the inner edge (across the first 35%
+        // of the radial range — well past the planet's silhouette at uv.y
+        // ~0.11 — so the disc has no brightness step where it emerges from
+        // behind the planet body) combined with a gentle outward decay AND
+        // an explicit outer-edge fade-out so the dust tapers softly into
+        // space instead of cutting off at the ring's geometric edge.
+        float r = vUv.y;
+        float fadeIn  = smoothstep(0.0, 0.35, r);
+        float fadeOut = 1.0 - smoothstep(0.65, 1.0, r);
+        float decay   = pow(1.0 - r * 0.6, 1.1);
+        float envelope = fadeIn * fadeOut * decay;
+
+        // Multi-octave noise so the dust reads as clumpy material with
+        // structure on multiple scales — not a uniformly-painted decal.
+        vec2 c = vUv * 2.0 - 1.0;
+        float ang = atan(c.y, c.x);
+        float n1 = noise2(vec2(r * 10.0,  ang * 4.0));
+        float n2 = noise2(vec2(r * 24.0,  ang * 11.0));
+        float n3 = noise2(vec2(r * 55.0,  ang * 24.0));
+        float dust = 0.25 + 0.40 * n1 + 0.25 * n2 + 0.15 * n3;
+
+        // Faint radial banding so the disc has visible structure (dust
+        // lanes / gaps) rather than a continuous gradient.
+        float bands = 0.75 + 0.25 * sin(r * 22.0 + n1 * 3.0);
+
+        // Per-layer intensity dropped to 0.04 because we stack 25 layers
+        // via NormalBlending (1 - (1-0.04*peak)^25 ≈ 0.45 at full overlap).
+        // At the silhouette where only a few layers contribute, alpha is
+        // ~0.04-0.10 giving a truly soft edge — same approach as the
+        // system-level debris disks.
+        float intensity = envelope * dust * bands * 0.04;
+        intensity = clamp(intensity, 0.0, 0.08);
+
+        gl_FragColor = vec4(uColor, intensity);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    depthTest: true,
+    blending: THREE.NormalBlending,
+    side: THREE.DoubleSide,
+  }), []);
+
+  // 25 stacked rings along +Y (disk normal — CPD sits flat in XZ with no
+  // inclination data). Thickness = 5% of the radial width so the layers
+  // pack densely enough to read as a continuous 3D thickness rather than
+  // discrete rings. Same trick as SystemDebrisDiskRing — softens the
+  // silhouette at the projected ellipse's minor-axis ends when viewed at
+  // any angle.
+  const N_LAYERS = 25;
+  const totalThickness = (outerRadius - innerRadius) * 0.05;
+  const layerStep = totalThickness / (N_LAYERS - 1);
+  return (
+    <group>
+      {Array.from({ length: N_LAYERS }, (_, i) => {
+        const offset = -totalThickness / 2 + i * layerStep;
+        return (
+          <mesh
+            key={i}
+            material={material}
+            position={[0, offset, 0]}
+            rotation={[-Math.PI / 2, 0, 0]}
+          >
+            <ringGeometry args={[innerRadius, outerRadius, 256]} />
+          </mesh>
+        );
+      })}
+    </group>
+  );
+}
+
+// System-level debris disk ring around the host star. Renders one curated
+// belt as a wide flat ring in the XZ plane (the orbital reference plane),
+// centered on the host (origin) — distinct from CircumplanetaryDiskRing
+// which sits around a single forming planet at planet-radii scale. AU
+// scale: the inner/outer radii are real AU values, so visible to the same
+// camera that views the planet orbits.
+//
+// For belts with a single-radius SED fit (51 Eri warm/cold), outerAu is
+// null and the renderer draws a narrow ring (width = ~20% of innerAu)
+// centered on innerAu — honest about the lack of a resolved-imaging
+// outer edge.
+//
+// Inclination tilts the disk plane: 0° = coplanar with orbit (face-on in
+// the default scene), 90° = edge-on. When inclinationDeg is null we render
+// coplanar with the focal orbit plane (no extra tilt).
+function SystemDebrisDiskRing({ belt }: { belt: FocalDebrisDiskBelt }) {
+  // Single-radius SED fits (51 Eri belts): render as a narrow ring
+  // (width = 20% of inner radius) centered on the blackbody radius.
+  //
+  // Resolved-imaging belts (β Pic, HR 8799, HD 95086, ε Eri): geometric
+  // ring extends 5% inside the cited inner edge and 40% past the cited
+  // outer edge. The cited bounds become "this is where the parent-body
+  // belt is" and the halo extension represents the small-grain dust
+  // pushed outward by stellar radiation pressure — Booth 2016's HR 8799
+  // paper explicitly describes this "halo of small grains" beyond the
+  // parent belt. Brightness peaks at the inner edge and tapers
+  // continuously to zero at the geometric outer, so the visible ring
+  // never has a hard cutoff at the cited boundary.
+  const isSingleRadius = belt.outerAu == null;
+  // Geometry extends WELL inward of cited bounds so the inner fade-in spans
+  // many AU and reads as a visibly gradual gradient.
+  //
+  // Broad belt (resolved imaging): inner = citedInner * 0.65 (35% inward),
+  //   outer = citedOuter * 1.1 (10% outward). For HD 95086 this gives a
+  //   ~37 AU inner fade region before reaching the cited inner.
+  //
+  // Single-radius SED fit (51 Eri warm at 5.5 AU, cold at 82 AU): the cited
+  //   "radius" is a single blackbody-fit value, not a measured ring extent.
+  //   The geometric ring is widened to inner = innerAu * 0.5 and outer =
+  //   innerAu * 1.5, giving the bell curve a radial range equal to the
+  //   cited radius itself — enough for the stacked-ring thickness effect
+  //   to register visibly (otherwise the 5%-of-width thickness collapses
+  //   to near-zero AU for small cited radii like the 5.5 AU warm belt).
+  const inner = isSingleRadius ? belt.innerAu * 0.5 : belt.innerAu * 0.65;
+  const outer = isSingleRadius
+    ? belt.innerAu * 1.5
+    : (belt.outerAu ?? belt.innerAu * 1.1) * 1.1;
+
+  const material = useMemo(() => {
+    return new THREE.ShaderMaterial({
+    uniforms: {
+      // Per-belt color from curated dust temperature (migration 091 — see
+      // dustColorHex). Belts without a temperature row fall back to the
+      // legacy generic dust brown so existing visuals don't change for
+      // belts where temperature isn't measured (eps Eri b).
+      uColor: { value: new THREE.Color(dustColorHex(belt.dustTemperatureK)) },
+      uIsSingleRadius: { value: isSingleRadius ? 1.0 : 0.0 },
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 uColor;
+      uniform float uIsSingleRadius;
+      varying vec2 vUv;
+
+      float hash2(vec2 p) {
+        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+      }
+      float noise2(vec2 p) {
+        vec2 i = floor(p), f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        return mix(
+          mix(hash2(i),              hash2(i + vec2(1, 0)), f.x),
+          mix(hash2(i + vec2(0, 1)), hash2(i + vec2(1, 1)), f.x),
+          f.y);
+      }
+
+      void main() {
+        float r = vUv.y;   // 0 at geometric inner, 1 at geometric outer
+        float envelope;
+        if (uIsSingleRadius > 0.5) {
+          // Narrow ring case: peak at r=0.5, fade to edges. This is the
+          // honest visual for SED-fit single-radius belts (51 Eri).
+          envelope = smoothstep(0.0, 0.40, r) * (1.0 - smoothstep(0.60, 1.0, r));
+        } else {
+          // Soft cloud with SQUARED envelope for much more gradual edges.
+          // The bell-curve smoothstep already produces a smooth fade, but
+          // its rise is "fast" near the edges — alpha hits ~5% (perceptual
+          // visibility threshold) at r ~ 0.1, which the eye reads as a
+          // defined boundary. Squaring the envelope pushes that visibility
+          // threshold out to r ~ 0.3, giving the inner fade THREE TIMES as
+          // much radial space to read as gradient before it becomes
+          // visible. Peak (r=0.5) stays at 1.0 so the central disk reads
+          // at the same brightness as before.
+          float fadeIn  = smoothstep(0.0, 0.5, r);
+          float fadeOut = 1.0 - smoothstep(0.5, 1.0, r);
+          envelope = fadeIn * fadeOut;
+          envelope = envelope * envelope;
+        }
+
+        // Dust noise + bands restored — multi-octave value noise gives the
+        // disk visible clumpy structure (matching ALMA mm-grain imagery),
+        // multiplied by the bell-curve envelope so it fades to invisible
+        // at both geometric ring boundaries.
+        vec2 c = vUv * 2.0 - 1.0;
+        float ang = atan(c.y, c.x);
+        float n1 = noise2(vec2(r * 8.0,  ang * 3.0));
+        float n2 = noise2(vec2(r * 20.0, ang * 8.0));
+        float n3 = noise2(vec2(r * 48.0, ang * 18.0));
+        float dust = 0.30 + 0.40 * n1 + 0.20 * n2 + 0.10 * n3;
+        float bands = 0.88 + 0.12 * sin(r * 18.0 + n1 * 2.5);
+        // Per-layer intensity dropped to 0.025 because 25 layers are
+        // stacked via NormalBlending. At full overlap: composited alpha
+        // = 1 - (1 - 0.025*peak)^25 ≈ 0.30, similar to the original
+        // single-layer peak. At the silhouette (where only 1-3 layers
+        // overlap due to perspective), composited alpha is ~0.04-0.10,
+        // giving a true gradient silhouette instead of a hard edge.
+        float intensity = envelope * dust * bands * 0.025;
+        intensity = clamp(intensity, 0.0, 0.05);
+        gl_FragColor = vec4(uColor, intensity);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    depthTest: true,
+    // NormalBlending (vs the previous AdditiveBlending) so soft
+    // mathematical fade-outs at the inner/outer edges read as truly
+    // transparent regions, not faintly-additive brown tinting the
+    // dark space. The "hard edge" perception was an artifact of
+    // additive blending against pure black; normal alpha blending
+    // makes low-alpha pixels show the background through cleanly.
+    blending: THREE.NormalBlending,
+    side: THREE.DoubleSide,
+    });
+  }, [isSingleRadius, belt.dustTemperatureK]);
+
+  // Disk inclination: rotate the ring around +X axis by inclination degrees.
+  // The disk plane (XZ after the -π/2 rotation) is perpendicular to a normal
+  // vector that's at angle incRad from +Y. Stacking multiple rings along
+  // this normal gives the disk genuine 3D vertical thickness, which softens
+  // the silhouette at the projected ellipse's minor-axis ends — those
+  // points get more screen pixels for the alpha to fade through, instead of
+  // the flat-ring case where the radial direction collapses there.
+  const incRad = belt.inclinationDeg != null
+    ? (belt.inclinationDeg * Math.PI) / 180
+    : 0;
+  // Disk normal direction in world frame: (0, cos i, sin i). Each stacked
+  // ring is offset along this direction.
+  const ny = Math.cos(incRad);
+  const nz = Math.sin(incRad);
+  // Total vertical thickness = 5% of the radial width. Spread across MANY
+  // layers (25) tightly packed so adjacent rings overlap visually and the
+  // discrete bands of the previous 7-layer attempt become a continuous
+  // gradient. For HD 95086 (cited width 214 AU): 11 AU total thickness,
+  // ~0.5 AU layer spacing — well below visual sampling threshold at any
+  // realistic zoom.
+  const N_LAYERS = 25;
+  const totalThickness = (outer - inner) * 0.05;
+  const layerStep = totalThickness / (N_LAYERS - 1);
+  return (
+    <group>
+      {Array.from({ length: N_LAYERS }, (_, i) => {
+        const offset = -totalThickness / 2 + i * layerStep;
+        return (
+          <mesh
+            key={i}
+            material={material}
+            position={[0, offset * ny, offset * nz]}
+            rotation={[-Math.PI / 2 + incRad, 0, 0]}
+          >
+            <ringGeometry args={[inner, outer, 256]} />
+          </mesh>
+        );
+      })}
+    </group>
+  );
+}
+
+// Escaping-atmosphere tail. A flat plane lying in the orbital plane (XZ in
+// the local frame), starting at the planet body and stretching along local +X.
+// The wrapper group sets position to focal-planet world coords and rotates so
+// local +X points along the orbital tangent (trailing for normal escape,
+// leading for HAT-P-67 b's pre-transit helium tail).
+//
+// Length scales with log10(mass_loss_rate), spreading the 4-orders-of-
+// magnitude range (0.0016 → 105.7 M_earth/Gyr) across a visually-readable
+// 6-50 planet-radii window. Width tapers from ~2 R_p at the body to ~6 R_p
+// at the far end (comet-style flare). Color is set by escape mechanism:
+// hydrogen Lyman-alpha tracers read blue, helium 1083 nm metastable tracers
+// read pink/red, Kepler-1520 b dust reads warm gray-brown.
+function EscapingAtmosphereTail({
+  planetRadius, mechanism, logMassLoss, maxLength,
+  orbsmax, eccen, argPeri, inc, omega,
+  leading, clockRef, focalSecsPerOrbit,
+}: {
+  planetRadius: number;
+  mechanism: EscapeMechanism;
+  logMassLoss: number;
+  maxLength: number;
+  orbsmax: number;
+  eccen: number;
+  argPeri: number;
+  inc: number;
+  omega: number;
+  leading: boolean;
+  clockRef: React.MutableRefObject<number>;
+  focalSecsPerOrbit: number;
+}) {
+  const N = 32;
+  const lengthRp = Math.min(50, Math.max(5, 5 + 8 * (logMassLoss + 3)));
+  // Length is capped to a fraction of orbsmax so close-in giants don't blow
+  // out (planetRadius * 50 can be many orbits long for HAT-P-67 b-class).
+  const length = Math.min(planetRadius * lengthRp, maxLength);
+  // The tail covers Δ_M ≈ length / orbsmax radians of mean anomaly along the
+  // orbit. Close enough for visual purposes; eccentricity warps the mapping
+  // but our 30%-of-orbsmax cap keeps it in the small-arc regime.
+  const deltaM = length / orbsmax;
+  // Where does the planet body sit along the tail length? Used by the
+  // shader's fade-in so the head doesn't punch through the silhouette.
+  const bodyFrac = planetRadius / length;
+  // Ribbon width: tip is wider than head (escaping gas diffuses with
+  // distance), capped at planetRadius units that scale with length so
+  // short tails aren't disproportionately fat.
+  const baseHalfWidth = Math.min(planetRadius * 0.8, length * 0.04);
+  const tipHalfWidth  = Math.min(planetRadius * 2.5, length * 0.10);
+
+  const colorHex = mechanism === 'hydrogen' ? '#4a8fcf'
+                 : mechanism === 'helium'   ? '#e57c8c'
+                                            : '#b08868';
+
+  // Orbital plane normal — perpendicular to the orbital plane in scene frame.
+  // Derived from the same inc/omega convention as applyOrbitTilt: Y in source
+  // orbit frame maps to (-sin Ω sin i, -cos i, -cos Ω sin i) after Ry(Ω)·Rx(i).
+  // Sign doesn't matter — we only use it to get an in-plane perpendicular via
+  // cross(tangent, normal), and either sign gives a valid side direction.
+  const orbitNormal = useMemo(() => {
+    const sI = Math.sin(inc), cI = Math.cos(inc);
+    const sO = Math.sin(omega), cO = Math.cos(omega);
+    return new THREE.Vector3(-sO * sI, -cI, -cO * sI).normalize();
+  }, [inc, omega]);
+
+  // Ribbon BufferGeometry: (N+1) spine points × 2 vertices = 2(N+1) vertices,
+  // 2N triangles. UVs and index buffer are static — only positions get
+  // recomputed each frame as the planet's M advances. Allocated once via
+  // useMemo, mutated in-place in useFrame to avoid per-frame GC.
+  const geometry = useMemo(() => {
+    const g = new THREE.BufferGeometry();
+    const positions = new Float32Array((N + 1) * 2 * 3);
+    const uvs = new Float32Array((N + 1) * 2 * 2);
+    const indices = new Uint16Array(N * 2 * 3);
+    for (let i = 0; i <= N; i++) {
+      const u = i / N;
+      uvs[i * 4 + 0] = u; uvs[i * 4 + 1] = 0;
+      uvs[i * 4 + 2] = u; uvs[i * 4 + 3] = 1;
+    }
+    for (let i = 0; i < N; i++) {
+      const a = i * 2, b = i * 2 + 1, c = (i + 1) * 2, d = (i + 1) * 2 + 1;
+      const off = i * 6;
+      indices[off + 0] = a; indices[off + 1] = c; indices[off + 2] = b;
+      indices[off + 3] = b; indices[off + 4] = c; indices[off + 5] = d;
+    }
+    g.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    g.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+    g.setIndex(new THREE.BufferAttribute(indices, 1));
+    g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), length * 2);
+    return g;
+  }, [length]);
+
+  // Recompute spine positions every frame so the ribbon tracks the planet's
+  // M as the orbit advances. The parent tailGroup is positioned at the focal
+  // planet (sample 0 in world frame), so each vertex is written in LOCAL
+  // coords as (sample_i_world − sample_0_world).
+  const tmpSpine = useMemo(() => Array.from({ length: N + 1 }, () => new THREE.Vector3()), []);
+  const tmpTangent = useMemo(() => new THREE.Vector3(), []);
+  const tmpSide = useMemo(() => new THREE.Vector3(), []);
+  useFrame(() => {
+    const M0 = (clockRef.current / focalSecsPerOrbit) * 2 * Math.PI;
+    const dirSign = leading ? 1 : -1;
+    // Sample world positions along the orbit.
+    for (let i = 0; i <= N; i++) {
+      const t = i / N;
+      const M_i = M0 + dirSign * t * deltaM;
+      const [x0r, , z0r] = keplerPosition(orbsmax, eccen, M_i);
+      const [x0, z0] = rotateInPlane(x0r, z0r, argPeri);
+      const [x, y, z] = applyOrbitTilt(x0, z0, inc, omega);
+      tmpSpine[i].set(x, y, z);
+    }
+    // For leading tails (HAT-P-67 b): shift the head toward the L1 Lagrange
+    // point (star-facing side of the planet) so the visible source isn't the
+    // planet's center. The offset fades to zero by t≈0.2 so the rest of the
+    // tail still sits on the orbit ring. Physically the L1 point is between
+    // the planet center and the star; once material crosses L1 it drops into
+    // a closer, faster orbit and pulls ahead of the planet — this offset
+    // makes the "escaping toward the star, then leading" story readable
+    // without changing the curve.
+    const sample0 = tmpSpine[0];
+    let l1x = 0, l1y = 0, l1z = 0;
+    if (leading) {
+      const r = Math.hypot(sample0.x, sample0.y, sample0.z);
+      if (r > 1e-9) {
+        const k = (planetRadius * 0.8) / r;
+        l1x = -sample0.x * k;
+        l1y = -sample0.y * k;
+        l1z = -sample0.z * k;
+      }
+    }
+    const positions = geometry.attributes.position.array as Float32Array;
+    for (let i = 0; i <= N; i++) {
+      const t = i / N;
+      // Tangent via finite difference along the spine.
+      const prev = tmpSpine[Math.max(0, i - 1)];
+      const next = tmpSpine[Math.min(N, i + 1)];
+      tmpTangent.subVectors(next, prev).normalize();
+      // Side = perpendicular to tangent, in the orbital plane.
+      tmpSide.crossVectors(tmpTangent, orbitNormal).normalize();
+      const halfW = baseHalfWidth + (tipHalfWidth - baseHalfWidth) * t;
+      // L1-offset weight: 1 at the head, 0 by t≈0.2.
+      const headLerp = Math.max(0, 1 - t * 5);
+      const px = tmpSpine[i].x - sample0.x + l1x * headLerp;
+      const py = tmpSpine[i].y - sample0.y + l1y * headLerp;
+      const pz = tmpSpine[i].z - sample0.z + l1z * headLerp;
+      const off = i * 6;
+      positions[off + 0] = px - halfW * tmpSide.x;
+      positions[off + 1] = py - halfW * tmpSide.y;
+      positions[off + 2] = pz - halfW * tmpSide.z;
+      positions[off + 3] = px + halfW * tmpSide.x;
+      positions[off + 4] = py + halfW * tmpSide.y;
+      positions[off + 5] = pz + halfW * tmpSide.z;
+    }
+    geometry.attributes.position.needsUpdate = true;
+  });
+
+  const material = useMemo(() => new THREE.ShaderMaterial({
+    uniforms: {
+      uColor: { value: new THREE.Color(colorHex) },
+      uBodyFrac: { value: bodyFrac },
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 uColor;
+      uniform float uBodyFrac;
+      varying vec2 vUv;
+
+      float hash2(vec2 p) {
+        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+      }
+      float noise2(vec2 p) {
+        vec2 i = floor(p), f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        return mix(
+          mix(hash2(i),              hash2(i + vec2(1, 0)), f.x),
+          mix(hash2(i + vec2(0, 1)), hash2(i + vec2(1, 1)), f.x),
+          f.y);
+      }
+
+      void main() {
+        // vUv.x: 0 at planet → 1 at tip. vUv.y: 0..1 across the ribbon.
+        float u = vUv.x;
+        float v = vUv.y - 0.5;
+
+        // Hide the region inside the planet silhouette, then ramp up.
+        float fadeIn = smoothstep(uBodyFrac * 0.5, uBodyFrac * 1.4, u);
+        // Soft tip cutoff so the geometric end of the ribbon doesn't show.
+        float tipFade = 1.0 - smoothstep(0.75, 1.0, u);
+        // Exponential density falloff from the head.
+        float distFromHead = max(0.0, u - uBodyFrac * 1.4);
+        float density = exp(-distFromHead * 3.0);
+        // Tight gaussian lateral so the ribbon's bounding rectangle stays
+        // out of the visible envelope.
+        float widthFrac = 0.30 + 0.10 * u;
+        float lateral = exp(-pow(v / widthFrac, 2.0) * 3.5);
+        // Multi-octave wisp to break up the solid look.
+        vec2 q = vec2(u * 6.0, v * 5.0 + u * 2.0);
+        float n1 = noise2(q);
+        float n2 = noise2(q * 2.7);
+        float n3 = noise2(q * 6.3);
+        float wisp = 0.25 + 0.45 * n1 + 0.20 * n2 + 0.10 * n3;
+        float intensity = fadeIn * tipFade * density * lateral * wisp * 1.4;
+        intensity = clamp(intensity, 0.0, 0.95);
+        gl_FragColor = vec4(uColor, intensity);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    depthTest: true,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
+  }), [colorHex, bodyFrac]);
+
+  return <mesh geometry={geometry} material={material} />;
 }
 
 // Shared cache so the same (bodyType, fillColor, ...) doesn't allocate a new
@@ -2869,16 +4585,45 @@ function PlanetBody({
 const planetMaterialCache = new Map<string, THREE.ShaderMaterial>();
 
 function buildPlanetBodyMaterial({
-  bodyType, fillColor, glow, isCold,
+  bodyType, fillColor, glow, isCold, phaseCurve, albedo, reflectionTint,
 }: {
   bodyType: string; fillColor: string; glow: boolean; isCold: boolean;
+  phaseCurve?: PhaseCurve | null;
+  albedo?: number | null;
+  reflectionTint?: string | null;
 }): THREE.ShaderMaterial {
-  const key = `${bodyType}|${fillColor}|${glow}|${isCold}`;
+  // Cache key includes phase-curve color fingerprints so phase-curve planets
+  // get their own material rather than sharing with non-phase-curve planets
+  // that happen to match on body type / color / glow / isCold. Albedo +
+  // reflectionTint also fingerprinted so curated planets don't share material
+  // with their visual twins.
+  const phaseKey = phaseCurve
+    ? `|p:${phaseCurve.dayside.getHexString()}-${phaseCurve.nightside.getHexString()}`
+    : '';
+  // Quantize albedo to 2 decimal places for the cache key — avoids fragmenting
+  // the cache on floating-point precision noise.
+  const albedoKey = albedo != null ? `|a:${albedo.toFixed(2)}` : '';
+  const tintKey = reflectionTint ? `|t:${reflectionTint}` : '';
+  const key = `${bodyType}|${fillColor}|${glow}|${isCold}${phaseKey}${albedoKey}${tintKey}`;
   const cached = planetMaterialCache.get(key);
   if (cached) return cached;
 
   const isGasGiant = bodyType === 'gas_giant';
   const showIceCaps = bodyType === 'rocky' && isCold;
+  const hasPhaseCurve = phaseCurve != null;
+
+  // Albedo factor: measured / reference (0.30). Default 1.0 when unmeasured
+  // so existing rendering is unchanged. No min floor — TrES-2 b (A_g ~ 0.025
+  // → factor 0.083) is the darkest exoplanet known and should read very
+  // dark; the ambient term in the shader also scales with this factor so
+  // dark planets don't carry a constant brightness floor.
+  const albedoFactor = albedo != null ? albedo / 0.30 : 1.0;
+  // Tint is a direct color mix into the body color (NOT multiplied — that
+  // would zero out non-overlapping channels). HD 189733 b uses a saturated
+  // deep cobalt so the blue reads through even on the planet's underlying
+  // warm-ish hot-Jupiter base color.
+  const tintColor = reflectionTint ? new THREE.Color(reflectionTint) : new THREE.Color(1, 1, 1);
+  const tintStrength = reflectionTint ? 0.85 : 0.0;
 
   const mat = new THREE.ShaderMaterial({
     transparent: false,
@@ -2890,6 +4635,12 @@ function buildPlanetBodyMaterial({
       uEmissive:        { value: glow ? 0.15 : 0.0 },
       uShowBands:       { value: isGasGiant ? 1.0 : 0.0 },
       uShowIceCaps:     { value: showIceCaps ? 1.0 : 0.0 },
+      uHasPhaseCurve:   { value: hasPhaseCurve ? 1.0 : 0.0 },
+      uDaysideColor:    { value: (phaseCurve?.dayside ?? new THREE.Color(0, 0, 0)).clone() },
+      uNightsideColor:  { value: (phaseCurve?.nightside ?? new THREE.Color(0, 0, 0)).clone() },
+      uAlbedoFactor:    { value: albedoFactor },
+      uReflectionTint:  { value: tintColor },
+      uTintStrength:    { value: tintStrength },
     },
     vertexShader: `
       #include <common>
@@ -2910,53 +4661,85 @@ function buildPlanetBodyMaterial({
     fragmentShader: `
       #include <common>
       #include <logdepthbuf_pars_fragment>
-      uniform vec3 uColor;
+      uniform vec3  uColor;
       uniform float uEmissive;
       uniform float uShowBands;
       uniform float uShowIceCaps;
+      uniform float uHasPhaseCurve;
+      uniform vec3  uDaysideColor;
+      uniform vec3  uNightsideColor;
+      uniform float uAlbedoFactor;
+      uniform vec3  uReflectionTint;
+      uniform float uTintStrength;
       varying vec3 vNormal;
       varying vec3 vWorldPos;
 
       void main() {
         #include <logdepthbuf_fragment>
 
-        // Lighting: sun is at world origin. Direction from planet surface
-        // toward the sun is -normalize(worldPos). Both vectors are now in
-        // world space, so the dot product is camera-independent.
+        // Sun is at world origin; direction from planet surface to sun is
+        // -normalize(worldPos). Used by both lighting paths.
         vec3 lightDir = normalize(-vWorldPos);
-        float diffuse = max(0.0, dot(vNormal, lightDir));
-        float ambient = 0.18;
-        float lighting = diffuse + ambient;
+        float dotNL = dot(vNormal, lightDir);
 
-        vec3 col = uColor;
+        vec3 col;
+        if (uHasPhaseCurve > 0.5) {
+          // Thermal phase-curve mode (hot Jupiters with measured day/night
+          // temps). The colors already encode brightness via blackbody
+          // emission, so we don't apply a separate diffuse/ambient — the
+          // dayside is bright because it's hot, the nightside is dim
+          // because it's cool. Albedo doesn't apply here: these planets are
+          // emission-dominated and reflected starlight is a small fraction.
+          //
+          // Soft terminator: smoothstep over a wide ~90° band (cos -0.4 to
+          // 0.4) so the day/night transition reads as the gentle gradient
+          // an atmospheric body really has, not a hard shadow line. Real
+          // hot Jupiters are tidally locked with strong equatorial jets
+          // that smear the substellar heat peak across a wide swath of the
+          // disc. The pow(t, 1.6) bias makes the dim half take longer to
+          // brighten so the dim-to-bright ramp doesn't visually overshoot
+          // toward the bright side under our perceptual gamma.
+          float t = smoothstep(-0.4, 0.4, dotNL);
+          t = pow(t, 1.6);
+          col = mix(uNightsideColor, uDaysideColor, t);
+        } else {
+          // Reflective mode: sun-direction diffuse + small ambient floor.
+          // Both terms scale with uAlbedoFactor (measured/0.30; default 1.0
+          // when unmeasured, so unmeasured planets keep the original
+          // ambient = 0.08 baseline). For TrES-2 b (factor ~ 0.083) BOTH
+          // diffuse and ambient drop, so the body genuinely reads near-
+          // black instead of bottoming out at the ambient floor.
+          //
+          // uReflectionTint is mixed directly into the body color (not
+          // multiplied — multiplying blue × warm-brown zeroes the
+          // non-overlapping channels and the tint disappears). For
+          // HD 189733 b this lets the deep-cobalt blue actually show
+          // through on a hot-Jupiter base color.
+          float diffuse = max(0.0, dotNL) * uAlbedoFactor;
+          float ambient = 0.08 * uAlbedoFactor;
+          vec3 reflectColor = mix(uColor, uReflectionTint, uTintStrength);
+          col = reflectColor * (diffuse + ambient);
+          col += uColor * uEmissive;
+        }
 
         // Latitude — for a unit sphere with normal pointing outward, the
         // y-component of the world-frame normal IS the sine of the latitude.
-        // We approximate with the local normal's y component since planets
-        // aren't tilted in our scene.
-        float lat = vNormal.y;             // -1 (south pole) → 1 (north pole)
+        float lat = vNormal.y;
         float absLat = abs(lat);
 
-        // Gas giant bands: subtle horizontal stripes from latitude. ~12 bands
-        // across the sphere. Modulation is small (±8%) so it reads as
-        // "differential rotation banding" without claiming specific colors.
+        // Gas giant bands modulate brightness in both lighting modes — they
+        // are surface features regardless of where the heat comes from.
         if (uShowBands > 0.5) {
           float bands = sin(lat * 12.0) * 0.5 + 0.5;
           col *= mix(0.92, 1.08, bands);
         }
 
-        // Ice caps: brighten and shift toward white near the poles. Only
-        // applied when the planet is rocky AND cold (eqt < 273K). The
-        // smoothstep gives a soft transition rather than a hard line.
+        // Ice caps only apply to cold rocky planets, which never have
+        // phase-curve mode (gating threshold is dayside > 1200K).
         if (uShowIceCaps > 0.5) {
           float capStrength = smoothstep(0.55, 0.85, absLat);
           col = mix(col, vec3(0.88, 0.92, 0.96), capStrength * 0.85);
         }
-
-        col *= lighting;
-
-        // Emissive add for hot worlds (lava glow on rocky, hot-Jupiter glow)
-        col += uColor * uEmissive;
 
         gl_FragColor = vec4(col, 1.0);
       }

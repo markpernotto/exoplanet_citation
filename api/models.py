@@ -112,6 +112,7 @@ class PlanetDetail(BaseModel):
     pl_orbper: float | None
     pl_orbsmax: float | None
     pl_orbeccen: float | None
+    pl_orblper: float | None  # argument of periastron (deg), from raw_row
     pl_rade: float | None
     pl_bmasse: float | None
     pl_dens: float | None

@@ -43,14 +43,71 @@ SIMBAD_TAP        = "https://simbad.cds.unistra.fr/simbad/sim-tap/sync"
 SLEEP_BETWEEN     = 0.4         # be polite to SIMBAD
 SEARCH_RADIUS_DEG = 200 / 3600  # 200 arcsec; covers visual binaries comfortably
 PLX_REL_TOL       = 0.20        # 20% relative parallax match → physical pair
-SELF_RADIUS_ARCSEC = 5          # rows within this of host coords = "self"
+SELF_RADIUS_ARCSEC = 1.5        # rows within this of host coords = "self".
+                                # Was 5" — too loose. TrES-2 B sits at 0.80"
+                                # from the primary and was being mistaken for
+                                # the host's own catalog entry. 1.5" is wide
+                                # enough to absorb realistic SIMBAD position
+                                # uncertainties for the actual primary while
+                                # leaving close (>1.5") visual companions
+                                # eligible as candidates.
 NO_PLX_FALLBACK_ARCSEC = 30     # if host parallax unknown, only trust very close
+# Close-pair fallback: when the host has a parallax but the candidate does NOT,
+# we still accept the candidate if it's within this angular separation. Faint
+# M-dwarf companions at <2" from a bright primary often lack a clean Gaia
+# parallax (faint + crowded), so the strict "candidate must have parallax"
+# rule was rejecting real physical pairs. 10" is tight enough that the prior
+# of physical association is high — unrelated foreground/background stars
+# rarely sit within 10" of an exoplanet host.
+NO_PLX_CLOSE_PAIR_ARCSEC = 10
 COMPANION_LETTERS = ["B", "C", "D", "E"]
 
 STELLAR_OTYPES = (
     "*", "**", "PM*", "LM*", "BD*", "PMS*", "SB*", "EB*", "BY*", "RS*",
     "HMS*", "HVS*", "WD*", "BH", "NS", "Pu*",
+    # Additions (2026-06-01): emission/variable/young/evolved star types
+    # that were missing from the original list. The TrES-2 primary "Kepler-1"
+    # is otype Em* (emission-line star); without this its SIMBAD row didn't
+    # come back in the spatial query and the script couldn't anchor on the
+    # primary, leading to the companion at 0.80" being mis-classified as
+    # "self". Similar issue applies to active / young / variable / evolved
+    # hosts across the catalog.
+    "Em*", "V*", "Be*", "TT*", "Y*O", "sg*", "s*r", "HB*", "AGB*", "RG*",
+    "C*", "Mi*", "RR*", "Ce*", "WV*",
 )
+
+
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=4, max=30))
+def simbad_resolve_name(hostname: str) -> dict[str, Any] | None:
+    """Look up SIMBAD's canonical basic-table record for a given identifier.
+
+    Used as a fallback when coord-based spatial matching can't anchor on the
+    primary (NASA EA catalog coords sometimes differ from SIMBAD's by more
+    than SELF_RADIUS_ARCSEC due to epoch differences, proper-motion drift, or
+    which component of a multi-star system the archive picked as the system
+    reference). The ident table stores all known aliases; joining it back to
+    basic returns the canonical record + coords + parallax for the matched
+    name. Returns None if SIMBAD doesn't recognise the identifier.
+    """
+    safe = hostname.replace("'", "''")
+    adql = f"""
+        SELECT b.oid, b.main_id, b.ra, b.dec, b.otype, b.sp_type, b.plx_value
+        FROM basic b
+        JOIN ident i ON i.oidref = b.oid
+        WHERE i.id = '{safe}'
+    """
+    resp = httpx.post(
+        SIMBAD_TAP,
+        data={"REQUEST": "doQuery", "LANG": "ADQL", "FORMAT": "json", "QUERY": adql},
+        timeout=30,
+        follow_redirects=True,
+    )
+    resp.raise_for_status()
+    payload = resp.json()
+    if isinstance(payload, dict) and "data" in payload and payload["data"]:
+        cols = [c["name"] for c in payload["metadata"]]
+        return dict(zip(cols, payload["data"][0], strict=True))
+    return None
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=4, max=30))
@@ -117,56 +174,116 @@ ON CONFLICT (hostname, component_designation) DO UPDATE SET
 """
 
 
-def process_hostname(hostname: str, ra: float, dec: float) -> list[dict[str, Any]]:
-    """Resolve companions for one host via spatial + parallax filtering."""
-    try:
-        rows = simbad_spatial(ra, dec)
-    except Exception as exc:
-        log.warning("  SIMBAD lookup failed for %s: %s", hostname, exc)
-        return []
-
-    if not rows:
-        return []
-
-    # Identify "self" — the row closest to host coords within SELF_RADIUS_ARCSEC.
-    # We anchor on this row's parallax and exclude it from companions.
-    self_row = None
-    self_sep = float("inf")
-    for row in rows:
-        sep = angular_separation_arcsec(ra, dec, row["ra"], row["dec"])
-        if sep < self_sep and sep <= SELF_RADIUS_ARCSEC:
-            self_row, self_sep = row, sep
-    if self_row is None:
-        log.info("  %s: no SIMBAD entry within %d\" of catalog coords",
-                 hostname, SELF_RADIUS_ARCSEC)
-        return []
-
-    host_plx = self_row.get("plx_value")
-    primary_designation = "A"   # planet host = A by exoplanet-archive convention
-
-    # Filter neighbors → likely physical companions
+def _filter_companions(
+    rows: list[dict[str, Any]],
+    anchor_oid: int,
+    anchor_ra: float,
+    anchor_dec: float,
+    host_plx: float | None,
+) -> list[tuple[float, dict[str, Any]]]:
+    """Filter spatial-query rows down to plausible physical companions of the
+    anchor. Excludes the anchor itself (by oid), drops duplicates within 1",
+    and applies the parallax / close-pair fallback filters. Returns
+    (separation, row) tuples; caller sorts and converts to companion records.
+    """
     candidates: list[tuple[float, dict[str, Any]]] = []
     for row in rows:
-        if row["oid"] == self_row["oid"]:
+        if row["oid"] == anchor_oid:
             continue
-        sep = angular_separation_arcsec(self_row["ra"], self_row["dec"],
-                                        row["ra"], row["dec"])
+        sep = angular_separation_arcsec(anchor_ra, anchor_dec, row["ra"], row["dec"])
         if sep < 1.0:
             continue   # cataloging duplicate of self
         plx = row.get("plx_value")
         if host_plx is not None:
             if plx is None:
-                continue
-            if abs(plx - host_plx) / abs(host_plx) > PLX_REL_TOL:
+                # Candidate lacks a parallax measurement (common for faint
+                # companions close to a bright primary). Accept only when
+                # the angular separation is small enough that proximity
+                # itself is strong evidence of a physical pair.
+                if sep > NO_PLX_CLOSE_PAIR_ARCSEC:
+                    continue
+            elif abs(plx - host_plx) / abs(host_plx) > PLX_REL_TOL:
                 continue
         else:
             # No anchor parallax — only trust very close neighbors and don't filter on plx
             if sep > NO_PLX_FALLBACK_ARCSEC:
                 continue
         candidates.append((sep, row))
+    return candidates
 
+
+def process_hostname(hostname: str, ra: float, dec: float) -> list[dict[str, Any]]:
+    """Resolve companions for one host.
+
+    Two-stage strategy:
+      1. Coord-based anchor — query SIMBAD at (ra, dec), find the row within
+         SELF_RADIUS_ARCSEC. Works for hosts whose NASA EA coords closely
+         match SIMBAD's.
+      2. Name-resolution fallback — when coord-anchor fails, look up the host
+         by identifier in SIMBAD's `ident` table. If found, re-query spatial
+         at SIMBAD's canonical coords and anchor by oid match. Recovers hosts
+         whose catalog coords drifted from SIMBAD's (epoch / proper motion /
+         different reference component).
+    """
+    try:
+        rows = simbad_spatial(ra, dec)
+    except Exception as exc:
+        log.warning("  SIMBAD lookup failed for %s: %s", hostname, exc)
+        return []
+
+    anchor_row: dict[str, Any] | None = None
+    anchor_ra, anchor_dec = ra, dec
+
+    if rows:
+        # Stage 1: coord-based anchor.
+        self_sep = float("inf")
+        for row in rows:
+            sep = angular_separation_arcsec(ra, dec, row["ra"], row["dec"])
+            if sep < self_sep and sep <= SELF_RADIUS_ARCSEC:
+                anchor_row, self_sep = row, sep
+        if anchor_row is not None:
+            anchor_ra, anchor_dec = anchor_row["ra"], anchor_row["dec"]
+
+    if anchor_row is None:
+        # Stage 2: name-resolution fallback. Try to find the host in SIMBAD's
+        # ident table directly, regardless of where its coords sit.
+        try:
+            resolved = simbad_resolve_name(hostname)
+        except Exception as exc:
+            log.warning("  %s: name-resolution failed: %s", hostname, exc)
+            return []
+        if resolved is None:
+            log.info("  %s: no SIMBAD entry by coords (<%.1f\") or by name",
+                     hostname, SELF_RADIUS_ARCSEC)
+            return []
+        sep_from_catalog = angular_separation_arcsec(
+            ra, dec, resolved["ra"], resolved["dec"])
+        log.info("  %s: name-resolved to %s (%.1f\" from catalog coords)",
+                 hostname, resolved["main_id"], sep_from_catalog)
+        # Re-query at SIMBAD's coords (may differ from NASA EA's enough that
+        # the original spatial result missed the actual neighborhood).
+        try:
+            rows = simbad_spatial(resolved["ra"], resolved["dec"])
+        except Exception as exc:
+            log.warning("  SIMBAD spatial re-query failed for %s: %s",
+                        hostname, exc)
+            return []
+        if not rows:
+            return []
+        # Anchor by oid match. If the resolved primary's otype is excluded
+        # by the spatial query's stellar-otype filter, the resolved row
+        # won't be in `rows` — we still use the resolved info as the anchor
+        # and treat all rows as candidates.
+        anchor_row = next((r for r in rows if r["oid"] == resolved["oid"]), resolved)
+        anchor_ra, anchor_dec = resolved["ra"], resolved["dec"]
+
+    host_plx = anchor_row.get("plx_value")
+    candidates = _filter_companions(
+        rows, anchor_row["oid"], anchor_ra, anchor_dec, host_plx)
     if not candidates:
         return []
+
+    primary_designation = "A"   # planet host = A by exoplanet-archive convention
 
     # Sort by separation; closest = B, next = C, etc.
     candidates.sort(key=lambda x: x[0])
@@ -177,7 +294,7 @@ def process_hostname(hostname: str, ra: float, dec: float) -> list[dict[str, Any
             "component":  letter,
             "primary":    primary_designation,
             "sep_arcsec": sep,
-            "pa_deg":     position_angle_deg(self_row["ra"], self_row["dec"],
+            "pa_deg":     position_angle_deg(anchor_ra, anchor_dec,
                                              comp["ra"], comp["dec"]),
             "mag_v":      comp.get("mag_v"),
             "spectype":   comp.get("sp_type"),
@@ -189,8 +306,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Enrich binary_companions from SIMBAD")
     parser.add_argument("--refresh-all", action="store_true",
                         help="Re-resolve every multi-star host")
-    parser.add_argument("--dry-run", action="store_true", help="Plan only")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Resolve via SIMBAD and log what WOULD be written; skip the DB write")
     parser.add_argument("--limit", type=int, default=None, help="Stop after N hosts")
+    parser.add_argument("--target-host", type=str, default=None,
+                        help="Resolve only this specific hostname (still applies refresh-all logic)")
     args = parser.parse_args()
 
     db_url = os.environ["DATABASE_URL"]
@@ -206,7 +326,17 @@ def main() -> None:
             hosts = cur.fetchall()
         log.info("%d multi-star hostnames in catalog (with coords)", len(hosts))
 
-        if args.refresh_all:
+        if args.target_host:
+            # Single-host mode: ignore the cache-skip logic so the user can
+            # always re-resolve a specific host (useful for testing filter
+            # changes against a known case like TrES-2).
+            todo = [h for h in hosts if h[0] == args.target_host]
+            if not todo:
+                log.error("Hostname %r not found in planets_current (sy_snum >= 2)",
+                          args.target_host)
+                return
+            log.info("Single-host mode: %s", args.target_host)
+        elif args.refresh_all:
             todo = hosts
         else:
             with conn.cursor() as cur:
@@ -217,9 +347,6 @@ def main() -> None:
 
     if args.limit:
         todo = todo[: args.limit]
-    if args.dry_run:
-        log.info("DRY RUN — would resolve %d hostnames", len(todo))
-        return
     if not todo:
         log.info("Nothing to do.")
         return
@@ -229,17 +356,27 @@ def main() -> None:
         log.info("[%d/%d] %s", i, len(todo), hostname)
         rows = process_hostname(hostname, ra, dec)
         if rows:
-            with psycopg.connect(db_url) as wconn:
-                with wconn.cursor() as cur:
-                    cur.executemany(UPSERT_SQL, rows)
-                wconn.commit()
-            wrote += len(rows)
-            log.info("  → %d companion(s)", len(rows))
+            for r in rows:
+                log.info("  candidate %s: sep=%.2f\" pa=%.0f° mag_v=%s spectype=%r",
+                         r["component"], r["sep_arcsec"], r["pa_deg"] or 0,
+                         r["mag_v"], r["spectype"])
+            if not args.dry_run:
+                with psycopg.connect(db_url) as wconn:
+                    with wconn.cursor() as cur:
+                        cur.executemany(UPSERT_SQL, rows)
+                    wconn.commit()
+                wrote += len(rows)
+                log.info("  → %d companion(s) written", len(rows))
+            else:
+                log.info("  → %d companion(s) [DRY RUN, not written]", len(rows))
         fetched += 1
         if i < len(todo):
             time.sleep(SLEEP_BETWEEN)
 
-    log.info("Done — resolved %d hostnames, wrote %d companion rows", fetched, wrote)
+    if args.dry_run:
+        log.info("Done — dry-resolved %d hostnames", fetched)
+    else:
+        log.info("Done — resolved %d hostnames, wrote %d companion rows", fetched, wrote)
 
 
 if __name__ == "__main__":

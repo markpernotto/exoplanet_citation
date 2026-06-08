@@ -438,6 +438,7 @@ _PLANET_DETAIL_COLS = """
     (raw_row->>'cb_flag')::int AS cb_flag,
     discoverymethod, disc_year, disc_facility, disc_telescope, disc_instrument, disc_refname,
     pl_orbper, pl_orbsmax, pl_orbeccen,
+    NULLIF(raw_row->>'pl_orblper','')::double precision AS pl_orblper,
     pl_rade, pl_bmasse, pl_dens, pl_eqt, pl_insol,
     st_teff, st_rad, st_mass, st_lum, st_spectype, st_dist,
     sy_dist, ra, dec, gaia_dr3_id,
@@ -464,9 +465,47 @@ def planets_list(
     where = ["snapshot_date = (SELECT MAX(snapshot_date) FROM planets_snapshots)"]
     params: list = []
     if q:
-        where.append("(pl_name ILIKE %s OR hostname ILIKE %s)")
-        like = f"%{q}%"
-        params.extend([like, like])
+        # Use IN-with-UNION instead of OR-with-LIKE. The earlier OR form
+        # tripped the planner's selectivity estimator on multiple LIKE
+        # branches, forcing a sequential scan with per-row plpgsql
+        # function calls (~18s on 6k rows). With UNION, each branch is
+        # planned independently and uses its own GIN trgm index. The
+        # outer IN turns the whole thing into a hash semi-join.
+        #
+        # Reads normalized_pl_name / normalized_hostname (STORED
+        # generated columns added in migration 097) directly so the
+        # planner can use the GIN trgm indexes on those columns and
+        # skip the per-row recheck function call -- critical for
+        # broad-prefix queries like "Kepler-" that match thousands of
+        # rows.
+        where.append("""pl_name IN (
+            SELECT pl_name FROM planets_snapshots
+            WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM planets_snapshots)
+              AND normalized_pl_name LIKE '%%' || normalize_alias(%s) || '%%'
+
+            UNION
+
+            SELECT pl_name FROM planets_snapshots
+            WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM planets_snapshots)
+              AND normalized_hostname LIKE '%%' || normalize_alias(%s) || '%%'
+
+            UNION
+
+            SELECT p.pl_name FROM planets_snapshots p
+            JOIN planet_aliases a
+              ON a.alias_kind = 'planet' AND a.canonical_name = p.pl_name
+            WHERE p.snapshot_date = (SELECT MAX(snapshot_date) FROM planets_snapshots)
+              AND a.normalized_alias LIKE '%%' || normalize_alias(%s) || '%%'
+
+            UNION
+
+            SELECT p.pl_name FROM planets_snapshots p
+            JOIN planet_aliases a
+              ON a.alias_kind = 'host' AND a.canonical_name = p.hostname
+            WHERE p.snapshot_date = (SELECT MAX(snapshot_date) FROM planets_snapshots)
+              AND a.normalized_alias LIKE '%%' || normalize_alias(%s) || '%%'
+        )""")
+        params.extend([q, q, q, q])
     if discovery_method:
         where.append("discoverymethod = %s")
         params.append(discovery_method)

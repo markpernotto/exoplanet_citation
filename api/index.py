@@ -469,19 +469,25 @@ def planets_list(
         # tripped the planner's selectivity estimator on multiple LIKE
         # branches, forcing a sequential scan with per-row plpgsql
         # function calls (~18s on 6k rows). With UNION, each branch is
-        # planned independently and uses its own GIN trgm index from
-        # migrations 094 + 095. The outer IN turns the whole thing into
-        # a hash semi-join.
+        # planned independently and uses its own GIN trgm index. The
+        # outer IN turns the whole thing into a hash semi-join.
+        #
+        # Reads normalized_pl_name / normalized_hostname (STORED
+        # generated columns added in migration 097) directly so the
+        # planner can use the GIN trgm indexes on those columns and
+        # skip the per-row recheck function call -- critical for
+        # broad-prefix queries like "Kepler-" that match thousands of
+        # rows.
         where.append("""pl_name IN (
             SELECT pl_name FROM planets_snapshots
             WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM planets_snapshots)
-              AND normalize_alias(pl_name) LIKE '%%' || normalize_alias(%s) || '%%'
+              AND normalized_pl_name LIKE '%%' || normalize_alias(%s) || '%%'
 
             UNION
 
             SELECT pl_name FROM planets_snapshots
             WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM planets_snapshots)
-              AND normalize_alias(hostname) LIKE '%%' || normalize_alias(%s) || '%%'
+              AND normalized_hostname LIKE '%%' || normalize_alias(%s) || '%%'
 
             UNION
 

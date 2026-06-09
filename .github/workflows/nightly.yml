@@ -2,7 +2,14 @@ name: Nightly pipeline
 
 on:
   schedule:
-    - cron: '0 6 * * *'   # 06:00 UTC daily
+    # Two daily attempts, ~12 hours apart, to weather NASA EA TAP outages.
+    # Each run gates on "today's snapshot already loaded?" — if the first
+    # run succeeded, the second is a ~30s no-op (checkout + psql check +
+    # exit). If the first run failed (NASA EA was unreachable, etc.), the
+    # second run gets a fresh shot. Observed June 4 and June 9 ConnectTimeouts
+    # both fell well within a 12-hour window.
+    - cron: '0 6 * * *'    # 06:00 UTC daily (primary)
+    - cron: '0 18 * * *'   # 18:00 UTC daily (fallback if primary missed)
   workflow_dispatch:       # manual trigger from the Actions tab
 
 concurrency:
@@ -46,52 +53,86 @@ jobs:
           # token with write permissions so we can push the snapshot manifest + feeds back
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      # Idempotence gate: if today's snapshot is already in planets_snapshots,
+      # the rest of the pipeline is a no-op. This is what makes the
+      # 06:00/18:00 redundant cron cheap — the second daily run is a
+      # ~30 s checkout + psql check + exit on most days, only running the
+      # full pipeline when the morning run failed. CURRENT_DATE compares
+      # against the snapshot_date column; both are server UTC.
+      # postgresql-client is preinstalled on ubuntu-latest runners.
+      - name: Check if today's snapshot is already loaded
+        id: check
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          EXISTS=$(psql "$DATABASE_URL" -tA -c \
+            "SELECT EXISTS(SELECT 1 FROM planets_snapshots WHERE snapshot_date = CURRENT_DATE);")
+          echo "exists=$EXISTS" >> "$GITHUB_OUTPUT"
+          if [ "$EXISTS" = "t" ]; then
+            echo "Today's snapshot already loaded — remaining steps will skip."
+          else
+            echo "Today's snapshot not yet loaded — proceeding."
+          fi
+
       - uses: actions/setup-python@v5
+        if: steps.check.outputs.exists != 't'
         with:
           python-version: "3.12"
           cache: pip
 
       - name: Install dependencies
+        if: steps.check.outputs.exists != 't'
         run: |
           pip install --upgrade pip
           pip install -e ".[dev]"
 
       - name: Extract pscomppars to R2
+        if: steps.check.outputs.exists != 't'
         run: python -m etl.extract
 
       - name: Load snapshot into Postgres
+        if: steps.check.outputs.exists != 't'
         run: python -m etl.load
 
       - name: dbt run (refresh staging)
+        if: steps.check.outputs.exists != 't'
         run: cd etl/transform && DBT_PROFILES_DIR=. dbt run
 
       - name: Diff snapshots into discovery_changes
+        if: steps.check.outputs.exists != 't'
         run: python -m etl.diff
 
       - name: Enrich host stars from Gaia DR3
+        if: steps.check.outputs.exists != 't'
         run: python -m etl.enrich_gaia
 
       - name: Enrich discovery papers from ADS
+        if: steps.check.outputs.exists != 't'
         run: python -m etl.enrich_ads
 
       - name: Resolve citation graph
+        if: steps.check.outputs.exists != 't'
         # Cap per-run work so the cron stays bounded. New planets (~10/night)
         # always fit; the unresolved backlog gets chipped away gradually.
         # Manual catch-up is `python -m etl.resolve_citations` (no cap).
         run: python -m etl.resolve_citations --max-planets 50
 
       - name: Sync atmospheric observation metadata (NASA spectra)
+        if: steps.check.outputs.exists != 't'
         run: python -m etl.enrich_atmospheric_observations
 
       - name: Enrich binary companions from SIMBAD
+        if: steps.check.outputs.exists != 't'
         # Incremental by default — first run resolves all ~560 multi-star hosts
         # (~4 min at 0.4s/req); subsequent runs only resolve new arrivals.
         run: python -m etl.enrich_binaries
 
       - name: Publish RSS + JSON feeds
+        if: steps.check.outputs.exists != 't'
         run: python -m etl.publish
 
       - name: Commit manifest + feeds
+        if: steps.check.outputs.exists != 't'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

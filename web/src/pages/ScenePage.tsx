@@ -63,6 +63,11 @@ export default function ScenePage() {
   const companionDirectionsRef = useRef<
     Map<string, { deg: number; inView: boolean }>
   >(new Map());
+  // Persistent labels above each wide companion star (the bodies outside
+  // the planet's orbit). Off by default since they add visual noise;
+  // user opts in when they need to disambiguate which star is which in
+  // a system with multiple visible companions.
+  const [showStarLabels, setShowStarLabels] = useState(false);
 
   // Parse the URL hash once on initial mount. viewMode + orbital clock are
   // initialized from it (must happen before Canvas first renders so the
@@ -210,6 +215,7 @@ export default function ScenePage() {
         showRuler={showRuler} setShowRuler={setShowRuler}
         showCompanions={showCompanions} setShowCompanions={setShowCompanions}
         hasCompanions={scene.binary_companions.length > 0}
+        showStarLabels={showStarLabels} setShowStarLabels={setShowStarLabels}
       />
       {showCompanions && scene.binary_companions.length > 0 && (
         <CompanionHUDPanel
@@ -295,6 +301,7 @@ export default function ScenePage() {
                 onRulerDragChange={setRulerDragging}
                 showCompanions={showCompanions}
                 companionDirectionsRef={companionDirectionsRef}
+                showStarLabels={showStarLabels}
               />
             ) : (
               <SceneContents
@@ -309,6 +316,7 @@ export default function ScenePage() {
                 onRulerDragChange={setRulerDragging}
                 showCompanions={showCompanions}
                 companionDirectionsRef={companionDirectionsRef}
+                showStarLabels={showStarLabels}
               />
             )}
           </VRSceneScale>
@@ -755,6 +763,37 @@ function provenanceLabel(p: string): string {
     case 'nasa_exoplanet_archive': return 'NASA Exoplanet Archive (default parameter set)';
     default: return p;
   }
+}
+
+// Stylized axial-spin angular velocity (rad/sec) for the scene's animation
+// clock, derived from a measured rotation_velocity (km/s) + planet radius
+// (R_Earth). Real spin periods range from 2 h (AB Pic b) to 24 h (Earth)
+// — we compress that into a 0.5..200 h clamped range and then map to a
+// 10 sec equivalent at the bottom of the clamp so the rotation reads at
+// our animation pacing without being either invisibly slow or strobing.
+// Shared by the focal-planet spin and the sibling-planet spin so PDS 70
+// b's rotation is visible whether viewed as focal or as sibling.
+function stylizedSpinOmega(rotationVelocityKmS: number, pl_rade: number): number | null {
+  if (rotationVelocityKmS <= 0 || pl_rade <= 0) return null;
+  const R_km = pl_rade * 6371; // 1 R_Earth
+  const periodHours = (2 * Math.PI * R_km) / rotationVelocityKmS / 3600;
+  const clamped = Math.min(200, Math.max(0.5, periodHours));
+  return ((2 * Math.PI) / 12) * (10 / clamped); // rad/sec
+}
+
+// Curated effective temperature for the focal planet, when pl_eqt is
+// null. Self-luminous directly-imaged objects (AB Pic b, β Pic b, HR 8799
+// a-e, 51 Eri b, etc.) have no equilibrium temperature in NASA EA because
+// they're not equilibrium-heated by their host; instead their atmospheric
+// model fits give an effective temperature in `planet_derived_measurements`.
+// Without this fallback the whole directly-imaged class renders as the
+// pl_eqt-null grey default.
+function focalEffectiveTeff(
+  derived: DerivedMeasurementRow[], plName: string,
+): number | null {
+  const row = bestDerived(derived, plName, 'effective_temperature');
+  if (!row || row.value == null || row.unit !== 'K') return null;
+  return row.value;
 }
 
 // System-level debris disk for the focal planet's host star. 5 systems
@@ -1969,6 +2008,7 @@ function PlaybackControls({
   hasInclinedDebrisDisk,
   showRuler, setShowRuler,
   showCompanions, setShowCompanions, hasCompanions,
+  showStarLabels, setShowStarLabels,
 }: {
   paused: boolean; setPaused: (p: boolean) => void;
   speed: number; setSpeed: (s: number) => void;
@@ -1991,6 +2031,10 @@ function PlaybackControls({
       binary/triple companions so we don't render an inert button. */
   showCompanions: boolean; setShowCompanions: (v: boolean) => void;
   hasCompanions: boolean;
+  /** Persistent labels above each wide companion star — designation +
+      host name floating in 3D so the user can disambiguate which star
+      is which without hovering one by one. */
+  showStarLabels: boolean; setShowStarLabels: (v: boolean) => void;
 }) {
   const isSurface = viewMode === 'surface';
   const [collapsed, setCollapsed] = useState(false);
@@ -2121,6 +2165,27 @@ function PlaybackControls({
             }}
           >
             companions {showCompanions ? 'on' : 'off'}
+          </button>
+        )}
+        {hasCompanions && (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={showStarLabels}
+            aria-label={`Persistent labels above companion stars, currently ${showStarLabels ? 'on' : 'off'}`}
+            onClick={() => setShowStarLabels(!showStarLabels)}
+            title="Toggle persistent name labels above each companion star in the scene"
+            style={{
+              background: showStarLabels ? 'var(--fg)' : 'transparent',
+              color: showStarLabels ? '#0b0d12' : 'var(--fg-muted)',
+              border: '1px solid var(--border)',
+              padding: '0.15rem 0.5rem',
+              borderRadius: 3,
+              cursor: 'pointer',
+              fontSize: '0.75rem',
+            }}
+          >
+            star labels {showStarLabels ? 'on' : 'off'}
           </button>
         )}
         {hasStellarReference && (
@@ -2549,6 +2614,7 @@ function SceneContents({
   onRulerDragChange,
   showCompanions = true,
   companionDirectionsRef,
+  showStarLabels = false,
 }: {
   scene: SceneResponse;
   paused: boolean;
@@ -2587,6 +2653,10 @@ function SceneContents({
       angles + in-view flags into, and the out-of-Canvas HUD panel reads
       from. Lifted to ScenePage so both sides share one instance. */
   companionDirectionsRef?: CompanionDirectionRef;
+  /** Persistent labels above each wide companion star — toggled on when
+      the user wants disambiguation between multiple visible companions
+      without hovering them one at a time. */
+  showStarLabels?: boolean;
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -2696,11 +2766,8 @@ function SceneContents({
   // two planets with rotation_velocity harvested into derived_measurements.
   const planetSpinOmega = useMemo(() => {
     const row = bestDerived(scene.derived_measurements, planet.pl_name, 'rotation_velocity');
-    if (!row?.value || row.value <= 0 || planet.pl_rade == null) return null;
-    const R_km = planet.pl_rade * 6371; // 1 R_Earth
-    const periodHours = (2 * Math.PI * R_km) / row.value / 3600;
-    const clamped = Math.min(200, Math.max(0.5, periodHours));
-    return ((2 * Math.PI) / 12) * (10 / clamped); // rad/sec
+    if (!row?.value || planet.pl_rade == null) return null;
+    return stylizedSpinOmega(row.value, planet.pl_rade);
   }, [scene.derived_measurements, planet.pl_name, planet.pl_rade]);
 
   // Day/night thermal emission colors for the focal planet, if the dayside
@@ -2844,9 +2911,28 @@ function SceneContents({
           their common barycenter at the origin. Each Photosphere includes
           its own StellarCorona so both stars in a binary get a halo. */}
       {planet.cb_flag === 1
-        ? <BinaryPhotospheres radius={sunRadius} color={sun_color_hex} teff={planet.st_teff} paused={paused} speed={speed} />
+        ? <BinaryPhotospheres
+            radius={sunRadius}
+            color={sun_color_hex}
+            teff={planet.st_teff}
+            paused={paused}
+            speed={speed}
+            showLabels={showStarLabels}
+            hostname={planet.hostname}
+          />
         : <Photosphere radius={sunRadius} color={sun_color_hex} teff={planet.st_teff} rotationPeriodDays={stellarRotationDays} spot={stellarSpot} haloIntensity={haloIntensity} oblateness={stellarOblateness ?? 0} />
       }
+      {/* Host-star label (single Photosphere case). Sits well above the
+          star body so it doesn't cover the disc. Suppressed in the
+          binary case since each inner star gets its own label inside
+          BinaryPhotospheres. */}
+      {showStarLabels && planet.cb_flag !== 1 && (
+        <StarNameLabel
+          name={planet.hostname}
+          accentColor={sun_color_hex}
+          yOffsetAU={sunRadius * 3.5}
+        />
+      )}
       {/* Sun light: decay=1.7 (slightly less aggressive than physical 1/r²).
           Pure inverse-square crushes outer planets visually faster than the
           eye expects in a stylized 3D scene; 1.7 keeps the directional
@@ -3006,6 +3092,7 @@ function SceneContents({
               phaseCurve={phaseCurve}
               albedo={albedo?.value ?? null}
               reflectionTint={albedo?.reflectionTint ?? null}
+              effectiveTempK={focalEffectiveTeff(scene.derived_measurements, planet.pl_name)}
             />
             {hovered === planet.pl_name && <PlanetLabel name={planet.pl_name} subtitle="(focal)" />}
           </>
@@ -3047,27 +3134,49 @@ function SceneContents({
         </group>
       )}
 
-      {/* Siblings — clickable to jump perspective, hover shows name */}
+      {/* Siblings — clickable to jump perspective, hover shows name.
+          Curated derived measurements (rotation_velocity,
+          effective_temperature, circumplanetary disk parameters) are
+          fetched system-wide by the API so siblings now light up the
+          same enrichment paths the focal planet uses: warm fallback
+          color from T_eff, visibly-rotating spin texture, CPD ring.
+          Without this enrichment a system like PDS 70 only ever
+          showed the focal planet's curated data, hiding the same
+          measurements on the sibling. */}
       {siblings
         .filter((s) => s.pl_name !== planet.pl_name && s.pl_orbsmax != null)
-        .map((s) => (
-          <group
-            key={s.pl_name}
-            ref={(g) => { if (g) siblingRefs.current.set(s.pl_name, g); else siblingRefs.current.delete(s.pl_name); }}
-          >
-            <PlanetBody
-              position={[0, 0, 0]}
-              radius={planetDisplayRadius(s.pl_rade, s.pl_orbsmax!, planet.st_rad, sunRadius)}
-              pl_eqt={s.pl_eqt}
-              pl_dens={s.pl_dens}
-              pl_rade={s.pl_rade}
-              name={s.pl_name}
-              onHover={setHovered}
-              onClick={() => jumpTo(s.pl_name)}
-            />
-            {hovered === s.pl_name && <PlanetLabel name={s.pl_name} subtitle="click to jump" />}
-          </group>
-        ))}
+        .map((s) => {
+          const siblingRadius = planetDisplayRadius(s.pl_rade, s.pl_orbsmax!, planet.st_rad, sunRadius);
+          const siblingTeff = focalEffectiveTeff(scene.derived_measurements, s.pl_name);
+          const siblingSpinRow = bestDerived(scene.derived_measurements, s.pl_name, 'rotation_velocity');
+          const siblingSpinOmega = siblingSpinRow?.value != null && s.pl_rade != null && s.pl_rade > 0
+            ? stylizedSpinOmega(siblingSpinRow.value, s.pl_rade)
+            : null;
+          const siblingCpd = focalCircumplanetaryDisk(scene.derived_measurements, s.pl_name);
+          return (
+            <group
+              key={s.pl_name}
+              ref={(g) => { if (g) siblingRefs.current.set(s.pl_name, g); else siblingRefs.current.delete(s.pl_name); }}
+            >
+              <PlanetBody
+                position={[0, 0, 0]}
+                radius={siblingRadius}
+                pl_eqt={s.pl_eqt}
+                pl_dens={s.pl_dens}
+                pl_rade={s.pl_rade}
+                name={s.pl_name}
+                onHover={setHovered}
+                onClick={() => jumpTo(s.pl_name)}
+                effectiveTempK={siblingTeff}
+                rotationOmegaRad={siblingSpinOmega}
+              />
+              {siblingCpd && (
+                <CircumplanetaryDiskRing planetRadius={siblingRadius} />
+              )}
+              {hovered === s.pl_name && <PlanetLabel name={s.pl_name} subtitle="click to jump" />}
+            </group>
+          );
+        })}
 
       {/* Companion stars (static — they orbit on millennia timescales,
           irrelevant at our 60-sec-per-orbit pacing). Position angles
@@ -3084,6 +3193,7 @@ function SceneContents({
           hoveredKey={hovered}
           focalOrbsmaxAu={focalOrbsmax}
           hostRsun={planet.st_rad}
+          showPersistentLabel={showStarLabels}
         />
       ))}
 
@@ -3360,6 +3470,45 @@ function CompanionHUDPanel({
   );
 }
 
+// Small reusable name pill for star bodies. Used by both CompanionStar
+// (wide companions) and the host-star rendering (single Photosphere or
+// the two stars of a BinaryPhotospheres inner binary). Same visual
+// language so the user reads the scene consistently.
+function StarNameLabel({
+  name,
+  accentColor,
+  yOffsetAU,
+}: {
+  name: string;
+  accentColor: string;
+  yOffsetAU: number;
+}) {
+  return (
+    <Html
+      position={[0, yOffsetAU, 0]}
+      center
+      zIndexRange={[8, 0]}
+      style={{
+        pointerEvents: 'none',
+        userSelect: 'none',
+        color: '#e6edf3',
+        background: 'rgba(11, 13, 18, 0.85)',
+        padding: '2px 7px',
+        borderRadius: 3,
+        border: `1px solid ${accentColor}`,
+        whiteSpace: 'nowrap',
+        fontWeight: 600,
+        fontSize: '0.72rem',
+        fontFamily: 'monospace',
+        letterSpacing: '0.02em',
+      }}
+    >
+      <span style={{ color: accentColor, marginRight: 5 }}>◆</span>
+      {name}
+    </Html>
+  );
+}
+
 function CompanionStar({
   companion,
   systemDistancePc,
@@ -3368,6 +3517,7 @@ function CompanionStar({
   hoveredKey,
   focalOrbsmaxAu,
   hostRsun,
+  showPersistentLabel = false,
 }: {
   companion: BinaryCompanion;
   systemDistancePc: number | null;
@@ -3382,6 +3532,10 @@ function CompanionStar({
   // with no recorded spectral type doesn't fall back to the K-dwarf default
   // (0.7 Rsun) and render absurdly large next to a small M-dwarf primary.
   hostRsun?: number | null;
+  // When true, render a persistent designation label above the companion
+  // body so the user can disambiguate multiple visible companions without
+  // hovering each one. Toggled from PlaybackControls' "star labels" button.
+  showPersistentLabel?: boolean;
 }) {
   // 1 AU subtends 1 arcsec at 1 pc — so projected separation in AU is just
   // sep_arcsec * distance_pc. We have no information on the line-of-sight
@@ -3464,6 +3618,19 @@ function CompanionStar({
       </mesh>
       {hoveredKey === labelName && (
         <PlanetLabel name={labelName} subtitle={subtitle} yOffset={radiusAU * 1.6} />
+      )}
+      {/* Persistent designation label: floats well above the body when
+          the "star labels" toggle is on. Spectral-type colored border
+          visually ties the label to its body. Position offset is
+          radiusAU * 3.5 so the pill doesn't overlap the star at any
+          reasonable zoom. Suppressed while the hover label is active
+          to avoid double-stacking the same name. */}
+      {showPersistentLabel && hoveredKey !== labelName && (
+        <StarNameLabel
+          name={labelName}
+          accentColor={color}
+          yOffsetAU={radiusAU * 3.5}
+        />
       )}
     </group>
   );
@@ -3926,8 +4093,19 @@ function StellarCorona({
 
 function BinaryPhotospheres({
   radius, color, teff, paused, speed,
+  showLabels = false,
+  hostname,
 }: {
   radius: number; color: string; teff: number | null; paused: boolean; speed: number;
+  /** When true, render a persistent name label above each of the two
+      inner stars (Aa and Ab) so the user can read which is which in
+      circumbinary systems. */
+  showLabels?: boolean;
+  /** Planet's host hostname — used to build the inner-star labels.
+      "PH1" → "PH1 Aa" / "PH1 Ab"; "TIC 172900988 Aa" →
+      "TIC 172900988 Aa" / "TIC 172900988 Ab" (the trailing letter is
+      stripped before suffixing so we don't get "... Aa Aa"). */
+  hostname?: string;
 }) {
   const starA = useRef<THREE.Group>(null);
   const starB = useRef<THREE.Group>(null);
@@ -3950,15 +4128,32 @@ function BinaryPhotospheres({
     if (starB.current) starB.current.position.set(-secondaryArm * Math.cos(a), 0, -secondaryArm * Math.sin(a));
   });
 
+  const nameAa = hostname ? companionFullName(hostname, 'Aa') : 'Aa';
+  const nameAb = hostname ? companionFullName(hostname, 'Ab') : 'Ab';
+
   return (
     <>
       <group ref={starA}>
         <Photosphere radius={primaryRadius} color={color} teff={teff} />
+        {showLabels && (
+          <StarNameLabel
+            name={nameAa}
+            accentColor={color}
+            yOffsetAU={primaryRadius * 3.5}
+          />
+        )}
       </group>
       <group ref={starB}>
         {/* Secondary uses a cooler-equivalent teff so its red-shifted
             color reads correctly through the Stefan-Boltzmann scaling. */}
         <Photosphere radius={secondaryRadius} color={secondaryColor} teff={teff != null ? teff * 0.65 : null} />
+        {showLabels && (
+          <StarNameLabel
+            name={nameAb}
+            accentColor={secondaryColor}
+            yOffsetAU={secondaryRadius * 3.5}
+          />
+        )}
       </group>
     </>
   );
@@ -4636,12 +4831,17 @@ function PlanetBody({
   phaseCurve,
   albedo,
   reflectionTint,
+  effectiveTempK,
 }: {
   position: [number, number, number];
   radius: number;
   pl_eqt: number | null;
   pl_dens: number | null;
   pl_rade: number | null;
+  /** Curated effective temperature (K), used as a color-stop fallback
+      when pl_eqt is null. Applies to self-luminous directly-imaged
+      planets — see focalEffectiveTeff() in this file. */
+  effectiveTempK?: number | null;
   emphasized?: boolean;
   name?: string;
   onHover?: (n: string | null) => void;
@@ -4674,8 +4874,8 @@ function PlanetBody({
   reflectionTint?: string | null;
 }) {
   const visual = useMemo(
-    () => planetVisual(pl_eqt, pl_dens, pl_rade),
-    [pl_eqt, pl_dens, pl_rade]
+    () => planetVisual(pl_eqt, pl_dens, pl_rade, effectiveTempK ?? null),
+    [pl_eqt, pl_dens, pl_rade, effectiveTempK]
   );
   const isGasGiant = visual.bodyType === 'gas_giant';
   const isIcyOrCold = visual.bodyType === 'rocky' && (pl_eqt ?? 999) < 273;
@@ -4693,6 +4893,17 @@ function PlanetBody({
   // planets get polar ice caps; everything else stays flat-color (with
   // emissive for hot lava worlds). Albedo + reflectionTint modulate the
   // reflective lighting path (thermal phase-curve mode is unaffected).
+  // Spin texture: object-space cloud-patch noise that visibly rotates
+  // with the planet body. Gated on rotationOmegaRad being curated and
+  // non-zero — without that signal there's no spin to visualize, and
+  // we don't want to slap procedural patches on planets where the
+  // rotation rate hasn't been measured. Phase-curve planets (hot
+  // Jupiters with dayside/nightside maps) are excluded because their
+  // shader is in emission-dominated thermal mode where the noise would
+  // fight the day/night gradient.
+  const showSpinTexture =
+    rotationOmegaRad != null && rotationOmegaRad !== 0 && !phaseCurve;
+
   const bodyMaterial = useMemo(
     () => buildPlanetBodyMaterial({
       bodyType: visual.bodyType,
@@ -4702,8 +4913,9 @@ function PlanetBody({
       phaseCurve: phaseCurve ?? null,
       albedo: albedo ?? null,
       reflectionTint: reflectionTint ?? null,
+      showSpinTexture,
     }),
-    [visual.bodyType, visual.fillColor, visual.glow, isIcyOrCold, phaseCurve, albedo, reflectionTint],
+    [visual.bodyType, visual.fillColor, visual.glow, isIcyOrCold, phaseCurve, albedo, reflectionTint, showSpinTexture],
   );
 
   return (
@@ -5275,11 +5487,22 @@ const planetMaterialCache = new Map<string, THREE.ShaderMaterial>();
 
 function buildPlanetBodyMaterial({
   bodyType, fillColor, glow, isCold, phaseCurve, albedo, reflectionTint,
+  showSpinTexture = false,
 }: {
   bodyType: string; fillColor: string; glow: boolean; isCold: boolean;
   phaseCurve?: PhaseCurve | null;
   albedo?: number | null;
   reflectionTint?: string | null;
+  /** When true, add procedural object-space noise to the surface so the
+      planet's spin is visually apparent as patches move across the
+      visible disc. Intended for planets where the curated rotation rate
+      (rotationOmegaRad) is set — without surface variation the
+      symmetric-around-spin-axis lighting hides the rotation entirely.
+      Defensible for L-dwarf / hot directly-imaged objects (AB Pic b,
+      β Pic b, HR 8799 family, etc.) whose atmospheres have patchy
+      silicate + iron cloud decks; the same pattern reads as Jupiter-
+      like mottling on cooler gas giants. */
+  showSpinTexture?: boolean;
 }): THREE.ShaderMaterial {
   // Cache key includes phase-curve color fingerprints so phase-curve planets
   // get their own material rather than sharing with non-phase-curve planets
@@ -5293,7 +5516,8 @@ function buildPlanetBodyMaterial({
   // the cache on floating-point precision noise.
   const albedoKey = albedo != null ? `|a:${albedo.toFixed(2)}` : '';
   const tintKey = reflectionTint ? `|t:${reflectionTint}` : '';
-  const key = `${bodyType}|${fillColor}|${glow}|${isCold}${phaseKey}${albedoKey}${tintKey}`;
+  const spinKey = showSpinTexture ? '|s' : '';
+  const key = `${bodyType}|${fillColor}|${glow}|${isCold}${phaseKey}${albedoKey}${tintKey}${spinKey}`;
   const cached = planetMaterialCache.get(key);
   if (cached) return cached;
 
@@ -5330,17 +5554,24 @@ function buildPlanetBodyMaterial({
       uAlbedoFactor:    { value: albedoFactor },
       uReflectionTint:  { value: tintColor },
       uTintStrength:    { value: tintStrength },
+      uShowSpinTexture: { value: showSpinTexture ? 1.0 : 0.0 },
     },
     vertexShader: `
       #include <common>
       #include <logdepthbuf_pars_vertex>
       varying vec3 vNormal;
       varying vec3 vWorldPos;
+      varying vec3 vObjectNormal;
       void main() {
         // World-space normal — must match the world-space lightDir below
         // (sun-at-origin). Using view-space normalMatrix here would mix
         // coord spaces and the lit hemisphere would rotate with the camera.
         vNormal = normalize(mat3(modelMatrix) * normal);
+        // Object-space normal — locked to the planet body. Used by the
+        // spin-texture path so the noise pattern rotates WITH the body
+        // (sampling world-space coords would lock the pattern to space
+        // and the rotation would be invisible).
+        vObjectNormal = normalize(normal);
         vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
         vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
         gl_Position = projectionMatrix * mvPos;
@@ -5360,8 +5591,33 @@ function buildPlanetBodyMaterial({
       uniform float uAlbedoFactor;
       uniform vec3  uReflectionTint;
       uniform float uTintStrength;
+      uniform float uShowSpinTexture;
       varying vec3 vNormal;
       varying vec3 vWorldPos;
+      varying vec3 vObjectNormal;
+
+      // 3D value noise for the spin-texture patches. Hash + smoothstep
+      // interpolation across a unit cell — cheap and good enough for a
+      // surface-feature modulation; not trying to ray-march clouds.
+      float hash3(vec3 p) {
+        return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453);
+      }
+      float noise3(vec3 p) {
+        vec3 i = floor(p), f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        float n000 = hash3(i);
+        float n100 = hash3(i + vec3(1, 0, 0));
+        float n010 = hash3(i + vec3(0, 1, 0));
+        float n110 = hash3(i + vec3(1, 1, 0));
+        float n001 = hash3(i + vec3(0, 0, 1));
+        float n101 = hash3(i + vec3(1, 0, 1));
+        float n011 = hash3(i + vec3(0, 1, 1));
+        float n111 = hash3(i + vec3(1, 1, 1));
+        return mix(
+          mix(mix(n000, n100, f.x), mix(n010, n110, f.x), f.y),
+          mix(mix(n001, n101, f.x), mix(n011, n111, f.x), f.y),
+          f.z);
+      }
 
       void main() {
         #include <logdepthbuf_fragment>
@@ -5421,6 +5677,23 @@ function buildPlanetBodyMaterial({
         if (uShowBands > 0.5) {
           float bands = sin(lat * 12.0) * 0.5 + 0.5;
           col *= mix(0.92, 1.08, bands);
+        }
+
+        // Object-space spin texture: 2-octave 3D value noise locked to
+        // the planet body so the pattern visibly rotates as the body
+        // spins. For L-dwarf-class hot directly-imaged planets this
+        // reads as patchy silicate / iron cloud decks (Crossfield 2014's
+        // Luhman 16 B rotational mapping is the prototype); for cooler
+        // gas giants it reads as Jupiter-like mottling. Modulation
+        // amplitude is intentionally chunky (~±18%) so the rotation is
+        // clearly visible at typical zoom and animation speeds — too
+        // subtle and the verification fails its own purpose.
+        if (uShowSpinTexture > 0.5) {
+          vec3 q = vObjectNormal * 4.5;
+          float n1 = noise3(q);
+          float n2 = noise3(q * 2.3 + vec3(13.7, 5.1, 9.2));
+          float patches = 0.6 * n1 + 0.4 * n2;
+          col *= mix(0.82, 1.18, patches);
         }
 
         // Ice caps only apply to cold rocky planets, which never have

@@ -131,10 +131,18 @@ export function planetVisual(
   pl_eqt: number | null,
   pl_dens: number | null,
   pl_rade: number | null,
+  /** Fallback temperature in K used when pl_eqt is null. Intended for
+      self-luminous, directly-imaged objects (AB Pic b, β Pic b, HR 8799 a-e,
+      51 Eri b, etc.) where the equilibrium-temperature formula doesn't
+      apply but a curated atmospheric-model effective temperature is
+      available in planet_derived_measurements. Without this fallback the
+      whole directly-imaged class renders as a default grey. */
+  effectiveTempK: number | null = null,
 ): PlanetVisual {
   const bodyType = classifyBody(pl_dens, pl_rade);
+  const temp = pl_eqt ?? effectiveTempK;
 
-  if (pl_eqt == null) {
+  if (temp == null) {
     return {
       bodyType,
       fillColor: '#888',
@@ -146,25 +154,25 @@ export function planetVisual(
   if (bodyType === 'rocky') {
     return {
       bodyType,
-      fillColor: interpolateStops(ROCKY_STOPS, pl_eqt),
-      glow: pl_eqt > 1200,
-      description: rockyDescription(pl_eqt),
+      fillColor: interpolateStops(ROCKY_STOPS, temp),
+      glow: temp > 1200,
+      description: rockyDescription(temp),
     };
   }
   if (bodyType === 'icy') {
     return {
       bodyType,
-      fillColor: interpolateStops(ICY_STOPS, pl_eqt),
+      fillColor: interpolateStops(ICY_STOPS, temp),
       glow: false,
-      description: icyDescription(pl_eqt),
+      description: icyDescription(temp),
     };
   }
   if (bodyType === 'gas_giant') {
     return {
       bodyType,
-      fillColor: interpolateStops(GAS_GIANT_STOPS, pl_eqt),
-      glow: pl_eqt > 2200,
-      description: gasGiantDescription(pl_eqt),
+      fillColor: interpolateStops(GAS_GIANT_STOPS, temp),
+      glow: temp > 2200,
+      description: gasGiantDescription(temp),
     };
   }
   return {

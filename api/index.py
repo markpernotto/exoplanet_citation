@@ -1296,16 +1296,25 @@ def planet_scene(pl_name: str) -> SceneResponse:
             )
             geometry_rows = cur.fetchall()
 
-            # Literature-derived scalar properties (composition, abundances)
+            # Literature-derived scalar properties (composition, abundances,
+            # rotation, circumplanetary-disk parameters, etc.) for every
+            # planet in the system — focal AND siblings. Previously this
+            # was restricted to the focal planet alone, which hid curated
+            # data on siblings (e.g. PDS 70 c's circumplanetary disk is
+            # well-characterized but never rendered when viewing the b
+            # scene). Sibling enrichment in SceneContents reads from the
+            # same array by filtering on pl_name.
             cur.execute(
                 """
                 SELECT pl_name, NULL::text AS hostname, quantity, value, unc_hi, unc_lo,
                        unit, model, bibcode, curator_note, provenance
                 FROM planet_derived_measurements
-                WHERE pl_name = %s
-                ORDER BY quantity
+                WHERE pl_name IN (
+                    SELECT pl_name FROM planets_current WHERE hostname = %s
+                )
+                ORDER BY pl_name, quantity
                 """,
-                (pl_name,),
+                (planet_row["hostname"],),
             )
             derived_rows = cur.fetchall()
 

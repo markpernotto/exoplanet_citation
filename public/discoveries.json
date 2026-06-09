@@ -1,10 +1,10 @@
 {
   "feed_version": "1.0",
-  "generated_at": "2026-06-07T07:19:33.170597+00:00",
+  "generated_at": "2026-06-09T19:31:01.931641+00:00",
   "freshness": {
-    "snapshot_date": "2026-06-07",
-    "source_retrieved_at": "2026-06-07T07:16:43.623781+00:00",
-    "freshness_hours": 0.05,
+    "snapshot_date": "2026-06-09",
+    "source_retrieved_at": "2026-06-09T19:27:43.688404+00:00",
+    "freshness_hours": 0.06,
     "slo_freshness_hours": 26,
     "status": "ok",
     "clock": "A (time since last extract)",

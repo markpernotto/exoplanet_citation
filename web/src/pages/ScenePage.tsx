@@ -68,6 +68,13 @@ export default function ScenePage() {
   // user opts in when they need to disambiguate which star is which in
   // a system with multiple visible companions.
   const [showStarLabels, setShowStarLabels] = useState(false);
+  // Stylized IR pseudocolor mode. Switches the body/star/disk shaders
+  // to a thermal-emission palette anchored to measured T_eff / dust
+  // temperatures — Wien's law-style: cool things go dim/red, hot
+  // things blaze, M-dwarfs gain relative brightness over G/F stars,
+  // debris disks become prominent. NOT a specific-instrument
+  // simulation; the framing copy in the toggle title makes that clear.
+  const [irMode, setIrMode] = useState(false);
 
   // Parse the URL hash once on initial mount. viewMode + orbital clock are
   // initialized from it (must happen before Canvas first renders so the
@@ -216,6 +223,7 @@ export default function ScenePage() {
         showCompanions={showCompanions} setShowCompanions={setShowCompanions}
         hasCompanions={scene.binary_companions.length > 0}
         showStarLabels={showStarLabels} setShowStarLabels={setShowStarLabels}
+        irMode={irMode} setIrMode={setIrMode}
       />
       {showCompanions && scene.binary_companions.length > 0 && (
         <CompanionHUDPanel
@@ -302,6 +310,7 @@ export default function ScenePage() {
                 showCompanions={showCompanions}
                 companionDirectionsRef={companionDirectionsRef}
                 showStarLabels={showStarLabels}
+                irMode={irMode}
               />
             ) : (
               <SceneContents
@@ -317,6 +326,7 @@ export default function ScenePage() {
                 showCompanions={showCompanions}
                 companionDirectionsRef={companionDirectionsRef}
                 showStarLabels={showStarLabels}
+                irMode={irMode}
               />
             )}
           </VRSceneScale>
@@ -763,6 +773,42 @@ function provenanceLabel(p: string): string {
     case 'nasa_exoplanet_archive': return 'NASA Exoplanet Archive (default parameter set)';
     default: return p;
   }
+}
+
+// Stylized IR pseudocolor mapping. Given an effective temperature in K,
+// return a (color, brightness) pair representing what the body would
+// "look like" to an idealized mid-IR detector.
+//
+//   - Brightness: low for cold (<300 K) bodies and very hot (>10,000 K)
+//     bodies (their IR is a small fraction of total flux). Peaks for
+//     M-dwarf / hot directly-imaged-planet temperatures (~2000-3500 K),
+//     which is exactly the "JWST / Spitzer sweet spot."
+//   - Color: monotone thermal palette — deep purple/red for the cool
+//     end, orange/yellow for the warm middle, white for very hot.
+//
+// NOT a specific-instrument simulation. Pedagogical pseudocolor anchored
+// to Wien-law intuitions. Toggle copy in PlaybackControls makes that
+// framing explicit.
+function irPseudocolor(tempK: number | null): { color: string; brightness: number } {
+  if (tempK == null || tempK <= 0) {
+    return { color: '#1a0612', brightness: 0.05 };
+  }
+  // Brightness curve: a soft bump centered around 2500 K with a long
+  // shoulder. Cool things fade; very hot things lose IR fraction to
+  // shorter wavelengths.
+  const t = tempK;
+  const lowFade  = Math.min(1, Math.max(0, (t - 100) / 400));    // 100..500 K
+  const highFade = 1 - Math.min(1, Math.max(0, (t - 4000) / 8000)); // 4000..12000 K
+  const brightness = Math.min(1.0, lowFade * highFade * 1.05);
+  // Color stops: deep red @ 300, red-orange @ 800, orange @ 1500,
+  // yellow @ 2500, near-white @ 4000+.
+  let color = '#3d0a06';
+  if (t > 4000)       color = '#fff2cf';
+  else if (t > 2500)  color = '#ffd06a';
+  else if (t > 1500)  color = '#ff8a3a';
+  else if (t > 800)   color = '#d4441f';
+  else if (t > 300)   color = '#7a1a0a';
+  return { color, brightness };
 }
 
 // Stylized axial-spin angular velocity (rad/sec) for the scene's animation
@@ -2009,6 +2055,7 @@ function PlaybackControls({
   showRuler, setShowRuler,
   showCompanions, setShowCompanions, hasCompanions,
   showStarLabels, setShowStarLabels,
+  irMode, setIrMode,
 }: {
   paused: boolean; setPaused: (p: boolean) => void;
   speed: number; setSpeed: (s: number) => void;
@@ -2035,6 +2082,11 @@ function PlaybackControls({
       host name floating in 3D so the user can disambiguate which star
       is which without hovering one by one. */
   showStarLabels: boolean; setShowStarLabels: (v: boolean) => void;
+  /** Stylized infrared pseudocolor toggle. Flips body/star/disk shaders
+      to a thermal-emission palette anchored to measured T_eff / dust
+      temperatures. Pedagogical mode, NOT a specific-instrument
+      simulation — the toggle label and tooltip say "stylized". */
+  irMode: boolean; setIrMode: (v: boolean) => void;
 }) {
   const isSurface = viewMode === 'surface';
   const [collapsed, setCollapsed] = useState(false);
@@ -2188,6 +2240,25 @@ function PlaybackControls({
             star labels {showStarLabels ? 'on' : 'off'}
           </button>
         )}
+        <button
+          type="button"
+          role="switch"
+          aria-checked={irMode}
+          aria-label={`Stylized infrared view, currently ${irMode ? 'on' : 'off'}`}
+          onClick={() => setIrMode(!irMode)}
+          title={'Toggle a stylized infrared pseudocolor view — cool things go dim, hot things blaze, debris disks become prominent. Anchored to measured T_eff / dust temperatures (NOT a specific-instrument simulation).'}
+          style={{
+            background: irMode ? 'var(--fg)' : 'transparent',
+            color: irMode ? '#0b0d12' : 'var(--fg-muted)',
+            border: '1px solid var(--border)',
+            padding: '0.15rem 0.5rem',
+            borderRadius: 3,
+            cursor: 'pointer',
+            fontSize: '0.75rem',
+          }}
+        >
+          IR {irMode ? 'on' : 'off'}
+        </button>
         {hasStellarReference && (
           <button
             type="button"
@@ -2615,6 +2686,7 @@ function SceneContents({
   showCompanions = true,
   companionDirectionsRef,
   showStarLabels = false,
+  irMode = false,
 }: {
   scene: SceneResponse;
   paused: boolean;
@@ -2657,6 +2729,10 @@ function SceneContents({
       the user wants disambiguation between multiple visible companions
       without hovering them one at a time. */
   showStarLabels?: boolean;
+  /** Stylized infrared pseudocolor toggle. When true, body / star /
+      disk shaders switch palettes — cool dim, hot blaze, debris disks
+      prominent, M-dwarfs gain relative brightness over G/F stars. */
+  irMode?: boolean;
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -2919,8 +2995,9 @@ function SceneContents({
             speed={speed}
             showLabels={showStarLabels}
             hostname={planet.hostname}
+            irMode={irMode}
           />
-        : <Photosphere radius={sunRadius} color={sun_color_hex} teff={planet.st_teff} rotationPeriodDays={stellarRotationDays} spot={stellarSpot} haloIntensity={haloIntensity} oblateness={stellarOblateness ?? 0} />
+        : <Photosphere radius={sunRadius} color={sun_color_hex} teff={planet.st_teff} rotationPeriodDays={stellarRotationDays} spot={stellarSpot} haloIntensity={haloIntensity} oblateness={stellarOblateness ?? 0} irMode={irMode} />
       }
       {/* Host-star label (single Photosphere case). Sits well above the
           star body so it doesn't cover the disc. Suppressed in the
@@ -3025,6 +3102,7 @@ function SceneContents({
         <SystemDebrisDiskRing
           key={`debris-${belt.bibcode ?? belt.innerAu}`}
           belt={belt}
+          irMode={irMode}
         />
       ))}
 
@@ -3093,6 +3171,7 @@ function SceneContents({
               albedo={albedo?.value ?? null}
               reflectionTint={albedo?.reflectionTint ?? null}
               effectiveTempK={focalEffectiveTeff(scene.derived_measurements, planet.pl_name)}
+              irMode={irMode}
             />
             {hovered === planet.pl_name && <PlanetLabel name={planet.pl_name} subtitle="(focal)" />}
           </>
@@ -3104,7 +3183,7 @@ function SceneContents({
             the sky like a flat band. Sits flat in the orbital plane (XZ)
             around the planet's position. */}
         {circumplanetaryDisk && (
-          <CircumplanetaryDiskRing planetRadius={focalPlanetRadius} />
+          <CircumplanetaryDiskRing planetRadius={focalPlanetRadius} irMode={irMode} />
         )}
       </group>
 
@@ -3169,9 +3248,10 @@ function SceneContents({
                 onClick={() => jumpTo(s.pl_name)}
                 effectiveTempK={siblingTeff}
                 rotationOmegaRad={siblingSpinOmega}
+                irMode={irMode}
               />
               {siblingCpd && (
-                <CircumplanetaryDiskRing planetRadius={siblingRadius} />
+                <CircumplanetaryDiskRing planetRadius={siblingRadius} irMode={irMode} />
               )}
               {hovered === s.pl_name && <PlanetLabel name={s.pl_name} subtitle="click to jump" />}
             </group>
@@ -3194,6 +3274,7 @@ function SceneContents({
           focalOrbsmaxAu={focalOrbsmax}
           hostRsun={planet.st_rad}
           showPersistentLabel={showStarLabels}
+          irMode={irMode}
         />
       ))}
 
@@ -3518,6 +3599,7 @@ function CompanionStar({
   focalOrbsmaxAu,
   hostRsun,
   showPersistentLabel = false,
+  irMode = false,
 }: {
   companion: BinaryCompanion;
   systemDistancePc: number | null;
@@ -3536,6 +3618,8 @@ function CompanionStar({
   // body so the user can disambiguate multiple visible companions without
   // hovering each one. Toggled from PlaybackControls' "star labels" button.
   showPersistentLabel?: boolean;
+  /** Forwarded to the companion's Photosphere — IR pseudocolor in IR mode. */
+  irMode?: boolean;
 }) {
   // 1 AU subtends 1 arcsec at 1 pc — so projected separation in AU is just
   // sep_arcsec * distance_pc. We have no information on the line-of-sight
@@ -3599,7 +3683,7 @@ function CompanionStar({
   const subtitle = subtitleParts.length > 0 ? subtitleParts.join(' · ') : 'companion star';
   return (
     <group position={position}>
-      <Photosphere radius={radiusAU} color={color} teff={teff} />
+      <Photosphere radius={radiusAU} color={color} teff={teff} irMode={irMode} />
       <pointLight intensity={0.4} color={color} distance={0} decay={0} />
       <mesh
         onPointerOver={(e) => {
@@ -3665,7 +3749,7 @@ function spectralTypeToColor(spectype: string | null): string {
 // atmospheric path) and subtle granulation noise. Result: a soft, alive
 // edge rather than a hard sharp circle.
 
-function Photosphere({ radius, color, teff, rotationPeriodDays, spot, haloIntensity = 0.4, oblateness = 0 }: { radius: number; color: string; teff: number | null; rotationPeriodDays?: number | null; spot?: StarSpotProps | null; haloIntensity?: number; oblateness?: number }) {
+function Photosphere({ radius, color, teff, rotationPeriodDays, spot, haloIntensity = 0.4, oblateness = 0, irMode = false }: { radius: number; color: string; teff: number | null; rotationPeriodDays?: number | null; spot?: StarSpotProps | null; haloIntensity?: number; oblateness?: number; irMode?: boolean }) {
   // Opaque shader — must write depth properly so orbit lines and planets
   // behind the sun get occluded. The "soft edge" is achieved by the corona
   // (drawn additively over and around the photosphere edge), not by making
@@ -3720,11 +3804,24 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spot, haloIntens
   // Hot: suppress R + a little G → blue / blue-white (KELT-9, A/B stars).
   saturated.r *= 1.0 - hotTint * 0.45;
   saturated.g *= 1.0 - hotTint * 0.15;
+
+  // Stylized IR pseudocolor override: in IR mode the photosphere's
+  // visible-band saturated color and HDR boost are replaced by an
+  // IR-pseudocolor mapping of the star's effective temperature. The
+  // result: M-dwarfs gain brightness and saturate red (their flux peaks
+  // in IR, which is why JWST loves TRAPPIST-1), G-dwarfs sit at a
+  // middle reference, and hot O/B/A stars dim sharply (their IR is a
+  // small fraction of their bolometric output). This is a JS-level
+  // override — the shader doesn't need to know about IR mode.
+  const irOverride = irMode ? irPseudocolor(teffK) : null;
+  const renderColor = irOverride ? new THREE.Color(irOverride.color) : saturated;
+  const renderHdr = irOverride ? 0.4 + irOverride.brightness * 1.6 : hdrScale;
+
   const material = useMemo(() => new THREE.ShaderMaterial({
     uniforms: {
-      uColor:         { value: saturated },
+      uColor:         { value: renderColor },
       uTime:          { value: 0 },
-      uHdr:           { value: hdrScale },
+      uHdr:           { value: renderHdr },
       uLogDepthBufFC: { value: 0 },
       // Starspot uniforms, updated by a useEffect below. A dark patch fixed in
       // object space; the mesh's group rotation moves it across the visible
@@ -3846,7 +3943,7 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spot, haloIntens
     depthWrite: true,
     depthTest: true,
     toneMapped: true,
-  }), [color, hdrScale, teff]);
+  }), [color, hdrScale, teff, irMode]);
 
   // Push the starspot uniforms when the spot props change (or vanish).
   // The material itself is memoised on color/hdrScale/teff, so spot changes
@@ -3942,7 +4039,7 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spot, haloIntens
             eclipse photo shows (corona extending past the moon).
           Both are scaled by haloIntensity (data-driven from the star's
           apparent flux at the planet's orbit, st_lum + pl_orbsmax). */}
-      <StellarCorona radius={radius} color={saturated} hdrScale={haloIntensity} sizeMult={2.5} peakAlpha={1.0} />
+      <StellarCorona radius={radius} color={renderColor} hdrScale={haloIntensity} sizeMult={2.5} peakAlpha={1.0} />
       {/* Outer: overlaps the inner (default startUv = disc edge) so the two
           layers' alpha profiles add into a single continuous gradient
           rather than meeting at a discontinuity. This is also closer to
@@ -3951,7 +4048,7 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spot, haloIntens
           plus a faint long tail, not two concentric rings. peakAlpha 0.25
           keeps the outer layer subtle enough not to over-brighten the
           inner halo, while still extending visibly out to 6× sun radius. */}
-      <StellarCorona radius={radius} color={saturated} hdrScale={haloIntensity} sizeMult={6.0} peakAlpha={0.25} />
+      <StellarCorona radius={radius} color={renderColor} hdrScale={haloIntensity} sizeMult={6.0} peakAlpha={0.25} />
     </>
   );
 }
@@ -4095,6 +4192,7 @@ function BinaryPhotospheres({
   radius, color, teff, paused, speed,
   showLabels = false,
   hostname,
+  irMode = false,
 }: {
   radius: number; color: string; teff: number | null; paused: boolean; speed: number;
   /** When true, render a persistent name label above each of the two
@@ -4106,6 +4204,9 @@ function BinaryPhotospheres({
       "TIC 172900988 Aa" / "TIC 172900988 Ab" (the trailing letter is
       stripped before suffixing so we don't get "... Aa Aa"). */
   hostname?: string;
+  /** Forwarded to each inner star's Photosphere — switches their visible
+      coloring to IR pseudocolor when on. */
+  irMode?: boolean;
 }) {
   const starA = useRef<THREE.Group>(null);
   const starB = useRef<THREE.Group>(null);
@@ -4134,7 +4235,7 @@ function BinaryPhotospheres({
   return (
     <>
       <group ref={starA}>
-        <Photosphere radius={primaryRadius} color={color} teff={teff} />
+        <Photosphere radius={primaryRadius} color={color} teff={teff} irMode={irMode} />
         {showLabels && (
           <StarNameLabel
             name={nameAa}
@@ -4146,7 +4247,7 @@ function BinaryPhotospheres({
       <group ref={starB}>
         {/* Secondary uses a cooler-equivalent teff so its red-shifted
             color reads correctly through the Stefan-Boltzmann scaling. */}
-        <Photosphere radius={secondaryRadius} color={secondaryColor} teff={teff != null ? teff * 0.65 : null} />
+        <Photosphere radius={secondaryRadius} color={secondaryColor} teff={teff != null ? teff * 0.65 : null} irMode={irMode} />
         {showLabels && (
           <StarNameLabel
             name={nameAb}
@@ -4832,6 +4933,7 @@ function PlanetBody({
   albedo,
   reflectionTint,
   effectiveTempK,
+  irMode = false,
 }: {
   position: [number, number, number];
   radius: number;
@@ -4842,6 +4944,11 @@ function PlanetBody({
       when pl_eqt is null. Applies to self-luminous directly-imaged
       planets — see focalEffectiveTeff() in this file. */
   effectiveTempK?: number | null;
+  /** Stylized IR pseudocolor mode. When true, the body shader switches
+      to thermal-emission output: cool things dim, hot things blaze.
+      Color + brightness are derived from pl_eqt ?? effectiveTempK via
+      irPseudocolor(). */
+  irMode?: boolean;
   emphasized?: boolean;
   name?: string;
   onHover?: (n: string | null) => void;
@@ -4904,18 +5011,28 @@ function PlanetBody({
   const showSpinTexture =
     rotationOmegaRad != null && rotationOmegaRad !== 0 && !phaseCurve;
 
+  // IR override: in IR mode the body shader uses pure thermal emission
+  // anchored to the planet's effective temperature (pl_eqt for the
+  // close-in equilibrium-heated case, effectiveTempK for self-luminous
+  // directly-imaged bodies). Falls back to the visible-mode color/glow
+  // when irMode is off.
+  const irTemp = pl_eqt ?? effectiveTempK ?? null;
+  const ir = useMemo(() => irPseudocolor(irTemp), [irTemp]);
+  const bodyFillColor = irMode ? ir.color : visual.fillColor;
   const bodyMaterial = useMemo(
     () => buildPlanetBodyMaterial({
       bodyType: visual.bodyType,
-      fillColor: visual.fillColor,
+      fillColor: bodyFillColor,
       glow: visual.glow,
       isCold: isIcyOrCold,
       phaseCurve: phaseCurve ?? null,
       albedo: albedo ?? null,
       reflectionTint: reflectionTint ?? null,
       showSpinTexture,
+      irMode,
+      irBrightness: ir.brightness,
     }),
-    [visual.bodyType, visual.fillColor, visual.glow, isIcyOrCold, phaseCurve, albedo, reflectionTint, showSpinTexture],
+    [visual.bodyType, bodyFillColor, visual.glow, isIcyOrCold, phaseCurve, albedo, reflectionTint, showSpinTexture, irMode, ir.brightness],
   );
 
   return (
@@ -4946,7 +5063,14 @@ function PlanetBody({
         {isGasGiant && (
           <PlanetAtmosphere
             radius={radius * 1.08}
-            color={atmosphereTint ?? visual.fillColor}
+            // In IR mode, the atmosphere halo follows the body's IR
+            // pseudocolor — same consistency fix we made for the stellar
+            // corona. Without this the planet body reads as warm cream
+            // (IR) while its halo stays at the molecule-driven blue/tan
+            // (optical) and the two layers visually mismatch. In normal
+            // mode, the curated atmosphereTint still wins (methane blue,
+            // water pale-blue, CO2 tan, etc.).
+            color={irMode ? ir.color : (atmosphereTint ?? visual.fillColor)}
           />
         )}
       </group>
@@ -4969,7 +5093,7 @@ function PlanetBody({
 // circumplanetary_disk_dust_mass / accretion_rate measurements); future
 // curation of debris-disk extents would let bet Pic, HR 8799, etc. carry
 // system-level rings via a separate component.
-function CircumplanetaryDiskRing({ planetRadius }: { planetRadius: number }) {
+function CircumplanetaryDiskRing({ planetRadius, irMode = false }: { planetRadius: number; irMode?: boolean }) {
   // Inner radius is INSIDE the planet body, so the planet's own depth mask
   // hides the geometric inner edge — the visible inner boundary becomes the
   // alpha gradient instead of a hard ring. Outer extends well past the
@@ -4981,6 +5105,7 @@ function CircumplanetaryDiskRing({ planetRadius }: { planetRadius: number }) {
   const material = useMemo(() => new THREE.ShaderMaterial({
     uniforms: {
       uColor: { value: new THREE.Color('#b08868') }, // dusty brown
+      uIRBoost: { value: irMode ? 4.0 : 1.0 },
     },
     vertexShader: `
       varying vec2 vUv;
@@ -4991,6 +5116,7 @@ function CircumplanetaryDiskRing({ planetRadius }: { planetRadius: number }) {
     `,
     fragmentShader: `
       uniform vec3 uColor;
+      uniform float uIRBoost;
       varying vec2 vUv;
 
       // 2D value noise for dust granularity.
@@ -5037,8 +5163,12 @@ function CircumplanetaryDiskRing({ planetRadius }: { planetRadius: number }) {
         // At the silhouette where only a few layers contribute, alpha is
         // ~0.04-0.10 giving a truly soft edge — same approach as the
         // system-level debris disks.
-        float intensity = envelope * dust * bands * 0.04;
-        intensity = clamp(intensity, 0.0, 0.08);
+        // IR boost: CPDs are detected in IR (PDS 70 b/c's CPDs were
+        // imaged at sub-mm with ALMA). Scaling the per-layer intensity
+        // makes the disk visibly glow in IR mode rather than blend in
+        // with the planet body.
+        float intensity = envelope * dust * bands * 0.04 * uIRBoost;
+        intensity = clamp(intensity, 0.0, 0.08 * uIRBoost);
 
         gl_FragColor = vec4(uColor, intensity);
       }
@@ -5048,7 +5178,7 @@ function CircumplanetaryDiskRing({ planetRadius }: { planetRadius: number }) {
     depthTest: true,
     blending: THREE.NormalBlending,
     side: THREE.DoubleSide,
-  }), []);
+  }), [irMode]);
 
   // 25 stacked rings along +Y (disk normal — CPD sits flat in XZ with no
   // inclination data). Thickness = 5% of the radial width so the layers
@@ -5093,7 +5223,7 @@ function CircumplanetaryDiskRing({ planetRadius }: { planetRadius: number }) {
 // Inclination tilts the disk plane: 0° = coplanar with orbit (face-on in
 // the default scene), 90° = edge-on. When inclinationDeg is null we render
 // coplanar with the focal orbit plane (no extra tilt).
-function SystemDebrisDiskRing({ belt }: { belt: FocalDebrisDiskBelt }) {
+function SystemDebrisDiskRing({ belt, irMode = false }: { belt: FocalDebrisDiskBelt; irMode?: boolean }) {
   // Single-radius SED fits (51 Eri belts): render as a narrow ring
   // (width = 20% of inner radius) centered on the blackbody radius.
   //
@@ -5135,6 +5265,7 @@ function SystemDebrisDiskRing({ belt }: { belt: FocalDebrisDiskBelt }) {
       // belts where temperature isn't measured (eps Eri b).
       uColor: { value: new THREE.Color(dustColorHex(belt.dustTemperatureK)) },
       uIsSingleRadius: { value: isSingleRadius ? 1.0 : 0.0 },
+      uIRBoost: { value: irMode ? 4.0 : 1.0 },
     },
     vertexShader: `
       varying vec2 vUv;
@@ -5146,6 +5277,7 @@ function SystemDebrisDiskRing({ belt }: { belt: FocalDebrisDiskBelt }) {
     fragmentShader: `
       uniform vec3 uColor;
       uniform float uIsSingleRadius;
+      uniform float uIRBoost;
       varying vec2 vUv;
 
       float hash2(vec2 p) {
@@ -5200,8 +5332,12 @@ function SystemDebrisDiskRing({ belt }: { belt: FocalDebrisDiskBelt }) {
         // single-layer peak. At the silhouette (where only 1-3 layers
         // overlap due to perspective), composited alpha is ~0.04-0.10,
         // giving a true gradient silhouette instead of a hard edge.
-        float intensity = envelope * dust * bands * 0.025;
-        intensity = clamp(intensity, 0.0, 0.05);
+        // IR boost: debris disks are *the* IR-bright phenomenon, so in IR
+        // mode we scale per-layer intensity sharply (~4×) to make them
+        // prominently glow rather than barely visible. Cap rises in tandem
+        // so the boost actually lands on screen.
+        float intensity = envelope * dust * bands * 0.025 * uIRBoost;
+        intensity = clamp(intensity, 0.0, 0.05 * uIRBoost);
         gl_FragColor = vec4(uColor, intensity);
       }
     `,
@@ -5217,7 +5353,7 @@ function SystemDebrisDiskRing({ belt }: { belt: FocalDebrisDiskBelt }) {
     blending: THREE.NormalBlending,
     side: THREE.DoubleSide,
     });
-  }, [isSingleRadius, belt.dustTemperatureK]);
+  }, [isSingleRadius, belt.dustTemperatureK, irMode]);
 
   // Disk inclination: rotate the ring around +X axis by inclination degrees.
   // The disk plane (XZ after the -π/2 rotation) is perpendicular to a normal
@@ -5488,6 +5624,8 @@ const planetMaterialCache = new Map<string, THREE.ShaderMaterial>();
 function buildPlanetBodyMaterial({
   bodyType, fillColor, glow, isCold, phaseCurve, albedo, reflectionTint,
   showSpinTexture = false,
+  irMode = false,
+  irBrightness = 0,
 }: {
   bodyType: string; fillColor: string; glow: boolean; isCold: boolean;
   phaseCurve?: PhaseCurve | null;
@@ -5503,6 +5641,14 @@ function buildPlanetBodyMaterial({
       silicate + iron cloud decks; the same pattern reads as Jupiter-
       like mottling on cooler gas giants. */
   showSpinTexture?: boolean;
+  /** Stylized infrared pseudocolor mode. When true the shader skips
+      sun-direction reflective lighting and outputs thermal emission
+      scaled by irBrightness — the caller has already mapped the body's
+      temperature to a pseudo-IR color via irPseudocolor() and passed
+      that as fillColor. Cool things go nearly dark; hot things blaze. */
+  irMode?: boolean;
+  /** 0..1 brightness scalar in IR mode, from irPseudocolor(). */
+  irBrightness?: number;
 }): THREE.ShaderMaterial {
   // Cache key includes phase-curve color fingerprints so phase-curve planets
   // get their own material rather than sharing with non-phase-curve planets
@@ -5517,7 +5663,11 @@ function buildPlanetBodyMaterial({
   const albedoKey = albedo != null ? `|a:${albedo.toFixed(2)}` : '';
   const tintKey = reflectionTint ? `|t:${reflectionTint}` : '';
   const spinKey = showSpinTexture ? '|s' : '';
-  const key = `${bodyType}|${fillColor}|${glow}|${isCold}${phaseKey}${albedoKey}${tintKey}${spinKey}`;
+  // Quantize IR brightness to 2 decimals — same logic as albedoKey: avoid
+  // cache fragmenting on float noise. IR mode without a temperature would
+  // bake brightness=0 which is fine; the cache key marks the mode change.
+  const irKey = irMode ? `|ir:${irBrightness.toFixed(2)}` : '';
+  const key = `${bodyType}|${fillColor}|${glow}|${isCold}${phaseKey}${albedoKey}${tintKey}${spinKey}${irKey}`;
   const cached = planetMaterialCache.get(key);
   if (cached) return cached;
 
@@ -5555,6 +5705,8 @@ function buildPlanetBodyMaterial({
       uReflectionTint:  { value: tintColor },
       uTintStrength:    { value: tintStrength },
       uShowSpinTexture: { value: showSpinTexture ? 1.0 : 0.0 },
+      uIRMode:          { value: irMode ? 1.0 : 0.0 },
+      uIRBrightness:    { value: irBrightness },
     },
     vertexShader: `
       #include <common>
@@ -5592,6 +5744,8 @@ function buildPlanetBodyMaterial({
       uniform vec3  uReflectionTint;
       uniform float uTintStrength;
       uniform float uShowSpinTexture;
+      uniform float uIRMode;
+      uniform float uIRBrightness;
       varying vec3 vNormal;
       varying vec3 vWorldPos;
       varying vec3 vObjectNormal;
@@ -5628,7 +5782,23 @@ function buildPlanetBodyMaterial({
         float dotNL = dot(vNormal, lightDir);
 
         vec3 col;
-        if (uHasPhaseCurve > 0.5) {
+        if (uIRMode > 0.5) {
+          // Stylized IR pseudocolor mode. uColor was set by the caller
+          // from irPseudocolor(temp); we skip the sun-direction
+          // reflective path entirely and output thermal emission
+          // proportional to uIRBrightness, with a small ambient floor
+          // so cold bodies aren't pure black (they should still cast a
+          // silhouette against the starfield). A gentle limb-darkening
+          // bias makes the disc read as a body rather than a flat
+          // circle: edges fade slightly toward 80% of the center
+          // brightness. No phase-curve / albedo / reflection-tint
+          // modulation — those concepts don't apply in pure-emission
+          // viewing.
+          float facing = max(0.15, abs(dot(vNormal, lightDir)));
+          float limb = mix(0.8, 1.0, facing);
+          float base = 0.06 + uIRBrightness * 0.94;
+          col = uColor * base * limb;
+        } else if (uHasPhaseCurve > 0.5) {
           // Thermal phase-curve mode (hot Jupiters with measured day/night
           // temps). The colors already encode brightness via blackbody
           // emission, so we don't apply a separate diffuse/ambient — the

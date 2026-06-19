@@ -5,8 +5,86 @@
     <link>https://github.com/markpernotto/exoplanet_citation</link>
     <description>Newly confirmed and revised exoplanet records from the NASA Exoplanet Archive, diffed nightly. Surfaces NEW / REMOVED / Tier-A parameter changes only.</description>
     <language>en-us</language>
-    <lastBuildDate>Thu, 18 Jun 2026 07:34:03 +0000</lastBuildDate>
+    <lastBuildDate>Fri, 19 Jun 2026 07:45:32 +0000</lastBuildDate>
     <ttl>1440</ttl>
+    <item>
+      <title>Parameter update — Kepler-32 d: pl_bmasse</title>
+      <guid isPermaLink="false">change-2324</guid>
+      <pubDate>Fri, 19 Jun 2026 07:43:41 +0000</pubDate>
+      <description>Kepler-32 d pl_bmasse: 39.9089 → 67.4815</description>
+    </item>
+    <item>
+      <title>Parameter update — kap CrB b: pl_bmasse</title>
+      <guid isPermaLink="false">change-2586</guid>
+      <pubDate>Fri, 19 Jun 2026 07:43:41 +0000</pubDate>
+      <description>kap CrB b pl_bmasse: 635.66 → 591.1638</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-942 c: pl_bmasse</title>
+      <guid isPermaLink="false">change-2491</guid>
+      <pubDate>Fri, 19 Jun 2026 07:43:41 +0000</pubDate>
+      <description>TOI-942 c pl_bmasse: 37.0 → 794.575</description>
+    </item>
+    <item>
+      <title>Parameter update — MOA-2011-BLG-293L b: pl_orbper</title>
+      <guid isPermaLink="false">change-2389</guid>
+      <pubDate>Fri, 19 Jun 2026 07:43:41 +0000</pubDate>
+      <description>MOA-2011-BLG-293L b pl_orbper: 3000.0 → 550.0</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 163607 c: disc_year</title>
+      <guid isPermaLink="false">change-208</guid>
+      <pubDate>Fri, 05 Jun 2026 07:21:37 +0000</pubDate>
+      <description>HD 163607 c disc_year: 2010 → 2012</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 96127 b: pl_orbper</title>
+      <guid isPermaLink="false">change-213</guid>
+      <pubDate>Fri, 05 Jun 2026 07:21:37 +0000</pubDate>
+      <description>HD 96127 b pl_orbper: 647.29999 → 638.9</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 96127 b: pl_rade</title>
+      <guid isPermaLink="false">change-214</guid>
+      <pubDate>Fri, 05 Jun 2026 07:21:37 +0000</pubDate>
+      <description>HD 96127 b pl_rade: 12.1 → 13.0</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 96127 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-215</guid>
+      <pubDate>Fri, 05 Jun 2026 07:21:37 +0000</pubDate>
+      <description>HD 96127 b pl_bmasse: 6661.7168 → 1207.7479466</description>
+    </item>
+    <item>
+      <title>Parameter update — HIP 65891 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-221</guid>
+      <pubDate>Fri, 05 Jun 2026 07:21:37 +0000</pubDate>
+      <description>HIP 65891 b pl_bmasse: 1871.37366042 → 1938.7532827</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-1259 A b: pl_rade</title>
+      <guid isPermaLink="false">change-225</guid>
+      <pubDate>Fri, 05 Jun 2026 07:21:37 +0000</pubDate>
+      <description>TOI-1259 A b pl_rade: 11.45557828 → 11.6</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-3457 b</title>
+      <guid isPermaLink="false">change-228</guid>
+      <pubDate>Fri, 05 Jun 2026 07:21:37 +0000</pubDate>
+      <description>New planet: TOI-3457 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-707 b</title>
+      <guid isPermaLink="false">change-230</guid>
+      <pubDate>Fri, 05 Jun 2026 07:21:37 +0000</pubDate>
+      <description>New planet: TOI-707 b</description>
+    </item>
+    <item>
+      <title>Parameter update — WASP-41 b: disc_year</title>
+      <guid isPermaLink="false">change-231</guid>
+      <pubDate>Fri, 05 Jun 2026 07:21:37 +0000</pubDate>
+      <description>WASP-41 b disc_year: 2012 → 2011</description>
+    </item>
     <item>
       <title>New exoplanet confirmed: GJ 3378 b</title>
       <guid isPermaLink="false">change-195</guid>
@@ -62,12 +140,6 @@
       <description>HD 163607 b disc_year: 2010 → 2012</description>
     </item>
     <item>
-      <title>Parameter update — HD 163607 c: disc_year</title>
-      <guid isPermaLink="false">change-208</guid>
-      <pubDate>Fri, 05 Jun 2026 07:21:37 +0000</pubDate>
-      <description>HD 163607 c disc_year: 2010 → 2012</description>
-    </item>
-    <item>
       <title>Parameter update — HD 164509 b: disc_year</title>
       <guid isPermaLink="false">change-209</guid>
       <pubDate>Fri, 05 Jun 2026 07:21:37 +0000</pubDate>
@@ -92,84 +164,6 @@
       <description>New planet: HD 6718 b</description>
     </item>
     <item>
-      <title>Parameter update — HD 96127 b: pl_orbper</title>
-      <guid isPermaLink="false">change-213</guid>
-      <pubDate>Fri, 05 Jun 2026 07:21:37 +0000</pubDate>
-      <description>HD 96127 b pl_orbper: 647.29999 → 638.9</description>
-    </item>
-    <item>
-      <title>Parameter update — HD 96127 b: pl_rade</title>
-      <guid isPermaLink="false">change-214</guid>
-      <pubDate>Fri, 05 Jun 2026 07:21:37 +0000</pubDate>
-      <description>HD 96127 b pl_rade: 12.1 → 13.0</description>
-    </item>
-    <item>
-      <title>Parameter update — HD 96127 b: pl_bmasse</title>
-      <guid isPermaLink="false">change-215</guid>
-      <pubDate>Fri, 05 Jun 2026 07:21:37 +0000</pubDate>
-      <description>HD 96127 b pl_bmasse: 6661.7168 → 1207.7479466</description>
-    </item>
-    <item>
-      <title>Parameter update — HIP 65891 b: pl_bmasse</title>
-      <guid isPermaLink="false">change-221</guid>
-      <pubDate>Fri, 05 Jun 2026 07:21:37 +0000</pubDate>
-      <description>HIP 65891 b pl_bmasse: 1871.37366042 → 1938.7532827</description>
-    </item>
-    <item>
-      <title>Parameter update — TOI-1259 A b: pl_rade</title>
-      <guid isPermaLink="false">change-225</guid>
-      <pubDate>Fri, 05 Jun 2026 07:21:37 +0000</pubDate>
-      <description>TOI-1259 A b pl_rade: 11.45557828 → 11.6</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-3457 b</title>
-      <guid isPermaLink="false">change-228</guid>
-      <pubDate>Fri, 05 Jun 2026 07:21:37 +0000</pubDate>
-      <description>New planet: TOI-3457 b</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-707 b</title>
-      <guid isPermaLink="false">change-230</guid>
-      <pubDate>Fri, 05 Jun 2026 07:21:37 +0000</pubDate>
-      <description>New planet: TOI-707 b</description>
-    </item>
-    <item>
-      <title>Parameter update — WASP-41 b: disc_year</title>
-      <guid isPermaLink="false">change-231</guid>
-      <pubDate>Fri, 05 Jun 2026 07:21:37 +0000</pubDate>
-      <description>WASP-41 b disc_year: 2012 → 2011</description>
-    </item>
-    <item>
-      <title>Parameter update — GJ 433 b: disc_year</title>
-      <guid isPermaLink="false">change-165</guid>
-      <pubDate>Fri, 22 May 2026 07:05:15 +0000</pubDate>
-      <description>GJ 433 b disc_year: 2011 → 2013</description>
-    </item>
-    <item>
-      <title>Parameter update — Kepler-1704 b: disc_year</title>
-      <guid isPermaLink="false">change-166</guid>
-      <pubDate>Fri, 22 May 2026 07:05:15 +0000</pubDate>
-      <description>Kepler-1704 b disc_year: 2013 → 2021</description>
-    </item>
-    <item>
-      <title>Parameter update — OGLE-2013-BLG-1761L b: disc_year</title>
-      <guid isPermaLink="false">change-167</guid>
-      <pubDate>Fri, 22 May 2026 07:05:15 +0000</pubDate>
-      <description>OGLE-2013-BLG-1761L b disc_year: 2018 → 2017</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-237 c</title>
-      <guid isPermaLink="false">change-169</guid>
-      <pubDate>Fri, 22 May 2026 07:05:15 +0000</pubDate>
-      <description>New planet: TOI-237 c</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-4311 b</title>
-      <guid isPermaLink="false">change-170</guid>
-      <pubDate>Fri, 22 May 2026 07:05:15 +0000</pubDate>
-      <description>New planet: TOI-4311 b</description>
-    </item>
-    <item>
       <title>New exoplanet confirmed: TOI-4311 c</title>
       <guid isPermaLink="false">change-171</guid>
       <pubDate>Fri, 22 May 2026 07:05:15 +0000</pubDate>
@@ -186,6 +180,36 @@
       <guid isPermaLink="false">change-193</guid>
       <pubDate>Fri, 22 May 2026 07:05:15 +0000</pubDate>
       <description>New planet: XO-2 S d</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-4311 b</title>
+      <guid isPermaLink="false">change-170</guid>
+      <pubDate>Fri, 22 May 2026 07:05:15 +0000</pubDate>
+      <description>New planet: TOI-4311 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-237 c</title>
+      <guid isPermaLink="false">change-169</guid>
+      <pubDate>Fri, 22 May 2026 07:05:15 +0000</pubDate>
+      <description>New planet: TOI-237 c</description>
+    </item>
+    <item>
+      <title>Parameter update — OGLE-2013-BLG-1761L b: disc_year</title>
+      <guid isPermaLink="false">change-167</guid>
+      <pubDate>Fri, 22 May 2026 07:05:15 +0000</pubDate>
+      <description>OGLE-2013-BLG-1761L b disc_year: 2018 → 2017</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-1704 b: disc_year</title>
+      <guid isPermaLink="false">change-166</guid>
+      <pubDate>Fri, 22 May 2026 07:05:15 +0000</pubDate>
+      <description>Kepler-1704 b disc_year: 2013 → 2021</description>
+    </item>
+    <item>
+      <title>Parameter update — GJ 433 b: disc_year</title>
+      <guid isPermaLink="false">change-165</guid>
+      <pubDate>Fri, 22 May 2026 07:05:15 +0000</pubDate>
+      <description>GJ 433 b disc_year: 2011 → 2013</description>
     </item>
   </channel>
 </rss>

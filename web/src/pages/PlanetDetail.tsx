@@ -811,6 +811,14 @@ function CompanionsSection({
                       </>
                     )}
                   {c.source_catalog && <> · {c.source_catalog}</>}
+                  {c.source_bibcode && (
+                    <> · <a
+                      href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(c.source_bibcode)}/abstract`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={`Source paper on NASA ADS: ${c.source_bibcode}`}
+                    >{c.source_bibcode}</a></>
+                  )}
                 </span>
                 {desc?.summary && (
                   <p style={{ margin: '0.25rem 0 0', fontSize: '0.78rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>

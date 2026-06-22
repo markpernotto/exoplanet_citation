@@ -864,7 +864,7 @@ def planet_companions(pl_name: str) -> list[BinaryCompanion]:
                 SELECT bc.component_designation, bc.primary_designation,
                        bc.separation_arcsec, bc.position_angle_deg,
                        bc.component_mag_v, bc.component_spectype, bc.source_catalog,
-                       bc.inner_binary
+                       bc.source_bibcode, bc.inner_binary
                 FROM planets_current p
                 LEFT JOIN LATERAL (
                     SELECT distance_gspphot_pc
@@ -1244,7 +1244,7 @@ def planet_scene(pl_name: str) -> SceneResponse:
                 SELECT component_designation, primary_designation,
                        separation_arcsec, position_angle_deg,
                        component_mag_v, component_spectype, source_catalog,
-                       inner_binary
+                       source_bibcode, inner_binary
                 FROM binary_companions
                 WHERE hostname = %s
                   AND (

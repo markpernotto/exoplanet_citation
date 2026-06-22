@@ -258,6 +258,11 @@ export type BinaryCompanion = {
   component_mag_v: number | null;
   component_spectype: string | null;
   source_catalog: string;
+  /** ADS bibcode of the paper this row's measurements were taken from.
+      Surfaced as a clickable ADS link in the planet card so every
+      companion carries visible attribution. NULL for legacy SIMBAD
+      bulk-ingest rows predating the curation campaign. */
+  source_bibcode: string | null;
   /** True when this row is a tight inner-binary partner (already rendered
       as one of the two suns of BinaryPhotospheres at the host position).
       The HUD suppresses arrows for these — they aren't a separate body

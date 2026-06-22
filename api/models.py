@@ -258,6 +258,11 @@ class BinaryCompanion(BaseModel):
     component_mag_v: float | None
     component_spectype: str | None
     source_catalog: str
+    # ADS bibcode of the paper this row's measurements were taken from.
+    # Surfaced in the UI as a clickable ADS link so every companion
+    # carries visible attribution. NULL for legacy SIMBAD bulk-ingest
+    # rows that predate the curation campaign.
+    source_bibcode: str | None = None
     # True when this row represents a tight inner-binary partner (the
     # second star of a close pair the planet orbits), not a wide
     # companion to navigate to. Inner-binary partners are already

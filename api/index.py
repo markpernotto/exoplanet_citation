@@ -71,6 +71,7 @@ from api.models import (
     PlanetPublication,
     PlanetPublicationsResponse,
     PlanetsListResponse,
+    PlanetAtmosphereResponse,
     PlanetSummary,
     Publication,
     PublicationPlanetsResponse,
@@ -78,6 +79,7 @@ from api.models import (
     SceneResponse,
     StatsResponse,
     StorageInfo,
+    SySnumAudit,
     SystemGeometryResponse,
     SystemGeometryRow,
     TopAuthor,
@@ -889,6 +891,90 @@ def planet_companions(pl_name: str) -> list[BinaryCompanion]:
 
 
 @app.get(
+    "/api/planets/{pl_name}/atmosphere",
+    response_model=PlanetAtmosphereResponse,
+    tags=["planets"],
+)
+def planet_atmosphere(pl_name: str) -> PlanetAtmosphereResponse:
+    """Per-planet atmospheric campaigns + curated molecule detections, both
+    carrying ADS bibcodes for visible attribution in the planet card.
+
+    Returns two parallel lists: `observations` (one row per instrument-campaign
+    spectrum harvested from NASA archives) and `detections` (one row per curated
+    molecule detection result). The lists can each be empty independently; both
+    empty for the vast majority of planets that haven't been observed
+    atmospherically yet.
+    """
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT spec_type, instrument, facility,
+                       min_wavelength_um, max_wavelength_um, bibcode
+                FROM planet_atmospheric_observations
+                WHERE pl_name = %s
+                ORDER BY bibcode NULLS LAST, instrument NULLS LAST
+                """,
+                (pl_name,),
+            )
+            obs_rows = cur.fetchall()
+
+            cur.execute(
+                """
+                SELECT molecule, detection, instrument, confidence_sigma, bibcode
+                FROM planet_atmospheres
+                WHERE pl_name = %s
+                ORDER BY molecule
+                """,
+                (pl_name,),
+            )
+            det_rows = cur.fetchall()
+
+    return PlanetAtmosphereResponse(
+        observations=[AtmosphericObservation(**r) for r in obs_rows],
+        detections=[AtmosphericMolecule(**r) for r in det_rows],
+    )
+
+
+@app.get(
+    "/api/planets/{pl_name}/sy_snum_audit",
+    response_model=SySnumAudit,
+    tags=["planets"],
+)
+def planet_sy_snum_audit(pl_name: str) -> SySnumAudit:
+    """NASA EA sy_snum disagreement note for this planet's host, if one is on file.
+
+    Returns the cited rationale and bibcodes when the curated `sy_snum_audit`
+    table contains a row for the host, so the planet card can surface a visible
+    "we differ from NASA EA because..." footnote. Responds 404 when there is no
+    audit row, which is the common case.
+
+    The Atlas only overrides an authoritative source when it can cite the
+    override; this endpoint is the visible-to-the-researcher receipt.
+    """
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """
+                SELECT a.hostname, a.nasa_ea_sy_snum, a.supported_sy_snum,
+                       a.rationale, a.source_bibcodes
+                FROM planets_current p
+                JOIN sy_snum_audit a ON a.hostname = p.hostname
+                WHERE p.pl_name = %s
+                """,
+                (pl_name,),
+            )
+            row = cur.fetchone()
+
+    if row is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No sy_snum audit row for the host of planet {pl_name!r}",
+        )
+    return SySnumAudit(**row)
+
+
+@app.get(
     "/api/planets/{pl_name}/host_star",
     response_model=HostStarGaia,
     tags=["planets"],
@@ -1274,7 +1360,7 @@ def planet_scene(pl_name: str) -> SceneResponse:
             # Curated atmospheric molecule detections
             cur.execute(
                 """
-                SELECT molecule, detection, instrument, confidence_sigma
+                SELECT molecule, detection, instrument, confidence_sigma, bibcode
                 FROM planet_atmospheres
                 WHERE pl_name = %s
                 ORDER BY molecule

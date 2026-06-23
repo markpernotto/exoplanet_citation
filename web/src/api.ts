@@ -250,6 +250,18 @@ export type PlanetPublicationsResponse = {
   publications: PlanetPublication[];
 };
 
+export type SySnumAudit = {
+  hostname: string;
+  /** sy_snum value as reported by NASA Exoplanet Archive. */
+  nasa_ea_sy_snum: number;
+  /** Stellar-component count actually supported by primary literature. */
+  supported_sy_snum: number;
+  /** Prose explanation surfaced in the UI as a small footnote. */
+  rationale: string;
+  /** ADS bibcodes backing the override, rendered as clickable links. */
+  source_bibcodes: string[];
+};
+
 export type BinaryCompanion = {
   component_designation: string;
   primary_designation: string;
@@ -284,6 +296,15 @@ export type AtmosphericMolecule = {
   detection: 'detected' | 'tentative' | 'upper_limit' | string;
   instrument: string | null;
   confidence_sigma: number | null;
+  /** ADS bibcode of the paper this detection was harvested from. Surfaced
+      as a clickable ADS link in the planet card so every molecule detection
+      carries visible attribution. */
+  bibcode: string | null;
+};
+
+export type PlanetAtmosphereResponse = {
+  observations: AtmosphericObservation[];
+  detections: AtmosphericMolecule[];
 };
 
 export type SceneHints = {
@@ -394,6 +415,10 @@ export const api = {
     get<HostStarGaia>(`/api/planets/${encodeURIComponent(plName)}/host_star`),
   planetCompanions: (plName: string) =>
     get<BinaryCompanion[]>(`/api/planets/${encodeURIComponent(plName)}/companions`),
+  planetSySnumAudit: (plName: string) =>
+    get<SySnumAudit>(`/api/planets/${encodeURIComponent(plName)}/sy_snum_audit`),
+  planetAtmosphere: (plName: string) =>
+    get<PlanetAtmosphereResponse>(`/api/planets/${encodeURIComponent(plName)}/atmosphere`),
   planetPaper: (plName: string) =>
     get<DiscoveryPaper>(`/api/planets/${encodeURIComponent(plName)}/paper`),
   planetPublications: (plName: string) =>

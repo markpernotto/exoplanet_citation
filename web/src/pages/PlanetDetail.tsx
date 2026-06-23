@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { api, type BinaryCompanion, type DerivedMeasurementRow, type DiscoveryPaper, type HostStarGaia, type PlanetDetail as PlanetDetailType, type PlanetHistoryResponse, type PlanetPublication, type PlanetsListResponse } from '../api';
+import { api, type BinaryCompanion, type DerivedMeasurementRow, type DiscoveryPaper, type HostStarGaia, type PlanetAtmosphereResponse, type PlanetDetail as PlanetDetailType, type PlanetHistoryResponse, type PlanetPublication, type PlanetsListResponse, type SySnumAudit } from '../api';
 import GalaxyMap from '../components/GalaxyMap';
 import LoadingBar from '../components/LoadingBar';
 import PlanetCard from '../components/PlanetCard';
@@ -26,6 +26,8 @@ export default function PlanetDetail() {
   const [paper, setPaper] = useState<DiscoveryPaper | null>(null);
   const [publications, setPublications] = useState<PlanetPublication[] | null>(null);
   const [companions, setCompanions] = useState<BinaryCompanion[] | null>(null);
+  const [sySnumAudit, setSySnumAudit] = useState<SySnumAudit | null>(null);
+  const [atmosphere, setAtmosphere] = useState<PlanetAtmosphereResponse | null>(null);
   const [derived, setDerived] = useState<DerivedMeasurementRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [unitsMode, setUnitsMode] = useUnitsMode();
@@ -48,6 +50,8 @@ export default function PlanetDetail() {
     setPaper(null);
     setPublications(null);
     setCompanions(null);
+    setSySnumAudit(null);
+    setAtmosphere(null);
     setDerived(null);
     setError(null);
     api.planetDetail(plName).then(setPlanet).catch((e) => setError(e.message));
@@ -56,6 +60,9 @@ export default function PlanetDetail() {
     api.planetPaper(plName).then(setPaper).catch(() => {});
     api.planetPublications(plName).then((r) => setPublications(r.publications)).catch(() => {});
     api.planetCompanions(plName).then(setCompanions).catch(() => {});
+    // 404 = no disagreement on file (common case), swallow silently.
+    api.planetSySnumAudit(plName).then(setSySnumAudit).catch(() => {});
+    api.planetAtmosphere(plName).then(setAtmosphere).catch(() => {});
     api.derivedMeasurements(plName).then((r) => setDerived(r.rows)).catch(() => {});
   }, [plName]);
 
@@ -172,7 +179,9 @@ export default function PlanetDetail() {
 
           <SystemSiblingsSection planet={planet} siblings={siblings} />
 
-          <CompanionsSection planet={planet} companions={companions} hostStar={hostStar} />
+          <CompanionsSection planet={planet} companions={companions} hostStar={hostStar} sySnumAudit={sySnumAudit} />
+
+          <AtmosphereSection planet={planet} atmosphere={atmosphere} />
 
           <section>
             <h2>Sky position</h2>
@@ -198,7 +207,16 @@ export default function PlanetDetail() {
                       : <><strong>{(ly / 1000).toFixed(1)}k light-years</strong> away ({Math.round(pc).toLocaleString()} pc)</>
                     }
                     {hostStar?.distance_gspphot_pc != null && <> · via Gaia DR3</>}
-                    {isManual && <> · literature distance{planet.distance_manual_source ? ` (${planet.distance_manual_source})` : ''}</>}
+                    {isManual && (
+                      <> · literature distance{planet.distance_manual_source && (
+                        <> (<a
+                          href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(planet.distance_manual_source)}/abstract`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={`Source on NASA ADS: ${planet.distance_manual_source}`}
+                        >{planet.distance_manual_source}</a>)</>
+                      )}</>
+                    )}
                   </p>
                 );
               })()}
@@ -755,41 +773,89 @@ function BeyondBasicsCard({ planet, unitsMode, sectionDelay = 0 }: { planet: Pla
 }
 
 function CompanionsSection({
-  planet, companions, hostStar,
+  planet, companions, hostStar, sySnumAudit,
 }: {
   planet: PlanetDetailType;
   companions: BinaryCompanion[] | null;
   hostStar: HostStarGaia | null;
+  sySnumAudit: SySnumAudit | null;
 }) {
-  if (!companions || companions.length === 0) return null;
+  // The audit-only case: NASA EA reports multiplicity that primary literature
+  // doesn't support (e.g. HD 113337), so there are zero companion rows but
+  // we still want to surface our disagreement. Render the section with just
+  // the audit footnote.
+  if ((!companions || companions.length === 0) && !sySnumAudit) return null;
   const distance_pc = hostStar?.distance_gspphot_pc ?? planet.sy_dist ?? planet.distance_manual_pc ?? null;
+  const hasCompanions = (companions ?? []).length > 0;
   return (
     <section>
       <h2>System stars</h2>
       <div className="card">
-        <p style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', color: 'var(--fg-muted)' }}>
-          {planet.cb_flag === 1 ? (
-            <>
-              <strong>{planet.pl_name}</strong> is circumbinary — it orbits the close{' '}
-              <strong>{planet.hostname}</strong> inner pair, not a single primary star.
-              {' '}{companions.length === 1
-                ? 'One additional stellar component is recorded'
-                : `${companions.length} additional stellar components are recorded`}
-              {' '}in this system; the inner-binary partner is one of them.
-            </>
-          ) : (
-            <>
-              <strong>{planet.pl_name}</strong> orbits the primary star <strong>{planet.hostname}</strong> only.
-              {' '}{companions.length === 1
-                ? 'One additional stellar component is recorded'
-                : `${companions.length} additional stellar components are recorded`}
-              {' '}in this system — they sit far enough from the planet's orbit not to disturb it,
-              but they're part of the same gravitationally bound family.
-            </>
-          )}
-        </p>
+        {hasCompanions ? (
+          <p style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', color: 'var(--fg-muted)' }}>
+            {planet.cb_flag === 1 ? (
+              <>
+                <strong>{planet.pl_name}</strong> is circumbinary — it orbits the close{' '}
+                <strong>{planet.hostname}</strong> inner pair, not a single primary star.
+                {' '}{companions!.length === 1
+                  ? 'One additional stellar component is recorded'
+                  : `${companions!.length} additional stellar components are recorded`}
+                {' '}in this system; the inner-binary partner is one of them.
+              </>
+            ) : (
+              <>
+                <strong>{planet.pl_name}</strong> orbits the primary star <strong>{planet.hostname}</strong> only.
+                {' '}{companions!.length === 1
+                  ? 'One additional stellar component is recorded'
+                  : `${companions!.length} additional stellar components are recorded`}
+                {' '}in this system — they sit far enough from the planet's orbit not to disturb it,
+                but they're part of the same gravitationally bound family.
+              </>
+            )}
+          </p>
+        ) : (
+          <p style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', color: 'var(--fg-muted)' }}>
+            <strong>{planet.pl_name}</strong> orbits the primary star <strong>{planet.hostname}</strong>.
+            No additional stellar components are characterized in the primary literature.
+          </p>
+        )}
+        {sySnumAudit && (
+          <div
+            style={{
+              margin: '0 0 0.75rem',
+              padding: '0.6rem 0.75rem',
+              borderLeft: '3px solid var(--tier-b)',
+              background: 'rgba(255, 200, 100, 0.05)',
+              fontSize: '0.78rem',
+              color: 'var(--fg-muted)',
+              lineHeight: 1.55,
+            }}
+          >
+            <strong style={{ color: 'var(--fg)', display: 'block', marginBottom: '0.2rem' }}>
+              Disagreement with NASA Exoplanet Archive
+            </strong>
+            NASA EA reports <code>sy_snum = {sySnumAudit.nasa_ea_sy_snum}</code> for this system;
+            this atlas records <code>{sySnumAudit.supported_sy_snum}</code> based on primary
+            literature. {sySnumAudit.rationale}
+            <div style={{ marginTop: '0.4rem' }}>
+              <span style={{ marginRight: '0.3rem' }}>Cited:</span>
+              {sySnumAudit.source_bibcodes.map((b, i) => (
+                <span key={b}>
+                  {i > 0 && ', '}
+                  <a
+                    href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(b)}/abstract`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={`Source on NASA ADS: ${b}`}
+                  >{b}</a>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+        {hasCompanions && (
         <ul className="siblings-list">
-          {companions.map((c) => {
+          {companions!.map((c) => {
             const sepAU = c.separation_arcsec != null && distance_pc != null
               ? c.separation_arcsec * distance_pc
               : null;
@@ -829,10 +895,97 @@ function CompanionsSection({
             );
           })}
         </ul>
-        <p style={{ margin: '0.75rem 0 0', fontSize: '0.75rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
-          "Projected" separation is what we measure on the sky (angular separation × system distance).
-          The true 3D distance is at least this — possibly more, depending on the unknown line-of-sight component.
+        )}
+        {hasCompanions && (
+          <p style={{ margin: '0.75rem 0 0', fontSize: '0.75rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+            "Projected" separation is what we measure on the sky (angular separation × system distance).
+            The true 3D distance is at least this — possibly more, depending on the unknown line-of-sight component.
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function AtmosphereSection({
+  planet, atmosphere,
+}: {
+  planet: PlanetDetailType;
+  atmosphere: PlanetAtmosphereResponse | null;
+}) {
+  if (!atmosphere) return null;
+  const { observations, detections } = atmosphere;
+  if (observations.length === 0 && detections.length === 0) return null;
+  return (
+    <section>
+      <h2>Atmosphere</h2>
+      <div className="card">
+        <p style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', color: 'var(--fg-muted)' }}>
+          Atmospheric work that has been done on <strong>{planet.pl_name}</strong>.
+          Each entry links to its source paper on NASA ADS.
         </p>
+        {detections.length > 0 && (
+          <div style={{ marginBottom: observations.length > 0 ? '1rem' : 0 }}>
+            <h3 style={{ margin: '0 0 0.4rem', fontSize: '0.95rem' }}>
+              Molecule detections ({detections.length})
+            </h3>
+            <ul className="siblings-list">
+              {detections.map((d) => (
+                <li key={`${d.molecule}|${d.bibcode ?? ''}`}>
+                  <strong>{d.molecule}</strong>
+                  <span className="muted">
+                    {' · '}<span style={{
+                      color: d.detection === 'detected'
+                        ? 'var(--accent)'
+                        : d.detection === 'tentative'
+                          ? 'var(--tier-b)'
+                          : 'var(--fg-muted)'
+                    }}>{d.detection}</span>
+                    {d.instrument && <> · {d.instrument}</>}
+                    {d.confidence_sigma != null && <> · {d.confidence_sigma.toFixed(1)}σ</>}
+                    {d.bibcode && (
+                      <> · <a
+                        href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(d.bibcode)}/abstract`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={`Source paper on NASA ADS: ${d.bibcode}`}
+                      >{d.bibcode}</a></>
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {observations.length > 0 && (
+          <div>
+            <h3 style={{ margin: '0 0 0.4rem', fontSize: '0.95rem' }}>
+              Observation campaigns ({observations.length})
+            </h3>
+            <ul className="siblings-list">
+              {observations.map((o, i) => (
+                <li key={`${o.bibcode ?? i}|${o.instrument ?? ''}|${o.spec_type ?? ''}`}>
+                  <strong>{o.instrument ?? o.facility ?? 'Observation'}</strong>
+                  <span className="muted">
+                    {o.spec_type && <> · {o.spec_type}</>}
+                    {o.facility && o.facility !== o.instrument && <> · {o.facility}</>}
+                    {o.min_wavelength_um != null && o.max_wavelength_um != null && (
+                      <> · {o.min_wavelength_um.toFixed(2)}-{o.max_wavelength_um.toFixed(2)} μm</>
+                    )}
+                    {o.bibcode && (
+                      <> · <a
+                        href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(o.bibcode)}/abstract`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={`Source paper on NASA ADS: ${o.bibcode}`}
+                      >{o.bibcode}</a></>
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </section>
   );

@@ -272,6 +272,22 @@ class BinaryCompanion(BaseModel):
     inner_binary: bool | None = None
 
 
+class SySnumAudit(BaseModel):
+    """A NASA-EA-vs-primary-literature disagreement on host stellar multiplicity.
+
+    Surfaced on the planet page as a small "we differ from NASA EA because..."
+    footnote with cited bibcodes. Returned by /api/planets/{pl_name}/sy_snum_audit
+    when an audit row exists for the host (HTTP 200 with the audit body) or 404
+    when there is no disagreement on file.
+    """
+
+    hostname: str
+    nasa_ea_sy_snum: int
+    supported_sy_snum: int
+    rationale: str
+    source_bibcodes: list[str]
+
+
 class AtmosphericObservation(BaseModel):
     spec_type: str | None
     instrument: str | None
@@ -286,6 +302,17 @@ class AtmosphericMolecule(BaseModel):
     detection: str
     instrument: str | None
     confidence_sigma: float | None
+    # ADS bibcode of the paper this detection was harvested from. Surfaced in
+    # the UI as a clickable ADS link so every molecule detection carries
+    # visible attribution.
+    bibcode: str | None = None
+
+
+class PlanetAtmosphereResponse(BaseModel):
+    """Per-planet atmospheric campaigns + molecule detections, with citations."""
+
+    observations: list["AtmosphericObservation"]
+    detections: list[AtmosphericMolecule]
 
 
 class OrbitalGeometryRecord(BaseModel):

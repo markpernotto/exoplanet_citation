@@ -311,7 +311,7 @@ class AtmosphericMolecule(BaseModel):
 class PlanetAtmosphereResponse(BaseModel):
     """Per-planet atmospheric campaigns + molecule detections, with citations."""
 
-    observations: list["AtmosphericObservation"]
+    observations: list[AtmosphericObservation]
     detections: list[AtmosphericMolecule]
 
 

@@ -11,6 +11,111 @@ and each mints a version-specific
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-27
+
+### Added
+
+- **WDS gap-list closeout campaign** (migrations 101-118): a system-by-system
+  pass through the 82-host gap where NASA EA reported `sy_snum > 1` but
+  `binary_companions` was empty or incomplete. Closed in 11 batches plus
+  Ngo 2017 enrichment, a position-angle backfill, and an Evans 2018
+  orbital-architecture enrichment. ~70 new `binary_companions` rows
+  across the campaign; 8 `sy_snum_audit` rows where literature actively
+  contradicts NASA EA's stellar-count convention.
+  - **101 WDS Batch 1** — 10 systems (incl. HAT-P-35, 91 Aqr, HD 196885).
+  - **102 PH1 designation reconcile** — Aa/Ab/Ba/Bb naming alignment.
+  - **103 WDS Batch 2** — 6 freebies harvested from already-pasted papers.
+  - **104 `sy_snum_audit` table seed** — CREATE TABLE + 6 disagreements
+    (HD 113337, 16 Cyg B, HD 87646, BD-14 3065 A, HD 2638, HD 43691).
+  - **105 WDS Batch 3** — 5 companions + HD 38529 sy_snum disagreement.
+  - **106 WDS Batch 4** — 6 HAT-P companions.
+  - **107 WDS Batch 5** — HIP cohort (HIP 19976, HIP 21152, HIP 38594
+    sy_snum disagreements; BD-counted-as-substellar convention case).
+  - **108 WDS Batch 6** — HD doubles + HD 5608 sy_snum audit.
+  - **109 position-angle backfill** — 24 PAs lifted from curator-note
+    prose into the typed `position_angle_deg` column.
+  - **110 Ngo 2017 enrichment pass** — refines HD 142245 BC split,
+    HD 43691 candidate→resolved BC, HD 116029 candidate→confirmed.
+  - **111 WDS Batch 7** — HD 30856 + WASP-3 B + WASP-58 B (Ngo 2017,
+    Ngo 2015, Ngo 2016 + Wöllert & Brandner 2015 cross-confirm).
+  - **112 WDS Batch 8** — 6 Kepler/KOI systems.
+  - **113 WDS Batch 9** — 9 companions + HATS-58 citation-less-stub
+    replacement + Gl 49 sy_snum disagreement (Cortés-Contreras 2017
+    FastCam null + Perger 2019 22 yr RV null + Houdebine 2010
+    single-star treatment).
+  - **114 WDS Batch 10** — 26 new companions including HR 5183
+    (Mugrauer 2019 + Mustill 2022), TOI-2267 A+B compact M5+M6 pair
+    (Zúñiga-Fernández 2025), psi1 Dra C inner SB2 (Gullikson 2015),
+    + LHS 1678 sy_snum_audit (BD-counted-as-substellar) + 8 SIMBAD
+    citation-debt stub replacements.
+  - **115 TOI-3523 field-star cleanup** — replaces an unbound 150″
+    SIMBAD field-star stub with Yee 2025's real close 0.67″ companion.
+  - **116 WDS Batch 11** — K2-136 (Ciardi 2018), HD 135344 A
+    (Gaia DR3 cross-match + Stolker 2025 system context), TOI-159
+    (Mantovan 2026 Section 4.4, K3V close companion).
+  - **117 `sy_snum_audit` HGCA recency refresh** — every row in the
+    audit table cross-checked against Brandt et al. 2021 Hipparcos-Gaia
+    Catalog of Accelerations EDR3 edition (`2021ApJS..254...42B`). Four
+    reversals (HD 5608 1→2, HD 43691 2→1, HD 113337 1→2, HIP 38594
+    1→2 soft) and seven strengthening rationale updates with post-Gaia
+    EDR3 acceleration nulls as independent modern corroboration. The
+    HD 5608 and HD 113337 reversals are particularly meaningful: HGCA
+    chi² caught unresolved massive companions that prior RV +
+    wide-CPM nulls had missed.
+  - **118 Evans 2018 HITEP II orbital architecture** — appends
+    Keplerian orbital fits to WASP-77 AB (a = 420 AU, e ≈ 0.60 bimodal,
+    i = 75°) and WASP-85 AB (a = 148 AU, e = 0.43, i = 140° retrograde),
+    from 70+ years of historical micrometer astrometry combined with
+    modern lucky imaging. Also replaces the WASP-85 A B citation-less
+    SIMBAD stub with a fully cited row.
+
+- **3D scene work**:
+  - **IR view mode** — stylized pseudocolor infrared visualization for
+    the 3D scene, with body / star / disk / halo coverage.
+  - **Companion direction HUD** — off-screen indicator pointing toward
+    distant non-circumbinary companion stars; pairs with the upcoming
+    ruler tool.
+  - **System view enhancements** — includes all planet characteristics
+    in the multi-planet view.
+
+- **Citation surfacing improvements**:
+  - `binary_companions.source_bibcode` now renders as a clickable ADS
+    link in the CompanionsSection on planet pages.
+  - `sy_snum_audit` rendered as an explanatory footnote callout on
+    planet pages whose host star has a disagreement entry, with the
+    bibcode chips clickable to ADS.
+  - PA chips ("· PA NNN°") render in the CompanionsSection where
+    `position_angle_deg` is populated.
+
+- **Release-engineering infrastructure**:
+  - `scripts/snapshot_release.sh` — single-command frozen DB snapshot
+    builder for tagged releases. Output is a gzipped plain-SQL file
+    containing the full schema plus all curated data plus the latest
+    `planets_snapshots` mirror state, restorable via `gunzip -c | psql`
+    into any fresh Postgres. Zenodo version-DOI receipts now have a
+    self-contained, reproducible supplement.
+  - Nightly cron retry hardening — added a second cron + updated retry
+    handling around scheduled outages at the prior fixed run time.
+
+### Changed
+
+- **WDS gap-list closeout** completes the long-running pass started in
+  v0.1.3. The list is now fully closed out; remaining `sy_snum > 1`
+  hosts without `binary_companions` entries fall into the `sy_snum_audit`
+  disagreement bucket (literature actively does not support the count).
+- **`sy_snum_audit` evidence chains** are now all post-Gaia EDR3 backed
+  (Brandt 2021 HGCA) — every disagreement row has at least one < 6 yr
+  source corroborating the call, suitable for paper-grade citation.
+
+### Notes
+
+This is the first tagged release that ships a frozen database snapshot
+(`data/snapshots/v0.2.0.sql.gz`, 18 MB compressed, 6,298 `planets_snapshots`
+rows + the full curated layer) as part of the release artifact. Anyone
+with the gzipped dump can reproduce the production database state of
+this release via `createdb` + `gunzip -c | psql`. This makes the version
+DOI a reproducible scientific receipt rather than just a code archive.
+
 ## [0.1.3] - 2026-05-28
 
 ### Added

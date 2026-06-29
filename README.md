@@ -22,8 +22,8 @@ default 6K), the multi-planet "this paper also announced…" affordance,
 an imperial/metric units toggle, shareable URLs that round-trip camera
 state, and a `/feeds` index for personalized RSS subscriptions; Gaia DR3
 host-star enrichment complete for all 4,358 enrichable hosts; **citation
-graph (`publications` + `planet_publications`) resolved for 6,287 /
-6,287 planets (100%)** via a 4-tier automated resolver (ADS bibcode →
+graph (`publications` + `planet_publications`) resolved for 6,298 /
+6,298 planets (100%)** via a 4-tier automated resolver (ADS bibcode →
 arXiv API → ADS title search → manual queue) plus a 7-row hand-resolved
 final pass for edge-case journal references; 167 unit tests + 12 dbt
 tests passing.
@@ -184,92 +184,25 @@ pip install -e ".[dev]"
 cp .env.example .env
 # edit .env with your Neon DATABASE_URL, R2 keys, and DBT_* fields
 
-# Apply schema (in order)
+# Set up the database -- pick ONE path:
+
+# RECOMMENDED: restore the latest release snapshot.
+# Single command. Includes schema + curated data + NASA EA mirror
+# state as of the release. Requires Postgres >= 17.
+gunzip -c data/snapshots/v0.2.0.sql.gz | psql "$DATABASE_URL"
+
+# ALTERNATIVE: replay the full migration history from scratch.
+# Slower but reproduces every schema/data change in chronological order;
+# useful for auditing or when you want a fresh start without the
+# curated data.
 psql "$DATABASE_URL" -f etl/schema.sql
-psql "$DATABASE_URL" -f etl/migrations/001_phase1x_typed_columns.sql
-psql "$DATABASE_URL" -f etl/migrations/002_phase2_host_stars_gaia.sql
-psql "$DATABASE_URL" -f etl/migrations/003_fix_planets_current_view.sql
-psql "$DATABASE_URL" -f etl/migrations/004_discovery_papers.sql
-psql "$DATABASE_URL" -f etl/migrations/005_citation_graph.sql
-psql "$DATABASE_URL" -f etl/migrations/006_add_arxiv_resolved_via.sql
-psql "$DATABASE_URL" -f etl/migrations/007_binary_companions.sql
-psql "$DATABASE_URL" -f etl/migrations/008_atmospheres.sql
-psql "$DATABASE_URL" -f etl/migrations/009_system_orbital_geometry.sql
-psql "$DATABASE_URL" -f etl/migrations/010_orbital_geometry_seed.sql
-psql "$DATABASE_URL" -f etl/migrations/011_binary_companions_inner.sql
-psql "$DATABASE_URL" -f etl/migrations/012_host_distances_manual.sql
-psql "$DATABASE_URL" -f etl/migrations/013_planet_publications_prior_detection.sql
-psql "$DATABASE_URL" -f etl/migrations/014_planet_publications_characterization.sql
-psql "$DATABASE_URL" -f etl/migrations/015_old_cohort_enrichment.sql
-psql "$DATABASE_URL" -f etl/migrations/016_landmark_atmospheres.sql
-psql "$DATABASE_URL" -f etl/migrations/017_kepler_ttv_geometry_source_fix.sql
-psql "$DATABASE_URL" -f etl/migrations/018_geometry_source_fix_round2.sql
-psql "$DATABASE_URL" -f etl/migrations/019_kepler90_reconcile_and_source_fix.sql
-psql "$DATABASE_URL" -f etl/migrations/020_trappist1_jwst_atmospheres.sql
-psql "$DATABASE_URL" -f etl/migrations/021_trappist1_geometry_agol2021.sql
-psql "$DATABASE_URL" -f etl/migrations/022_planet_interior_composition.sql
-psql "$DATABASE_URL" -f etl/migrations/023_hr8799_atmospheres.sql
-psql "$DATABASE_URL" -f etl/migrations/024_planet_derived_measurements.sql
-psql "$DATABASE_URL" -f etl/migrations/025_betpic_atmosphere_and_derived.sql
-psql "$DATABASE_URL" -f etl/migrations/026_gj876b_astrometric_benedict2002.sql
-psql "$DATABASE_URL" -f etl/migrations/027_kepler11_envelopes_lopez2012.sql
-psql "$DATABASE_URL" -f etl/migrations/028_wasp121b_atmosphere.sql
-psql "$DATABASE_URL" -f etl/migrations/029_gj1214b_atmosphere_and_derived.sql
-psql "$DATABASE_URL" -f etl/migrations/030_wasp107b_atmosphere.sql
-psql "$DATABASE_URL" -f etl/migrations/031_lhs1140b_waterworld.sql
-psql "$DATABASE_URL" -f etl/migrations/032_wasp76b_atmosphere.sql
-psql "$DATABASE_URL" -f etl/migrations/033_pds70_forming_planets.sql
-psql "$DATABASE_URL" -f etl/migrations/034_wasp12b_inspiral_and_atmosphere.sql
-psql "$DATABASE_URL" -f etl/migrations/035_kelt9b_atmosphere.sql
-psql "$DATABASE_URL" -f etl/migrations/036_kepler1520b_disintegrating.sql
-psql "$DATABASE_URL" -f etl/migrations/037_toi849b_exposed_core.sql
-psql "$DATABASE_URL" -f etl/migrations/038_51erib_cold_methane_giant.sql
-psql "$DATABASE_URL" -f etl/migrations/039_kepler51_superpuffs.sql
-psql "$DATABASE_URL" -f etl/migrations/040_wasp18b_thermal_inversion.sql
-psql "$DATABASE_URL" -f etl/migrations/041_hip65426b_first_jwst_imaged.sql
-psql "$DATABASE_URL" -f etl/migrations/042_gj504b_cold_t_dwarf_planet.sql
-psql "$DATABASE_URL" -f etl/migrations/043_kapandb_superjupiter.sql
-psql "$DATABASE_URL" -f etl/migrations/044_2m1207b_methane_poor.sql
-psql "$DATABASE_URL" -f etl/migrations/045_abpicb_boundary_companion.sql
-psql "$DATABASE_URL" -f etl/migrations/046_hd95086b_dusty_disk_planet.sql
-psql "$DATABASE_URL" -f etl/migrations/047_psr1257_true_masses.sql
-psql "$DATABASE_URL" -f etl/migrations/048_tauboob_nontransiting_atmosphere.sql
-psql "$DATABASE_URL" -f etl/migrations/049_hd168443c_astrometric_mass.sql
-psql "$DATABASE_URL" -f etl/migrations/050_gj86b_wd_companion_provenance.sql
-psql "$DATABASE_URL" -f etl/migrations/051_wasp17b_retrograde.sql
-psql "$DATABASE_URL" -f etl/migrations/052_wasp33b_retrograde_hotstar.sql
-psql "$DATABASE_URL" -f etl/migrations/053_k2290c_polar.sql
-psql "$DATABASE_URL" -f etl/migrations/054_hatp7b_polar.sql
-psql "$DATABASE_URL" -f etl/migrations/055_wasp79b_polar.sql
-psql "$DATABASE_URL" -f etl/migrations/056_hd80606b_flashheating.sql
-psql "$DATABASE_URL" -f etl/migrations/057_nuoctb_white_dwarf.sql
-psql "$DATABASE_URL" -f etl/migrations/058_hd4113c_cold_brown_dwarf.sql
-psql "$DATABASE_URL" -f etl/migrations/059_feedback.sql
-psql "$DATABASE_URL" -f etl/migrations/060_warm_neptune_atmospheres.sql
-psql "$DATABASE_URL" -f etl/migrations/061_fastfollow_atmospheres.sql
-psql "$DATABASE_URL" -f etl/migrations/062_hd189733b_silicate_clouds.sql
-psql "$DATABASE_URL" -f etl/migrations/063_rocky_jwst_atmospheres.sql
-psql "$DATABASE_URL" -f etl/migrations/064_jwst_hot_jupiters.sql
-psql "$DATABASE_URL" -f etl/migrations/065_directly_imaged_giants.sql
-psql "$DATABASE_URL" -f etl/migrations/066_neptune_desert_subsaturn.sql
-psql "$DATABASE_URL" -f etl/migrations/067_rocky_mdwarf_sweep.sql
-psql "$DATABASE_URL" -f etl/migrations/068_pds70b_v1298taub.sql
-psql "$DATABASE_URL" -f etl/migrations/069_v1298tau_binary_companions.sql
-psql "$DATABASE_URL" -f etl/migrations/070_wasp12_bc_triple.sql
-psql "$DATABASE_URL" -f etl/migrations/071_ltt1445_bc_triple.sql
-psql "$DATABASE_URL" -f etl/migrations/072_hd110067_wide_triple.sql
-psql "$DATABASE_URL" -f etl/migrations/073_kepler444_bc_triple.sql
-psql "$DATABASE_URL" -f etl/migrations/074_51eri_gj3305_triple.sql
-psql "$DATABASE_URL" -f etl/migrations/075_bohn2020_wasp76_hatp57_wasp2.sql
-psql "$DATABASE_URL" -f etl/migrations/076_mugrauer2019_5hosts.sql
-psql "$DATABASE_URL" -f etl/migrations/077_mugrauer2019_bulk.sql
-psql "$DATABASE_URL" -f etl/migrations/078_ltt3780_lp729-55.sql
-psql "$DATABASE_URL" -f etl/migrations/079_hatp7_bc_triple.sql
-psql "$DATABASE_URL" -f etl/migrations/080_k2-290_bc_relabel.sql
-psql "$DATABASE_URL" -f etl/migrations/081_epsindAB_ba_bb_split.sql
-psql "$DATABASE_URL" -f etl/migrations/082_proxima_cen_real_architecture.sql
-psql "$DATABASE_URL" -f etl/migrations/083_gamcep_b.sql
-psql "$DATABASE_URL" -f etl/migrations/084_bc_hostname_alias_fixes.sql
+for m in etl/migrations/[0-9]*.sql; do
+  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$m"
+done
+
+# When new migrations land between releases, apply them in numeric
+# order on top of either path above. E.g. for migration 119:
+# psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f etl/migrations/119_*.sql
 
 # Verify connectivity
 make check-setup
@@ -343,6 +276,29 @@ follows [Semantic Versioning](https://semver.org) and the
 [Keep a Changelog](https://keepachangelog.com) format, and each tagged release
 also mints a version-specific
 [Zenodo](https://doi.org/10.5281/zenodo.20191479) DOI for citation.
+
+Starting with **v0.2.0**, every tagged release ships a frozen database
+snapshot at `data/snapshots/<version>.sql.gz`. The snapshot contains the
+complete schema for every table, all curated data (`binary_companions`,
+`sy_snum_audit`, `planet_atmospheres`, `planet_derived_measurements`,
+`host_distances_manual`, `publications`, `planet_publications`, etc.),
+and the NASA EA `planets_snapshots` mirror filtered to the single
+snapshot date that the released version of the site was rendering
+against. Anyone with the gzipped dump can reproduce the production
+database state of a release via:
+
+```bash
+createdb exoplanet_atlas
+gunzip -c data/snapshots/v0.2.0.sql.gz | psql exoplanet_atlas
+```
+
+This makes the version DOI a self-contained reproducible scientific
+receipt, not just a code archive. The snapshot is built via
+`scripts/snapshot_release.sh <version>` at release time. Older NASA EA
+mirror states are intentionally omitted from the snapshot to keep the
+release archive small enough to live in git (typically < 20 MB
+compressed); historical mirror states can be re-pulled from NASA EA
+at any time if a user wants longitudinal comparison.
 
 ## What's next (unscheduled)
 

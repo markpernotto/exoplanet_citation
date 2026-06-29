@@ -163,11 +163,16 @@ export default function ScenePage() {
   // into the zoom-out limit lets the user pull back far enough to see
   // those second/third suns instead of having them silently off-frame.
   const systemDistancePc = scene.host_star?.distance_gspphot_pc ?? scene.planet.sy_dist ?? scene.planet.distance_manual_pc ?? null;
-  const maxCompanionSepAU = systemDistancePc != null
-    ? Math.max(0, ...scene.binary_companions.map(
-        (c) => (c.separation_arcsec ?? 0) * systemDistancePc,
-      ))
-    : 0;
+  // Per-companion projected AU: arcsec×distance if available, otherwise
+  // separation_au directly. Without the fallback, AU-only rows (PH1
+  // Ba+Bb, etc.) contribute 0 to the max and the camera caps zoom at a
+  // tight orbit while a 1000 AU outer pair sits off-frame.
+  const maxCompanionSepAU = Math.max(0, ...scene.binary_companions.map((c) => {
+    if (c.separation_arcsec != null && systemDistancePc != null) {
+      return c.separation_arcsec * systemDistancePc;
+    }
+    return c.separation_au ?? 0;
+  }));
   const maxOrbitOrCompanion = Math.max(maxOrbit, maxCompanionSepAU);
   // Far plane normally just needs to cover the starfield skydome (5000 AU).
   // For ultra-wide-orbit systems like 2MASS J0249-0557 c (orbsmax 1950 AU,
@@ -3324,14 +3329,19 @@ function dropSelfReferenceCompanions(
 //   1. inner_binary = true — already rendered as one of the two suns
 //      of BinaryPhotospheres at the host position; the user is already
 //      looking at the body, no navigation needed
-//   2. separation_arcsec = null — no positional data, so we can't
-//      place a body or rotate an arrow toward one. Catches inner-binary
-//      partners from rows where inner_binary hasn't been set yet
+//   2. NO positional data at all — neither separation_arcsec nor
+//      separation_au is recorded. With either one we can place the
+//      body (separation_arcsec * distance_pc or separation_au directly),
+//      so we drop only when both are absent. Earlier versions dropped
+//      on separation_arcsec=null alone, which removed the PH1 outer
+//      Ba+Bb pair (recorded only in AU since the visual-binary
+//      discovery paper reports projected AU and not arcsec).
 function dropUnpointableCompanions(
   companions: BinaryCompanion[],
 ): BinaryCompanion[] {
   return companions.filter(
-    (c) => c.inner_binary !== true && c.separation_arcsec != null,
+    (c) => c.inner_binary !== true
+        && (c.separation_arcsec != null || c.separation_au != null),
   );
 }
 
@@ -3364,9 +3374,13 @@ function companionScenePos(
   companion: BinaryCompanion,
   systemDistancePc: number | null,
 ): { sepAU: number; position: [number, number, number] } | null {
-  if (companion.separation_arcsec == null || systemDistancePc == null) return null;
-  const sepAU = companion.separation_arcsec * systemDistancePc;
-  if (sepAU <= 0) return null;
+  // Prefer arcsec×distance; fall back to a direct AU value when the
+  // catalog row carries only separation_au (e.g. PH1 Ba+Bb at ~1000 AU
+  // — Schwamb et al. 2013 reports projected AU, not arcsec).
+  const sepAU = companion.separation_arcsec != null && systemDistancePc != null
+    ? companion.separation_arcsec * systemDistancePc
+    : (companion.separation_au ?? null);
+  if (sepAU == null || sepAU <= 0) return null;
   const pa = ((companion.position_angle_deg ?? 0) * Math.PI) / 180;
   const tiltY = Math.sin(0.52);   // ~30° lift above XZ plane
   const planar = Math.cos(0.52);
@@ -4172,9 +4186,9 @@ function StellarCorona({
 }
 
 // ── binary photospheres (circumbinary systems) ───────────────────────────
-// For cb_flag=1 planets, the host is a tight binary pair (the planet orbits
-// both stars, Tatooine-style). Render two unequal suns orbiting their common
-// barycenter at the system origin.
+// For cb_flag=1 planets, the host is a tight binary pair and the planet
+// orbits both stars from outside. Render two unequal suns orbiting their
+// common barycenter at the system origin.
 //
 // Honest defaults — these systems are spectroscopic binaries (the two stars
 // are too close together to resolve on the sky), so we typically don't have

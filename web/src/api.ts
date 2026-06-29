@@ -266,6 +266,11 @@ export type BinaryCompanion = {
   component_designation: string;
   primary_designation: string;
   separation_arcsec: number | null;
+  /** Projected separation in AU. Surfaced so the 3D scene can place
+      companions whose discovery paper reports projected AU but no
+      arcsec (e.g. PH1's outer Ba+Bb pair at ~1000 AU). The 3D scene
+      falls back to this when separation_arcsec is null. */
+  separation_au: number | null;
   position_angle_deg: number | null;
   component_mag_v: number | null;
   component_spectype: string | null;

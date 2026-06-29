@@ -199,7 +199,16 @@ export default function PlanetCard({ planet, siblings, bp_rp, companions, distan
   // to its right, equal padding both sides. When wide-binary companions are
   // recorded for this system, expand the canvas so they have a ring of space
   // just outside the orbit ellipse to sit in (with room for labels below).
-  const hasCompanions = (companions ?? []).length > 0;
+  //
+  // For circumbinary systems (cb_flag === 1) the inner-binary partner is
+  // already rendered as the second star of the central pair; filtering it
+  // out of the outer-companions list here avoids double-counting (a real
+  // bug noticed against BEBOP-3 / BEBOP-4 in June 2026, where the inner Ab
+  // companion was also being drawn as an outer "third sun").
+  const outerCompanions = ((planet.cb_flag === 1)
+    ? (companions ?? []).filter((c) => !c.inner_binary)
+    : (companions ?? []));
+  const hasCompanions = outerCompanions.length > 0;
   const COMPANION_BUFFER = 35;
   const COMPANION_LABEL_PAD = 36;
   const companionR = apoapsisDistance + COMPANION_BUFFER;
@@ -303,7 +312,7 @@ export default function PlanetCard({ planet, siblings, bp_rp, companions, distan
 
           {/* One corona gradient per companion — its color depends on spectral
               type so brown dwarfs glow red, M-companions orange, etc. */}
-          {hasCompanions && (companions ?? []).map((c, i) => (
+          {hasCompanions && outerCompanions.map((c, i) => (
             <radialGradient
               key={`comp-corona-def-${i}`}
               id={`comp-corona-${id}-${i}`}
@@ -348,11 +357,11 @@ export default function PlanetCard({ planet, siblings, bp_rp, companions, distan
               just outside the orbit ring at a symbolic fixed offset.
             Direction always follows the catalog position angle (north = up).
             Each companion gets a soft corona halo + "· kind" suffix label. */}
-        {hasCompanions && (companions ?? []).map((c, i) => {
+        {hasCompanions && outerCompanions.map((c, i) => {
           const paDeg = c.position_angle_deg;
           const paRad = paDeg != null
             ? (paDeg * Math.PI) / 180
-            : (i / Math.max(1, (companions ?? []).length)) * 2 * Math.PI;
+            : (i / Math.max(1, outerCompanions.length)) * 2 * Math.PI;
           const sepAU = c.separation_arcsec != null && distancePc != null
             ? c.separation_arcsec * distancePc
             : null;
@@ -607,7 +616,7 @@ export default function PlanetCard({ planet, siblings, bp_rp, companions, distan
               <stop offset="100%" stopColor="rgba(0,0,0,0.55)" />
             </radialGradient>
           ))}
-          {hasCompanions && (companions ?? []).map((c, i) => (
+          {hasCompanions && outerCompanions.map((c, i) => (
             <radialGradient
               key={`comp-corona-multi-def-${i}`}
               id={`comp-corona-multi-${id}-${i}`}
@@ -692,11 +701,11 @@ export default function PlanetCard({ planet, siblings, bp_rp, companions, distan
             fixed-offset placement logic as the embedded card. In this view
             orbits are at true AU scale (pxPerAU), so an inside-orbit
             companion's pixel radius is simply sepAU * pxPerAU. */}
-        {hasCompanions && (companions ?? []).map((c, i) => {
+        {hasCompanions && outerCompanions.map((c, i) => {
           const paDeg = c.position_angle_deg;
           const paRad = paDeg != null
             ? (paDeg * Math.PI) / 180
-            : (i / Math.max(1, (companions ?? []).length)) * 2 * Math.PI;
+            : (i / Math.max(1, outerCompanions.length)) * 2 * Math.PI;
           const sepAU = c.separation_arcsec != null && distancePc != null
             ? c.separation_arcsec * distancePc
             : null;
@@ -793,7 +802,7 @@ export default function PlanetCard({ planet, siblings, bp_rp, companions, distan
               <span className="metric-value" style={{ color: 'var(--tier-b)' }}>orbits 2 stars</span>
             </div>
             <p className="metric-explain">
-              A real-life Tatooine — {planet.pl_name} orbits a binary star pair rather than a single star.
+              {planet.pl_name} orbits both members of a close binary star pair rather than a single star.
               The two stars spin around each other in the center while the planet traces its larger path around both.
             </p>
           </div>

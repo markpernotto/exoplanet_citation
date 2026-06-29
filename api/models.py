@@ -254,6 +254,11 @@ class BinaryCompanion(BaseModel):
     component_designation: str
     primary_designation: str
     separation_arcsec: float | None
+    # Projected separation in AU. Surfaced so the 3D scene can place
+    # companions whose discovery paper reports projected AU but no
+    # arcsec (e.g. PH1's outer Ba+Bb pair at ~1000 AU). The 3D scene
+    # falls back to separation_au when separation_arcsec is NULL.
+    separation_au: float | None = None
     position_angle_deg: float | None
     component_mag_v: float | None
     component_spectype: str | None

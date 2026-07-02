@@ -5,7 +5,7 @@
     <link>https://github.com/markpernotto/exoplanet_citation</link>
     <description>Newly confirmed and revised exoplanet records from the NASA Exoplanet Archive, diffed nightly. Surfaces NEW / REMOVED / Tier-A parameter changes only.</description>
     <language>en-us</language>
-    <lastBuildDate>Wed, 01 Jul 2026 07:23:36 +0000</lastBuildDate>
+    <lastBuildDate>Thu, 02 Jul 2026 07:13:21 +0000</lastBuildDate>
     <ttl>1440</ttl>
     <item>
       <title>Parameter update — Kepler-32 d: pl_bmasse</title>

@@ -5,19 +5,211 @@
     <link>https://github.com/markpernotto/exoplanet_citation</link>
     <description>Newly confirmed and revised exoplanet records from the NASA Exoplanet Archive, diffed nightly. Surfaces NEW / REMOVED / Tier-A parameter changes only.</description>
     <language>en-us</language>
-    <lastBuildDate>Thu, 09 Jul 2026 07:08:14 +0000</lastBuildDate>
+    <lastBuildDate>Fri, 10 Jul 2026 07:06:42 +0000</lastBuildDate>
     <ttl>1440</ttl>
     <item>
-      <title>Parameter update — eps Eri b: pl_bmasse</title>
-      <guid isPermaLink="false">change-2740</guid>
-      <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
-      <description>eps Eri b pl_bmasse: 209.76674862 → 317.828407</description>
+      <title>Parameter update — eps Ind A b: pl_bmasse</title>
+      <guid isPermaLink="false">change-2848</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>eps Ind A b pl_bmasse: 2425.03074541 → 2065.8846455</description>
     </item>
     <item>
-      <title>Exoplanet removed: WASP-18 c</title>
-      <guid isPermaLink="false">change-2731</guid>
+      <title>Parameter update — eps Ind A b: pl_orbper</title>
+      <guid isPermaLink="false">change-2846</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>eps Ind A b pl_orbper: 39400.0 → 25450.0</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: bet Pic d</title>
+      <guid isPermaLink="false">change-2845</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>New planet: bet Pic d</description>
+    </item>
+    <item>
+      <title>Parameter update — bet Pic c: pl_bmasse</title>
+      <guid isPermaLink="false">change-2839</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>bet Pic c pl_bmasse: 3222.46221857 → 2765.1071409</description>
+    </item>
+    <item>
+      <title>Parameter update — GJ 367 b: pl_rade</title>
+      <guid isPermaLink="false">change-2744</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>GJ 367 b pl_rade: 0.699 → 0.736</description>
+    </item>
+    <item>
+      <title>Parameter update — GJ 367 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-2745</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>GJ 367 b pl_bmasse: 0.633 → 0.503</description>
+    </item>
+    <item>
+      <title>Parameter update — HAT-P-11 b: disc_year</title>
+      <guid isPermaLink="false">change-2750</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>HAT-P-11 b disc_year: 2008 → 2010</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 103197 b: disc_year</title>
+      <guid isPermaLink="false">change-2751</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>HD 103197 b disc_year: 2009 → 2011</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 104067 b: disc_year</title>
+      <guid isPermaLink="false">change-2752</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>HD 104067 b disc_year: 2009 → 2011</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 125595 b: disc_year</title>
+      <guid isPermaLink="false">change-2753</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>HD 125595 b disc_year: 2009 → 2011</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 63765 b: disc_year</title>
+      <guid isPermaLink="false">change-2754</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>HD 63765 b disc_year: 2009 → 2011</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 85390 b: disc_year</title>
+      <guid isPermaLink="false">change-2755</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>HD 85390 b disc_year: 2009 → 2011</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 90156 b: disc_year</title>
+      <guid isPermaLink="false">change-2756</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>HD 90156 b disc_year: 2009 → 2011</description>
+    </item>
+    <item>
+      <title>Parameter update — HIP 70849 b: disc_year</title>
+      <guid isPermaLink="false">change-2757</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>HIP 70849 b disc_year: 2009 → 2011</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-79 b: pl_rade</title>
+      <guid isPermaLink="false">change-2759</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>Kepler-79 b pl_rade: 3.47 → 3.51</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-79 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-2760</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>Kepler-79 b pl_bmasse: 10.9 → 7.6</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-79 c: pl_rade</title>
+      <guid isPermaLink="false">change-2768</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>Kepler-79 c pl_rade: 3.72 → 3.76</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-79 c: pl_bmasse</title>
+      <guid isPermaLink="false">change-2769</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>Kepler-79 c pl_bmasse: 5.9 → 4.6</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-79 d: pl_bmasse</title>
+      <guid isPermaLink="false">change-2778</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>Kepler-79 d pl_bmasse: 6.0 → 5.3</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-79 e: pl_rade</title>
+      <guid isPermaLink="false">change-2786</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>Kepler-79 e pl_rade: 3.49 → 3.53</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-79 e: pl_bmasse</title>
+      <guid isPermaLink="false">change-2787</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>Kepler-79 e pl_bmasse: 4.1 → 3.8</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: NGTS-38 b</title>
+      <guid isPermaLink="false">change-2794</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>New planet: NGTS-38 b</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-1272 b: pl_rade</title>
+      <guid isPermaLink="false">change-2796</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>TOI-1272 b pl_rade: 4.13204907 → 4.26</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-1272 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-2797</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>TOI-1272 b pl_bmasse: 27.0 → 24.1</description>
+    </item>
+    <item>
+      <title>Exoplanet removed: TOI-1272 c</title>
+      <guid isPermaLink="false">change-2807</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>Removed planet: TOI-1272 c</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-1694 b: pl_rade</title>
+      <guid isPermaLink="false">change-2809</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>TOI-1694 b pl_rade: 5.3422266 → 5.27</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-1694 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-2810</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>TOI-1694 b pl_bmasse: 31.3 → 28.24</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-1694 c: pl_orbper</title>
+      <guid isPermaLink="false">change-2819</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>TOI-1694 c pl_orbper: 393.1 → 386.25</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-1694 c: pl_bmasse</title>
+      <guid isPermaLink="false">change-2820</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>TOI-1694 c pl_bmasse: 297.0 → 316.55709337</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-2147 b</title>
+      <guid isPermaLink="false">change-2830</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>New planet: TOI-2147 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-6019 b</title>
+      <guid isPermaLink="false">change-2831</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>New planet: TOI-6019 b</description>
+    </item>
+    <item>
+      <title>Parameter update — bet Pic b: pl_bmasse</title>
+      <guid isPermaLink="false">change-2833</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>bet Pic b pl_bmasse: 3727.8093857 → 2765.1071409</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-5789 c: disc_year</title>
+      <guid isPermaLink="false">change-2728</guid>
       <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
-      <description>Removed planet: WASP-18 c</description>
+      <description>TOI-5789 c disc_year: None → 2026</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-6564 b</title>
+      <guid isPermaLink="false">change-2729</guid>
+      <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
+      <description>New planet: TOI-6564 b</description>
     </item>
     <item>
       <title>Parameter update — WD 0806-661 b: pl_rade</title>
@@ -36,6 +228,18 @@
       <guid isPermaLink="false">change-2739</guid>
       <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
       <description>eps Eri b pl_rade: 14.1 → 13.8</description>
+    </item>
+    <item>
+      <title>Parameter update — eps Eri b: pl_bmasse</title>
+      <guid isPermaLink="false">change-2740</guid>
+      <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
+      <description>eps Eri b pl_bmasse: 209.76674862 → 317.828407</description>
+    </item>
+    <item>
+      <title>Exoplanet removed: WASP-18 c</title>
+      <guid isPermaLink="false">change-2731</guid>
+      <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
+      <description>Removed planet: WASP-18 c</description>
     </item>
     <item>
       <title>Parameter update — 51 Peg b: pl_rade</title>
@@ -224,28 +428,10 @@
       <description>TOI-4602.01 pl_bmasse: 7.04 → 5.53</description>
     </item>
     <item>
-      <title>Parameter update — TOI-5789 c: disc_year</title>
-      <guid isPermaLink="false">change-2728</guid>
-      <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
-      <description>TOI-5789 c disc_year: None → 2026</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-6564 b</title>
-      <guid isPermaLink="false">change-2729</guid>
-      <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
-      <description>New planet: TOI-6564 b</description>
-    </item>
-    <item>
-      <title>Parameter update — MOA-2011-BLG-293L b: pl_orbper</title>
-      <guid isPermaLink="false">change-2389</guid>
+      <title>Parameter update — Kepler-32 d: pl_bmasse</title>
+      <guid isPermaLink="false">change-2324</guid>
       <pubDate>Fri, 19 Jun 2026 07:43:41 +0000</pubDate>
-      <description>MOA-2011-BLG-293L b pl_orbper: 3000.0 → 550.0</description>
-    </item>
-    <item>
-      <title>Parameter update — TOI-942 c: pl_bmasse</title>
-      <guid isPermaLink="false">change-2491</guid>
-      <pubDate>Fri, 19 Jun 2026 07:43:41 +0000</pubDate>
-      <description>TOI-942 c pl_bmasse: 37.0 → 794.575</description>
+      <description>Kepler-32 d pl_bmasse: 39.9089 → 67.4815</description>
     </item>
     <item>
       <title>Parameter update — kap CrB b: pl_bmasse</title>
@@ -254,10 +440,16 @@
       <description>kap CrB b pl_bmasse: 635.66 → 591.1638</description>
     </item>
     <item>
-      <title>Parameter update — Kepler-32 d: pl_bmasse</title>
-      <guid isPermaLink="false">change-2324</guid>
+      <title>Parameter update — TOI-942 c: pl_bmasse</title>
+      <guid isPermaLink="false">change-2491</guid>
       <pubDate>Fri, 19 Jun 2026 07:43:41 +0000</pubDate>
-      <description>Kepler-32 d pl_bmasse: 39.9089 → 67.4815</description>
+      <description>TOI-942 c pl_bmasse: 37.0 → 794.575</description>
+    </item>
+    <item>
+      <title>Parameter update — MOA-2011-BLG-293L b: pl_orbper</title>
+      <guid isPermaLink="false">change-2389</guid>
+      <pubDate>Fri, 19 Jun 2026 07:43:41 +0000</pubDate>
+      <description>MOA-2011-BLG-293L b pl_orbper: 3000.0 → 550.0</description>
     </item>
   </channel>
 </rss>

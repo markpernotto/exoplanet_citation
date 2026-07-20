@@ -5,7 +5,7 @@
     <link>https://github.com/markpernotto/exoplanet_citation</link>
     <description>Newly confirmed and revised exoplanet records from the NASA Exoplanet Archive, diffed nightly. Surfaces NEW / REMOVED / Tier-A parameter changes only.</description>
     <language>en-us</language>
-    <lastBuildDate>Sun, 19 Jul 2026 06:50:12 +0000</lastBuildDate>
+    <lastBuildDate>Mon, 20 Jul 2026 06:58:55 +0000</lastBuildDate>
     <ttl>1440</ttl>
     <item>
       <title>Parameter update — HIP 41378 b: pl_rade</title>
@@ -14,94 +14,10 @@
       <description>HIP 41378 b pl_rade: 2.419 → 2.64</description>
     </item>
     <item>
-      <title>New exoplanet confirmed: TOI-791 c</title>
-      <guid isPermaLink="false">change-2914</guid>
+      <title>Parameter update — HIP 41378 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-2858</guid>
       <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
-      <description>New planet: TOI-791 c</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-791 b</title>
-      <guid isPermaLink="false">change-2913</guid>
-      <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
-      <description>New planet: TOI-791 b</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-6884 b</title>
-      <guid isPermaLink="false">change-2912</guid>
-      <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
-      <description>New planet: TOI-6884 b</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-1533 c</title>
-      <guid isPermaLink="false">change-2911</guid>
-      <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
-      <description>New planet: TOI-1533 c</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-1533 b</title>
-      <guid isPermaLink="false">change-2910</guid>
-      <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
-      <description>New planet: TOI-1533 b</description>
-    </item>
-    <item>
-      <title>Parameter update — KELT-9 b: pl_rade</title>
-      <guid isPermaLink="false">change-2900</guid>
-      <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
-      <description>KELT-9 b pl_rade: 21.196219 → 21.70058664</description>
-    </item>
-    <item>
-      <title>Parameter update — HIP 41378 g: pl_orbper</title>
-      <guid isPermaLink="false">change-2896</guid>
-      <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
-      <description>HIP 41378 g pl_orbper: 64.067 → 63.19</description>
-    </item>
-    <item>
-      <title>Parameter update — HIP 41378 f: pl_bmasse</title>
-      <guid isPermaLink="false">change-2890</guid>
-      <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
-      <description>HIP 41378 f pl_bmasse: 12.0 → 25.0</description>
-    </item>
-    <item>
-      <title>Parameter update — HIP 41378 f: pl_rade</title>
-      <guid isPermaLink="false">change-2889</guid>
-      <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
-      <description>HIP 41378 f pl_rade: 9.2 → 9.47</description>
-    </item>
-    <item>
-      <title>Parameter update — HIP 41378 e: pl_bmasse</title>
-      <guid isPermaLink="false">change-2883</guid>
-      <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
-      <description>HIP 41378 e pl_bmasse: 12.0 → 7.62</description>
-    </item>
-    <item>
-      <title>Parameter update — HIP 41378 e: pl_rade</title>
-      <guid isPermaLink="false">change-2882</guid>
-      <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
-      <description>HIP 41378 e pl_rade: 4.92 → 5.19</description>
-    </item>
-    <item>
-      <title>Parameter update — HIP 41378 e: pl_orbper</title>
-      <guid isPermaLink="false">change-2881</guid>
-      <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
-      <description>HIP 41378 e pl_orbper: 369.0 → 393.0</description>
-    </item>
-    <item>
-      <title>Parameter update — HIP 41378 d: pl_bmasse</title>
-      <guid isPermaLink="false">change-2875</guid>
-      <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
-      <description>HIP 41378 d pl_bmasse: 4.6 → 6.53</description>
-    </item>
-    <item>
-      <title>Parameter update — HIP 41378 d: pl_rade</title>
-      <guid isPermaLink="false">change-2874</guid>
-      <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
-      <description>HIP 41378 d pl_rade: 3.54 → 3.65</description>
-    </item>
-    <item>
-      <title>Parameter update — HIP 41378 c: pl_bmasse</title>
-      <guid isPermaLink="false">change-2867</guid>
-      <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
-      <description>HIP 41378 c pl_bmasse: 6.53 → 5.97</description>
+      <description>HIP 41378 b pl_bmasse: 9.06 → 6.9</description>
     </item>
     <item>
       <title>Parameter update — HIP 41378 c: pl_rade</title>
@@ -110,16 +26,94 @@
       <description>HIP 41378 c pl_rade: 2.505 → 2.74</description>
     </item>
     <item>
-      <title>Parameter update — HIP 41378 b: pl_bmasse</title>
-      <guid isPermaLink="false">change-2858</guid>
+      <title>Parameter update — HIP 41378 c: pl_bmasse</title>
+      <guid isPermaLink="false">change-2867</guid>
       <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
-      <description>HIP 41378 b pl_bmasse: 9.06 → 6.9</description>
+      <description>HIP 41378 c pl_bmasse: 6.53 → 5.97</description>
     </item>
     <item>
-      <title>Parameter update — Kepler-79 e: pl_rade</title>
-      <guid isPermaLink="false">change-2786</guid>
-      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
-      <description>Kepler-79 e pl_rade: 3.49 → 3.53</description>
+      <title>Parameter update — HIP 41378 d: pl_rade</title>
+      <guid isPermaLink="false">change-2874</guid>
+      <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
+      <description>HIP 41378 d pl_rade: 3.54 → 3.65</description>
+    </item>
+    <item>
+      <title>Parameter update — HIP 41378 d: pl_bmasse</title>
+      <guid isPermaLink="false">change-2875</guid>
+      <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
+      <description>HIP 41378 d pl_bmasse: 4.6 → 6.53</description>
+    </item>
+    <item>
+      <title>Parameter update — HIP 41378 e: pl_orbper</title>
+      <guid isPermaLink="false">change-2881</guid>
+      <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
+      <description>HIP 41378 e pl_orbper: 369.0 → 393.0</description>
+    </item>
+    <item>
+      <title>Parameter update — HIP 41378 e: pl_rade</title>
+      <guid isPermaLink="false">change-2882</guid>
+      <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
+      <description>HIP 41378 e pl_rade: 4.92 → 5.19</description>
+    </item>
+    <item>
+      <title>Parameter update — HIP 41378 e: pl_bmasse</title>
+      <guid isPermaLink="false">change-2883</guid>
+      <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
+      <description>HIP 41378 e pl_bmasse: 12.0 → 7.62</description>
+    </item>
+    <item>
+      <title>Parameter update — HIP 41378 f: pl_rade</title>
+      <guid isPermaLink="false">change-2889</guid>
+      <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
+      <description>HIP 41378 f pl_rade: 9.2 → 9.47</description>
+    </item>
+    <item>
+      <title>Parameter update — HIP 41378 f: pl_bmasse</title>
+      <guid isPermaLink="false">change-2890</guid>
+      <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
+      <description>HIP 41378 f pl_bmasse: 12.0 → 25.0</description>
+    </item>
+    <item>
+      <title>Parameter update — HIP 41378 g: pl_orbper</title>
+      <guid isPermaLink="false">change-2896</guid>
+      <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
+      <description>HIP 41378 g pl_orbper: 64.067 → 63.19</description>
+    </item>
+    <item>
+      <title>Parameter update — KELT-9 b: pl_rade</title>
+      <guid isPermaLink="false">change-2900</guid>
+      <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
+      <description>KELT-9 b pl_rade: 21.196219 → 21.70058664</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-1533 b</title>
+      <guid isPermaLink="false">change-2910</guid>
+      <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
+      <description>New planet: TOI-1533 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-1533 c</title>
+      <guid isPermaLink="false">change-2911</guid>
+      <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
+      <description>New planet: TOI-1533 c</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-6884 b</title>
+      <guid isPermaLink="false">change-2912</guid>
+      <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
+      <description>New planet: TOI-6884 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-791 b</title>
+      <guid isPermaLink="false">change-2913</guid>
+      <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
+      <description>New planet: TOI-791 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-791 c</title>
+      <guid isPermaLink="false">change-2914</guid>
+      <pubDate>Fri, 17 Jul 2026 06:43:56 +0000</pubDate>
+      <description>New planet: TOI-791 c</description>
     </item>
     <item>
       <title>Parameter update — GJ 367 b: pl_rade</title>
@@ -210,6 +204,12 @@
       <guid isPermaLink="false">change-2778</guid>
       <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
       <description>Kepler-79 d pl_bmasse: 6.0 → 5.3</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-79 e: pl_rade</title>
+      <guid isPermaLink="false">change-2786</guid>
+      <pubDate>Fri, 10 Jul 2026 07:06:06 +0000</pubDate>
+      <description>Kepler-79 e pl_rade: 3.49 → 3.53</description>
     </item>
     <item>
       <title>Parameter update — Kepler-79 e: pl_bmasse</title>
@@ -308,34 +308,10 @@
       <description>eps Ind A b pl_bmasse: 2425.03074541 → 2065.8846455</description>
     </item>
     <item>
-      <title>New exoplanet confirmed: HD 125136 b</title>
-      <guid isPermaLink="false">change-2642</guid>
-      <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
-      <description>New planet: HD 125136 b</description>
-    </item>
-    <item>
       <title>Parameter update — 51 Peg b: pl_rade</title>
       <guid isPermaLink="false">change-2633</guid>
       <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
       <description>51 Peg b pl_rade: 14.3 → 14.1</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: HD 127195 c</title>
-      <guid isPermaLink="false">change-2645</guid>
-      <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
-      <description>New planet: HD 127195 c</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: HD 127195 b</title>
-      <guid isPermaLink="false">change-2644</guid>
-      <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
-      <description>New planet: HD 127195 b</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: HD 126105 b</title>
-      <guid isPermaLink="false">change-2643</guid>
-      <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
-      <description>New planet: HD 126105 b</description>
     </item>
     <item>
       <title>Parameter update — 51 Peg b: pl_bmasse</title>
@@ -344,22 +320,58 @@
       <description>51 Peg b pl_bmasse: 146.2018 → 193.87532827</description>
     </item>
     <item>
-      <title>New exoplanet confirmed: HIP 10090 c</title>
-      <guid isPermaLink="false">change-2680</guid>
+      <title>New exoplanet confirmed: HD 125136 b</title>
+      <guid isPermaLink="false">change-2642</guid>
       <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
-      <description>New planet: HIP 10090 c</description>
+      <description>New planet: HD 125136 b</description>
     </item>
     <item>
-      <title>New exoplanet confirmed: HIP 10090 b</title>
-      <guid isPermaLink="false">change-2679</guid>
+      <title>New exoplanet confirmed: HD 126105 b</title>
+      <guid isPermaLink="false">change-2643</guid>
       <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
-      <description>New planet: HIP 10090 b</description>
+      <description>New planet: HD 126105 b</description>
     </item>
     <item>
-      <title>Parameter update — HD 30177 c: pl_bmasse</title>
-      <guid isPermaLink="false">change-2672</guid>
+      <title>New exoplanet confirmed: HD 127195 b</title>
+      <guid isPermaLink="false">change-2644</guid>
       <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
-      <description>HD 30177 c pl_bmasse: 1954.64470305 → 1484.25866069</description>
+      <description>New planet: HD 127195 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: HD 127195 c</title>
+      <guid isPermaLink="false">change-2645</guid>
+      <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
+      <description>New planet: HD 127195 c</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 190360 c: pl_rade</title>
+      <guid isPermaLink="false">change-2653</guid>
+      <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
+      <description>HD 190360 c pl_rade: 5.44 → 5.53</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 190360 c: pl_bmasse</title>
+      <guid isPermaLink="false">change-2654</guid>
+      <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
+      <description>HD 190360 c pl_bmasse: 25.42627256 → 26.2</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: HD 190360 d</title>
+      <guid isPermaLink="false">change-2661</guid>
+      <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
+      <description>New planet: HD 190360 d</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 30177 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-2663</guid>
+      <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
+      <description>HD 30177 b pl_bmasse: 2670.71210402 → 2622.08435775</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 30177 c: pl_orbper</title>
+      <guid isPermaLink="false">change-2670</guid>
+      <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
+      <description>HD 30177 c pl_orbper: 12085.45186 → 11320.0</description>
     </item>
     <item>
       <title>Parameter update — HD 30177 c: pl_rade</title>
@@ -368,10 +380,22 @@
       <description>HD 30177 c pl_rade: 12.7 → 12.9</description>
     </item>
     <item>
-      <title>Parameter update — HD 30177 c: pl_orbper</title>
-      <guid isPermaLink="false">change-2670</guid>
+      <title>Parameter update — HD 30177 c: pl_bmasse</title>
+      <guid isPermaLink="false">change-2672</guid>
       <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
-      <description>HD 30177 c pl_orbper: 12085.45186 → 11320.0</description>
+      <description>HD 30177 c pl_bmasse: 1954.64470305 → 1484.25866069</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: HIP 10090 b</title>
+      <guid isPermaLink="false">change-2679</guid>
+      <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
+      <description>New planet: HIP 10090 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: HIP 10090 c</title>
+      <guid isPermaLink="false">change-2680</guid>
+      <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
+      <description>New planet: HIP 10090 c</description>
     </item>
     <item>
       <title>New exoplanet confirmed: HIP 39330 b</title>
@@ -510,54 +534,6 @@
       <guid isPermaLink="false">change-2740</guid>
       <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
       <description>eps Eri b pl_bmasse: 209.76674862 → 317.828407</description>
-    </item>
-    <item>
-      <title>Parameter update — HD 30177 b: pl_bmasse</title>
-      <guid isPermaLink="false">change-2663</guid>
-      <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
-      <description>HD 30177 b pl_bmasse: 2670.71210402 → 2622.08435775</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: HD 190360 d</title>
-      <guid isPermaLink="false">change-2661</guid>
-      <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
-      <description>New planet: HD 190360 d</description>
-    </item>
-    <item>
-      <title>Parameter update — HD 190360 c: pl_bmasse</title>
-      <guid isPermaLink="false">change-2654</guid>
-      <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
-      <description>HD 190360 c pl_bmasse: 25.42627256 → 26.2</description>
-    </item>
-    <item>
-      <title>Parameter update — HD 190360 c: pl_rade</title>
-      <guid isPermaLink="false">change-2653</guid>
-      <pubDate>Fri, 03 Jul 2026 07:01:24 +0000</pubDate>
-      <description>HD 190360 c pl_rade: 5.44 → 5.53</description>
-    </item>
-    <item>
-      <title>Parameter update — kap CrB b: pl_bmasse</title>
-      <guid isPermaLink="false">change-2586</guid>
-      <pubDate>Fri, 19 Jun 2026 07:43:41 +0000</pubDate>
-      <description>kap CrB b pl_bmasse: 635.66 → 591.1638</description>
-    </item>
-    <item>
-      <title>Parameter update — TOI-942 c: pl_bmasse</title>
-      <guid isPermaLink="false">change-2491</guid>
-      <pubDate>Fri, 19 Jun 2026 07:43:41 +0000</pubDate>
-      <description>TOI-942 c pl_bmasse: 37.0 → 794.575</description>
-    </item>
-    <item>
-      <title>Parameter update — MOA-2011-BLG-293L b: pl_orbper</title>
-      <guid isPermaLink="false">change-2389</guid>
-      <pubDate>Fri, 19 Jun 2026 07:43:41 +0000</pubDate>
-      <description>MOA-2011-BLG-293L b pl_orbper: 3000.0 → 550.0</description>
-    </item>
-    <item>
-      <title>Parameter update — Kepler-32 d: pl_bmasse</title>
-      <guid isPermaLink="false">change-2324</guid>
-      <pubDate>Fri, 19 Jun 2026 07:43:41 +0000</pubDate>
-      <description>Kepler-32 d pl_bmasse: 39.9089 → 67.4815</description>
     </item>
   </channel>
 </rss>

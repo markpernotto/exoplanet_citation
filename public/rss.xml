@@ -5,8 +5,128 @@
     <link>https://github.com/markpernotto/exoplanet_citation</link>
     <description>Newly confirmed and revised exoplanet records from the NASA Exoplanet Archive, diffed nightly. Surfaces NEW / REMOVED / Tier-A parameter changes only.</description>
     <language>en-us</language>
-    <lastBuildDate>Thu, 06 Aug 2026 06:51:50 +0000</lastBuildDate>
+    <lastBuildDate>Fri, 07 Aug 2026 06:23:24 +0000</lastBuildDate>
     <ttl>1440</ttl>
+    <item>
+      <title>New exoplanet confirmed: HD 60779 b</title>
+      <guid isPermaLink="false">change-3008</guid>
+      <pubDate>Fri, 07 Aug 2026 06:22:22 +0000</pubDate>
+      <description>New planet: HD 60779 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: HD 60779 c</title>
+      <guid isPermaLink="false">change-3009</guid>
+      <pubDate>Fri, 07 Aug 2026 06:22:22 +0000</pubDate>
+      <description>New planet: HD 60779 c</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 80653 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3012</guid>
+      <pubDate>Fri, 07 Aug 2026 06:22:22 +0000</pubDate>
+      <description>HD 80653 b pl_bmasse: 5.72 → 5.61</description>
+    </item>
+    <item>
+      <title>Parameter update — K2-24 b: pl_rade</title>
+      <guid isPermaLink="false">change-3020</guid>
+      <pubDate>Fri, 07 Aug 2026 06:22:22 +0000</pubDate>
+      <description>K2-24 b pl_rade: 5.4 → 5.638</description>
+    </item>
+    <item>
+      <title>Parameter update — K2-24 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3021</guid>
+      <pubDate>Fri, 07 Aug 2026 06:22:22 +0000</pubDate>
+      <description>K2-24 b pl_bmasse: 19.0 → 20.6</description>
+    </item>
+    <item>
+      <title>Parameter update — K2-24 c: pl_rade</title>
+      <guid isPermaLink="false">change-3030</guid>
+      <pubDate>Fri, 07 Aug 2026 06:22:22 +0000</pubDate>
+      <description>K2-24 c pl_rade: 7.5 → 7.93</description>
+    </item>
+    <item>
+      <title>Parameter update — K2-24 c: pl_bmasse</title>
+      <guid isPermaLink="false">change-3031</guid>
+      <pubDate>Fri, 07 Aug 2026 06:22:22 +0000</pubDate>
+      <description>K2-24 c pl_bmasse: 15.4 → 16.4</description>
+    </item>
+    <item>
+      <title>Parameter update — K2-312 c: pl_orbper</title>
+      <guid isPermaLink="false">change-3039</guid>
+      <pubDate>Fri, 07 Aug 2026 06:22:22 +0000</pubDate>
+      <description>K2-312 c pl_orbper: 921.2 → 871.32</description>
+    </item>
+    <item>
+      <title>Parameter update — K2-312 c: pl_bmasse</title>
+      <guid isPermaLink="false">change-3040</guid>
+      <pubDate>Fri, 07 Aug 2026 06:22:22 +0000</pubDate>
+      <description>K2-312 c pl_bmasse: 1719.45168187 → 1681.31227303</description>
+    </item>
+    <item>
+      <title>Parameter update — LP 714-47 b: pl_rade</title>
+      <guid isPermaLink="false">change-3051</guid>
+      <pubDate>Fri, 07 Aug 2026 06:22:22 +0000</pubDate>
+      <description>LP 714-47 b pl_rade: 4.7 → 4.25</description>
+    </item>
+    <item>
+      <title>Parameter update — LP 714-47 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3052</guid>
+      <pubDate>Fri, 07 Aug 2026 06:22:22 +0000</pubDate>
+      <description>LP 714-47 b pl_bmasse: 30.8 → 28.38</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-4438 b: pl_rade</title>
+      <guid isPermaLink="false">change-3064</guid>
+      <pubDate>Fri, 07 Aug 2026 06:22:22 +0000</pubDate>
+      <description>TOI-4438 b pl_rade: 2.52 → 2.4</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-4438 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3065</guid>
+      <pubDate>Fri, 07 Aug 2026 06:22:22 +0000</pubDate>
+      <description>TOI-4438 b pl_bmasse: 5.4 → 4.11</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-4504 b: pl_rade</title>
+      <guid isPermaLink="false">change-3074</guid>
+      <pubDate>Fri, 07 Aug 2026 06:22:22 +0000</pubDate>
+      <description>TOI-4504 b pl_rade: 2.691 → 2.65</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-4504 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3075</guid>
+      <pubDate>Fri, 07 Aug 2026 06:22:22 +0000</pubDate>
+      <description>TOI-4504 b pl_bmasse: 7.71 → 140.0</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-4504 c: pl_bmasse</title>
+      <guid isPermaLink="false">change-3083</guid>
+      <pubDate>Fri, 07 Aug 2026 06:22:22 +0000</pubDate>
+      <description>TOI-4504 c pl_bmasse: 1197.32317485 → 821.0</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-4504 d: pl_orbper</title>
+      <guid isPermaLink="false">change-3089</guid>
+      <pubDate>Fri, 07 Aug 2026 06:22:22 +0000</pubDate>
+      <description>TOI-4504 d pl_orbper: 40.5634 → 41.2871975</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-4504 d: pl_rade</title>
+      <guid isPermaLink="false">change-3090</guid>
+      <pubDate>Fri, 07 Aug 2026 06:22:22 +0000</pubDate>
+      <description>TOI-4504 d pl_rade: 13.6 → 11.26</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-4504 d: pl_bmasse</title>
+      <guid isPermaLink="false">change-3091</guid>
+      <pubDate>Fri, 07 Aug 2026 06:22:22 +0000</pubDate>
+      <description>TOI-4504 d pl_bmasse: 450.23572136 → 643.0</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-5628 A b</title>
+      <guid isPermaLink="false">change-3097</guid>
+      <pubDate>Fri, 07 Aug 2026 06:22:22 +0000</pubDate>
+      <description>New planet: TOI-5628 A b</description>
+    </item>
     <item>
       <title>New exoplanet confirmed: Gaia23braL b</title>
       <guid isPermaLink="false">change-2919</guid>

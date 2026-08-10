@@ -1,14 +1,14 @@
 {
   "status": "ok",
-  "checked_at": "2026-08-09T06:14:10.371452+00:00",
+  "checked_at": "2026-08-10T06:24:51.531720+00:00",
   "freshness": {
-    "snapshot_date": "2026-08-09",
-    "source_retrieved_at": "2026-08-09T06:12:00.060989+00:00",
+    "snapshot_date": "2026-08-10",
+    "source_retrieved_at": "2026-08-10T06:22:42.021299+00:00",
     "freshness_hours": 0.04,
     "slo_freshness_hours": 26,
     "status": "ok",
     "clock": "A (time since last extract)",
     "note": "Clock A approximation. Phase-1.x work upgrades to Clock B (time since upstream last_modified)."
   },
-  "recent_change_count": 102
+  "recent_change_count": 70
 }

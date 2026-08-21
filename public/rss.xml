@@ -5,8 +5,182 @@
     <link>https://github.com/markpernotto/exoplanet_citation</link>
     <description>Newly confirmed and revised exoplanet records from the NASA Exoplanet Archive, diffed nightly. Surfaces NEW / REMOVED / Tier-A parameter changes only.</description>
     <language>en-us</language>
-    <lastBuildDate>Thu, 20 Aug 2026 06:07:34 +0000</lastBuildDate>
+    <lastBuildDate>Fri, 21 Aug 2026 06:08:17 +0000</lastBuildDate>
     <ttl>1440</ttl>
+    <item>
+      <title>New exoplanet confirmed: Gl 725 B c</title>
+      <guid isPermaLink="false">change-3100</guid>
+      <pubDate>Fri, 21 Aug 2026 06:07:10 +0000</pubDate>
+      <description>New planet: Gl 725 B c</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: HD 202206 b</title>
+      <guid isPermaLink="false">change-3101</guid>
+      <pubDate>Fri, 21 Aug 2026 06:07:10 +0000</pubDate>
+      <description>New planet: HD 202206 b</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 202206 c: pl_orbper</title>
+      <guid isPermaLink="false">change-3102</guid>
+      <pubDate>Fri, 21 Aug 2026 06:07:10 +0000</pubDate>
+      <description>HD 202206 c pl_orbper: 1260.0 → 1299.22</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 202206 c: pl_rade</title>
+      <guid isPermaLink="false">change-3103</guid>
+      <pubDate>Fri, 21 Aug 2026 06:07:10 +0000</pubDate>
+      <description>HD 202206 c pl_rade: 12.2 → 13.1</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 202206 c: pl_bmasse</title>
+      <guid isPermaLink="false">change-3104</guid>
+      <pubDate>Fri, 21 Aug 2026 06:07:10 +0000</pubDate>
+      <description>HD 202206 c pl_bmasse: 5689.157 → 982.08977763</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: HIP 81991 b</title>
+      <guid isPermaLink="false">change-3112</guid>
+      <pubDate>Fri, 21 Aug 2026 06:07:10 +0000</pubDate>
+      <description>New planet: HIP 81991 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: KOI-319 b</title>
+      <guid isPermaLink="false">change-3114</guid>
+      <pubDate>Fri, 21 Aug 2026 06:07:10 +0000</pubDate>
+      <description>New planet: KOI-319 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: KOI-319 c</title>
+      <guid isPermaLink="false">change-3115</guid>
+      <pubDate>Fri, 21 Aug 2026 06:07:10 +0000</pubDate>
+      <description>New planet: KOI-319 c</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: KOI-884 e</title>
+      <guid isPermaLink="false">change-3116</guid>
+      <pubDate>Fri, 21 Aug 2026 06:07:10 +0000</pubDate>
+      <description>New planet: KOI-884 e</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-247 d: pl_rade</title>
+      <guid isPermaLink="false">change-3120</guid>
+      <pubDate>Fri, 21 Aug 2026 06:07:10 +0000</pubDate>
+      <description>Kepler-247 d pl_rade: 3.94 → 4.5</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-247 d: pl_bmasse</title>
+      <guid isPermaLink="false">change-3121</guid>
+      <pubDate>Fri, 21 Aug 2026 06:07:10 +0000</pubDate>
+      <description>Kepler-247 d pl_bmasse: 14.7 → 50.0</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: MOA-2020-BLG-108L b</title>
+      <guid isPermaLink="false">change-3128</guid>
+      <pubDate>Fri, 21 Aug 2026 06:07:10 +0000</pubDate>
+      <description>New planet: MOA-2020-BLG-108L b</description>
+    </item>
+    <item>
+      <title>Parameter update — NGTS-10 b: pl_rade</title>
+      <guid isPermaLink="false">change-3129</guid>
+      <pubDate>Fri, 21 Aug 2026 06:07:10 +0000</pubDate>
+      <description>NGTS-10 b pl_rade: 13.506845 → 13.89913607</description>
+    </item>
+    <item>
+      <title>Parameter update — OGLE-2014-BLG-0676L b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3134</guid>
+      <pubDate>Fri, 21 Aug 2026 06:07:10 +0000</pubDate>
+      <description>OGLE-2014-BLG-0676L b pl_bmasse: 1169.60853776 → 988.44634577</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-1230.01: pl_rade</title>
+      <guid isPermaLink="false">change-3142</guid>
+      <pubDate>Fri, 21 Aug 2026 06:07:10 +0000</pubDate>
+      <description>TOI-1230.01 pl_rade: 3.23968384 → 2.38627705</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-1230.01: pl_bmasse</title>
+      <guid isPermaLink="false">change-3143</guid>
+      <pubDate>Fri, 21 Aug 2026 06:07:10 +0000</pubDate>
+      <description>TOI-1230.01 pl_bmasse: 10.6 → 6.29</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-2114 b</title>
+      <guid isPermaLink="false">change-3147</guid>
+      <pubDate>Fri, 21 Aug 2026 06:07:10 +0000</pubDate>
+      <description>New planet: TOI-2114 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-4492 b</title>
+      <guid isPermaLink="false">change-3148</guid>
+      <pubDate>Fri, 21 Aug 2026 06:07:10 +0000</pubDate>
+      <description>New planet: TOI-4492 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-5806 b</title>
+      <guid isPermaLink="false">change-3149</guid>
+      <pubDate>Fri, 21 Aug 2026 06:07:10 +0000</pubDate>
+      <description>New planet: TOI-5806 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-5811 B b</title>
+      <guid isPermaLink="false">change-3150</guid>
+      <pubDate>Fri, 21 Aug 2026 06:07:10 +0000</pubDate>
+      <description>New planet: TOI-5811 B b</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-5916 b: pl_rade</title>
+      <guid isPermaLink="false">change-3152</guid>
+      <pubDate>Fri, 21 Aug 2026 06:07:10 +0000</pubDate>
+      <description>TOI-5916 b pl_rade: 11.35469745 → 11.8</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-5916 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3153</guid>
+      <pubDate>Fri, 21 Aug 2026 06:07:10 +0000</pubDate>
+      <description>TOI-5916 b pl_bmasse: 226.61165419 → 219.0</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-603 b</title>
+      <guid isPermaLink="false">change-3163</guid>
+      <pubDate>Fri, 21 Aug 2026 06:07:10 +0000</pubDate>
+      <description>New planet: TOI-603 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-6158 b</title>
+      <guid isPermaLink="false">change-3164</guid>
+      <pubDate>Fri, 21 Aug 2026 06:07:10 +0000</pubDate>
+      <description>New planet: TOI-6158 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-7169 b</title>
+      <guid isPermaLink="false">change-3165</guid>
+      <pubDate>Fri, 21 Aug 2026 06:07:10 +0000</pubDate>
+      <description>New planet: TOI-7169 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-7189 b</title>
+      <guid isPermaLink="false">change-3166</guid>
+      <pubDate>Fri, 21 Aug 2026 06:07:10 +0000</pubDate>
+      <description>New planet: TOI-7189 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-7265 B b</title>
+      <guid isPermaLink="false">change-3167</guid>
+      <pubDate>Fri, 21 Aug 2026 06:07:10 +0000</pubDate>
+      <description>New planet: TOI-7265 B b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-7393 b</title>
+      <guid isPermaLink="false">change-3168</guid>
+      <pubDate>Fri, 21 Aug 2026 06:07:10 +0000</pubDate>
+      <description>New planet: TOI-7393 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-7394 B b</title>
+      <guid isPermaLink="false">change-3169</guid>
+      <pubDate>Fri, 21 Aug 2026 06:07:10 +0000</pubDate>
+      <description>New planet: TOI-7394 B b</description>
+    </item>
     <item>
       <title>New exoplanet confirmed: HD 60779 b</title>
       <guid isPermaLink="false">change-3008</guid>

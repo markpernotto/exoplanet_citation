@@ -5,6 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Exoplanet Citation Atlas</title>
     <meta name="description" content="A public catalog of confirmed exoplanets and the scientific papers that announced them." />
+
+    <!-- Social / link-unfurl cards (LinkedIn, X, Slack, iMessage, etc.).
+         This is a Vite SPA, so crawlers only see this static shell — these
+         tags must live here, not be injected by React at runtime. Absolute
+         URLs are required (LinkedIn rejects relative og:image). Site-level
+         card only; per-planet cards would need prerendering. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Exoplanet Citation Atlas" />
+    <meta property="og:url" content="https://exoplanetcitation.space/" />
+    <meta property="og:title" content="Exoplanet Citation Atlas" />
+    <meta property="og:description" content="A public catalog of confirmed exoplanets and the scientific papers that announced them." />
+    <meta property="og:image" content="https://exoplanetcitation.space/featured/architecture-3d.jpg" />
+    <meta property="og:image:width" content="2560" />
+    <meta property="og:image:height" content="1440" />
+    <meta property="og:image:alt" content="A three-dimensional rendering of an exoplanet system architecture." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Exoplanet Citation Atlas" />
+    <meta name="twitter:description" content="A public catalog of confirmed exoplanets and the scientific papers that announced them." />
+    <meta name="twitter:image" content="https://exoplanetcitation.space/featured/architecture-3d.jpg" />
+
     <!-- RSS auto-discovery: lets browsers and feed readers detect the
          site-wide change feed from any page. Per-planet, per-system,
          and per-author feeds are linked from their respective detail

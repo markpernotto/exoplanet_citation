@@ -5,8 +5,254 @@
     <link>https://github.com/markpernotto/exoplanet_citation</link>
     <description>Newly confirmed and revised exoplanet records from the NASA Exoplanet Archive, diffed nightly. Surfaces NEW / REMOVED / Tier-A parameter changes only.</description>
     <language>en-us</language>
-    <lastBuildDate>Thu, 03 Sep 2026 06:04:16 +0000</lastBuildDate>
+    <lastBuildDate>Fri, 04 Sep 2026 06:03:44 +0000</lastBuildDate>
     <ttl>1440</ttl>
+    <item>
+      <title>Parameter update — Kepler-725 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3242</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>Kepler-725 b pl_bmasse: 81.6 → 521.76244</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: CD-35 2722 B b</title>
+      <guid isPermaLink="false">change-3171</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>New planet: CD-35 2722 B b</description>
+    </item>
+    <item>
+      <title>Exoplanet removed: CD-35 2722 b</title>
+      <guid isPermaLink="false">change-3172</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>Removed planet: CD-35 2722 b</description>
+    </item>
+    <item>
+      <title>Parameter update — DMPP-7 b: pl_orbper</title>
+      <guid isPermaLink="false">change-3173</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>DMPP-7 b pl_orbper: 4.984 → 4.92666</description>
+    </item>
+    <item>
+      <title>Parameter update — DMPP-7 b: pl_rade</title>
+      <guid isPermaLink="false">change-3174</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>DMPP-7 b pl_rade: 9.13 → 9.78</description>
+    </item>
+    <item>
+      <title>Parameter update — DMPP-7 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3175</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>DMPP-7 b pl_bmasse: 61.39 → 68.958</description>
+    </item>
+    <item>
+      <title>Parameter update — HAT-P-18 b: pl_rade</title>
+      <guid isPermaLink="false">change-3185</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>HAT-P-18 b pl_rade: 11.153 → 10.70457657</description>
+    </item>
+    <item>
+      <title>Parameter update — HAT-P-18 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3186</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>HAT-P-18 b pl_bmasse: 62.61 → 55.5246227</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 114082 b: discoverymethod</title>
+      <guid isPermaLink="false">change-3192</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>HD 114082 b discoverymethod: Radial Velocity → Transit</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 114082 b: disc_facility</title>
+      <guid isPermaLink="false">change-3193</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>HD 114082 b disc_facility: La Silla Observatory → Transiting Exoplanet Survey Satellite (TESS)</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 114082 b: pl_orbper</title>
+      <guid isPermaLink="false">change-3194</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>HD 114082 b pl_orbper: 109.75 → 225.5504</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 114082 b: pl_rade</title>
+      <guid isPermaLink="false">change-3195</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>HD 114082 b pl_rade: 11.2089807 → 11.72459381</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 114082 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3196</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>HD 114082 b pl_bmasse: 2542.627256 → 508.5254512</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 50554 b: pl_orbper</title>
+      <guid isPermaLink="false">change-3203</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>HD 50554 b pl_orbper: 1293.0 → 1240.0</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: HD 50554 c</title>
+      <guid isPermaLink="false">change-3211</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>New planet: HD 50554 c</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: HD 50554 d</title>
+      <guid isPermaLink="false">change-3212</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>New planet: HD 50554 d</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: KMT-2025-BLG-0975L b</title>
+      <guid isPermaLink="false">change-3213</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>New planet: KMT-2025-BLG-0975L b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: KMT-2025-BLG-1160L b</title>
+      <guid isPermaLink="false">change-3214</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>New planet: KMT-2025-BLG-1160L b</description>
+    </item>
+    <item>
+      <title>Parameter update — KOI-884 e: pl_orbper</title>
+      <guid isPermaLink="false">change-3217</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>KOI-884 e pl_orbper: 59.947 → 31.101659</description>
+    </item>
+    <item>
+      <title>Parameter update — KOI-884 e: pl_rade</title>
+      <guid isPermaLink="false">change-3218</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>KOI-884 e pl_rade: 13.3 → 9.54</description>
+    </item>
+    <item>
+      <title>Parameter update — KOI-884 e: pl_bmasse</title>
+      <guid isPermaLink="false">change-3219</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>KOI-884 e pl_bmasse: 769.14474494 → 66.05405</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-122 f: discoverymethod</title>
+      <guid isPermaLink="false">change-3222</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>Kepler-122 f discoverymethod: Transit Timing Variations → Transit</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-1976 b: discoverymethod</title>
+      <guid isPermaLink="false">change-3223</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>Kepler-1976 b discoverymethod: Transit Timing Variations → Transit</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-338 e: discoverymethod</title>
+      <guid isPermaLink="false">change-3227</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>Kepler-338 e discoverymethod: Transit Timing Variations → Transit</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-37 e: discoverymethod</title>
+      <guid isPermaLink="false">change-3228</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>Kepler-37 e discoverymethod: Transit Timing Variations → Transit</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-414 b: discoverymethod</title>
+      <guid isPermaLink="false">change-3229</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>Kepler-414 b discoverymethod: Transit Timing Variations → Transit</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-414 c: discoverymethod</title>
+      <guid isPermaLink="false">change-3230</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>Kepler-414 c discoverymethod: Transit Timing Variations → Transit</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-415 b: discoverymethod</title>
+      <guid isPermaLink="false">change-3231</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>Kepler-415 b discoverymethod: Transit Timing Variations → Transit</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-415 c: discoverymethod</title>
+      <guid isPermaLink="false">change-3232</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>Kepler-415 c discoverymethod: Transit Timing Variations → Transit</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-416 b: discoverymethod</title>
+      <guid isPermaLink="false">change-3233</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>Kepler-416 b discoverymethod: Transit Timing Variations → Transit</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-416 c: discoverymethod</title>
+      <guid isPermaLink="false">change-3234</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>Kepler-416 c discoverymethod: Transit Timing Variations → Transit</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-417 b: discoverymethod</title>
+      <guid isPermaLink="false">change-3235</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>Kepler-417 b discoverymethod: Transit Timing Variations → Transit</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-417 c: discoverymethod</title>
+      <guid isPermaLink="false">change-3236</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>Kepler-417 c discoverymethod: Transit Timing Variations → Transit</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-1173 b: pl_rade</title>
+      <guid isPermaLink="false">change-3253</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>TOI-1173 b pl_rade: 9.19 → 8.77663189</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-1173 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3254</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>TOI-1173 b pl_bmasse: 27.4 → 28.28672822</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-3053 b</title>
+      <guid isPermaLink="false">change-3259</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>New planet: TOI-3053 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-3278 b</title>
+      <guid isPermaLink="false">change-3260</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>New planet: TOI-3278 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-4409 b</title>
+      <guid isPermaLink="false">change-3261</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>New planet: TOI-4409 b</description>
+    </item>
+    <item>
+      <title>Parameter update — WASP-107 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3264</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>WASP-107 b pl_bmasse: 30.51152707 → 33.02237149</description>
+    </item>
+    <item>
+      <title>Parameter update — WASP-107 c: pl_orbper</title>
+      <guid isPermaLink="false">change-3267</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>WASP-107 c pl_orbper: 1066.0 → 1091.0</description>
+    </item>
+    <item>
+      <title>Exoplanet removed: WASP-126 c</title>
+      <guid isPermaLink="false">change-3270</guid>
+      <pubDate>Fri, 04 Sep 2026 06:02:42 +0000</pubDate>
+      <description>Removed planet: WASP-126 c</description>
+    </item>
     <item>
       <title>New exoplanet confirmed: Gl 725 B c</title>
       <guid isPermaLink="false">change-3100</guid>

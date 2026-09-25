@@ -12,7 +12,8 @@ exoplanet host binaries are unresolved spectroscopic pairs (otype SB*/EB*) —
 the secondary has no separate position, so it can't be placed as a "second
 sun" in the VR scene. Those systems are flagged but not enumerated here.
 
-Prerequisite: apply etl/migrations/007_binary_companions.sql to your DB.
+Prerequisites: etl/migrations/007_binary_companions.sql and
+125_binary_companion_exclusions.sql applied to your DB.
 
 Run:
   python -m etl.enrich_binaries                   # incremental (default)
@@ -171,7 +172,46 @@ ON CONFLICT (hostname, component_designation) DO UPDATE SET
     component_spectype  = EXCLUDED.component_spectype,
     source_catalog      = EXCLUDED.source_catalog,
     retrieved_at        = now()
+-- Never overwrite a curated row. Migrations replace SIMBAD stubs with cited
+-- rows under the same (hostname, component_designation); a --refresh-all or
+-- --target-host re-resolve must leave those alone.
+WHERE binary_companions.source_bibcode IS NULL
+  AND binary_companions.source_catalog = 'SIMBAD'
 """
+
+# Hosts whose SIMBAD neighbors were reviewed by a curator and rejected as
+# unbound field artifacts (migration 125). Incremental mode treats a host
+# with zero binary_companions rows as "never fetched", so without this list
+# a curated DELETE that empties a host is undone by the next nightly run
+# (Kepler-108 and OGLE-2006-BLG-284L A regressed exactly this way in July
+# 2026). Applies in every mode; to re-resolve an excluded host on purpose,
+# delete its exclusion row first.
+EXCLUSIONS_SQL = "SELECT hostname FROM binary_companion_exclusions"
+
+
+def select_hosts(
+    hosts: list[tuple[str, float, float]],
+    *,
+    already: set[str],
+    excluded: set[str],
+    refresh_all: bool = False,
+    target_host: str | None = None,
+) -> list[tuple[str, float, float]]:
+    """Decide which hosts to resolve this run.
+
+    - target_host: that host only (cache-skip ignored; exclusions still apply).
+    - refresh_all: every host (exclusions still apply).
+    - default: hosts with no binary_companions rows yet, minus exclusions.
+    Excluded hosts are dropped in every mode so a curated verdict can only be
+    reversed by removing the exclusion row, never by a CLI flag.
+    """
+    if target_host is not None:
+        todo = [h for h in hosts if h[0] == target_host]
+    elif refresh_all:
+        todo = list(hosts)
+    else:
+        todo = [h for h in hosts if h[0] not in already]
+    return [h for h in todo if h[0] not in excluded]
 
 
 def _filter_companions(
@@ -326,24 +366,31 @@ def main() -> None:
             hosts = cur.fetchall()
         log.info("%d multi-star hostnames in catalog (with coords)", len(hosts))
 
+        with conn.cursor() as cur:
+            cur.execute("SELECT DISTINCT hostname FROM binary_companions")
+            already = {r[0] for r in cur.fetchall()}
+            cur.execute(EXCLUSIONS_SQL)
+            excluded = {r[0] for r in cur.fetchall()}
+
         if args.target_host:
             # Single-host mode: ignore the cache-skip logic so the user can
             # always re-resolve a specific host (useful for testing filter
             # changes against a known case like TrES-2).
-            todo = [h for h in hosts if h[0] == args.target_host]
-            if not todo:
+            if not any(h[0] == args.target_host for h in hosts):
                 log.error("Hostname %r not found in planets_current (sy_snum >= 2)",
                           args.target_host)
                 return
+            if args.target_host in excluded:
+                log.error("Hostname %r is in binary_companion_exclusions; delete "
+                          "its exclusion row first to re-resolve it", args.target_host)
+                return
             log.info("Single-host mode: %s", args.target_host)
-        elif args.refresh_all:
-            todo = hosts
-        else:
-            with conn.cursor() as cur:
-                cur.execute("SELECT DISTINCT hostname FROM binary_companions")
-                already = {r[0] for r in cur.fetchall()}
-            todo = [h for h in hosts if h[0] not in already]
-            log.info("%d already cached, %d to fetch", len(already), len(todo))
+
+        todo = select_hosts(hosts, already=already, excluded=excluded,
+                            refresh_all=args.refresh_all, target_host=args.target_host)
+        if not args.target_host:
+            log.info("%d already cached, %d excluded by curation, %d to fetch",
+                     len(already), len(excluded), len(todo))
 
     if args.limit:
         todo = todo[: args.limit]

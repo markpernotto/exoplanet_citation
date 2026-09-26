@@ -5,8 +5,200 @@
     <link>https://github.com/markpernotto/exoplanet_citation</link>
     <description>Newly confirmed and revised exoplanet records from the NASA Exoplanet Archive, diffed nightly. Surfaces NEW / REMOVED / Tier-A parameter changes only.</description>
     <language>en-us</language>
-    <lastBuildDate>Fri, 25 Sep 2026 06:03:12 +0000</lastBuildDate>
+    <lastBuildDate>Sat, 26 Sep 2026 06:03:48 +0000</lastBuildDate>
     <ttl>1440</ttl>
+    <item>
+      <title>Parameter update — K2-223 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3300</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>K2-223 b pl_bmasse: 0.64 → 2.8</description>
+    </item>
+    <item>
+      <title>Parameter update — HATS-34 b: pl_rade</title>
+      <guid isPermaLink="false">change-3282</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>HATS-34 b pl_rade: 16.02887 → 14.36991326</description>
+    </item>
+    <item>
+      <title>Parameter update — HATS-34 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3283</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>HATS-34 b pl_bmasse: 299.07803 → 302.25481506</description>
+    </item>
+    <item>
+      <title>Parameter update — HATS-46 b: pl_rade</title>
+      <guid isPermaLink="false">change-3289</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>HATS-46 b pl_rade: 10.121727 → 10.65974065</description>
+    </item>
+    <item>
+      <title>Parameter update — HATS-46 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3290</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>HATS-46 b pl_bmasse: 54.98459 → 50.21688831</description>
+    </item>
+    <item>
+      <title>Parameter update — K2-223 b: pl_rade</title>
+      <guid isPermaLink="false">change-3299</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>K2-223 b pl_rade: 0.89 → 0.79</description>
+    </item>
+    <item>
+      <title>Parameter update — K2-223 c: pl_rade</title>
+      <guid isPermaLink="false">change-3310</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>K2-223 c pl_rade: 1.5 → 1.41</description>
+    </item>
+    <item>
+      <title>Parameter update — K2-223 c: pl_bmasse</title>
+      <guid isPermaLink="false">change-3311</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>K2-223 c pl_bmasse: 2.86 → 4.2</description>
+    </item>
+    <item>
+      <title>Parameter update — K2-232 b: pl_rade</title>
+      <guid isPermaLink="false">change-3321</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>K2-232 b pl_rade: 11.209 → 11.62371299</description>
+    </item>
+    <item>
+      <title>Parameter update — K2-232 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3322</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>K2-232 b pl_bmasse: 126.49634 → 135.71272979</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: K2-232 c</title>
+      <guid isPermaLink="false">change-3331</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>New planet: K2-232 c</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: KMT-2023-BLG-0084L b</title>
+      <guid isPermaLink="false">change-3332</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>New planet: KMT-2023-BLG-0084L b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: KMT-2023-BLG-1118L b</title>
+      <guid isPermaLink="false">change-3333</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>New planet: KMT-2023-BLG-1118L b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: KMT-2023-BLG-1810L b</title>
+      <guid isPermaLink="false">change-3334</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>New planet: KMT-2023-BLG-1810L b</description>
+    </item>
+    <item>
+      <title>Parameter update — LHS 1478 b: pl_rade</title>
+      <guid isPermaLink="false">change-3336</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>LHS 1478 b pl_rade: 1.242 → 1.174</description>
+    </item>
+    <item>
+      <title>Parameter update — LHS 1478 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3337</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>LHS 1478 b pl_bmasse: 2.33 → 2.27</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-1839 b: pl_rade</title>
+      <guid isPermaLink="false">change-3345</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>TOI-1839 b pl_rade: 2.21895097 → 2.27</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-1839 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3346</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>TOI-1839 b pl_bmasse: 5.56 → 7.1</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-1839 c: pl_rade</title>
+      <guid isPermaLink="false">change-3355</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>TOI-1839 c pl_rade: 2.40867246 → 2.5</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-1839 c: pl_bmasse</title>
+      <guid isPermaLink="false">change-3356</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>TOI-1839 c pl_bmasse: 6.39 → 6.0</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-426 b</title>
+      <guid isPermaLink="false">change-3366</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>New planet: TOI-426 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-426 c</title>
+      <guid isPermaLink="false">change-3367</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>New planet: TOI-426 c</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-700 b: pl_rade</title>
+      <guid isPermaLink="false">change-3370</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>TOI-700 b pl_rade: 0.914 → 0.963</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-700 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3371</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>TOI-700 b pl_bmasse: 0.704 → 0.849</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-700 c: pl_rade</title>
+      <guid isPermaLink="false">change-3376</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>TOI-700 c pl_rade: 2.6 → 2.535</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-700 c: pl_bmasse</title>
+      <guid isPermaLink="false">change-3377</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>TOI-700 c pl_bmasse: 7.27 → 6.96</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-700 d: pl_rade</title>
+      <guid isPermaLink="false">change-3382</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>TOI-700 d pl_rade: 1.073 → 1.145</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-700 d: pl_bmasse</title>
+      <guid isPermaLink="false">change-3383</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>TOI-700 d pl_bmasse: 1.25 → 1.58</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-700 e: pl_rade</title>
+      <guid isPermaLink="false">change-3387</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>TOI-700 e pl_rade: 0.953 → 0.919</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-700 e: pl_bmasse</title>
+      <guid isPermaLink="false">change-3388</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>TOI-700 e pl_bmasse: 0.818 → 0.718</description>
+    </item>
+    <item>
+      <title>Parameter update — gam Cep b: pl_rade</title>
+      <guid isPermaLink="false">change-3392</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>gam Cep b pl_rade: 12.7 → 12.5</description>
+    </item>
+    <item>
+      <title>Parameter update — gam Cep b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3393</guid>
+      <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
+      <description>gam Cep b pl_bmasse: 2097.6674862 → 2987.5870258</description>
+    </item>
     <item>
       <title>New exoplanet confirmed: HD 278555 b</title>
       <guid isPermaLink="false">change-3272</guid>

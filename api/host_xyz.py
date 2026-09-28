@@ -123,6 +123,11 @@ def resolve_host_xyz(host_record: dict[str, Any]) -> tuple[float, float, float] 
       primary path (preferred over `sy_dist` when available, because
       Gaia DR3's photogeometric distances are typically tighter for
       nearby hosts than literature-aggregate `sy_dist` from pscomppars)
+    - `ra` (deg), `dec` (deg), `distance_manual_pc` (pc) — literature
+      fallback from host_distances_manual (migration 012), used only when
+      neither Gaia nor `sy_dist` has a distance. Same precedence as the
+      scene endpoint (Gaia > sy_dist > manual), so the starfield and the
+      scene place the host at the same distance.
     - `galactic_l_deg`, `galactic_b_deg`, `discovery_distance_pc` —
       microlensing-bulge fallback path
 
@@ -134,7 +139,10 @@ def resolve_host_xyz(host_record: dict[str, Any]) -> tuple[float, float, float] 
     # Prefer Gaia distance when available — typically tighter for nearby hosts.
     gaia_distance = _get_float(host_record, "distance_gspphot_pc")
     sy_distance = _get_float(host_record, "sy_dist")
-    distance_pc = gaia_distance if gaia_distance is not None else sy_distance
+    manual_distance = _get_float(host_record, "distance_manual_pc")
+    distance_pc = next(
+        (d for d in (gaia_distance, sy_distance, manual_distance) if d is not None), None,
+    )
 
     if ra is not None and dec is not None and distance_pc is not None and distance_pc > 0:
         return equatorial_to_xyz_pc(ra, dec, distance_pc)

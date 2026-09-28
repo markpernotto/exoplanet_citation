@@ -997,6 +997,13 @@ CHARACTERIZATIONS: list[dict] = [
     {"pl_names": ["gam Cep b"], "bibcode": "2007A&A...462..777N", "contribution": "binary_companion",
      "title": "Direct detection of exoplanet host star companion gamma Cep B and revised masses for "
               "both stars and the sub-stellar object"},
+    # CD-35 2722 reclassification (migration 128, 2026-09-27): NASA EA now lists the
+    # satellite as planet CD-35 2722 B b around the brown dwarf; the M-dwarf primary
+    # and the system distance come from these papers.
+    {"pl_names": ["CD-35 2722 B b"], "bibcode": "2011ApJ...729..139W", "contribution": "binary_companion",
+     "title": "The Gemini NICI Planet-finding Campaign: Discovery of a Substellar L Dwarf Companion to the Nearby Young M Dwarf CD-35 2722"},
+    {"pl_names": ["CD-35 2722 B b"], "bibcode": "2023A&A...674A...1G", "contribution": "distance",
+     "title": "Gaia Data Release 3. Summary of the content and survey properties"},
 ]
 
 UPSERT_PUB = """

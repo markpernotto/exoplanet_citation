@@ -5,7 +5,7 @@ import { Html, OrbitControls } from '@react-three/drei';
 import { Bloom, EffectComposer } from '@react-three/postprocessing';
 import { createXRStore, useXR, useXRControllerLocomotion, XR, XROrigin } from '@react-three/xr';
 import * as THREE from 'three';
-import { api, type BinaryCompanion, type DerivedMeasurementRow, type DiscoveryPaper, type OrbitalGeometryRecord, type SceneResponse } from '../api';
+import { api, type BinaryCompanion, type DerivedMeasurementRow, type DiscoveryPaper, type OrbitalGeometryRecord, type PlanetDetail, type SceneResponse } from '../api';
 import LoadingBar from '../components/LoadingBar';
 import { estimateStarRadiusRsun, planetVisual } from '../procedural';
 import { humanizeHours } from '../lib/units';
@@ -201,8 +201,8 @@ export default function ScenePage() {
   // inclination (the axis indicator + axis-aligned view only make sense for
   // measured tilts; ε Eri / 51 Eri belts have no inclination so they don't
   // contribute). Drives the disk-axis + align-to-disk toggles' visibility.
-  const debrisDisksForFocal = focalDebrisDisks(scene.derived_measurements, scene.planet.pl_name);
-  const hasInclinedDebrisDisk = debrisDisksForFocal.some((b) => b.inclinationDeg != null);
+  const debrisDisksForFocal = systemDebrisDisks(scene.derived_measurements, scene.orbital_geometry, scene.siblings);
+  const hasInclinedDebrisDisk = debrisDisksForFocal.some((b) => b.tiltKind !== 'none');
   // sunWorldPos was declared at the top of the component (alongside other
   // hooks) to satisfy React's rules-of-hooks. It's used here to point the
   // surface-view camera tracker at the sun, which always lives at origin.
@@ -877,17 +877,93 @@ type FocalDebrisDiskBelt = {
   // geometry from Su 2017, temperature from Su 2015). Both deserve their
   // own citation in the InfoPanel.
   dustTemperatureBibcode: string | null;
+  // How the belt is tilted relative to the scene's orbital reference plane
+  // (see resolveDiskTilt). `inclinationDeg` above is measured against our
+  // line of sight, so it is NOT this tilt.
+  renderTiltDeg: number;
+  tiltKind: DiskTiltKind;
+  // Sky inclination of the reference orbit used for the lower bound, with
+  // its citation, so the panel can show both inputs.
+  orbitReference: { plName: string; deg: number; bibcode: string | null } | null;
+  mutualInclinationBibcode: string | null;
 };
 
-function focalDebrisDisks(
-  derived: DerivedMeasurementRow[], plName: string,
+// 'mutual'      a paper states the disk-to-orbit mutual inclination (cited)
+// 'lower_bound' |i_disk - i_orbit| from two sky inclinations; nodes unknown
+// 'none'        not enough data; drawn in the orbital reference plane
+type DiskTiltKind = 'mutual' | 'lower_bound' | 'none';
+type DebrisBeltBase = Omit<FocalDebrisDiskBelt, 'renderTiltDeg' | 'tiltKind' | 'orbitReference' | 'mutualInclinationBibcode'>;
+
+function systemDebrisDisks(
+  derived: DerivedMeasurementRow[],
+  geometry: OrbitalGeometryRecord[],
+  planets: PlanetDetail[],
 ): FocalDebrisDiskBelt[] {
-  // Pull all debris_disk_* rows for this planet, then group by bibcode —
-  // each unique bibcode is one belt. (β Pic has one belt with 3 rows
-  // sharing Dent 2014; 51 Eri has two belts, each its own bibcode.)
-  const rows = derived.filter(
-    (r) => r.pl_name === plName && r.quantity.startsWith('debris_disk_'),
+  const belts = collectDebrisBelts(derived);
+  return belts.map((b) => ({ ...b, ...resolveDiskTilt(b, belts.length, derived, geometry, planets) }));
+}
+
+// The scene's XZ plane is the system's orbital reference plane: the
+// reference planet of the measured mutual inclinations, or all planets when
+// none are measured. A disk's catalog inclination is measured against the
+// line of sight, so it cannot be applied to that plane directly (that drew
+// β Pic's coplanar disk at right angles to its planets). Resolution order:
+//   1. a cited disk-to-orbit mutual inclination (debris_disk_mutual_inclination_deg);
+//   2. |i_disk - i_orbit| against the reference orbit's sky inclination, a
+//      LOWER bound because the ascending nodes are unknown (i_orbit is folded
+//      to the same 0-90° sense as imaging-derived disk inclinations);
+//   3. otherwise flat in the reference plane, labelled as unmeasured.
+function resolveDiskTilt(
+  belt: DebrisBeltBase,
+  beltCount: number,
+  derived: DerivedMeasurementRow[],
+  geometry: OrbitalGeometryRecord[],
+  planets: PlanetDetail[],
+): Pick<FocalDebrisDiskBelt, 'renderTiltDeg' | 'tiltKind' | 'orbitReference' | 'mutualInclinationBibcode'> {
+  const mutualRows = derived.filter(
+    (r) => r.quantity === 'debris_disk_mutual_inclination_deg' && r.value != null,
   );
+  const mutual = mutualRows.find((r) => r.bibcode === belt.bibcode)
+    ?? (beltCount === 1 ? mutualRows[0] : undefined);
+  if (mutual?.value != null) {
+    return { renderTiltDeg: Math.abs(mutual.value), tiltKind: 'mutual', orbitReference: null, mutualInclinationBibcode: mutual.bibcode };
+  }
+  if (belt.inclinationDeg == null) {
+    return { renderTiltDeg: 0, tiltKind: 'none', orbitReference: null, mutualInclinationBibcode: null };
+  }
+  // Reference orbit: the geometry reference planet if the system has one,
+  // else the innermost planet with a cited orbital inclination. Chosen per
+  // system (not per focal planet) so the disk looks the same from every scene.
+  const refName = geometry.find((g) => g.reference_pl_name)?.reference_pl_name ?? null;
+  const withInc = planets
+    .map((p) => ({ p, row: bestDerived(derived, p.pl_name, 'orbital_inclination') }))
+    .filter((x) => x.row?.value != null);
+  const ref = (refName ? withInc.find((x) => x.p.pl_name === refName) : undefined)
+    ?? withInc.sort((a, b) => (a.p.pl_orbsmax ?? Infinity) - (b.p.pl_orbsmax ?? Infinity))[0];
+  if (!ref || ref.row?.value == null) {
+    return { renderTiltDeg: 0, tiltKind: 'none', orbitReference: null, mutualInclinationBibcode: null };
+  }
+  const iOrb = ref.row!.value!;
+  const folded = iOrb > 90 ? 180 - iOrb : iOrb;
+  return {
+    renderTiltDeg: Math.abs(belt.inclinationDeg - folded),
+    tiltKind: 'lower_bound',
+    orbitReference: { plName: ref.p.pl_name, deg: iOrb, bibcode: ref.row!.bibcode },
+    mutualInclinationBibcode: null,
+  };
+}
+
+function collectDebrisBelts(
+  derived: DerivedMeasurementRow[],
+): DebrisBeltBase[] {
+  // A debris disk belongs to the star, but curation files its rows under one
+  // planet (bet Pic b, HR 8799 b). The scene payload's derived rows cover
+  // every planet in the system, so read debris_disk_* rows from ALL of them:
+  // otherwise the disk vanishes when you view bet Pic c or HR 8799 e. Group
+  // by bibcode; each unique bibcode is one belt (β Pic has one belt with 3
+  // rows sharing Dent 2014; 51 Eri has two belts, each its own bibcode), and
+  // the same belt filed under two planets collapses to one.
+  const rows = derived.filter((r) => r.quantity.startsWith('debris_disk_'));
   if (rows.length === 0) return [];
   const byBibcode = new Map<string, DerivedMeasurementRow[]>();
   for (const r of rows) {
@@ -896,7 +972,7 @@ function focalDebrisDisks(
     list.push(r);
     byBibcode.set(key, list);
   }
-  const belts: FocalDebrisDiskBelt[] = [];
+  const belts: DebrisBeltBase[] = [];
   for (const group of byBibcode.values()) {
     const inner = group.find((r) => r.quantity === 'debris_disk_inner_au');
     const outer = group.find((r) => r.quantity === 'debris_disk_outer_au');
@@ -1133,7 +1209,7 @@ function InfoPanel({
   const cpdAccretion = bestDerived(scene.derived_measurements, planet.pl_name, 'accretion_rate');
   const massLoss = focalMassLoss(scene.derived_measurements, planet.pl_name);
   const albedo = focalAlbedo(scene.derived_measurements, planet.pl_name);
-  const debrisDisks = focalDebrisDisks(scene.derived_measurements, planet.pl_name);
+  const debrisDisks = systemDebrisDisks(scene.derived_measurements, scene.orbital_geometry, scene.siblings);
   const oblateness = focalStellarOblateness(
     scene.derived_measurements, planet.pl_name, planet.st_rad, planet.st_mass,
   );
@@ -1601,7 +1677,7 @@ function InfoPanel({
                   )}
                   {belt.inclinationDeg != null && (
                     <>
-                      <dt style={{ color: 'var(--fg-muted)' }}>inclination</dt>
+                      <dt style={{ color: 'var(--fg-muted)' }}>inclination to line of sight</dt>
                       <dd style={{ margin: 0 }}>
                         <strong>{belt.inclinationDeg.toFixed(belt.inclinationDeg < 10 ? 2 : 1)}°</strong>
                         {belt.inclinationUncHi != null && belt.inclinationUncLo != null && (
@@ -1614,6 +1690,38 @@ function InfoPanel({
                       </dd>
                     </>
                   )}
+                  {belt.orbitReference && (
+                    <>
+                      <dt style={{ color: 'var(--fg-muted)' }}>{belt.orbitReference.plName} orbit to line of sight</dt>
+                      <dd style={{ margin: 0 }}>
+                        <strong>{belt.orbitReference.deg.toFixed(1)}°</strong>
+                        {belt.orbitReference.bibcode && (
+                          <>
+                            {' '}<a
+                              href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(belt.orbitReference.bibcode)}/abstract`}
+                              target="_blank" rel="noopener noreferrer"
+                              title={`Orbital inclination source on NASA ADS: ${belt.orbitReference.bibcode}`}
+                              style={{ fontSize: '0.72rem' }}
+                            >ADS →</a>
+                          </>
+                        )}
+                      </dd>
+                    </>
+                  )}
+                  <dt style={{ color: 'var(--fg-muted)' }}>drawn tilt vs. planets' orbits</dt>
+                  <dd style={{ margin: 0 }}>
+                    <strong>{belt.renderTiltDeg.toFixed(1)}°</strong>
+                    <span style={{ color: 'var(--fg-muted)' }}>
+                      {belt.tiltKind === 'mutual' && <> (stated mutual inclination{belt.mutualInclinationBibcode && (
+                        <>, <a
+                          href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(belt.mutualInclinationBibcode)}/abstract`}
+                          target="_blank" rel="noopener noreferrer"
+                        >ADS →</a></>
+                      )})</>}
+                      {belt.tiltKind === 'lower_bound' && <> (lower bound: difference of the two line-of-sight inclinations; the orientations of the orbit and disk on the sky are unknown)</>}
+                      {belt.tiltKind === 'none' && <> (not measured; drawn in the planets' orbital plane)</>}
+                    </span>
+                  </dd>
                   {belt.dustTemperatureK != null && (
                     <>
                       <dt style={{ color: 'var(--fg-muted)' }}>dust temperature</dt>
@@ -2900,8 +3008,8 @@ function SceneContents({
   // others have one. Rendered as wide flat rings around the host at the
   // AU scale of the orbit.
   const debrisDisks = useMemo(
-    () => focalDebrisDisks(scene.derived_measurements, planet.pl_name),
-    [scene.derived_measurements, planet.pl_name],
+    () => systemDebrisDisks(scene.derived_measurements, scene.orbital_geometry, scene.siblings),
+    [scene.derived_measurements, scene.orbital_geometry, scene.siblings],
   );
 
   // Stellar halo intensity, driven by data: the star's apparent flux at the
@@ -3118,11 +3226,11 @@ function SceneContents({
           HR 8799 = 40°, HD 95086 = 30°). eps Eri and 51 Eri belts have no
           measured inclination so they're skipped. */}
       {showDebrisDiskAxis && debrisDisks.map((belt) => (
-        belt.inclinationDeg != null && (
+        belt.tiltKind !== 'none' && (
           <DebrisDiskAxis
             key={`disk-axis-${belt.bibcode ?? belt.innerAu}`}
             length={(belt.outerAu ?? belt.innerAu * 1.1) * 1.2}
-            inclinationDeg={belt.inclinationDeg}
+            inclinationDeg={belt.renderTiltDeg}
           />
         )
       ))}
@@ -3155,9 +3263,9 @@ function SceneContents({
         })}
 
       {/* Focal planet — animated; group wraps so useFrame can move it.
-          Hidden in surface mode (we're standing on it). The focal gets the
-          atmospheric tint from curated molecule data; siblings don't (we
-          don't fetch per-sibling atmospheric data in the scene endpoint). */}
+          Hidden in surface mode (we're standing on it). Atmospheric tint
+          comes from curated molecule data; the scene endpoint returns
+          detections system-wide, so each body filters by pl_name. */}
       <group ref={focalGroup} position={[focalOrbsmax, 0, 0]}>
         {!hideFocal && (
           <>
@@ -3170,7 +3278,7 @@ function SceneContents({
               emphasized
               name={planet.pl_name}
               onHover={setHovered}
-              atmosphereTint={atmosphereTintFromMolecules(scene.atmospheric_detections)}
+              atmosphereTint={atmosphereTintFromMolecules(scene.atmospheric_detections.filter((m) => m.pl_name === planet.pl_name))}
               rotationOmegaRad={planetSpinOmega}
               phaseCurve={phaseCurve}
               albedo={albedo?.value ?? null}
@@ -3220,10 +3328,15 @@ function SceneContents({
 
       {/* Siblings — clickable to jump perspective, hover shows name.
           Curated derived measurements (rotation_velocity,
-          effective_temperature, circumplanetary disk parameters) are
-          fetched system-wide by the API so siblings now light up the
-          same enrichment paths the focal planet uses: warm fallback
-          color from T_eff, visibly-rotating spin texture, CPD ring.
+          effective_temperature, circumplanetary disk parameters,
+          day/nightside temperature, albedo) and molecule detections are
+          fetched system-wide by the API so siblings light up the same
+          enrichment paths the focal planet uses: warm fallback color from
+          T_eff, visibly-rotating spin texture, CPD ring, atmospheric tint,
+          day/night thermal contrast, reflectivity. Still focal-only: the
+          escaping-atmosphere tail (its ribbon is driven by the focal clock)
+          and the orbit-vs-stellar-spin obliquity tilt (one stellar
+          reference per scene).
           Without this enrichment a system like PDS 70 only ever
           showed the focal planet's curated data, hiding the same
           measurements on the sibling. */}
@@ -3237,6 +3350,11 @@ function SceneContents({
             ? stylizedSpinOmega(siblingSpinRow.value, s.pl_rade)
             : null;
           const siblingCpd = focalCircumplanetaryDisk(scene.derived_measurements, s.pl_name);
+          const siblingTint = atmosphereTintFromMolecules(
+            scene.atmospheric_detections.filter((m) => m.pl_name === s.pl_name),
+          );
+          const siblingPhase = focalPhaseCurve(scene.derived_measurements, s.pl_name);
+          const siblingAlbedo = focalAlbedo(scene.derived_measurements, s.pl_name);
           return (
             <group
               key={s.pl_name}
@@ -3253,6 +3371,10 @@ function SceneContents({
                 onClick={() => jumpTo(s.pl_name)}
                 effectiveTempK={siblingTeff}
                 rotationOmegaRad={siblingSpinOmega}
+                atmosphereTint={siblingTint}
+                phaseCurve={siblingPhase}
+                albedo={siblingAlbedo?.value ?? null}
+                reflectionTint={siblingAlbedo?.reflectionTint ?? null}
                 irMode={irMode}
               />
               {siblingCpd && (
@@ -4725,20 +4847,20 @@ function CameraAxisAlignment({
   // Pick the first belt with a measured inclination as the alignment target.
   // For multi-belt systems (51 Eri) inclinations aren't measured anyway, so
   // this consistently picks the inclined belt for HR 8799 / HD 95086 / β Pic.
-  const target = debrisDisks.find((b) => b.inclinationDeg != null) ?? null;
+  const target = debrisDisks.find((b) => b.tiltKind !== 'none') ?? null;
   useEffect(() => {
-    if (align && target?.inclinationDeg != null) {
+    if (align && target != null) {
       // Disk normal direction (same math as DebrisDiskAxis): (0, cos i, sin i)
       // in world space, with the disk rotation [-π/2 + i, 0, 0] applied to
       // a ringGeometry's natural +Z normal.
-      const incRad = (target.inclinationDeg * Math.PI) / 180;
+      const incRad = (target.renderTiltDeg * Math.PI) / 180;
       camera.up.set(0, Math.cos(incRad), Math.sin(incRad));
     } else {
       camera.up.set(0, 1, 0);
     }
     camera.updateMatrixWorld(true);
     invalidate();
-  }, [align, target?.inclinationDeg, camera, invalidate]);
+  }, [align, target?.renderTiltDeg, target, camera, invalidate]);
   return null;
 }
 
@@ -5376,9 +5498,9 @@ function SystemDebrisDiskRing({ belt, irMode = false }: { belt: FocalDebrisDiskB
   // the silhouette at the projected ellipse's minor-axis ends — those
   // points get more screen pixels for the alpha to fade through, instead of
   // the flat-ring case where the radial direction collapses there.
-  const incRad = belt.inclinationDeg != null
-    ? (belt.inclinationDeg * Math.PI) / 180
-    : 0;
+  // Tilt relative to the orbital reference plane (resolveDiskTilt), not
+  // the line-of-sight inclination.
+  const incRad = (belt.renderTiltDeg * Math.PI) / 180;
   // Disk normal direction in world frame: (0, cos i, sin i). Each stacked
   // ring is offset along this direction.
   const ny = Math.cos(incRad);

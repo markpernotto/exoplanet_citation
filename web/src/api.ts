@@ -338,6 +338,9 @@ export type AtmosphericObservation = {
 };
 
 export type AtmosphericMolecule = {
+  /** Present on the scene payload (system-wide detections, filter per
+      planet); absent on the per-planet /atmosphere endpoint. */
+  pl_name?: string | null;
   molecule: string;
   detection: 'detected' | 'tentative' | 'upper_limit' | string;
   instrument: string | null;

@@ -344,6 +344,10 @@ class AtmosphericObservation(BaseModel):
 
 
 class AtmosphericMolecule(BaseModel):
+    # Set on the scene payload, which returns detections for every planet in
+    # the system; NULL on the per-planet /atmosphere endpoint, where the
+    # planet is implied by the path.
+    pl_name: str | None = None
     molecule: str
     detection: str
     instrument: str | None

@@ -14,22 +14,60 @@ and each mints a version-specific
 ### Added
 
 - **Satellites of catalog planets** (migration 126): new `planet_satellites`
-  table for candidate exomoons as a first-class entity, `GET
-  /api/planets/{pl_name}/satellites`, a `satellites` list on the scene
-  payload, and a "Satellites" section on the planet page. Seeded with the
-  first radial-velocity satellite candidate around a directly imaged
-  substellar companion: CD-35 2722 B (catalog planet `CD-35 2722 b`, a
-  37 MJup brown dwarf), from Hoy, Zurlo, Peña R. et al. 2026, Nature 655,
-  865 (VLT/CRIRES+, 23 epochs). Both published fits are stored, the
-  favoured 1-satellite eccentric model (P 171.1 d, m sin i 0.918 MJup,
-  a 0.200 AU, e 0.269) and the stability-disfavoured 2-satellite 2:1 MMR
-  alternative, with `preferred` marking the authors' choice so the page
-  shows the solution and discloses the alternative. Designation follows
-  the paper ("satellite 1"); no hierarchical name is minted. Citation
-  seeded as `characterization` / `satellite`.
+  table for candidate exomoons as a first-class entity (one row per
+  published fit, `preferred` marking the authors' favoured model),
+  `GET /api/planets/{pl_name}/satellites`, a `satellites` list on the scene
+  payload, and a "Satellites" section on the planet page. First seeded with
+  the CD-35 2722 B satellite candidate (Hoy et al. 2026, Nature 655, 865);
+  those rows were removed again in migration 128 after NASA EA catalogued
+  the object as the planet `CD-35 2722 B b` (see Changed). The table is
+  empty pending exomoon candidates around catalog planets.
+- **CD-35 2722 reclassification** (migration 128): the Atlas follows NASA
+  EA's 2026-09-04 change, which removed the brown dwarf `CD-35 2722 b` and
+  added its companion as `CD-35 2722 B b` around host `CD-35 2722 B`.
+  Seeds the system distance (22.36 pc, Gaia DR3 parallax of CD-35 2722 A)
+  and the M-dwarf primary as a cited companion.
+
+- **3D scene: siblings get the full enrichment treatment.** Debris disks
+  are now system-level: they render from any planet's curated rows, so the
+  HR 8799 and β Pic disks appear when viewing HR 8799 c/d/e or β Pic c/d,
+  not only planet b. The scene payload's `atmospheric_detections` now covers
+  every planet in the system (each row carries `pl_name`), so sibling
+  planets get their atmospheric tint (29 planets, incl. TRAPPIST-1 b-e, the
+  four HR 8799 planets and L 98-59 b-d). Siblings also get day/night thermal
+  contrast and albedo reflectivity. Still focal-only by design: the
+  escaping-atmosphere tail and the orbit-vs-stellar-spin obliquity tilt.
+
+- **Catalog orbital inclinations** (migration 127): `pl_orbincl` bulk-promoted
+  into `planet_derived_measurements` as `orbital_inclination`
+  (provenance `nasa_exoplanet_archive`, bibcode from the per-parameter
+  reflink; same rules as the 086 obliquity promote). Consumed by the scene's
+  debris-disk tilt; not shown in the planet page's Composition block.
 
 ### Fixed
 
+- The starfield endpoint returned 422 for hosts whose only distance is a
+  literature value in `host_distances_manual` (e.g. CD-35 2722 B). It now
+  falls back to that distance, with the same precedence as the scene
+  (Gaia > `sy_dist` > manual).
+- The scene endpoint crashed (`IndeterminateDatatype`) for any system with no
+  known distance: the companion query passed an untyped NULL. Parameters are
+  now cast.
+- **Debris-disk tilt was drawn in the wrong frame.** A disk's measured
+  inclination is relative to our line of sight, but the scene applied it
+  as a tilt away from the planets' orbital plane, so β Pic's coplanar disk
+  rendered at right angles to its planets. The tilt is now resolved against
+  the orbits: a cited disk-to-orbit mutual inclination when a paper states
+  one (`debris_disk_mutual_inclination_deg`), else the difference between
+  the disk's and the reference orbit's line-of-sight inclinations, labelled
+  as a lower bound because the nodes are unknown, else flat in the orbital
+  plane labelled as unmeasured. The disk panel shows both inputs with their
+  citations. β Pic now draws ~0.1°, HR 8799 15° (was 40°), HD 95086 flat
+  (no catalog orbit inclination; was 30°).
+- `GET /api/planets/{pl_name}/companions` returns 404 for an unknown planet
+  instead of an empty list (#14).
+- White-dwarf companions (spectral types D, DA, DQ6, ...) get a proper
+  description instead of the "outside the MK system" fallback (#15).
 - RSS feed `<link>` and `<atom:link rel="self">` fell back to the old
   `exoplanet-citation.vercel.app` origin when `SITE_URL` was unset; the
   default (and the Feeds page fallback) is now `exoplanetcitation.space`.

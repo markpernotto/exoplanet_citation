@@ -152,3 +152,16 @@ def test_resolve_handles_nan_and_invalid():
     """NaN and unparseable strings should be treated as missing, not crash."""
     assert resolve_host_xyz({"ra": float("nan"), "dec": 0, "sy_dist": 100}) is None
     assert resolve_host_xyz({"ra": "garbage", "dec": 0, "sy_dist": 100}) is None
+
+
+def test_resolve_falls_back_to_manual_distance():
+    """Hosts with no Gaia match and no sy_dist (e.g. brown-dwarf host CD-35 2722 B)
+    use the literature distance from host_distances_manual."""
+    xyz = resolve_host_xyz({"ra": 0.0, "dec": 0.0, "distance_manual_pc": 22.36})
+    assert xyz == pytest.approx((22.36, 0.0, 0.0), abs=1e-9)
+
+
+def test_resolve_manual_distance_is_lowest_precedence():
+    xyz = resolve_host_xyz({"ra": 0.0, "dec": 0.0, "sy_dist": 10.0, "distance_manual_pc": 99.0})
+    assert xyz == pytest.approx((10.0, 0.0, 0.0), abs=1e-9)
+

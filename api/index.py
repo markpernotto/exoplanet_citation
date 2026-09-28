@@ -1085,9 +1085,11 @@ def planet_starfield(pl_name: str) -> Response:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """
-                SELECT p.ra, p.dec, p.sy_dist, h.distance_gspphot_pc
+                SELECT p.ra, p.dec, p.sy_dist, h.distance_gspphot_pc,
+                       m.distance_pc AS distance_manual_pc
                 FROM planets_current p
                 LEFT JOIN host_stars_gaia h ON h.hostname = p.hostname
+                LEFT JOIN host_distances_manual m ON m.hostname = p.hostname
                 WHERE p.pl_name = %s
                 LIMIT 1
                 """,
@@ -1383,8 +1385,12 @@ def planet_scene(pl_name: str) -> SceneResponse:
                 WHERE hostname = %s
                   AND (
                     separation_arcsec IS NULL
-                    OR %s IS NULL
-                    OR separation_arcsec * %s <= 25000
+                    -- Typed casts: when no distance is known the param is
+                    -- None, and an untyped NULL makes Postgres raise
+                    -- IndeterminateDatatype (hosts with no Gaia match and no
+                    -- sy_dist, e.g. CD-35 2722 B).
+                    OR %s::double precision IS NULL
+                    OR separation_arcsec * %s::double precision <= 25000
                   )
                 ORDER BY separation_arcsec NULLS LAST
                 """,
@@ -1426,15 +1432,20 @@ def planet_scene(pl_name: str) -> SceneResponse:
             )
             atm_obs_rows = cur.fetchall()
 
-            # Curated atmospheric molecule detections
+            # Curated atmospheric molecule detections for every planet in the
+            # system, focal AND siblings, same as derived_measurements below.
+            # Each row carries pl_name; consumers filter per planet (the focal
+            # tint and each sibling's tint read the same array).
             cur.execute(
                 """
-                SELECT molecule, detection, instrument, confidence_sigma, bibcode
+                SELECT pl_name, molecule, detection, instrument, confidence_sigma, bibcode
                 FROM planet_atmospheres
-                WHERE pl_name = %s
-                ORDER BY molecule
+                WHERE pl_name IN (
+                    SELECT pl_name FROM planets_current WHERE hostname = %s
+                )
+                ORDER BY pl_name, molecule
                 """,
-                (pl_name,),
+                (hostname,),
             )
             atm_det_rows = cur.fetchall()
 

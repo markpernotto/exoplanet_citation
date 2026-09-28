@@ -75,6 +75,7 @@ from api.models import (
     PlanetSummary,
     Publication,
     PublicationPlanetsResponse,
+    Satellite,
     SceneHints,
     SceneResponse,
     StatsResponse,
@@ -861,6 +862,11 @@ def planet_companions(pl_name: str) -> list[BinaryCompanion]:
     """
     with _connect() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
+            # Distinguish "unknown planet" (404) from "known planet, no
+            # companions" ([]); the join below returns [] for both.
+            cur.execute("SELECT 1 FROM planets_current WHERE pl_name = %s", (pl_name,))
+            if cur.fetchone() is None:
+                raise HTTPException(status_code=404, detail=f"No planet named {pl_name!r}")
             cur.execute(
                 """
                 SELECT bc.component_designation, bc.primary_designation,
@@ -888,6 +894,48 @@ def planet_companions(pl_name: str) -> list[BinaryCompanion]:
             )
             rows = cur.fetchall()
     return [BinaryCompanion(**r) for r in rows]
+
+
+@app.get(
+    "/api/planets/{pl_name}/satellites",
+    response_model=list[Satellite],
+    tags=["planets"],
+)
+def planet_satellites(pl_name: str) -> list[Satellite]:
+    """Satellites (candidate exomoons) recorded for this catalog planet.
+
+    Rows come from planet_satellites, curated from primary literature with an
+    ADS bibcode per row. A paper that presents competing orbital fits its data
+    cannot separate contributes one row per fit, with `preferred` marking the
+    authors' favoured model; the preferred rows sort first. 404 when the
+    planet is not in the catalog; an empty list when it is but has no
+    satellites on file (the overwhelmingly common case).
+    """
+    with _connect() as conn:
+        with conn.cursor(row_factory=dict_row) as cur:
+            cur.execute("SELECT 1 FROM planets_current WHERE pl_name = %s", (pl_name,))
+            if cur.fetchone() is None:
+                raise HTTPException(status_code=404, detail=f"No planet named {pl_name!r}")
+            cur.execute(
+                """
+                SELECT pl_name, satellite_designation, model, preferred, status,
+                       detection_method, instrument,
+                       period_days, period_unc_hi, period_unc_lo,
+                       rv_semi_amplitude_ms, rv_semi_amplitude_unc_hi, rv_semi_amplitude_unc_lo,
+                       eccentricity, eccentricity_unc_hi, eccentricity_unc_lo,
+                       longitude_periastron_rad, longitude_periastron_unc_hi, longitude_periastron_unc_lo,
+                       semi_major_axis_au, semi_major_axis_unc_hi, semi_major_axis_unc_lo,
+                       msini_mjup, msini_unc_hi, msini_unc_lo,
+                       mass_mjup, mass_unc_hi, mass_unc_lo,
+                       bibcode, curator_note
+                FROM planet_satellites
+                WHERE pl_name = %s
+                ORDER BY preferred DESC, model, satellite_designation
+                """,
+                (pl_name,),
+            )
+            rows = cur.fetchall()
+    return [Satellite(**r) for r in rows]
 
 
 @app.get(
@@ -1344,6 +1392,27 @@ def planet_scene(pl_name: str) -> SceneResponse:
             )
             companion_rows = cur.fetchall()
 
+            # Satellites (candidate exomoons) of this planet; preferred model first.
+            cur.execute(
+                """
+                SELECT pl_name, satellite_designation, model, preferred, status,
+                       detection_method, instrument,
+                       period_days, period_unc_hi, period_unc_lo,
+                       rv_semi_amplitude_ms, rv_semi_amplitude_unc_hi, rv_semi_amplitude_unc_lo,
+                       eccentricity, eccentricity_unc_hi, eccentricity_unc_lo,
+                       longitude_periastron_rad, longitude_periastron_unc_hi, longitude_periastron_unc_lo,
+                       semi_major_axis_au, semi_major_axis_unc_hi, semi_major_axis_unc_lo,
+                       msini_mjup, msini_unc_hi, msini_unc_lo,
+                       mass_mjup, mass_unc_hi, mass_unc_lo,
+                       bibcode, curator_note
+                FROM planet_satellites
+                WHERE pl_name = %s
+                ORDER BY preferred DESC, model, satellite_designation
+                """,
+                (pl_name,),
+            )
+            satellite_rows = cur.fetchall()
+
             # Atmospheric observation campaigns (bulk metadata)
             cur.execute(
                 """
@@ -1409,6 +1478,7 @@ def planet_scene(pl_name: str) -> SceneResponse:
         host_star=HostStarGaia(**host_row) if host_row else None,
         siblings=[PlanetDetail(**r) for r in sibling_rows],
         binary_companions=[BinaryCompanion(**r) for r in companion_rows],
+        satellites=[Satellite(**r) for r in satellite_rows],
         atmospheric_observations=[AtmosphericObservation(**r) for r in atm_obs_rows],
         atmospheric_detections=[AtmosphericMolecule(**r) for r in atm_det_rows],
         orbital_geometry=[OrbitalGeometryRecord(**r) for r in geometry_rows],
@@ -1515,7 +1585,7 @@ def author_publications(author_name: str) -> list[Publication]:
 
 # ---------- RSS feeds ----------
 
-_SITE_URL = os.environ.get("SITE_URL", "https://exoplanet-citation.vercel.app")
+_SITE_URL = os.environ.get("SITE_URL", "https://exoplanetcitation.space")
 _SURFACED = "(dc.change_type IN ('NEW', 'REMOVED') OR dc.field_tier = 'A')"
 _CHANGE_COLS = """
     dc.change_id, dc.observed_at, dc.pl_name, dc.change_type,

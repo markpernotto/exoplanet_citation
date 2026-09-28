@@ -11,6 +11,29 @@ and each mints a version-specific
 
 ## [Unreleased]
 
+### Added
+
+- **Satellites of catalog planets** (migration 126): new `planet_satellites`
+  table for candidate exomoons as a first-class entity, `GET
+  /api/planets/{pl_name}/satellites`, a `satellites` list on the scene
+  payload, and a "Satellites" section on the planet page. Seeded with the
+  first radial-velocity satellite candidate around a directly imaged
+  substellar companion: CD-35 2722 B (catalog planet `CD-35 2722 b`, a
+  37 MJup brown dwarf), from Hoy, Zurlo, Peña R. et al. 2026, Nature 655,
+  865 (VLT/CRIRES+, 23 epochs). Both published fits are stored, the
+  favoured 1-satellite eccentric model (P 171.1 d, m sin i 0.918 MJup,
+  a 0.200 AU, e 0.269) and the stability-disfavoured 2-satellite 2:1 MMR
+  alternative, with `preferred` marking the authors' choice so the page
+  shows the solution and discloses the alternative. Designation follows
+  the paper ("satellite 1"); no hierarchical name is minted. Citation
+  seeded as `characterization` / `satellite`.
+
+### Fixed
+
+- RSS feed `<link>` and `<atom:link rel="self">` fell back to the old
+  `exoplanet-citation.vercel.app` origin when `SITE_URL` was unset; the
+  default (and the Feeds page fallback) is now `exoplanetcitation.space`.
+
 ## [0.2.0] - 2026-06-27
 
 ### Added

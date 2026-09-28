@@ -277,6 +277,47 @@ class BinaryCompanion(BaseModel):
     inner_binary: bool | None = None
 
 
+class Satellite(BaseModel):
+    """A satellite (candidate exomoon) of a catalog planet (planet_satellites).
+
+    One row per (satellite, source paper, published model). When a paper
+    presents competing fits that its data cannot separate, every fit is
+    stored and `preferred` marks the authors' favoured one, so the UI can show
+    the favoured solution and disclose the alternative rather than presenting
+    a judgement call as a fact.
+    """
+    pl_name: str
+    satellite_designation: str  # author naming ('satellite 1'); no minted IDs
+    model: str                  # which published fit these values come from
+    preferred: bool
+    status: str                 # 'candidate' | 'confirmed' | 'disputed' | 'refuted'
+    detection_method: str       # 'radial_velocity' | 'transit_timing' | ...
+    instrument: str | None
+    period_days: float | None
+    period_unc_hi: float | None
+    period_unc_lo: float | None
+    rv_semi_amplitude_ms: float | None
+    rv_semi_amplitude_unc_hi: float | None
+    rv_semi_amplitude_unc_lo: float | None
+    eccentricity: float | None
+    eccentricity_unc_hi: float | None
+    eccentricity_unc_lo: float | None
+    longitude_periastron_rad: float | None
+    longitude_periastron_unc_hi: float | None
+    longitude_periastron_unc_lo: float | None
+    semi_major_axis_au: float | None
+    semi_major_axis_unc_hi: float | None
+    semi_major_axis_unc_lo: float | None
+    msini_mjup: float | None    # minimum mass (RV); NULL for non-RV methods
+    msini_unc_hi: float | None
+    msini_unc_lo: float | None
+    mass_mjup: float | None     # true mass, when inclination is known
+    mass_unc_hi: float | None
+    mass_unc_lo: float | None
+    bibcode: str                # ADS bibcode; rendered as a visible link
+    curator_note: str | None
+
+
 class SySnumAudit(BaseModel):
     """A NASA-EA-vs-primary-literature disagreement on host stellar multiplicity.
 
@@ -405,6 +446,7 @@ class SceneResponse(BaseModel):
     host_star: HostStarGaia | None
     siblings: list[PlanetDetail]
     binary_companions: list[BinaryCompanion]
+    satellites: list[Satellite]
     atmospheric_observations: list[AtmosphericObservation]
     atmospheric_detections: list[AtmosphericMolecule]
     orbital_geometry: list[OrbitalGeometryRecord]

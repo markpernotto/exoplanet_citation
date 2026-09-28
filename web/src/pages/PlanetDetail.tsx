@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { api, type BinaryCompanion, type DerivedMeasurementRow, type DiscoveryPaper, type HostStarGaia, type PlanetAtmosphereResponse, type PlanetDetail as PlanetDetailType, type PlanetHistoryResponse, type PlanetPublication, type PlanetsListResponse, type SySnumAudit } from '../api';
+import { api, type BinaryCompanion, type DerivedMeasurementRow, type DiscoveryPaper, type HostStarGaia, type PlanetAtmosphereResponse, type PlanetDetail as PlanetDetailType, type PlanetHistoryResponse, type PlanetPublication, type PlanetsListResponse, type Satellite, type SySnumAudit } from '../api';
 import GalaxyMap from '../components/GalaxyMap';
 import LoadingBar from '../components/LoadingBar';
 import PlanetCard from '../components/PlanetCard';
@@ -26,6 +26,7 @@ export default function PlanetDetail() {
   const [paper, setPaper] = useState<DiscoveryPaper | null>(null);
   const [publications, setPublications] = useState<PlanetPublication[] | null>(null);
   const [companions, setCompanions] = useState<BinaryCompanion[] | null>(null);
+  const [satellites, setSatellites] = useState<Satellite[] | null>(null);
   const [sySnumAudit, setSySnumAudit] = useState<SySnumAudit | null>(null);
   const [atmosphere, setAtmosphere] = useState<PlanetAtmosphereResponse | null>(null);
   const [derived, setDerived] = useState<DerivedMeasurementRow[] | null>(null);
@@ -50,6 +51,7 @@ export default function PlanetDetail() {
     setPaper(null);
     setPublications(null);
     setCompanions(null);
+    setSatellites(null);
     setSySnumAudit(null);
     setAtmosphere(null);
     setDerived(null);
@@ -60,6 +62,7 @@ export default function PlanetDetail() {
     api.planetPaper(plName).then(setPaper).catch(() => {});
     api.planetPublications(plName).then((r) => setPublications(r.publications)).catch(() => {});
     api.planetCompanions(plName).then(setCompanions).catch(() => {});
+    api.planetSatellites(plName).then(setSatellites).catch(() => {});
     // 404 = no disagreement on file (common case), swallow silently.
     api.planetSySnumAudit(plName).then(setSySnumAudit).catch(() => {});
     api.planetAtmosphere(plName).then(setAtmosphere).catch(() => {});
@@ -180,6 +183,8 @@ export default function PlanetDetail() {
           <SystemSiblingsSection planet={planet} siblings={siblings} />
 
           <CompanionsSection planet={planet} companions={companions} hostStar={hostStar} sySnumAudit={sySnumAudit} />
+
+          <SatellitesSection planet={planet} satellites={satellites} />
 
           <AtmosphereSection planet={planet} atmosphere={atmosphere} />
 
@@ -907,6 +912,118 @@ function CompanionsSection({
   );
 }
 
+// Satellites (candidate exomoons) of this planet, from planet_satellites.
+// Every row carries a bibcode. A paper whose data cannot separate competing
+// orbital fits contributes one row per fit; the authors' preferred fit is
+// shown as the solution and the others are disclosed as alternatives.
+function fmtUnc(v: number | null, hi: number | null, lo: number | null, digits: number): string {
+  if (v == null) return '?';
+  const base = v.toFixed(digits);
+  if (hi == null && lo == null) return base;
+  if (hi != null && lo != null && hi.toFixed(digits) === lo.toFixed(digits)) return `${base} ± ${hi.toFixed(digits)}`;
+  return `${base} +${(hi ?? 0).toFixed(digits)} / −${(lo ?? 0).toFixed(digits)}`;
+}
+
+function SatelliteRow({ s }: { s: Satellite }) {
+  return (
+    <li>
+      <strong>{s.satellite_designation}</strong>
+      <span className="muted">
+        {' '}· <span style={{ color: s.status === 'confirmed' ? 'var(--new)' : 'var(--tier-b)' }}>{s.status}</span>
+        {' '}· {s.detection_method.replace(/_/g, ' ')}
+        {s.instrument && <> · {s.instrument}</>}
+        {' '}· <a
+          href={`https://ui.adsabs.harvard.edu/abs/${encodeURIComponent(s.bibcode)}/abstract`}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={`Source paper on NASA ADS: ${s.bibcode}`}
+        >{s.bibcode}</a>
+      </span>
+      <dl className="stat-grid" style={{ margin: '0.4rem 0 0' }}>
+        {s.period_days != null && (
+          <div><dt>Period</dt><dd>{fmtUnc(s.period_days, s.period_unc_hi, s.period_unc_lo, 2)} d</dd></div>
+        )}
+        {s.msini_mjup != null && (
+          <div><dt>Minimum mass (m sin i)</dt><dd>{fmtUnc(s.msini_mjup, s.msini_unc_hi, s.msini_unc_lo, 3)} M<sub>Jup</sub></dd></div>
+        )}
+        {s.mass_mjup != null && (
+          <div><dt>Mass</dt><dd>{fmtUnc(s.mass_mjup, s.mass_unc_hi, s.mass_unc_lo, 3)} M<sub>Jup</sub></dd></div>
+        )}
+        {s.semi_major_axis_au != null && (
+          <div><dt>Semi-major axis</dt><dd>{fmtUnc(s.semi_major_axis_au, s.semi_major_axis_unc_hi, s.semi_major_axis_unc_lo, 3)} AU</dd></div>
+        )}
+        {s.eccentricity != null && (
+          <div><dt>Eccentricity</dt><dd>{fmtUnc(s.eccentricity, s.eccentricity_unc_hi, s.eccentricity_unc_lo, 3)}</dd></div>
+        )}
+        {s.rv_semi_amplitude_ms != null && (
+          <div><dt>RV semi-amplitude</dt><dd>{fmtUnc(s.rv_semi_amplitude_ms, s.rv_semi_amplitude_unc_hi, s.rv_semi_amplitude_unc_lo, 1)} m/s</dd></div>
+        )}
+      </dl>
+      {s.curator_note && (
+        <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+          {s.curator_note}
+        </p>
+      )}
+    </li>
+  );
+}
+
+function SatellitesSection({
+  planet, satellites,
+}: {
+  planet: PlanetDetailType;
+  satellites: Satellite[] | null;
+}) {
+  if (!satellites || satellites.length === 0) return null;
+  const preferred = satellites.filter((s) => s.preferred);
+  const alternatives = satellites.filter((s) => !s.preferred);
+  const altModels = Array.from(new Set(alternatives.map((s) => s.model)));
+  const anyMsiniOnly = satellites.some((s) => s.msini_mjup != null && s.mass_mjup == null);
+  // 13 M_Jup deuterium-burning limit, expressed in Earth masses (the catalog unit here).
+  const substellarHost = planet.pl_bmasse != null && planet.pl_bmasse >= 13 * 317.8;
+  return (
+    <section>
+      <h2>Satellites</h2>
+      <div className="card">
+        <p style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', color: 'var(--fg-muted)' }}>
+          {preferred.length === 1
+            ? 'One satellite is recorded'
+            : `${preferred.length} satellites are recorded`}
+          {' '}in orbit around <strong>{planet.pl_name}</strong>
+          {substellarHost && (
+            <>, itself a substellar companion of <strong>{planet.hostname}</strong> that the NASA Exoplanet Archive lists as a planet</>
+          )}
+          . Values are taken from the primary literature and each row links its source paper.
+          {preferred.every((s) => s.status === 'candidate') && (
+            <> No satellite here is confirmed; the detection awaits independent follow-up.</>
+          )}
+        </p>
+        <ul className="siblings-list">
+          {preferred.map((s) => <SatelliteRow key={`${s.satellite_designation}|${s.model}|${s.bibcode}`} s={s} />)}
+        </ul>
+        {altModels.map((m) => (
+          <details key={m} style={{ marginTop: '0.75rem' }}>
+            <summary style={{ cursor: 'pointer', fontSize: '0.82rem', color: 'var(--fg-muted)' }}>
+              Alternative published solution: {m}
+            </summary>
+            <ul className="siblings-list" style={{ marginTop: '0.5rem' }}>
+              {alternatives.filter((s) => s.model === m).map((s) => (
+                <SatelliteRow key={`${s.satellite_designation}|${s.model}|${s.bibcode}`} s={s} />
+              ))}
+            </ul>
+          </details>
+        ))}
+        {anyMsiniOnly && (
+          <p style={{ margin: '0.75rem 0 0', fontSize: '0.75rem', color: 'var(--fg-muted)', lineHeight: 1.5 }}>
+            Radial velocities give only the minimum mass, m sin i. The true mass depends on the
+            orbital inclination, which is unknown for these bodies.
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function AtmosphereSection({
   planet, atmosphere,
 }: {
@@ -1029,6 +1146,16 @@ function SystemSiblingsSection({ planet, siblings }: { planet: PlanetDetailType;
 function describeSpectralClass(spectype: string | null): { label: string; summary: string } | null {
   if (!spectype) return null;
   const cleaned = spectype.trim();
+  // White dwarfs: MK-style 'D' prefix plus subclass (D, DA, DQ6, 'DA white dwarf').
+  // Matched case-sensitively so an old-style lowercase dwarf prefix ('dM3')
+  // still reads as an M dwarf rather than a stellar remnant.
+  if (cleaned.charAt(0) === 'D') {
+    const sub = cleaned.replace(/\s*white dwarf\s*$/i, '') || 'D';
+    return {
+      label: `white dwarf (${sub})`,
+      summary: 'white dwarf: the dense remnant core of a Sun-like star that exhausted its fuel and shed its outer layers. Roughly Earth-sized but with most of a star\'s mass, it cools slowly over billions of years.',
+    };
+  }
   const ch = cleaned.charAt(0).toUpperCase();
   const summaries: Record<string, string> = {
     O: 'extremely hot blue giant — rare, massive, and short-lived (only millions of years).',

@@ -287,6 +287,47 @@ export type BinaryCompanion = {
   inner_binary?: boolean | null;
 };
 
+export type Satellite = {
+  pl_name: string;
+  /** Author naming ('satellite 1'); the Atlas mints no hierarchical IDs. */
+  satellite_designation: string;
+  /** Which published fit these values come from. A paper whose data cannot
+      separate competing fits contributes one row per fit. */
+  model: string;
+  /** True on the authors' favoured model; the page shows preferred rows as
+      the solution and the rest as disclosed alternatives. */
+  preferred: boolean;
+  status: 'candidate' | 'confirmed' | 'disputed' | 'refuted' | string;
+  detection_method: string;
+  instrument: string | null;
+  period_days: number | null;
+  period_unc_hi: number | null;
+  period_unc_lo: number | null;
+  rv_semi_amplitude_ms: number | null;
+  rv_semi_amplitude_unc_hi: number | null;
+  rv_semi_amplitude_unc_lo: number | null;
+  eccentricity: number | null;
+  eccentricity_unc_hi: number | null;
+  eccentricity_unc_lo: number | null;
+  longitude_periastron_rad: number | null;
+  longitude_periastron_unc_hi: number | null;
+  longitude_periastron_unc_lo: number | null;
+  semi_major_axis_au: number | null;
+  semi_major_axis_unc_hi: number | null;
+  semi_major_axis_unc_lo: number | null;
+  /** Minimum mass (m sin i) for RV detections; null for other methods. */
+  msini_mjup: number | null;
+  msini_unc_hi: number | null;
+  msini_unc_lo: number | null;
+  /** True mass, only when the orbital inclination is known. */
+  mass_mjup: number | null;
+  mass_unc_hi: number | null;
+  mass_unc_lo: number | null;
+  /** ADS bibcode of the source paper; always rendered as a visible link. */
+  bibcode: string;
+  curator_note: string | null;
+};
+
 export type AtmosphericObservation = {
   spec_type: string | null;
   instrument: string | null;
@@ -327,6 +368,7 @@ export type SceneResponse = {
   host_star: HostStarGaia | null;
   siblings: PlanetDetail[];
   binary_companions: BinaryCompanion[];
+  satellites: Satellite[];
   atmospheric_observations: AtmosphericObservation[];
   atmospheric_detections: AtmosphericMolecule[];
   orbital_geometry: OrbitalGeometryRecord[];
@@ -420,6 +462,8 @@ export const api = {
     get<HostStarGaia>(`/api/planets/${encodeURIComponent(plName)}/host_star`),
   planetCompanions: (plName: string) =>
     get<BinaryCompanion[]>(`/api/planets/${encodeURIComponent(plName)}/companions`),
+  planetSatellites: (plName: string) =>
+    get<Satellite[]>(`/api/planets/${encodeURIComponent(plName)}/satellites`),
   planetSySnumAudit: (plName: string) =>
     get<SySnumAudit>(`/api/planets/${encodeURIComponent(plName)}/sy_snum_audit`),
   planetAtmosphere: (plName: string) =>

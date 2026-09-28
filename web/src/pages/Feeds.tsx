@@ -70,7 +70,7 @@ export default function Feeds() {
   const location = useLocation();
   const themeParam = new URLSearchParams(location.search).get('theme');
   const themeQuery = themeParam ? `?theme=${themeParam}` : '';
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://exoplanet-citation.vercel.app';
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://exoplanetcitation.space';
 
   return (
     <>

@@ -5,8 +5,50 @@
     <link>https://github.com/markpernotto/exoplanet_citation</link>
     <description>Newly confirmed and revised exoplanet records from the NASA Exoplanet Archive, diffed nightly. Surfaces NEW / REMOVED / Tier-A parameter changes only.</description>
     <language>en-us</language>
-    <lastBuildDate>Thu, 01 Oct 2026 06:25:11 +0000</lastBuildDate>
+    <lastBuildDate>Fri, 02 Oct 2026 06:03:14 +0000</lastBuildDate>
     <ttl>1440</ttl>
+    <item>
+      <title>New exoplanet confirmed: HD 148797 b</title>
+      <guid isPermaLink="false">change-3399</guid>
+      <pubDate>Fri, 02 Oct 2026 06:02:33 +0000</pubDate>
+      <description>New planet: HD 148797 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: HD 148797 c</title>
+      <guid isPermaLink="false">change-3400</guid>
+      <pubDate>Fri, 02 Oct 2026 06:02:33 +0000</pubDate>
+      <description>New planet: HD 148797 c</description>
+    </item>
+    <item>
+      <title>Parameter update — HIP 67522 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3401</guid>
+      <pubDate>Fri, 02 Oct 2026 06:02:33 +0000</pubDate>
+      <description>HIP 67522 b pl_bmasse: 71.4 → 13.8</description>
+    </item>
+    <item>
+      <title>Parameter update — HIP 67522 c: pl_bmasse</title>
+      <guid isPermaLink="false">change-3403</guid>
+      <pubDate>Fri, 02 Oct 2026 06:02:33 +0000</pubDate>
+      <description>HIP 67522 c pl_bmasse: 48.3 → 22.0</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-2427 b: pl_rade</title>
+      <guid isPermaLink="false">change-3406</guid>
+      <pubDate>Fri, 02 Oct 2026 06:02:33 +0000</pubDate>
+      <description>TOI-2427 b pl_rade: 1.8 → 1.64</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-2427 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3407</guid>
+      <pubDate>Fri, 02 Oct 2026 06:02:33 +0000</pubDate>
+      <description>TOI-2427 b pl_bmasse: 3.89 → 5.69</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-2427 c</title>
+      <guid isPermaLink="false">change-3416</guid>
+      <pubDate>Fri, 02 Oct 2026 06:02:33 +0000</pubDate>
+      <description>New planet: TOI-2427 c</description>
+    </item>
     <item>
       <title>Parameter update — K2-223 b: pl_bmasse</title>
       <guid isPermaLink="false">change-3300</guid>

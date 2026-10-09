@@ -5,8 +5,428 @@
     <link>https://github.com/markpernotto/exoplanet_citation</link>
     <description>Newly confirmed and revised exoplanet records from the NASA Exoplanet Archive, diffed nightly. Surfaces NEW / REMOVED / Tier-A parameter changes only.</description>
     <language>en-us</language>
-    <lastBuildDate>Thu, 08 Oct 2026 06:03:03 +0000</lastBuildDate>
+    <lastBuildDate>Fri, 09 Oct 2026 06:04:34 +0000</lastBuildDate>
     <ttl>1440</ttl>
+    <item>
+      <title>New exoplanet confirmed: TOI-1154 b</title>
+      <guid isPermaLink="false">change-3417</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-1154 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-1245 b</title>
+      <guid isPermaLink="false">change-3418</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-1245 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-1262 b</title>
+      <guid isPermaLink="false">change-3419</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-1262 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-1281 b</title>
+      <guid isPermaLink="false">change-3420</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-1281 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-1432 b</title>
+      <guid isPermaLink="false">change-3421</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-1432 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-1435 b</title>
+      <guid isPermaLink="false">change-3422</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-1435 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-1441 b</title>
+      <guid isPermaLink="false">change-3423</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-1441 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-1806 c</title>
+      <guid isPermaLink="false">change-3424</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-1806 c</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-1806 d</title>
+      <guid isPermaLink="false">change-3425</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-1806 d</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-213 b</title>
+      <guid isPermaLink="false">change-3427</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-213 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-2238 b</title>
+      <guid isPermaLink="false">change-3428</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-2238 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-2245 b</title>
+      <guid isPermaLink="false">change-3429</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-2245 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-2287 b</title>
+      <guid isPermaLink="false">change-3430</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-2287 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-2293 b</title>
+      <guid isPermaLink="false">change-3431</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-2293 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-2392 b</title>
+      <guid isPermaLink="false">change-3432</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-2392 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-2426 b</title>
+      <guid isPermaLink="false">change-3433</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-2426 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-2441 b</title>
+      <guid isPermaLink="false">change-3434</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-2441 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-248 b</title>
+      <guid isPermaLink="false">change-3435</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-248 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-2540 b</title>
+      <guid isPermaLink="false">change-3436</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-2540 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-3585 b</title>
+      <guid isPermaLink="false">change-3437</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-3585 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-3851 b</title>
+      <guid isPermaLink="false">change-3438</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-3851 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-4307 b</title>
+      <guid isPermaLink="false">change-3439</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-4307 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-4310 b</title>
+      <guid isPermaLink="false">change-3440</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-4310 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-4324 b</title>
+      <guid isPermaLink="false">change-3441</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-4324 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-435 b</title>
+      <guid isPermaLink="false">change-3442</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-435 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-4443 c</title>
+      <guid isPermaLink="false">change-3443</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-4443 c</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-4468 b</title>
+      <guid isPermaLink="false">change-3445</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-4468 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-4468 c</title>
+      <guid isPermaLink="false">change-3446</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-4468 c</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-4499 b</title>
+      <guid isPermaLink="false">change-3447</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-4499 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-4567 b</title>
+      <guid isPermaLink="false">change-3448</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-4567 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-4616 b</title>
+      <guid isPermaLink="false">change-3449</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-4616 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-4724 b</title>
+      <guid isPermaLink="false">change-3450</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-4724 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-4851 b</title>
+      <guid isPermaLink="false">change-3451</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-4851 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-5165 b</title>
+      <guid isPermaLink="false">change-3452</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-5165 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-5177 b</title>
+      <guid isPermaLink="false">change-3453</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-5177 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-5289 b</title>
+      <guid isPermaLink="false">change-3454</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-5289 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-5493 b</title>
+      <guid isPermaLink="false">change-3455</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-5493 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-5531 b</title>
+      <guid isPermaLink="false">change-3456</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-5531 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-5543 b</title>
+      <guid isPermaLink="false">change-3457</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-5543 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-5646 b</title>
+      <guid isPermaLink="false">change-3458</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-5646 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-5696 b</title>
+      <guid isPermaLink="false">change-3459</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-5696 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-5730 b</title>
+      <guid isPermaLink="false">change-3460</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-5730 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-5739 b</title>
+      <guid isPermaLink="false">change-3461</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-5739 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-5807 b</title>
+      <guid isPermaLink="false">change-3462</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-5807 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-5947 b</title>
+      <guid isPermaLink="false">change-3463</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-5947 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-5958 b</title>
+      <guid isPermaLink="false">change-3464</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-5958 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-5961 b</title>
+      <guid isPermaLink="false">change-3465</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-5961 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-5968 b</title>
+      <guid isPermaLink="false">change-3466</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-5968 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-5997 b</title>
+      <guid isPermaLink="false">change-3467</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-5997 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-6098 b</title>
+      <guid isPermaLink="false">change-3468</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-6098 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-6174 b</title>
+      <guid isPermaLink="false">change-3469</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-6174 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-6310 b</title>
+      <guid isPermaLink="false">change-3470</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-6310 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-6434 b</title>
+      <guid isPermaLink="false">change-3471</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-6434 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-6450 b</title>
+      <guid isPermaLink="false">change-3472</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-6450 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-6647 b</title>
+      <guid isPermaLink="false">change-3473</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-6647 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-6662 b</title>
+      <guid isPermaLink="false">change-3474</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-6662 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-6729 b</title>
+      <guid isPermaLink="false">change-3475</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-6729 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-6729 c</title>
+      <guid isPermaLink="false">change-3476</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-6729 c</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-7182 b</title>
+      <guid isPermaLink="false">change-3477</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-7182 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-7389 b</title>
+      <guid isPermaLink="false">change-3478</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-7389 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-7391 b</title>
+      <guid isPermaLink="false">change-3479</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-7391 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-7550 b</title>
+      <guid isPermaLink="false">change-3480</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-7550 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-783 b</title>
+      <guid isPermaLink="false">change-3481</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-783 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-786 b</title>
+      <guid isPermaLink="false">change-3482</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-786 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-786 c</title>
+      <guid isPermaLink="false">change-3483</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-786 c</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-789 b</title>
+      <guid isPermaLink="false">change-3484</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-789 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-789 c</title>
+      <guid isPermaLink="false">change-3485</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-789 c</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-789 d</title>
+      <guid isPermaLink="false">change-3486</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-789 d</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-797 b</title>
+      <guid isPermaLink="false">change-3487</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-797 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-873 b</title>
+      <guid isPermaLink="false">change-3488</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-873 b</description>
+    </item>
     <item>
       <title>New exoplanet confirmed: HD 148797 b</title>
       <guid isPermaLink="false">change-3399</guid>

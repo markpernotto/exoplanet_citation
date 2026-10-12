@@ -5,7 +5,7 @@
     <link>https://github.com/markpernotto/exoplanet_citation</link>
     <description>Newly confirmed and revised exoplanet records from the NASA Exoplanet Archive, diffed nightly. Surfaces NEW / REMOVED / Tier-A parameter changes only.</description>
     <language>en-us</language>
-    <lastBuildDate>Sun, 11 Oct 2026 06:03:19 +0000</lastBuildDate>
+    <lastBuildDate>Mon, 12 Oct 2026 06:06:24 +0000</lastBuildDate>
     <ttl>1440</ttl>
     <item>
       <title>New exoplanet confirmed: TOI-1154 b</title>
@@ -660,42 +660,6 @@
       <guid isPermaLink="false">change-3393</guid>
       <pubDate>Sat, 26 Sep 2026 06:03:11 +0000</pubDate>
       <description>gam Cep b pl_bmasse: 2097.6674862 → 2987.5870258</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: HD 278555 b</title>
-      <guid isPermaLink="false">change-3272</guid>
-      <pubDate>Sat, 12 Sep 2026 06:02:34 +0000</pubDate>
-      <description>New planet: HD 278555 b</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: HD 715 b</title>
-      <guid isPermaLink="false">change-3273</guid>
-      <pubDate>Sat, 12 Sep 2026 06:02:34 +0000</pubDate>
-      <description>New planet: HD 715 b</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: KMT-2025-BLG-0026L b</title>
-      <guid isPermaLink="false">change-3274</guid>
-      <pubDate>Sat, 12 Sep 2026 06:02:34 +0000</pubDate>
-      <description>New planet: KMT-2025-BLG-0026L b</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: KMT-2025-BLG-0030L b</title>
-      <guid isPermaLink="false">change-3275</guid>
-      <pubDate>Sat, 12 Sep 2026 06:02:34 +0000</pubDate>
-      <description>New planet: KMT-2025-BLG-0030L b</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: KMT-2025-BLG-2272L b</title>
-      <guid isPermaLink="false">change-3276</guid>
-      <pubDate>Sat, 12 Sep 2026 06:02:34 +0000</pubDate>
-      <description>New planet: KMT-2025-BLG-2272L b</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: OGLE-2016-BLG-0261L b</title>
-      <guid isPermaLink="false">change-3277</guid>
-      <pubDate>Sat, 12 Sep 2026 06:02:34 +0000</pubDate>
-      <description>New planet: OGLE-2016-BLG-0261L b</description>
     </item>
   </channel>
 </rss>

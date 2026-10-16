@@ -5,8 +5,134 @@
     <link>https://github.com/markpernotto/exoplanet_citation</link>
     <description>Newly confirmed and revised exoplanet records from the NASA Exoplanet Archive, diffed nightly. Surfaces NEW / REMOVED / Tier-A parameter changes only.</description>
     <language>en-us</language>
-    <lastBuildDate>Thu, 15 Oct 2026 06:03:40 +0000</lastBuildDate>
+    <lastBuildDate>Fri, 16 Oct 2026 06:03:59 +0000</lastBuildDate>
     <ttl>1440</ttl>
+    <item>
+      <title>Parameter update — HD 65216 c: pl_orbper</title>
+      <guid isPermaLink="false">change-3497</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>HD 65216 c pl_orbper: 5370.0 → 7007.0</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 65216 c: pl_rade</title>
+      <guid isPermaLink="false">change-3498</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>HD 65216 c pl_rade: 13.4 → 13.1</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 65216 c: pl_bmasse</title>
+      <guid isPermaLink="false">change-3499</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>HD 65216 c pl_bmasse: 645.1949 → 1055.19031124</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-281 c: pl_bmasse</title>
+      <guid isPermaLink="false">change-3506</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>Kepler-281 c pl_bmasse: 161.124 → 69.6183</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-297 d: pl_rade</title>
+      <guid isPermaLink="false">change-3508</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>Kepler-297 d pl_rade: 32.6 → 7.11899996</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-297 d: pl_bmasse</title>
+      <guid isPermaLink="false">change-3509</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>Kepler-297 d pl_bmasse: None → 40.2</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-32 e: pl_bmasse</title>
+      <guid isPermaLink="false">change-3513</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>Kepler-32 e pl_bmasse: 4.08181 → 1.11884</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-80 f: pl_bmasse</title>
+      <guid isPermaLink="false">change-3514</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>Kepler-80 f pl_bmasse: 4459.73 → 12651.5</description>
+    </item>
+    <item>
+      <title>Parameter update — MOA-2011-BLG-293L b: pl_orbper</title>
+      <guid isPermaLink="false">change-3515</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>MOA-2011-BLG-293L b pl_orbper: 3000.0 → 550.0</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: Elias 2-24 b</title>
+      <guid isPermaLink="false">change-3489</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>New planet: Elias 2-24 b</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 65216 b: pl_rade</title>
+      <guid isPermaLink="false">change-3491</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>HD 65216 b pl_rade: 13.6 → 13.3</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 65216 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3492</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>HD 65216 b pl_bmasse: 411.58985 → 708.75734761</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TIC 219893931 b</title>
+      <guid isPermaLink="false">change-3516</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>New planet: TIC 219893931 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TIC 237254473 b</title>
+      <guid isPermaLink="false">change-3517</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>New planet: TIC 237254473 b</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-2158 b: pl_rade</title>
+      <guid isPermaLink="false">change-3519</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>TOI-2158 b pl_rade: 10.76062147 → 10.07687365</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-2158 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3520</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>TOI-2158 b pl_bmasse: 260.61929374 → 276.51071409</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-2158 c</title>
+      <guid isPermaLink="false">change-3527</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>New planet: TOI-2158 c</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-5120 b</title>
+      <guid isPermaLink="false">change-3533</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>New planet: TOI-5120 b</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-5699 b</title>
+      <guid isPermaLink="false">change-3536</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>New planet: TOI-5699 b</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-942 c: pl_bmasse</title>
+      <guid isPermaLink="false">change-3537</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>TOI-942 c pl_bmasse: 37.0 → 794.575</description>
+    </item>
+    <item>
+      <title>Parameter update — kap CrB b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3539</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>kap CrB b pl_bmasse: 689.6911 → 591.1638</description>
+    </item>
     <item>
       <title>New exoplanet confirmed: TOI-1154 b</title>
       <guid isPermaLink="false">change-3417</guid>

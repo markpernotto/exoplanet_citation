@@ -1,9 +1,9 @@
 {
   "feed_version": "1.0",
-  "generated_at": "2026-10-24T06:04:10.032153+00:00",
+  "generated_at": "2026-10-25T06:03:12.696527+00:00",
   "freshness": {
-    "snapshot_date": "2026-10-24",
-    "source_retrieved_at": "2026-10-24T06:02:13.630548+00:00",
+    "snapshot_date": "2026-10-25",
+    "source_retrieved_at": "2026-10-25T06:01:34.279707+00:00",
     "freshness_hours": 0.03,
     "slo_freshness_hours": 26,
     "status": "ok",

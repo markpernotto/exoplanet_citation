@@ -344,7 +344,7 @@ marts.             ← dbt tables (analytical models, deferred)
 ```
 
 **Storage budget.** Total DB size sits around ~230 MB against the Neon
-free-tier 500 MB ceiling. The `planets_snapshots` table dominates (~210 MB
+Build plan's 5 GB ceiling (was the free tier's 500 MB until 2026-10). The `planets_snapshots` table dominates (~210 MB
 of typed columns + raw_row JSONB), held constant by the rolling 2-day
 prune. Append-only tables grow by an estimated 5–15 MB/year combined.
 `/api/health` exposes `storage.pct_used` and a `status` field that flips

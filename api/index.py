@@ -93,8 +93,8 @@ load_dotenv()
 
 SLO_FRESHNESS_HOURS = 26
 
-# Neon free tier ceiling. Update if we move to a paid plan.
-NEON_STORAGE_LIMIT_BYTES = 500 * 1024 * 1024  # 500 MB
+# Neon Build plan ceiling (upgraded from the 500 MB free tier, 2026-10).
+NEON_STORAGE_LIMIT_BYTES = 5 * 1024 * 1024 * 1024  # 5 GB
 STORAGE_WARNING_THRESHOLD = 0.80   # warn at 80% of limit
 STORAGE_CRITICAL_THRESHOLD = 0.95  # critical at 95%
 
@@ -115,6 +115,26 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+# Vercel's CDN only caches a function response that carries s-maxage; plain
+# max-age reaches the browser alone, so every other request runs the function
+# and wakes Neon. Catalog data changes once a day (nightly ETL, ~06:00 UTC)
+# and Vercel purges its CDN cache on every production deploy, so an hour at
+# the edge plus a day of stale-while-revalidate is safe. Routes that set
+# their own Cache-Control (health, starfield) keep it.
+API_CACHE_CONTROL = "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400"
+
+
+@app.middleware("http")
+async def cdn_cache_headers(request: Request, call_next):
+    response = await call_next(request)
+    if (
+        request.method == "GET"
+        and response.status_code == 200
+        and "cache-control" not in response.headers
+    ):
+        response.headers["Cache-Control"] = API_CACHE_CONTROL
+    return response
 
 
 def _connect() -> psycopg.Connection:
@@ -233,8 +253,11 @@ def submit_feedback(body: FeedbackRequest, request: Request) -> FeedbackResponse
 # ---------- Health ----------
 
 @app.get("/api/health", response_model=HealthResponse, tags=["health"])
-def health() -> HealthResponse:
+def health(response: Response) -> HealthResponse:
     """Pipeline health, freshness vs. SLO, and Neon storage utilization."""
+    # Short edge cache: monitors still see near-live status, but a burst of
+    # checks costs one Neon wake per minute instead of one per request.
+    response.headers["Cache-Control"] = "public, max-age=0, s-maxage=60"
     with _connect() as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
@@ -1075,10 +1098,11 @@ def planet_starfield(pl_name: str) -> Response:
     from the host's distance, so nearby stars get visibly shifted while
     distant stars stay roughly fixed — Phase 2 of `docs/STARFIELD_PLAN.md`.
 
-    Response is `Cache-Control: public, max-age=31536000, immutable` because
-    the texture for a given host system is fully determined by its galactic
-    position, which doesn't change. Re-running `etl/build_gaia_xyz.py` and
-    deploying a new catalog will invalidate via a new file hash transparently.
+    The texture for a given host system is fully determined by its galactic
+    position, which doesn't change, so it's held at Vercel's edge for a year
+    (`s-maxage`) and in browsers for a day. Vercel purges the edge cache on
+    every production deploy, so re-running `etl/build_gaia_xyz.py` or changing
+    the rasterizer shows up on the next deploy; browsers catch up within a day.
     """
     pl_name = unquote(pl_name)
     with _connect() as conn:
@@ -1117,12 +1141,9 @@ def planet_starfield(pl_name: str) -> Response:
     return Response(
         content=png_bytes,
         media_type="image/png",
-        # Short cache while the rasterizer is being iterated on. Bump back
-        # to `public, max-age=31536000, immutable` once the visual is final
-        # — the per-vantage texture for a given host doesn't otherwise
-        # change. Keeping it short during dev means iterating on
-        # api/starfield.py rasterization actually shows up to users.
-        headers={"Cache-Control": "public, max-age=60, must-revalidate"},
+        # Cold renders cost seconds of function CPU each, so the edge cache
+        # is what keeps this endpoint affordable. See the docstring.
+        headers={"Cache-Control": "public, max-age=86400, s-maxage=31536000"},
     )
 
 

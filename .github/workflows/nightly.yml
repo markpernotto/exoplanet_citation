@@ -60,16 +60,24 @@ jobs:
       # full pipeline when the morning run failed. CURRENT_DATE compares
       # against the snapshot_date column; both are server UTC.
       # postgresql-client is preinstalled on ubuntu-latest runners.
+      # An unreachable database (e.g. Neon compute allowance exhausted) must
+      # not fail this gate: NASA EA pscomppars is current-state only, so a day
+      # that never reaches R2 is lost for good. Falling through lets the
+      # extract step archive the raw snapshot; the load step then fails and
+      # the failure issue opens, and that day can be loaded from R2 later.
       - name: Check if today's snapshot is already loaded
         id: check
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           EXISTS=$(psql "$DATABASE_URL" -tA -c \
-            "SELECT EXISTS(SELECT 1 FROM planets_snapshots WHERE snapshot_date = CURRENT_DATE);")
+            "SELECT EXISTS(SELECT 1 FROM planets_snapshots WHERE snapshot_date = CURRENT_DATE);") \
+            || EXISTS=unreachable
           echo "exists=$EXISTS" >> "$GITHUB_OUTPUT"
           if [ "$EXISTS" = "t" ]; then
             echo "Today's snapshot already loaded — remaining steps will skip."
+          elif [ "$EXISTS" = "unreachable" ]; then
+            echo "::warning::Database unreachable; extracting to R2 anyway so today's snapshot is archived."
           else
             echo "Today's snapshot not yet loaded — proceeding."
           fi
@@ -87,6 +95,7 @@ jobs:
           pip install -e ".[dev]"
 
       - name: Extract pscomppars to R2
+        id: extract
         if: steps.check.outputs.exists != 't'
         run: python -m etl.extract
 
@@ -141,6 +150,21 @@ jobs:
             echo "No changes to commit (likely a re-run on the same snapshot date)."
           else
             git commit -m "chore(nightly): update snapshot $(date -u +%Y-%m-%d) [skip ci]"
+            git push
+          fi
+
+      # If a later step failed, the R2 object exists but its manifest entry
+      # only lives on this runner. Commit it so the day can be loaded later
+      # (`python -m etl.load --snapshot-date YYYY-MM-DD`); the 18:00 retry
+      # then sees the date in the manifest and skips re-extracting.
+      - name: Commit manifest after partial failure
+        if: failure() && steps.extract.outcome == 'success'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/MANIFEST.jsonl
+          if ! git diff --staged --quiet; then
+            git commit -m "chore(nightly): archive snapshot manifest $(date -u +%Y-%m-%d) [skip ci]"
             git push
           fi
 

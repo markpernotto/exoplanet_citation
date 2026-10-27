@@ -1,9 +1,9 @@
 {
   "status": "ok",
-  "checked_at": "2026-10-26T06:03:58.565007+00:00",
+  "checked_at": "2026-10-27T06:03:54.428526+00:00",
   "freshness": {
-    "snapshot_date": "2026-10-26",
-    "source_retrieved_at": "2026-10-26T06:01:58.701963+00:00",
+    "snapshot_date": "2026-10-27",
+    "source_retrieved_at": "2026-10-27T06:01:57.865614+00:00",
     "freshness_hours": 0.03,
     "slo_freshness_hours": 26,
     "status": "ok",

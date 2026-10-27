@@ -1,0 +1,26 @@
+# Exoplanet Citation Atlas
+#
+# Search engines and on-demand AI agents (the ones that fetch a page to answer
+# a user's question and link back to it) are welcome. The data is CC BY 4.0;
+# attribution is the one condition, so crawlers that collect pages for model
+# training, where that credit is lost, are asked to stay out.
+#
+# Everything below /api/ stays crawlable because planet pages render from it.
+# The exceptions are the 3D scene payload and the per-system starfield PNG,
+# which are expensive to generate and have no use in a search index.
+
+User-agent: *
+Disallow: /api/starfield/
+Disallow: /api/planets/*/scene
+
+# Model-training crawlers. Google-Extended and Applebot-Extended are
+# training opt-outs only; they don't affect Google or Apple search.
+User-agent: GPTBot
+User-agent: ClaudeBot
+User-agent: anthropic-ai
+User-agent: CCBot
+User-agent: Google-Extended
+User-agent: Applebot-Extended
+User-agent: Meta-ExternalAgent
+User-agent: Bytespider
+Disallow: /

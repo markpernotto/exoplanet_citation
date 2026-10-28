@@ -52,6 +52,24 @@ class HealthResponse(BaseModel):
     storage: StorageInfo | None = None
 
 
+class ValueReference(BaseModel):
+    """The NASA Exoplanet Archive reference behind one reported value, parsed
+    from a pscomppars reference anchor (`*_reflink` or `disc_refname`)."""
+
+    label: str = Field(description="Citation as NASA gives it, e.g. 'Bonomo et al. 2023'")
+    url: str | None
+    bibcode: str | None = Field(description="ADS bibcode, when the link is an ADS abstract")
+    kind: str = Field(
+        description="'paper'; 'calculated' (NASA derived the value from other parameters); "
+        "or 'catalog' (an archive table or service such as the Kepler KOI table or ExoFOP)"
+    )
+    role: str = Field(
+        description="'source' (the reference for this value) or 'discovery' (the planet's "
+        "discovery paper: used for NEW / REMOVED and for discoverymethod / disc_year / "
+        "disc_facility, which NASA gives no separate reference for)"
+    )
+
+
 class ChangeRecord(BaseModel):
     change_id: int
     observed_at: datetime
@@ -63,6 +81,12 @@ class ChangeRecord(BaseModel):
     new_value: Any | None
     diff_summary: str | None
     source_snapshot_date: date
+    prev_ref: ValueReference | None = Field(
+        default=None, description="Reference behind prev_value; null when NASA gave none"
+    )
+    new_ref: ValueReference | None = Field(
+        default=None, description="Reference behind new_value; null when NASA gave none"
+    )
 
 
 class DiscoveriesResponse(BaseModel):

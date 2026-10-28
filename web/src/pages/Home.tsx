@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { api, type ChangeRecord, type PlanetSummary, type PlanetsListResponse, type TopAuthor } from '../api';
 import LoadingBar from '../components/LoadingBar';
 import FeaturedFilmstrip from '../components/FeaturedFilmstrip';
+import ChangeSource from '../components/ChangeSource';
 
 const PAGE_SIZE = 100;
 
@@ -261,12 +262,13 @@ function RecentChanges({ recent, themeQuery }: { recent: RecentFeed | null; them
   if (newPlanets.length === 0 && revisions.length === 0 && removed.length === 0) return null;
 
   // Group revisions by planet so one planet with two changed fields reads as
-  // "Name (mass, radius)" instead of two separate entries.
-  const revByPlanet = new Map<string, string[]>();
+  // "Name (mass per Smith 2024, radius per Jones 2025)" instead of two separate
+  // entries. Each field keeps its own change so it can cite its own source.
+  const revByPlanet = new Map<string, { label: string; change: ChangeRecord }[]>();
   for (const r of revisions) {
     const label = USEFUL_FIELDS[r.field_name ?? ''] ?? 'updated';
     const arr = revByPlanet.get(r.pl_name) ?? [];
-    if (!arr.includes(label)) arr.push(label);
+    if (!arr.some((x) => x.label === label)) arr.push({ label, change: r });
     revByPlanet.set(r.pl_name, arr);
   }
 
@@ -287,11 +289,18 @@ function RecentChanges({ recent, themeQuery }: { recent: RecentFeed | null; them
       {revByPlanet.size > 0 && (
         <p style={{ margin: '0.6rem 0 0', fontSize: '0.85rem', color: 'var(--fg-muted)', lineHeight: 1.6 }}>
           Also updated:{' '}
-          {[...revByPlanet.entries()].map(([name, labels], i) => (
+          {[...revByPlanet.entries()].map(([name, fields], i) => (
             <span key={name}>
-              {i > 0 && ', '}
+              {i > 0 && '; '}
               <Link to={`/planets/${encodeURIComponent(name)}${themeQuery}`} style={{ color: 'var(--fg-muted)' }}>{name}</Link>
-              {` (${labels.join(', ')})`}
+              {' ('}
+              {fields.map(({ label, change }, j) => (
+                <span key={label}>
+                  {j > 0 && ', '}
+                  {label} <ChangeSource change={change} compact />
+                </span>
+              ))}
+              {')'}
             </span>
           ))}
         </p>

@@ -86,6 +86,7 @@ from api.models import (
     TopAuthor,
     TopAuthorsResponse,
 )
+from api.references import change_description, change_refs
 from api.scene import derive_scene_hints
 from api.starfield import render_png_cached
 
@@ -142,6 +143,7 @@ def _connect() -> psycopg.Connection:
 
 
 def _to_change_record(row: dict) -> ChangeRecord:
+    prev_ref, new_ref = change_refs(row)
     return ChangeRecord(
         change_id=row["change_id"],
         observed_at=row["observed_at"],
@@ -153,6 +155,8 @@ def _to_change_record(row: dict) -> ChangeRecord:
         new_value=row["new_value"],
         diff_summary=row["diff_summary"],
         source_snapshot_date=row["source_snapshot_date"],
+        prev_ref=prev_ref,
+        new_ref=new_ref,
     )
 
 
@@ -382,7 +386,8 @@ def discoveries_latest(
             cur.execute(
                 """
                 SELECT change_id, observed_at, pl_name, change_type, field_name,
-                       field_tier, prev_value, new_value, diff_summary, source_snapshot_date
+                       field_tier, prev_value, new_value, diff_summary, source_snapshot_date,
+                       prev_reflink, new_reflink
                 FROM discovery_changes
                 WHERE observed_at >= %s
                   AND (change_type IN ('NEW', 'REMOVED') OR field_tier = 'A')
@@ -428,7 +433,8 @@ def discoveries_by_month(
             cur.execute(
                 """
                 SELECT change_id, observed_at, pl_name, change_type, field_name,
-                       field_tier, prev_value, new_value, diff_summary, source_snapshot_date
+                       field_tier, prev_value, new_value, diff_summary, source_snapshot_date,
+                       prev_reflink, new_reflink
                 FROM discovery_changes
                 WHERE observed_at >= %s AND observed_at < %s
                   AND (change_type IN ('NEW', 'REMOVED') OR field_tier = 'A')
@@ -842,7 +848,8 @@ def planet_history(pl_name: str) -> PlanetHistoryResponse:
             cur.execute(
                 """
                 SELECT change_id, observed_at, pl_name, change_type, field_name,
-                       field_tier, prev_value, new_value, diff_summary, source_snapshot_date
+                       field_tier, prev_value, new_value, diff_summary, source_snapshot_date,
+                       prev_reflink, new_reflink
                 FROM discovery_changes
                 WHERE pl_name = %s
                 ORDER BY observed_at DESC
@@ -1621,7 +1628,8 @@ _SITE_URL = os.environ.get("SITE_URL", "https://exoplanetcitation.space")
 _SURFACED = "(dc.change_type IN ('NEW', 'REMOVED') OR dc.field_tier = 'A')"
 _CHANGE_COLS = """
     dc.change_id, dc.observed_at, dc.pl_name, dc.change_type,
-    dc.field_name, dc.field_tier, dc.diff_summary
+    dc.field_name, dc.field_tier, dc.diff_summary,
+    dc.prev_reflink, dc.new_reflink
 """
 
 
@@ -1658,7 +1666,7 @@ def _build_rss(title: str, description: str, self_url: str, changes: list[dict])
         SubElement(item, "title").text = _change_title(c)
         SubElement(item, "guid", {"isPermaLink": "false"}).text = f"change-{c['change_id']}"
         SubElement(item, "pubDate").text = _rfc822(c["observed_at"])
-        SubElement(item, "description").text = c.get("diff_summary") or _change_title(c)
+        SubElement(item, "description").text = change_description(c, c.get("diff_summary") or _change_title(c))
     ET.indent(rss, space="  ")
     xml = '<?xml version="1.0" encoding="UTF-8"?>\n' + ET.tostring(rss, encoding="unicode")
     return Response(content=xml, media_type="application/rss+xml; charset=utf-8")

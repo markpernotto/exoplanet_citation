@@ -25,6 +25,8 @@ import psycopg
 from dotenv import load_dotenv
 from psycopg.rows import dict_row
 
+from api.references import change_description, change_refs
+
 # Phase 1 SLO target: published data fresh within 26 hours of source. The
 # clock is currently approximated as "time since last extract" (Clock A).
 # Upgrading to true Clock B (time since upstream `last_modified`) is tracked
@@ -42,7 +44,8 @@ def fetch_surfaced_changes(conn: psycopg.Connection, days: int) -> list[dict]:
         cur.execute(
             """
             SELECT change_id, observed_at, pl_name, change_type, field_name,
-                   field_tier, prev_value, new_value, diff_summary, source_snapshot_date
+                   field_tier, prev_value, new_value, diff_summary, source_snapshot_date,
+                   prev_reflink, new_reflink
             FROM discovery_changes
             WHERE observed_at >= %s
               AND (
@@ -119,7 +122,7 @@ def build_rss(changes: list[dict]) -> str:
         SubElement(item, "title").text = _change_title(c)
         SubElement(item, "guid", isPermaLink="false").text = f"change-{c['change_id']}"
         SubElement(item, "pubDate").text = _rfc822(c["observed_at"])
-        SubElement(item, "description").text = c.get("diff_summary") or _change_title(c)
+        SubElement(item, "description").text = change_description(c, c.get("diff_summary") or _change_title(c))
 
     ET.indent(rss, space="  ")
     return '<?xml version="1.0" encoding="UTF-8"?>\n' + ET.tostring(rss, encoding="unicode")
@@ -143,6 +146,11 @@ def build_json_feed(changes: list[dict], freshness: dict | None) -> dict:
                 "new_value": c["new_value"],
                 "diff_summary": c["diff_summary"],
                 "source_snapshot_date": c["source_snapshot_date"].isoformat(),
+                # Same shape as the API's ChangeRecord.prev_ref / new_ref.
+                **{
+                    k: (r.model_dump() if r else None)
+                    for k, r in zip(("prev_ref", "new_ref"), change_refs(c), strict=True)
+                },
             }
             for c in changes
         ],

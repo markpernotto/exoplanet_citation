@@ -28,6 +28,19 @@ export type ChangeRecord = {
   new_value: unknown;
   diff_summary: string | null;
   source_snapshot_date: string;
+  // NASA EA reference behind each value (null = none given). See api/references.py.
+  prev_ref: ValueReference | null;
+  new_ref: ValueReference | null;
+};
+
+export type ValueReference = {
+  label: string;
+  url: string | null;
+  bibcode: string | null;
+  kind: 'paper' | 'calculated' | 'catalog';
+  // 'discovery' = the planet's discovery paper (NEW / REMOVED, and the disc_*
+  // fields, which NASA gives no separate reference for).
+  role: 'source' | 'discovery';
 };
 
 export type DiscoveriesResponse = {

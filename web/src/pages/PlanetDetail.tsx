@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api, type BinaryCompanion, type DerivedMeasurementRow, type DiscoveryPaper, type HostStarGaia, type PlanetAtmosphereResponse, type PlanetDetail as PlanetDetailType, type PlanetHistoryResponse, type PlanetPublication, type PlanetsListResponse, type Satellite, type SySnumAudit } from '../api';
+import ChangeSource from '../components/ChangeSource';
 import GalaxyMap from '../components/GalaxyMap';
 import LoadingBar from '../components/LoadingBar';
 import PlanetCard from '../components/PlanetCard';
@@ -256,6 +257,7 @@ export default function PlanetDetail() {
                 <th>Field</th>
                 <th>Tier</th>
                 <th>Summary</th>
+                <th>Source</th>
               </tr>
             </thead>
             <tbody>
@@ -266,6 +268,7 @@ export default function PlanetDetail() {
                   <td>{c.field_name ?? '—'}</td>
                   <td>{c.field_tier ? <span className={`tier-badge tier-${c.field_tier}`}>{c.field_tier}</span> : '—'}</td>
                   <td>{c.diff_summary ?? '—'}</td>
+                  <td><ChangeSource change={c} /></td>
                 </tr>
               ))}
             </tbody>

@@ -59,7 +59,10 @@ CREATE TABLE IF NOT EXISTS discovery_changes (
     prev_value             JSONB,
     new_value              JSONB,
     diff_summary           TEXT,
-    source_snapshot_date   DATE             NOT NULL
+    source_snapshot_date   DATE             NOT NULL,
+    -- NASA EA reference anchors behind prev_value / new_value (migration 129)
+    prev_reflink           TEXT,
+    new_reflink            TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_discovery_changes_observed_at

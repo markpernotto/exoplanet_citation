@@ -35,16 +35,23 @@ class FieldSpec:
     name: str
     tier: str  # 'A' or 'B'
     rel_tolerance: float | None = None  # only meaningful for floats
+    # pscomppars column holding the reference for this field's value (the
+    # "<a refstr=... href=...>Label</a>" anchor), read from raw_row. Most
+    # fields have a per-parameter `<name>_reflink`; the disc_* fields only
+    # have disc_refname, the discovery paper, which NASA does not update when
+    # it reclassifies a planet, so the UI labels it "discovery reference"
+    # rather than as the source of the change. None = NASA gives no reference.
+    ref_col: str | None = None
 
 
 # Tier A — surfaced in RSS / public change feeds.
 TIER_A_FIELDS: list[FieldSpec] = [
-    FieldSpec("discoverymethod", tier="A"),
-    FieldSpec("disc_year", tier="A"),
-    FieldSpec("disc_facility", tier="A"),
-    FieldSpec("pl_orbper", tier="A", rel_tolerance=0.01),
-    FieldSpec("pl_rade", tier="A", rel_tolerance=0.01),
-    FieldSpec("pl_bmasse", tier="A", rel_tolerance=0.01),
+    FieldSpec("discoverymethod", tier="A", ref_col="disc_refname"),
+    FieldSpec("disc_year", tier="A", ref_col="disc_refname"),
+    FieldSpec("disc_facility", tier="A", ref_col="disc_refname"),
+    FieldSpec("pl_orbper", tier="A", rel_tolerance=0.01, ref_col="pl_orbper_reflink"),
+    FieldSpec("pl_rade", tier="A", rel_tolerance=0.01, ref_col="pl_rade_reflink"),
+    FieldSpec("pl_bmasse", tier="A", rel_tolerance=0.01, ref_col="pl_bmasse_reflink"),
 ]
 
 # Tier B — logged to discovery_changes but NOT surfaced.
@@ -52,24 +59,31 @@ TIER_A_FIELDS: list[FieldSpec] = [
 # ra / dec / gaia_dr3_id are typed columns but intentionally excluded from
 # diffing: ra/dec change too slowly (proper motion is parts-per-million per
 # year), gaia_dr3_id is an identity reference that should not change.
+# sy_snum / sy_pnum are system counts with no pscomppars reflink, and st_dist
+# is not a pscomppars column at all (always NULL), so those three have none.
 TIER_B_FIELDS: list[FieldSpec] = [
     FieldSpec("sy_snum", tier="B"),
     FieldSpec("sy_pnum", tier="B"),
-    FieldSpec("pl_orbsmax", tier="B", rel_tolerance=0.01),
-    FieldSpec("pl_orbeccen", tier="B", rel_tolerance=0.01),
-    FieldSpec("pl_dens", tier="B", rel_tolerance=0.01),
-    FieldSpec("pl_eqt", tier="B", rel_tolerance=0.01),
-    FieldSpec("pl_insol", tier="B", rel_tolerance=0.01),
-    FieldSpec("st_teff", tier="B", rel_tolerance=0.01),
-    FieldSpec("st_rad", tier="B", rel_tolerance=0.01),
-    FieldSpec("st_mass", tier="B", rel_tolerance=0.01),
-    FieldSpec("st_lum", tier="B", rel_tolerance=0.01),
-    FieldSpec("st_spectype", tier="B"),
+    FieldSpec("pl_orbsmax", tier="B", rel_tolerance=0.01, ref_col="pl_orbsmax_reflink"),
+    FieldSpec("pl_orbeccen", tier="B", rel_tolerance=0.01, ref_col="pl_orbeccen_reflink"),
+    FieldSpec("pl_dens", tier="B", rel_tolerance=0.01, ref_col="pl_dens_reflink"),
+    FieldSpec("pl_eqt", tier="B", rel_tolerance=0.01, ref_col="pl_eqt_reflink"),
+    FieldSpec("pl_insol", tier="B", rel_tolerance=0.01, ref_col="pl_insol_reflink"),
+    FieldSpec("st_teff", tier="B", rel_tolerance=0.01, ref_col="st_teff_reflink"),
+    FieldSpec("st_rad", tier="B", rel_tolerance=0.01, ref_col="st_rad_reflink"),
+    FieldSpec("st_mass", tier="B", rel_tolerance=0.01, ref_col="st_mass_reflink"),
+    FieldSpec("st_lum", tier="B", rel_tolerance=0.01, ref_col="st_lum_reflink"),
+    FieldSpec("st_spectype", tier="B", ref_col="st_spectype_reflink"),
     FieldSpec("st_dist", tier="B", rel_tolerance=0.01),
-    FieldSpec("sy_dist", tier="B", rel_tolerance=0.01),
+    FieldSpec("sy_dist", tier="B", rel_tolerance=0.01, ref_col="sy_dist_reflink"),
 ]
 
 ALL_FIELDS: list[FieldSpec] = TIER_A_FIELDS + TIER_B_FIELDS
+
+# Reference columns that live only in raw_row (disc_refname is a typed column).
+REFLINK_COLS: list[str] = sorted(
+    {f.ref_col for f in ALL_FIELDS if f.ref_col and f.ref_col != "disc_refname"}
+)
 
 
 @dataclass(frozen=True)
@@ -106,6 +120,12 @@ def classify_field_change(
     return ChangeClassification(True, field.tier)
 
 
+def _without_reflinks(row: dict[str, Any]) -> dict[str, Any]:
+    """Drop the raw_row reference columns so NEW / REMOVED snapshots of the
+    row keep the same shape they had before reflinks were fetched."""
+    return {k: v for k, v in row.items() if k not in REFLINK_COLS}
+
+
 def _json_safe(row: dict[str, Any]) -> dict[str, Any]:
     """Coerce non-JSON-serializable values (date, datetime) to ISO strings."""
     out: dict[str, Any] = {}
@@ -121,7 +141,12 @@ def diff_rows(
     snapshot_date: str,
 ) -> list[dict[str, Any]]:
     """Compute change records between two row dicts. Returns plain dicts;
-    JSONB wrapping is applied at the DB boundary in to_db_record()."""
+    JSONB wrapping is applied at the DB boundary in to_db_record().
+
+    Each record carries the NASA reference anchor behind its old and new
+    value (prev_reflink / new_reflink). NEW and REMOVED cite the discovery
+    paper; parameter changes cite the field's own reference column.
+    """
     if prev_row is None and curr_row is None:
         return []
     if prev_row is None:
@@ -132,9 +157,11 @@ def diff_rows(
             "field_name": None,
             "field_tier": None,
             "prev_value": None,
-            "new_value": _json_safe(curr_row),
+            "new_value": _json_safe(_without_reflinks(curr_row)),
             "diff_summary": f"New planet: {curr_row['pl_name']}",
             "source_snapshot_date": snapshot_date,
+            "prev_reflink": None,
+            "new_reflink": curr_row.get("disc_refname"),
         }]
     if curr_row is None:
         return [{
@@ -142,10 +169,12 @@ def diff_rows(
             "change_type": "REMOVED",
             "field_name": None,
             "field_tier": None,
-            "prev_value": _json_safe(prev_row),
+            "prev_value": _json_safe(_without_reflinks(prev_row)),
             "new_value": None,
             "diff_summary": f"Removed planet: {prev_row['pl_name']}",
             "source_snapshot_date": snapshot_date,
+            "prev_reflink": prev_row.get("disc_refname"),
+            "new_reflink": None,
         }]
 
     pl_name = curr_row["pl_name"]
@@ -165,6 +194,8 @@ def diff_rows(
             "new_value": curr_v,
             "diff_summary": f"{pl_name} {field.name}: {prev_v} → {curr_v}",
             "source_snapshot_date": snapshot_date,
+            "prev_reflink": prev_row.get(field.ref_col) if field.ref_col else None,
+            "new_reflink": curr_row.get(field.ref_col) if field.ref_col else None,
         })
     return out
 
@@ -187,10 +218,12 @@ def diff_snapshots(
 INSERT_CHANGE_SQL = """
 INSERT INTO discovery_changes (
     pl_name, change_type, field_name, field_tier,
-    prev_value, new_value, diff_summary, source_snapshot_date
+    prev_value, new_value, diff_summary, source_snapshot_date,
+    prev_reflink, new_reflink
 ) VALUES (
     %(pl_name)s, %(change_type)s, %(field_name)s, %(field_tier)s,
-    %(prev_value)s, %(new_value)s, %(diff_summary)s, %(source_snapshot_date)s
+    %(prev_value)s, %(new_value)s, %(diff_summary)s, %(source_snapshot_date)s,
+    %(prev_reflink)s, %(new_reflink)s
 )
 ON CONFLICT (source_snapshot_date, pl_name, change_type, COALESCE(field_name, ''))
 DO NOTHING
@@ -217,9 +250,11 @@ _FETCH_COLS = [
 
 
 def fetch_snapshot_rows(conn: psycopg.Connection, snapshot_date: date) -> dict[str, dict[str, Any]]:
+    reflink_cols = [f"raw_row->>'{c}' AS {c}" for c in REFLINK_COLS]
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
-            f"SELECT {', '.join(_FETCH_COLS)} FROM planets_snapshots WHERE snapshot_date = %s",
+            f"SELECT {', '.join(_FETCH_COLS + reflink_cols)} "
+            "FROM planets_snapshots WHERE snapshot_date = %s",
             (snapshot_date,),
         )
         return {row["pl_name"]: row for row in cur.fetchall()}

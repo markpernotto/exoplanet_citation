@@ -323,6 +323,53 @@ def test_field_tier_assignments(field_name, expected_tier):
     assert field.tier == expected_tier
 
 
+# ---- Reference anchors (migration 129) ----
+
+def test_param_change_records_both_reflinks():
+    prev = make_row(pl_bmasse=9.0, pl_bmasse_reflink="<a>Old et al. 2019</a>")
+    curr = make_row(pl_bmasse=12.0, pl_bmasse_reflink="<a>New et al. 2026</a>")
+    out = diff_rows(prev, curr, ALL_FIELDS, "2026-05-05")
+    assert len(out) == 1
+    assert out[0]["prev_reflink"] == "<a>Old et al. 2019</a>"
+    assert out[0]["new_reflink"] == "<a>New et al. 2026</a>"
+
+
+def test_disc_field_change_cites_discovery_paper():
+    prev = make_row(discoverymethod="Transit")
+    curr = make_row(discoverymethod="Radial Velocity")
+    out = diff_rows(prev, curr, ALL_FIELDS, "2026-05-05")
+    assert out[0]["new_reflink"] == "Borucki et al. 2011"
+
+
+def test_field_without_reference_column_records_none():
+    out = diff_rows(make_row(sy_pnum=1), make_row(sy_pnum=2), ALL_FIELDS, "2026-05-05")
+    assert out[0]["prev_reflink"] is None
+    assert out[0]["new_reflink"] is None
+
+
+def test_new_and_removed_cite_discovery_paper_and_keep_row_shape():
+    curr = make_row("New b", pl_bmasse_reflink="<a>X</a>")
+    new = diff_rows(None, curr, ALL_FIELDS, "2026-05-05")[0]
+    assert new["new_reflink"] == "Borucki et al. 2011"
+    assert "pl_bmasse_reflink" not in new["new_value"]
+    gone = diff_rows(make_row("Old b"), None, ALL_FIELDS, "2026-05-05")[0]
+    assert gone["prev_reflink"] == "Borucki et al. 2011"
+
+
+def test_reflink_only_change_is_not_a_change():
+    """A new reference with an unchanged value records nothing (values are diffed, not sources)."""
+    prev = make_row(pl_bmasse_reflink="<a>A</a>")
+    curr = make_row(pl_bmasse_reflink="<a>B</a>")
+    assert diff_rows(prev, curr, ALL_FIELDS, "2026-05-05") == []
+
+
+def test_ref_cols_match_nasa_naming():
+    for f in ALL_FIELDS:
+        if f.ref_col and f.ref_col != "disc_refname":
+            assert f.ref_col == f"{f.name}_reflink"
+    assert {f.name for f in ALL_FIELDS if f.ref_col is None} == {"sy_snum", "sy_pnum", "st_dist"}
+
+
 def test_ra_dec_gaia_id_excluded_from_diffing():
     """ra, dec, gaia_dr3_id are typed columns but intentionally excluded
     from ALL_FIELDS — they're identity-stable / change too slowly to matter."""

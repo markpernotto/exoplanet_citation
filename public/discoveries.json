@@ -1,10 +1,10 @@
 {
   "feed_version": "1.0",
-  "generated_at": "2026-10-28T06:21:42.439766+00:00",
+  "generated_at": "2026-10-29T06:21:49.892535+00:00",
   "freshness": {
-    "snapshot_date": "2026-10-28",
-    "source_retrieved_at": "2026-10-28T06:02:02.405585+00:00",
-    "freshness_hours": 0.33,
+    "snapshot_date": "2026-10-29",
+    "source_retrieved_at": "2026-10-29T06:01:35.388175+00:00",
+    "freshness_hours": 0.34,
     "slo_freshness_hours": 26,
     "status": "ok",
     "clock": "A (time since last extract)",
@@ -12,54 +12,6 @@
   },
   "change_count": 98,
   "changes": [
-    {
-      "change_id": 3497,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "HD 65216 c",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_orbper",
-      "field_tier": "A",
-      "prev_value": 5370.0,
-      "new_value": 7007.0,
-      "diff_summary": "HD 65216 c pl_orbper: 5370.0 \u2192 7007.0",
-      "source_snapshot_date": "2026-10-16"
-    },
-    {
-      "change_id": 3498,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "HD 65216 c",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_rade",
-      "field_tier": "A",
-      "prev_value": 13.4,
-      "new_value": 13.1,
-      "diff_summary": "HD 65216 c pl_rade: 13.4 \u2192 13.1",
-      "source_snapshot_date": "2026-10-16"
-    },
-    {
-      "change_id": 3499,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "HD 65216 c",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 645.1949,
-      "new_value": 1055.19031124,
-      "diff_summary": "HD 65216 c pl_bmasse: 645.1949 \u2192 1055.19031124",
-      "source_snapshot_date": "2026-10-16"
-    },
-    {
-      "change_id": 3506,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "Kepler-281 c",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 161.124,
-      "new_value": 69.6183,
-      "diff_summary": "Kepler-281 c pl_bmasse: 161.124 \u2192 69.6183",
-      "source_snapshot_date": "2026-10-16"
-    },
     {
       "change_id": 3508,
       "observed_at": "2026-10-16T06:03:01.447470+00:00",
@@ -70,7 +22,21 @@
       "prev_value": 32.6,
       "new_value": 7.11899996,
       "diff_summary": "Kepler-297 d pl_rade: 32.6 \u2192 7.11899996",
-      "source_snapshot_date": "2026-10-16"
+      "source_snapshot_date": "2026-10-16",
+      "prev_ref": {
+        "label": "Q1-Q17 DR25 KOI Table",
+        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/Kepler_KOI_docs.html",
+        "bibcode": null,
+        "kind": "catalog",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Valizadegan et al. 2023",
+        "url": "https://ui.adsabs.harvard.edu/abs/2023AJ....166...28V/abstract",
+        "bibcode": "2023AJ....166...28V",
+        "kind": "paper",
+        "role": "source"
+      }
     },
     {
       "change_id": 3509,
@@ -82,7 +48,21 @@
       "prev_value": null,
       "new_value": 40.2,
       "diff_summary": "Kepler-297 d pl_bmasse: None \u2192 40.2",
-      "source_snapshot_date": "2026-10-16"
+      "source_snapshot_date": "2026-10-16",
+      "prev_ref": {
+        "label": "Q1-Q17 DR25 KOI Table",
+        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/Kepler_KOI_docs.html",
+        "bibcode": null,
+        "kind": "catalog",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Calculated Value",
+        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html",
+        "bibcode": null,
+        "kind": "calculated",
+        "role": "source"
+      }
     },
     {
       "change_id": 3513,
@@ -94,7 +74,21 @@
       "prev_value": 4.08181,
       "new_value": 1.11884,
       "diff_summary": "Kepler-32 e pl_bmasse: 4.08181 \u2192 1.11884",
-      "source_snapshot_date": "2026-10-16"
+      "source_snapshot_date": "2026-10-16",
+      "prev_ref": {
+        "label": "Ofir et al. 2025",
+        "url": "https://ui.adsabs.harvard.edu/abs/2025AJ....169...90O/abstract",
+        "bibcode": "2025AJ....169...90O",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Ofir et al. 2025",
+        "url": "https://ui.adsabs.harvard.edu/abs/2025AJ....169...90O/abstract",
+        "bibcode": "2025AJ....169...90O",
+        "kind": "paper",
+        "role": "source"
+      }
     },
     {
       "change_id": 3514,
@@ -106,7 +100,21 @@
       "prev_value": 4459.73,
       "new_value": 12651.5,
       "diff_summary": "Kepler-80 f pl_bmasse: 4459.73 \u2192 12651.5",
-      "source_snapshot_date": "2026-10-16"
+      "source_snapshot_date": "2026-10-16",
+      "prev_ref": {
+        "label": "Ofir et al. 2025",
+        "url": "https://ui.adsabs.harvard.edu/abs/2025AJ....169...90O/abstract",
+        "bibcode": "2025AJ....169...90O",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Ofir et al. 2025",
+        "url": "https://ui.adsabs.harvard.edu/abs/2025AJ....169...90O/abstract",
+        "bibcode": "2025AJ....169...90O",
+        "kind": "paper",
+        "role": "source"
+      }
     },
     {
       "change_id": 3515,
@@ -118,7 +126,255 @@
       "prev_value": 3000.0,
       "new_value": 550.0,
       "diff_summary": "MOA-2011-BLG-293L b pl_orbper: 3000.0 \u2192 550.0",
-      "source_snapshot_date": "2026-10-16"
+      "source_snapshot_date": "2026-10-16",
+      "prev_ref": {
+        "label": "Yee et al. 2012",
+        "url": "https://ui.adsabs.harvard.edu/abs/2012ApJ...755..102Y/abstract",
+        "bibcode": "2012ApJ...755..102Y",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Yee et al. 2012",
+        "url": "https://ui.adsabs.harvard.edu/abs/2012ApJ...755..102Y/abstract",
+        "bibcode": "2012ApJ...755..102Y",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3497,
+      "observed_at": "2026-10-16T06:03:01.447470+00:00",
+      "pl_name": "HD 65216 c",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_orbper",
+      "field_tier": "A",
+      "prev_value": 5370.0,
+      "new_value": 7007.0,
+      "diff_summary": "HD 65216 c pl_orbper: 5370.0 \u2192 7007.0",
+      "source_snapshot_date": "2026-10-16",
+      "prev_ref": {
+        "label": "Wittenmyer et al. 2019",
+        "url": "https://ui.adsabs.harvard.edu/abs/2019MNRAS.484.5859W/abstract",
+        "bibcode": "2019MNRAS.484.5859W",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Wallace et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv261002783W/abstract",
+        "bibcode": "2026arXiv261002783W",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3491,
+      "observed_at": "2026-10-16T06:03:01.447470+00:00",
+      "pl_name": "HD 65216 b",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_rade",
+      "field_tier": "A",
+      "prev_value": 13.6,
+      "new_value": 13.3,
+      "diff_summary": "HD 65216 b pl_rade: 13.6 \u2192 13.3",
+      "source_snapshot_date": "2026-10-16",
+      "prev_ref": {
+        "label": "Calculated Value",
+        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html",
+        "bibcode": null,
+        "kind": "calculated",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Calculated Value",
+        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html",
+        "bibcode": null,
+        "kind": "calculated",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3492,
+      "observed_at": "2026-10-16T06:03:01.447470+00:00",
+      "pl_name": "HD 65216 b",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_bmasse",
+      "field_tier": "A",
+      "prev_value": 411.58985,
+      "new_value": 708.75734761,
+      "diff_summary": "HD 65216 b pl_bmasse: 411.58985 \u2192 708.75734761",
+      "source_snapshot_date": "2026-10-16",
+      "prev_ref": {
+        "label": "Wittenmyer et al. 2019",
+        "url": "https://ui.adsabs.harvard.edu/abs/2019MNRAS.484.5859W/abstract",
+        "bibcode": "2019MNRAS.484.5859W",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Wallace et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv261002783W/abstract",
+        "bibcode": "2026arXiv261002783W",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3539,
+      "observed_at": "2026-10-16T06:03:01.447470+00:00",
+      "pl_name": "kap CrB b",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_bmasse",
+      "field_tier": "A",
+      "prev_value": 689.6911,
+      "new_value": 591.1638,
+      "diff_summary": "kap CrB b pl_bmasse: 689.6911 \u2192 591.1638",
+      "source_snapshot_date": "2026-10-16",
+      "prev_ref": {
+        "label": "Baines et al. 2013",
+        "url": "https://ui.adsabs.harvard.edu/abs/2013ApJ...771L..17B/abstract",
+        "bibcode": "2013ApJ...771L..17B",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Baines et al. 2013",
+        "url": "https://ui.adsabs.harvard.edu/abs/2013ApJ...771L..17B/abstract",
+        "bibcode": "2013ApJ...771L..17B",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3537,
+      "observed_at": "2026-10-16T06:03:01.447470+00:00",
+      "pl_name": "TOI-942 c",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_bmasse",
+      "field_tier": "A",
+      "prev_value": 37.0,
+      "new_value": 794.575,
+      "diff_summary": "TOI-942 c pl_bmasse: 37.0 \u2192 794.575",
+      "source_snapshot_date": "2026-10-16",
+      "prev_ref": {
+        "label": "Carleo et al. 2021",
+        "url": "https://ui.adsabs.harvard.edu/abs/2021A&A...645A..71C/abstract",
+        "bibcode": "2021A&A...645A..71C",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Zhou et al. 2021",
+        "url": "https://ui.adsabs.harvard.edu/abs/2021AJ....161....2Z/abstract",
+        "bibcode": "2021AJ....161....2Z",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3520,
+      "observed_at": "2026-10-16T06:03:01.447470+00:00",
+      "pl_name": "TOI-2158 b",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_bmasse",
+      "field_tier": "A",
+      "prev_value": 260.61929374,
+      "new_value": 276.51071409,
+      "diff_summary": "TOI-2158 b pl_bmasse: 260.61929374 \u2192 276.51071409",
+      "source_snapshot_date": "2026-10-16",
+      "prev_ref": {
+        "label": "Knudstrup et al. 2022",
+        "url": "https://ui.adsabs.harvard.edu/abs/2022A&A...667A..22K/abstract",
+        "bibcode": "2022A&A...667A..22K",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Knudstrup et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260930915K/abstract",
+        "bibcode": "2026arXiv260930915K",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3498,
+      "observed_at": "2026-10-16T06:03:01.447470+00:00",
+      "pl_name": "HD 65216 c",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_rade",
+      "field_tier": "A",
+      "prev_value": 13.4,
+      "new_value": 13.1,
+      "diff_summary": "HD 65216 c pl_rade: 13.4 \u2192 13.1",
+      "source_snapshot_date": "2026-10-16",
+      "prev_ref": {
+        "label": "Calculated Value",
+        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html",
+        "bibcode": null,
+        "kind": "calculated",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Calculated Value",
+        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html",
+        "bibcode": null,
+        "kind": "calculated",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3499,
+      "observed_at": "2026-10-16T06:03:01.447470+00:00",
+      "pl_name": "HD 65216 c",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_bmasse",
+      "field_tier": "A",
+      "prev_value": 645.1949,
+      "new_value": 1055.19031124,
+      "diff_summary": "HD 65216 c pl_bmasse: 645.1949 \u2192 1055.19031124",
+      "source_snapshot_date": "2026-10-16",
+      "prev_ref": {
+        "label": "Wittenmyer et al. 2019",
+        "url": "https://ui.adsabs.harvard.edu/abs/2019MNRAS.484.5859W/abstract",
+        "bibcode": "2019MNRAS.484.5859W",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Wallace et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv261002783W/abstract",
+        "bibcode": "2026arXiv261002783W",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3506,
+      "observed_at": "2026-10-16T06:03:01.447470+00:00",
+      "pl_name": "Kepler-281 c",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_bmasse",
+      "field_tier": "A",
+      "prev_value": 161.124,
+      "new_value": 69.6183,
+      "diff_summary": "Kepler-281 c pl_bmasse: 161.124 \u2192 69.6183",
+      "source_snapshot_date": "2026-10-16",
+      "prev_ref": {
+        "label": "Ofir et al. 2025",
+        "url": "https://ui.adsabs.harvard.edu/abs/2025AJ....169...90O/abstract",
+        "bibcode": "2025AJ....169...90O",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Ofir et al. 2025",
+        "url": "https://ui.adsabs.harvard.edu/abs/2025AJ....169...90O/abstract",
+        "bibcode": "2025AJ....169...90O",
+        "kind": "paper",
+        "role": "source"
+      }
     },
     {
       "change_id": 3489,
@@ -156,31 +412,15 @@
         "discoverymethod": "Imaging"
       },
       "diff_summary": "New planet: Elias 2-24 b",
-      "source_snapshot_date": "2026-10-16"
-    },
-    {
-      "change_id": 3491,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "HD 65216 b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_rade",
-      "field_tier": "A",
-      "prev_value": 13.6,
-      "new_value": 13.3,
-      "diff_summary": "HD 65216 b pl_rade: 13.6 \u2192 13.3",
-      "source_snapshot_date": "2026-10-16"
-    },
-    {
-      "change_id": 3492,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "HD 65216 b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 411.58985,
-      "new_value": 708.75734761,
-      "diff_summary": "HD 65216 b pl_bmasse: 411.58985 \u2192 708.75734761",
-      "source_snapshot_date": "2026-10-16"
+      "source_snapshot_date": "2026-10-16",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Bernardi et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026ApJ..1009L...3B/abstract",
+        "bibcode": "2026ApJ..1009L...3B",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3516,
@@ -218,7 +458,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TIC 219893931 b",
-      "source_snapshot_date": "2026-10-16"
+      "source_snapshot_date": "2026-10-16",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Hotnisky et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026ApJS..286...42H/abstract",
+        "bibcode": "2026ApJS..286...42H",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3517,
@@ -256,31 +504,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TIC 237254473 b",
-      "source_snapshot_date": "2026-10-16"
-    },
-    {
-      "change_id": 3519,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "TOI-2158 b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_rade",
-      "field_tier": "A",
-      "prev_value": 10.76062147,
-      "new_value": 10.07687365,
-      "diff_summary": "TOI-2158 b pl_rade: 10.76062147 \u2192 10.07687365",
-      "source_snapshot_date": "2026-10-16"
-    },
-    {
-      "change_id": 3520,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "TOI-2158 b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 260.61929374,
-      "new_value": 276.51071409,
-      "diff_summary": "TOI-2158 b pl_bmasse: 260.61929374 \u2192 276.51071409",
-      "source_snapshot_date": "2026-10-16"
+      "source_snapshot_date": "2026-10-16",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Hotnisky et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026ApJS..286...42H/abstract",
+        "bibcode": "2026ApJS..286...42H",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3527,
@@ -318,7 +550,15 @@
         "discoverymethod": "Radial Velocity"
       },
       "diff_summary": "New planet: TOI-2158 c",
-      "source_snapshot_date": "2026-10-16"
+      "source_snapshot_date": "2026-10-16",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Knudstrup et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260930915K/abstract",
+        "bibcode": "2026arXiv260930915K",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3533,
@@ -356,7 +596,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-5120 b",
-      "source_snapshot_date": "2026-10-16"
+      "source_snapshot_date": "2026-10-16",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Knudstrup et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260930915K/abstract",
+        "bibcode": "2026arXiv260930915K",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3536,
@@ -394,791 +642,41 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-5699 b",
-      "source_snapshot_date": "2026-10-16"
+      "source_snapshot_date": "2026-10-16",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Knudstrup et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260930915K/abstract",
+        "bibcode": "2026arXiv260930915K",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
-      "change_id": 3537,
+      "change_id": 3519,
       "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "TOI-942 c",
+      "pl_name": "TOI-2158 b",
       "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
+      "field_name": "pl_rade",
       "field_tier": "A",
-      "prev_value": 37.0,
-      "new_value": 794.575,
-      "diff_summary": "TOI-942 c pl_bmasse: 37.0 \u2192 794.575",
-      "source_snapshot_date": "2026-10-16"
-    },
-    {
-      "change_id": 3539,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "kap CrB b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 689.6911,
-      "new_value": 591.1638,
-      "diff_summary": "kap CrB b pl_bmasse: 689.6911 \u2192 591.1638",
-      "source_snapshot_date": "2026-10-16"
-    },
-    {
-      "change_id": 3417,
-      "observed_at": "2026-10-09T06:02:58.139753+00:00",
-      "pl_name": "TOI-1154 b",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": 642.0,
-        "st_lum": -0.08502,
-        "st_rad": 0.928499,
-        "pl_dens": 2.13,
-        "pl_name": "TOI-1154 b",
-        "pl_rade": 2.73,
-        "st_dist": null,
-        "st_mass": 1.02,
-        "st_teff": 5704.0,
-        "sy_dist": 93.8819,
-        "sy_pnum": 1,
-        "sy_snum": 1,
-        "hostname": "TOI-1154",
-        "pl_insol": 28.2504,
-        "disc_year": 2026,
-        "pl_bmasse": 7.9,
-        "pl_orbper": 21.74549,
-        "pl_orbsmax": null,
-        "pl_orbeccen": 0.0,
-        "st_spectype": null,
-        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
-        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
-        "disc_telescope": "0.1 m TESS Telescope",
-        "disc_instrument": "TESS CCD Array",
-        "discoverymethod": "Transit"
+      "prev_value": 10.76062147,
+      "new_value": 10.07687365,
+      "diff_summary": "TOI-2158 b pl_rade: 10.76062147 \u2192 10.07687365",
+      "source_snapshot_date": "2026-10-16",
+      "prev_ref": {
+        "label": "Knudstrup et al. 2022",
+        "url": "https://ui.adsabs.harvard.edu/abs/2022A&A...667A..22K/abstract",
+        "bibcode": "2022A&A...667A..22K",
+        "kind": "paper",
+        "role": "source"
       },
-      "diff_summary": "New planet: TOI-1154 b",
-      "source_snapshot_date": "2026-10-09"
-    },
-    {
-      "change_id": 3418,
-      "observed_at": "2026-10-09T06:02:58.139753+00:00",
-      "pl_name": "TOI-1245 b",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": 572.0,
-        "st_lum": -1.33668,
-        "st_rad": 0.524555,
-        "pl_dens": 2.59,
-        "pl_name": "TOI-1245 b",
-        "pl_rade": 2.35,
-        "st_dist": null,
-        "st_mass": 0.521792,
-        "st_teff": 3692.0,
-        "sy_dist": 80.0982,
-        "sy_pnum": 1,
-        "sy_snum": 1,
-        "hostname": "TOI-1245",
-        "pl_insol": 17.8782,
-        "disc_year": 2026,
-        "pl_bmasse": 6.12,
-        "pl_orbper": 4.8204406,
-        "pl_orbsmax": null,
-        "pl_orbeccen": 0.0,
-        "st_spectype": null,
-        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
-        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
-        "disc_telescope": "0.1 m TESS Telescope",
-        "disc_instrument": "TESS CCD Array",
-        "discoverymethod": "Transit"
-      },
-      "diff_summary": "New planet: TOI-1245 b",
-      "source_snapshot_date": "2026-10-09"
-    },
-    {
-      "change_id": 3419,
-      "observed_at": "2026-10-09T06:02:58.139753+00:00",
-      "pl_name": "TOI-1262 b",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": 572.0,
-        "st_lum": -0.21039,
-        "st_rad": 0.898076,
-        "pl_dens": 2.54,
-        "pl_name": "TOI-1262 b",
-        "pl_rade": 2.39,
-        "st_dist": null,
-        "st_mass": 0.94,
-        "st_teff": 5396.0,
-        "sy_dist": 93.2276,
-        "sy_pnum": 1,
-        "sy_snum": 1,
-        "hostname": "TOI-1262",
-        "pl_insol": 17.8402,
-        "disc_year": 2026,
-        "pl_bmasse": 6.3,
-        "pl_orbper": 20.877835,
-        "pl_orbsmax": null,
-        "pl_orbeccen": 0.0,
-        "st_spectype": null,
-        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
-        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
-        "disc_telescope": "0.1 m TESS Telescope",
-        "disc_instrument": "TESS CCD Array",
-        "discoverymethod": "Transit"
-      },
-      "diff_summary": "New planet: TOI-1262 b",
-      "source_snapshot_date": "2026-10-09"
-    },
-    {
-      "change_id": 3420,
-      "observed_at": "2026-10-09T06:02:58.139753+00:00",
-      "pl_name": "TOI-1281 b",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": 1227.0,
-        "st_lum": 0.36518,
-        "st_rad": 1.32349,
-        "pl_dens": 2.18,
-        "pl_name": "TOI-1281 b",
-        "pl_rade": 2.68,
-        "st_dist": null,
-        "st_mass": 1.19,
-        "st_teff": 6191.0,
-        "sy_dist": 178.259,
-        "sy_pnum": 1,
-        "sy_snum": 1,
-        "hostname": "TOI-1281",
-        "pl_insol": 376.532,
-        "disc_year": 2026,
-        "pl_bmasse": 7.65,
-        "pl_orbper": 6.390997,
-        "pl_orbsmax": null,
-        "pl_orbeccen": 0.0,
-        "st_spectype": null,
-        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
-        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
-        "disc_telescope": "0.1 m TESS Telescope",
-        "disc_instrument": "TESS CCD Array",
-        "discoverymethod": "Transit"
-      },
-      "diff_summary": "New planet: TOI-1281 b",
-      "source_snapshot_date": "2026-10-09"
-    },
-    {
-      "change_id": 3421,
-      "observed_at": "2026-10-09T06:02:58.139753+00:00",
-      "pl_name": "TOI-1432 b",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": 916.0,
-        "st_lum": -0.13534,
-        "st_rad": 0.913321,
-        "pl_dens": 2.54,
-        "pl_name": "TOI-1432 b",
-        "pl_rade": 2.39,
-        "st_dist": null,
-        "st_mass": 0.99,
-        "st_teff": 5587.0,
-        "sy_dist": 95.1757,
-        "sy_pnum": 1,
-        "sy_snum": 1,
-        "hostname": "TOI-1432",
-        "pl_insol": 117.102,
-        "disc_year": 2026,
-        "pl_bmasse": 6.3,
-        "pl_orbper": 6.1094927,
-        "pl_orbsmax": null,
-        "pl_orbeccen": 0.0,
-        "st_spectype": null,
-        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
-        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
-        "disc_telescope": "0.1 m TESS Telescope",
-        "disc_instrument": "TESS CCD Array",
-        "discoverymethod": "Transit"
-      },
-      "diff_summary": "New planet: TOI-1432 b",
-      "source_snapshot_date": "2026-10-09"
-    },
-    {
-      "change_id": 3422,
-      "observed_at": "2026-10-09T06:02:58.139753+00:00",
-      "pl_name": "TOI-1435 b",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": 1707.74,
-        "st_lum": -0.36941,
-        "st_rad": 0.82354,
-        "pl_dens": 5.58,
-        "pl_name": "TOI-1435 b",
-        "pl_rade": 1.08,
-        "st_dist": null,
-        "st_mass": 0.87,
-        "st_teff": 5142.0,
-        "sy_dist": 92.8659,
-        "sy_pnum": 1,
-        "sy_snum": 1,
-        "hostname": "TOI-1435",
-        "pl_insol": 2010.0397,
-        "disc_year": 2026,
-        "pl_bmasse": 1.28,
-        "pl_orbper": 0.6858239,
-        "pl_orbsmax": null,
-        "pl_orbeccen": 0.0,
-        "st_spectype": null,
-        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
-        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
-        "disc_telescope": "0.1 m TESS Telescope",
-        "disc_instrument": "TESS CCD Array",
-        "discoverymethod": "Transit"
-      },
-      "diff_summary": "New planet: TOI-1435 b",
-      "source_snapshot_date": "2026-10-09"
-    },
-    {
-      "change_id": 3423,
-      "observed_at": "2026-10-09T06:02:58.139753+00:00",
-      "pl_name": "TOI-1441 b",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": 790.0,
-        "st_lum": 0.2221,
-        "st_rad": 1.24225,
-        "pl_dens": 2.05,
-        "pl_name": "TOI-1441 b",
-        "pl_rade": 2.82,
-        "st_dist": null,
-        "st_mass": 1.067,
-        "st_teff": 5885.0,
-        "sy_dist": 141.133,
-        "sy_pnum": 1,
-        "sy_snum": 1,
-        "hostname": "TOI-1441",
-        "pl_insol": 64.932,
-        "disc_year": 2026,
-        "pl_bmasse": 8.35,
-        "pl_orbper": 22.092958,
-        "pl_orbsmax": null,
-        "pl_orbeccen": 0.0,
-        "st_spectype": null,
-        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
-        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
-        "disc_telescope": "0.1 m TESS Telescope",
-        "disc_instrument": "TESS CCD Array",
-        "discoverymethod": "Transit"
-      },
-      "diff_summary": "New planet: TOI-1441 b",
-      "source_snapshot_date": "2026-10-09"
-    },
-    {
-      "change_id": 3424,
-      "observed_at": "2026-10-09T06:02:58.139753+00:00",
-      "pl_name": "TOI-1806 c",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": 961.2,
-        "st_lum": -1.77852,
-        "st_rad": 0.401575,
-        "pl_dens": 5.5,
-        "pl_name": "TOI-1806 c",
-        "pl_rade": 1.32,
-        "st_dist": null,
-        "st_mass": 0.393258,
-        "st_teff": 3272.0,
-        "sy_dist": 55.5211,
-        "sy_pnum": 3,
-        "sy_snum": 1,
-        "hostname": "TOI-1806",
-        "pl_insol": 201.7325,
-        "disc_year": 2026,
-        "pl_bmasse": 2.3,
-        "pl_orbper": 0.5018934,
-        "pl_orbsmax": null,
-        "pl_orbeccen": 0.0,
-        "st_spectype": null,
-        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
-        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
-        "disc_telescope": "0.1 m TESS Telescope",
-        "disc_instrument": "TESS CCD Array",
-        "discoverymethod": "Transit"
-      },
-      "diff_summary": "New planet: TOI-1806 c",
-      "source_snapshot_date": "2026-10-09"
-    },
-    {
-      "change_id": 3425,
-      "observed_at": "2026-10-09T06:02:58.139753+00:00",
-      "pl_name": "TOI-1806 d",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": 378.87,
-        "st_lum": -1.77852,
-        "st_rad": 0.401575,
-        "pl_dens": 1.99,
-        "pl_name": "TOI-1806 d",
-        "pl_rade": 2.88,
-        "st_dist": null,
-        "st_mass": 0.393258,
-        "st_teff": 3272.0,
-        "sy_dist": 55.5211,
-        "sy_pnum": 3,
-        "sy_snum": 1,
-        "hostname": "TOI-1806",
-        "pl_insol": 4.8692,
-        "disc_year": 2026,
-        "pl_bmasse": 8.65,
-        "pl_orbper": 8.196064,
-        "pl_orbsmax": null,
-        "pl_orbeccen": 0.0,
-        "st_spectype": null,
-        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
-        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
-        "disc_telescope": "0.1 m TESS Telescope",
-        "disc_instrument": "TESS CCD Array",
-        "discoverymethod": "Transit"
-      },
-      "diff_summary": "New planet: TOI-1806 d",
-      "source_snapshot_date": "2026-10-09"
-    },
-    {
-      "change_id": 3427,
-      "observed_at": "2026-10-09T06:02:58.139753+00:00",
-      "pl_name": "TOI-213 b",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": 345.41,
-        "st_lum": -0.75219,
-        "st_rad": 0.672062,
-        "pl_dens": 2.27,
-        "pl_name": "TOI-213 b",
-        "pl_rade": 2.6,
-        "st_dist": null,
-        "st_mass": 0.72,
-        "st_teff": 4566.4,
-        "sy_dist": 54.3256,
-        "sy_pnum": 1,
-        "sy_snum": 1,
-        "hostname": "TOI-213",
-        "pl_insol": 3.3641,
-        "disc_year": 2026,
-        "pl_bmasse": 7.27,
-        "pl_orbper": 23.519904,
-        "pl_orbsmax": null,
-        "pl_orbeccen": 0.0,
-        "st_spectype": null,
-        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
-        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
-        "disc_telescope": "0.1 m TESS Telescope",
-        "disc_instrument": "TESS CCD Array",
-        "discoverymethod": "Transit"
-      },
-      "diff_summary": "New planet: TOI-213 b",
-      "source_snapshot_date": "2026-10-09"
-    },
-    {
-      "change_id": 3428,
-      "observed_at": "2026-10-09T06:02:58.139753+00:00",
-      "pl_name": "TOI-2238 b",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": 1464.0,
-        "st_lum": 0.41114,
-        "st_rad": 1.43087,
-        "pl_dens": 2.27,
-        "pl_name": "TOI-2238 b",
-        "pl_rade": 2.6,
-        "st_dist": null,
-        "st_mass": 1.15,
-        "st_teff": 6113.8,
-        "sy_dist": 285.78,
-        "sy_pnum": 1,
-        "sy_snum": 1,
-        "hostname": "TOI-2238",
-        "pl_insol": 764.344,
-        "disc_year": 2026,
-        "pl_bmasse": 7.27,
-        "pl_orbper": 3.390463,
-        "pl_orbsmax": null,
-        "pl_orbeccen": 0.0,
-        "st_spectype": null,
-        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
-        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
-        "disc_telescope": "0.1 m TESS Telescope",
-        "disc_instrument": "TESS CCD Array",
-        "discoverymethod": "Transit"
-      },
-      "diff_summary": "New planet: TOI-2238 b",
-      "source_snapshot_date": "2026-10-09"
-    },
-    {
-      "change_id": 3429,
-      "observed_at": "2026-10-09T06:02:58.139753+00:00",
-      "pl_name": "TOI-2245 b",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": 1530.0,
-        "st_lum": 0.40283,
-        "st_rad": 1.51258,
-        "pl_dens": 0.996,
-        "pl_name": "TOI-2245 b",
-        "pl_rade": 4.89,
-        "st_dist": null,
-        "st_mass": 1.08,
-        "st_teff": 5918.0,
-        "sy_dist": 264.842,
-        "sy_pnum": 1,
-        "sy_snum": 1,
-        "hostname": "TOI-2245",
-        "pl_insol": 911.152,
-        "disc_year": 2026,
-        "pl_bmasse": 21.2,
-        "pl_orbper": 3.7980908,
-        "pl_orbsmax": null,
-        "pl_orbeccen": 0.0,
-        "st_spectype": null,
-        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
-        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
-        "disc_telescope": "0.1 m TESS Telescope",
-        "disc_instrument": "TESS CCD Array",
-        "discoverymethod": "Transit"
-      },
-      "diff_summary": "New planet: TOI-2245 b",
-      "source_snapshot_date": "2026-10-09"
-    },
-    {
-      "change_id": 3430,
-      "observed_at": "2026-10-09T06:02:58.139753+00:00",
-      "pl_name": "TOI-2287 b",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": 898.93,
-        "st_lum": 0.2371,
-        "st_rad": 1.20105,
-        "pl_dens": 3.67,
-        "pl_name": "TOI-2287 b",
-        "pl_rade": 1.8,
-        "st_dist": null,
-        "st_mass": 1.12,
-        "st_teff": 6037.0,
-        "sy_dist": 94.9685,
-        "sy_pnum": 1,
-        "sy_snum": 1,
-        "hostname": "TOI-2287",
-        "pl_insol": 154.32,
-        "disc_year": 2026,
-        "pl_bmasse": 3.89,
-        "pl_orbper": 11.812041,
-        "pl_orbsmax": null,
-        "pl_orbeccen": 0.0,
-        "st_spectype": null,
-        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
-        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
-        "disc_telescope": "0.1 m TESS Telescope",
-        "disc_instrument": "TESS CCD Array",
-        "discoverymethod": "Transit"
-      },
-      "diff_summary": "New planet: TOI-2287 b",
-      "source_snapshot_date": "2026-10-09"
-    },
-    {
-      "change_id": 3431,
-      "observed_at": "2026-10-09T06:02:58.139753+00:00",
-      "pl_name": "TOI-2293 b",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": 503.42,
-        "st_lum": -1.39073,
-        "st_rad": 0.499376,
-        "pl_dens": 3.04,
-        "pl_name": "TOI-2293 b",
-        "pl_rade": 2.08,
-        "st_dist": null,
-        "st_mass": 0.497439,
-        "st_teff": 3668.0,
-        "sy_dist": 62.7576,
-        "sy_pnum": 1,
-        "sy_snum": 1,
-        "hostname": "TOI-2293",
-        "pl_insol": 15.1794,
-        "disc_year": 2026,
-        "pl_bmasse": 4.98,
-        "pl_orbper": 6.068314,
-        "pl_orbsmax": null,
-        "pl_orbeccen": 0.0,
-        "st_spectype": null,
-        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
-        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
-        "disc_telescope": "0.1 m TESS Telescope",
-        "disc_instrument": "TESS CCD Array",
-        "discoverymethod": "Transit"
-      },
-      "diff_summary": "New planet: TOI-2293 b",
-      "source_snapshot_date": "2026-10-09"
-    },
-    {
-      "change_id": 3432,
-      "observed_at": "2026-10-09T06:02:58.139753+00:00",
-      "pl_name": "TOI-2392 b",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": 2408.58,
-        "st_lum": 0.62854,
-        "st_rad": 1.76167,
-        "pl_dens": 2.56,
-        "pl_name": "TOI-2392 b",
-        "pl_rade": 2.37,
-        "st_dist": null,
-        "st_mass": 1.21,
-        "st_teff": 6244.5,
-        "sy_dist": 325.608,
-        "sy_pnum": 1,
-        "sy_snum": 1,
-        "hostname": "TOI-2392",
-        "pl_insol": 5586.9442,
-        "disc_year": 2026,
-        "pl_bmasse": 6.21,
-        "pl_orbper": 9.169362,
-        "pl_orbsmax": null,
-        "pl_orbeccen": 0.0,
-        "st_spectype": null,
-        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
-        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
-        "disc_telescope": "0.1 m TESS Telescope",
-        "disc_instrument": "TESS CCD Array",
-        "discoverymethod": "Transit"
-      },
-      "diff_summary": "New planet: TOI-2392 b",
-      "source_snapshot_date": "2026-10-09"
-    },
-    {
-      "change_id": 3433,
-      "observed_at": "2026-10-09T06:02:58.139753+00:00",
-      "pl_name": "TOI-2426 b",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": 1226.0,
-        "st_lum": 0.00434,
-        "st_rad": 1.02479,
-        "pl_dens": 2.58,
-        "pl_name": "TOI-2426 b",
-        "pl_rade": 2.36,
-        "st_dist": null,
-        "st_mass": 1.019,
-        "st_teff": 5716.0,
-        "sy_dist": 138.301,
-        "sy_pnum": 1,
-        "sy_snum": 1,
-        "hostname": "TOI-2426",
-        "pl_insol": 376.072,
-        "disc_year": 2026,
-        "pl_bmasse": 6.17,
-        "pl_orbper": 4.0812,
-        "pl_orbsmax": null,
-        "pl_orbeccen": 0.0,
-        "st_spectype": null,
-        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
-        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
-        "disc_telescope": "0.1 m TESS Telescope",
-        "disc_instrument": "TESS CCD Array",
-        "discoverymethod": "Transit"
-      },
-      "diff_summary": "New planet: TOI-2426 b",
-      "source_snapshot_date": "2026-10-09"
-    },
-    {
-      "change_id": 3434,
-      "observed_at": "2026-10-09T06:02:58.139753+00:00",
-      "pl_name": "TOI-2441 b",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": 363.4,
-        "st_lum": -1.54007,
-        "st_rad": 0.46769,
-        "pl_dens": 2.13,
-        "pl_name": "TOI-2441 b",
-        "pl_rade": 2.73,
-        "st_dist": null,
-        "st_mass": 0.465235,
-        "st_teff": 3478.0,
-        "sy_dist": 84.5243,
-        "sy_pnum": 1,
-        "sy_snum": 1,
-        "hostname": "TOI-2441",
-        "pl_insol": 4.1214,
-        "disc_year": 2026,
-        "pl_bmasse": 7.9,
-        "pl_orbper": 12.890155,
-        "pl_orbsmax": null,
-        "pl_orbeccen": 0.0,
-        "st_spectype": null,
-        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
-        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
-        "disc_telescope": "0.1 m TESS Telescope",
-        "disc_instrument": "TESS CCD Array",
-        "discoverymethod": "Transit"
-      },
-      "diff_summary": "New planet: TOI-2441 b",
-      "source_snapshot_date": "2026-10-09"
-    },
-    {
-      "change_id": 3435,
-      "observed_at": "2026-10-09T06:02:58.139753+00:00",
-      "pl_name": "TOI-248 b",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": 1447.24,
-        "st_lum": 0.08134,
-        "st_rad": 1.12148,
-        "pl_dens": 2.56,
-        "pl_name": "TOI-248 b",
-        "pl_rade": 2.37,
-        "st_dist": null,
-        "st_mass": 1.02,
-        "st_teff": 5711.7,
-        "sy_dist": 75.9529,
-        "sy_pnum": 1,
-        "sy_snum": 1,
-        "hostname": "TOI-248",
-        "pl_insol": 728.2554,
-        "disc_year": 2026,
-        "pl_bmasse": 6.21,
-        "pl_orbper": 5.9910723,
-        "pl_orbsmax": null,
-        "pl_orbeccen": 0.0,
-        "st_spectype": null,
-        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
-        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
-        "disc_telescope": "0.1 m TESS Telescope",
-        "disc_instrument": "TESS CCD Array",
-        "discoverymethod": "Transit"
-      },
-      "diff_summary": "New planet: TOI-248 b",
-      "source_snapshot_date": "2026-10-09"
-    },
-    {
-      "change_id": 3436,
-      "observed_at": "2026-10-09T06:02:58.139753+00:00",
-      "pl_name": "TOI-2540 b",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": 477.25,
-        "st_lum": -0.9866,
-        "st_rad": 0.661076,
-        "pl_dens": 2.68,
-        "pl_name": "TOI-2540 b",
-        "pl_rade": 2.29,
-        "st_dist": null,
-        "st_mass": 0.63,
-        "st_teff": 4023.0,
-        "sy_dist": 19.1419,
-        "sy_pnum": 1,
-        "sy_snum": 1,
-        "hostname": "TOI-2540",
-        "pl_insol": 12.2599,
-        "disc_year": 2026,
-        "pl_bmasse": 5.86,
-        "pl_orbper": 12.718739,
-        "pl_orbsmax": null,
-        "pl_orbeccen": 0.0,
-        "st_spectype": "M0V",
-        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
-        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
-        "disc_telescope": "0.1 m TESS Telescope",
-        "disc_instrument": "TESS CCD Array",
-        "discoverymethod": "Transit"
-      },
-      "diff_summary": "New planet: TOI-2540 b",
-      "source_snapshot_date": "2026-10-09"
-    },
-    {
-      "change_id": 3437,
-      "observed_at": "2026-10-09T06:02:58.139753+00:00",
-      "pl_name": "TOI-3585 b",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": 906.0,
-        "st_lum": -0.54844,
-        "st_rad": 0.818751,
-        "pl_dens": 1.19,
-        "pl_name": "TOI-3585 b",
-        "pl_rade": 4.26,
-        "st_dist": null,
-        "st_mass": 0.74,
-        "st_teff": 4652.0,
-        "sy_dist": 130.802,
-        "sy_pnum": 1,
-        "sy_snum": 1,
-        "hostname": "TOI-3585",
-        "pl_insol": 112.33,
-        "disc_year": 2026,
-        "pl_bmasse": 16.8,
-        "pl_orbper": 3.5410696,
-        "pl_orbsmax": null,
-        "pl_orbeccen": 0.0,
-        "st_spectype": null,
-        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
-        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
-        "disc_telescope": "0.1 m TESS Telescope",
-        "disc_instrument": "TESS CCD Array",
-        "discoverymethod": "Transit"
-      },
-      "diff_summary": "New planet: TOI-3585 b",
-      "source_snapshot_date": "2026-10-09"
+      "new_ref": {
+        "label": "Knudstrup et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260930915K/abstract",
+        "bibcode": "2026arXiv260930915K",
+        "kind": "paper",
+        "role": "source"
+      }
     },
     {
       "change_id": 3438,
@@ -1216,7 +714,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-3851 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3439,
@@ -1254,7 +760,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-4307 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3440,
@@ -1292,7 +806,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-4310 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3441,
@@ -1330,7 +852,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-4324 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3442,
@@ -1368,7 +898,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-435 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3443,
@@ -1406,7 +944,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-4443 c",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3445,
@@ -1444,7 +990,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-4468 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Livesey et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260825208L/abstract",
+        "bibcode": "2026arXiv260825208L",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3446,
@@ -1482,7 +1036,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-4468 c",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Livesey et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260825208L/abstract",
+        "bibcode": "2026arXiv260825208L",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3447,
@@ -1520,7 +1082,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-4499 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3448,
@@ -1558,7 +1128,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-4567 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3449,
@@ -1596,7 +1174,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-4616 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Lang et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260310905L/abstract",
+        "bibcode": "2026arXiv260310905L",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3450,
@@ -1634,7 +1220,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-4724 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3451,
@@ -1672,7 +1266,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-4851 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3452,
@@ -1710,7 +1312,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-5165 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3453,
@@ -1748,7 +1358,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-5177 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3454,
@@ -1786,7 +1404,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-5289 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3455,
@@ -1824,7 +1450,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-5493 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3456,
@@ -1862,7 +1496,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-5531 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3457,
@@ -1900,7 +1542,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-5543 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3458,
@@ -1938,7 +1588,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-5646 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Mancini et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260824311M/abstract",
+        "bibcode": "2026arXiv260824311M",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3459,
@@ -1976,7 +1634,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-5696 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3460,
@@ -2014,7 +1680,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-5730 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3461,
@@ -2052,7 +1726,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-5739 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3462,
@@ -2090,7 +1772,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-5807 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3463,
@@ -2128,7 +1818,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-5947 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3464,
@@ -2166,7 +1864,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-5958 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3465,
@@ -2204,45 +1910,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-5961 b",
-      "source_snapshot_date": "2026-10-09"
-    },
-    {
-      "change_id": 3466,
-      "observed_at": "2026-10-09T06:02:58.139753+00:00",
-      "pl_name": "TOI-5968 b",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": 1180.0,
-        "st_lum": 0.09818,
-        "st_rad": 1.05723,
-        "pl_dens": 2.17,
-        "pl_name": "TOI-5968 b",
-        "pl_rade": 2.69,
-        "st_dist": null,
-        "st_mass": 1.085,
-        "st_teff": 5940.0,
-        "sy_dist": 122.831,
-        "sy_pnum": 1,
-        "sy_snum": 1,
-        "hostname": "TOI-5968",
-        "pl_insol": 322.574,
-        "disc_year": 2026,
-        "pl_bmasse": 7.7,
-        "pl_orbper": 9.21504,
-        "pl_orbsmax": null,
-        "pl_orbeccen": 0.0,
-        "st_spectype": null,
-        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
-        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
-        "disc_telescope": "0.1 m TESS Telescope",
-        "disc_instrument": "TESS CCD Array",
-        "discoverymethod": "Transit"
-      },
-      "diff_summary": "New planet: TOI-5968 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3467,
@@ -2280,7 +1956,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-5997 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3468,
@@ -2318,7 +2002,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-6098 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3469,
@@ -2356,7 +2048,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-6174 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3470,
@@ -2394,7 +2094,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-6310 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3471,
@@ -2432,7 +2140,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-6434 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3472,
@@ -2470,7 +2186,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-6450 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3473,
@@ -2508,7 +2232,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-6647 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3474,
@@ -2546,7 +2278,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-6662 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3475,
@@ -2584,7 +2324,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-6729 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3476,
@@ -2622,7 +2370,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-6729 c",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3477,
@@ -2660,7 +2416,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-7182 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3478,
@@ -2698,7 +2462,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-7389 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3479,
@@ -2736,7 +2508,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-7391 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3480,
@@ -2774,7 +2554,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-7550 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3481,
@@ -2812,7 +2600,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-783 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3482,
@@ -2850,7 +2646,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-786 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3483,
@@ -2888,7 +2692,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-786 c",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3484,
@@ -2926,7 +2738,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-789 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3485,
@@ -2964,7 +2784,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-789 c",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Pag\u00e9s Navarrete 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260922945P/abstract",
+        "bibcode": "2026arXiv260922945P",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3486,
@@ -3002,7 +2830,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-789 d",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Pag\u00e9s Navarrete 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260922945P/abstract",
+        "bibcode": "2026arXiv260922945P",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3487,
@@ -3040,7 +2876,15 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-797 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3488,
@@ -3078,95 +2922,981 @@
         "discoverymethod": "Transit"
       },
       "diff_summary": "New planet: TOI-873 b",
-      "source_snapshot_date": "2026-10-09"
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
-      "change_id": 3399,
-      "observed_at": "2026-10-02T06:02:33.619810+00:00",
-      "pl_name": "HD 148797 b",
+      "change_id": 3466,
+      "observed_at": "2026-10-09T06:02:58.139753+00:00",
+      "pl_name": "TOI-5968 b",
       "change_type": "NEW",
       "field_name": null,
       "field_tier": null,
       "prev_value": null,
       "new_value": {
-        "pl_eqt": 762.0,
-        "st_lum": 0.58206,
-        "st_rad": 1.547,
-        "pl_dens": 0.39,
-        "pl_name": "HD 148797 b",
-        "pl_rade": 8.25,
+        "pl_eqt": 1180.0,
+        "st_lum": 0.09818,
+        "st_rad": 1.05723,
+        "pl_dens": 2.17,
+        "pl_name": "TOI-5968 b",
+        "pl_rade": 2.69,
         "st_dist": null,
-        "st_mass": 1.272,
-        "st_teff": 6441.0,
-        "sy_dist": 172.374,
-        "sy_pnum": 2,
+        "st_mass": 1.085,
+        "st_teff": 5940.0,
+        "sy_dist": 122.831,
+        "sy_pnum": 1,
         "sy_snum": 1,
-        "hostname": "HD 148797",
-        "pl_insol": 57.926,
+        "hostname": "TOI-5968",
+        "pl_insol": 322.574,
         "disc_year": 2026,
-        "pl_bmasse": 39.3,
-        "pl_orbper": 42.0988331,
-        "pl_orbsmax": 0.2568,
-        "pl_orbeccen": 0.153,
-        "st_spectype": "F6",
-        "disc_refname": "<a refstr=ALMENARA_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260709656A/abstract target=ref>Almenara et al. 2026</a>",
+        "pl_bmasse": 7.7,
+        "pl_orbper": 9.21504,
+        "pl_orbsmax": null,
+        "pl_orbeccen": 0.0,
+        "st_spectype": null,
+        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
         "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
         "disc_telescope": "0.1 m TESS Telescope",
         "disc_instrument": "TESS CCD Array",
         "discoverymethod": "Transit"
       },
-      "diff_summary": "New planet: HD 148797 b",
-      "source_snapshot_date": "2026-10-02"
+      "diff_summary": "New planet: TOI-5968 b",
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
-      "change_id": 3400,
-      "observed_at": "2026-10-02T06:02:33.619810+00:00",
-      "pl_name": "HD 148797 c",
+      "change_id": 3417,
+      "observed_at": "2026-10-09T06:02:58.139753+00:00",
+      "pl_name": "TOI-1154 b",
       "change_type": "NEW",
       "field_name": null,
       "field_tier": null,
       "prev_value": null,
       "new_value": {
-        "pl_eqt": 650.0,
-        "st_lum": 0.58206,
-        "st_rad": 1.547,
-        "pl_dens": 0.377,
-        "pl_name": "HD 148797 c",
-        "pl_rade": 8.3618996,
+        "pl_eqt": 642.0,
+        "st_lum": -0.08502,
+        "st_rad": 0.928499,
+        "pl_dens": 2.13,
+        "pl_name": "TOI-1154 b",
+        "pl_rade": 2.73,
         "st_dist": null,
-        "st_mass": 1.272,
-        "st_teff": 6441.0,
-        "sy_dist": 172.374,
-        "sy_pnum": 2,
+        "st_mass": 1.02,
+        "st_teff": 5704.0,
+        "sy_dist": 93.8819,
+        "sy_pnum": 1,
         "sy_snum": 1,
-        "hostname": "HD 148797",
-        "pl_insol": 30.5519,
+        "hostname": "TOI-1154",
+        "pl_insol": 28.2504,
         "disc_year": 2026,
-        "pl_bmasse": 39.6,
-        "pl_orbper": 68.1514539,
-        "pl_orbsmax": 0.3536,
-        "pl_orbeccen": 0.126,
-        "st_spectype": "F6",
-        "disc_refname": "<a refstr=ALMENARA_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260709656A/abstract target=ref>Almenara et al. 2026</a>",
+        "pl_bmasse": 7.9,
+        "pl_orbper": 21.74549,
+        "pl_orbsmax": null,
+        "pl_orbeccen": 0.0,
+        "st_spectype": null,
+        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
         "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
         "disc_telescope": "0.1 m TESS Telescope",
         "disc_instrument": "TESS CCD Array",
         "discoverymethod": "Transit"
       },
-      "diff_summary": "New planet: HD 148797 c",
-      "source_snapshot_date": "2026-10-02"
+      "diff_summary": "New planet: TOI-1154 b",
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
-      "change_id": 3401,
-      "observed_at": "2026-10-02T06:02:33.619810+00:00",
-      "pl_name": "HIP 67522 b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 71.4,
-      "new_value": 13.8,
-      "diff_summary": "HIP 67522 b pl_bmasse: 71.4 \u2192 13.8",
-      "source_snapshot_date": "2026-10-02"
+      "change_id": 3418,
+      "observed_at": "2026-10-09T06:02:58.139753+00:00",
+      "pl_name": "TOI-1245 b",
+      "change_type": "NEW",
+      "field_name": null,
+      "field_tier": null,
+      "prev_value": null,
+      "new_value": {
+        "pl_eqt": 572.0,
+        "st_lum": -1.33668,
+        "st_rad": 0.524555,
+        "pl_dens": 2.59,
+        "pl_name": "TOI-1245 b",
+        "pl_rade": 2.35,
+        "st_dist": null,
+        "st_mass": 0.521792,
+        "st_teff": 3692.0,
+        "sy_dist": 80.0982,
+        "sy_pnum": 1,
+        "sy_snum": 1,
+        "hostname": "TOI-1245",
+        "pl_insol": 17.8782,
+        "disc_year": 2026,
+        "pl_bmasse": 6.12,
+        "pl_orbper": 4.8204406,
+        "pl_orbsmax": null,
+        "pl_orbeccen": 0.0,
+        "st_spectype": null,
+        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
+        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
+        "disc_telescope": "0.1 m TESS Telescope",
+        "disc_instrument": "TESS CCD Array",
+        "discoverymethod": "Transit"
+      },
+      "diff_summary": "New planet: TOI-1245 b",
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
+    },
+    {
+      "change_id": 3419,
+      "observed_at": "2026-10-09T06:02:58.139753+00:00",
+      "pl_name": "TOI-1262 b",
+      "change_type": "NEW",
+      "field_name": null,
+      "field_tier": null,
+      "prev_value": null,
+      "new_value": {
+        "pl_eqt": 572.0,
+        "st_lum": -0.21039,
+        "st_rad": 0.898076,
+        "pl_dens": 2.54,
+        "pl_name": "TOI-1262 b",
+        "pl_rade": 2.39,
+        "st_dist": null,
+        "st_mass": 0.94,
+        "st_teff": 5396.0,
+        "sy_dist": 93.2276,
+        "sy_pnum": 1,
+        "sy_snum": 1,
+        "hostname": "TOI-1262",
+        "pl_insol": 17.8402,
+        "disc_year": 2026,
+        "pl_bmasse": 6.3,
+        "pl_orbper": 20.877835,
+        "pl_orbsmax": null,
+        "pl_orbeccen": 0.0,
+        "st_spectype": null,
+        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
+        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
+        "disc_telescope": "0.1 m TESS Telescope",
+        "disc_instrument": "TESS CCD Array",
+        "discoverymethod": "Transit"
+      },
+      "diff_summary": "New planet: TOI-1262 b",
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
+    },
+    {
+      "change_id": 3420,
+      "observed_at": "2026-10-09T06:02:58.139753+00:00",
+      "pl_name": "TOI-1281 b",
+      "change_type": "NEW",
+      "field_name": null,
+      "field_tier": null,
+      "prev_value": null,
+      "new_value": {
+        "pl_eqt": 1227.0,
+        "st_lum": 0.36518,
+        "st_rad": 1.32349,
+        "pl_dens": 2.18,
+        "pl_name": "TOI-1281 b",
+        "pl_rade": 2.68,
+        "st_dist": null,
+        "st_mass": 1.19,
+        "st_teff": 6191.0,
+        "sy_dist": 178.259,
+        "sy_pnum": 1,
+        "sy_snum": 1,
+        "hostname": "TOI-1281",
+        "pl_insol": 376.532,
+        "disc_year": 2026,
+        "pl_bmasse": 7.65,
+        "pl_orbper": 6.390997,
+        "pl_orbsmax": null,
+        "pl_orbeccen": 0.0,
+        "st_spectype": null,
+        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
+        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
+        "disc_telescope": "0.1 m TESS Telescope",
+        "disc_instrument": "TESS CCD Array",
+        "discoverymethod": "Transit"
+      },
+      "diff_summary": "New planet: TOI-1281 b",
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
+    },
+    {
+      "change_id": 3421,
+      "observed_at": "2026-10-09T06:02:58.139753+00:00",
+      "pl_name": "TOI-1432 b",
+      "change_type": "NEW",
+      "field_name": null,
+      "field_tier": null,
+      "prev_value": null,
+      "new_value": {
+        "pl_eqt": 916.0,
+        "st_lum": -0.13534,
+        "st_rad": 0.913321,
+        "pl_dens": 2.54,
+        "pl_name": "TOI-1432 b",
+        "pl_rade": 2.39,
+        "st_dist": null,
+        "st_mass": 0.99,
+        "st_teff": 5587.0,
+        "sy_dist": 95.1757,
+        "sy_pnum": 1,
+        "sy_snum": 1,
+        "hostname": "TOI-1432",
+        "pl_insol": 117.102,
+        "disc_year": 2026,
+        "pl_bmasse": 6.3,
+        "pl_orbper": 6.1094927,
+        "pl_orbsmax": null,
+        "pl_orbeccen": 0.0,
+        "st_spectype": null,
+        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
+        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
+        "disc_telescope": "0.1 m TESS Telescope",
+        "disc_instrument": "TESS CCD Array",
+        "discoverymethod": "Transit"
+      },
+      "diff_summary": "New planet: TOI-1432 b",
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
+    },
+    {
+      "change_id": 3422,
+      "observed_at": "2026-10-09T06:02:58.139753+00:00",
+      "pl_name": "TOI-1435 b",
+      "change_type": "NEW",
+      "field_name": null,
+      "field_tier": null,
+      "prev_value": null,
+      "new_value": {
+        "pl_eqt": 1707.74,
+        "st_lum": -0.36941,
+        "st_rad": 0.82354,
+        "pl_dens": 5.58,
+        "pl_name": "TOI-1435 b",
+        "pl_rade": 1.08,
+        "st_dist": null,
+        "st_mass": 0.87,
+        "st_teff": 5142.0,
+        "sy_dist": 92.8659,
+        "sy_pnum": 1,
+        "sy_snum": 1,
+        "hostname": "TOI-1435",
+        "pl_insol": 2010.0397,
+        "disc_year": 2026,
+        "pl_bmasse": 1.28,
+        "pl_orbper": 0.6858239,
+        "pl_orbsmax": null,
+        "pl_orbeccen": 0.0,
+        "st_spectype": null,
+        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
+        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
+        "disc_telescope": "0.1 m TESS Telescope",
+        "disc_instrument": "TESS CCD Array",
+        "discoverymethod": "Transit"
+      },
+      "diff_summary": "New planet: TOI-1435 b",
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
+    },
+    {
+      "change_id": 3423,
+      "observed_at": "2026-10-09T06:02:58.139753+00:00",
+      "pl_name": "TOI-1441 b",
+      "change_type": "NEW",
+      "field_name": null,
+      "field_tier": null,
+      "prev_value": null,
+      "new_value": {
+        "pl_eqt": 790.0,
+        "st_lum": 0.2221,
+        "st_rad": 1.24225,
+        "pl_dens": 2.05,
+        "pl_name": "TOI-1441 b",
+        "pl_rade": 2.82,
+        "st_dist": null,
+        "st_mass": 1.067,
+        "st_teff": 5885.0,
+        "sy_dist": 141.133,
+        "sy_pnum": 1,
+        "sy_snum": 1,
+        "hostname": "TOI-1441",
+        "pl_insol": 64.932,
+        "disc_year": 2026,
+        "pl_bmasse": 8.35,
+        "pl_orbper": 22.092958,
+        "pl_orbsmax": null,
+        "pl_orbeccen": 0.0,
+        "st_spectype": null,
+        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
+        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
+        "disc_telescope": "0.1 m TESS Telescope",
+        "disc_instrument": "TESS CCD Array",
+        "discoverymethod": "Transit"
+      },
+      "diff_summary": "New planet: TOI-1441 b",
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
+    },
+    {
+      "change_id": 3424,
+      "observed_at": "2026-10-09T06:02:58.139753+00:00",
+      "pl_name": "TOI-1806 c",
+      "change_type": "NEW",
+      "field_name": null,
+      "field_tier": null,
+      "prev_value": null,
+      "new_value": {
+        "pl_eqt": 961.2,
+        "st_lum": -1.77852,
+        "st_rad": 0.401575,
+        "pl_dens": 5.5,
+        "pl_name": "TOI-1806 c",
+        "pl_rade": 1.32,
+        "st_dist": null,
+        "st_mass": 0.393258,
+        "st_teff": 3272.0,
+        "sy_dist": 55.5211,
+        "sy_pnum": 3,
+        "sy_snum": 1,
+        "hostname": "TOI-1806",
+        "pl_insol": 201.7325,
+        "disc_year": 2026,
+        "pl_bmasse": 2.3,
+        "pl_orbper": 0.5018934,
+        "pl_orbsmax": null,
+        "pl_orbeccen": 0.0,
+        "st_spectype": null,
+        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
+        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
+        "disc_telescope": "0.1 m TESS Telescope",
+        "disc_instrument": "TESS CCD Array",
+        "discoverymethod": "Transit"
+      },
+      "diff_summary": "New planet: TOI-1806 c",
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
+    },
+    {
+      "change_id": 3425,
+      "observed_at": "2026-10-09T06:02:58.139753+00:00",
+      "pl_name": "TOI-1806 d",
+      "change_type": "NEW",
+      "field_name": null,
+      "field_tier": null,
+      "prev_value": null,
+      "new_value": {
+        "pl_eqt": 378.87,
+        "st_lum": -1.77852,
+        "st_rad": 0.401575,
+        "pl_dens": 1.99,
+        "pl_name": "TOI-1806 d",
+        "pl_rade": 2.88,
+        "st_dist": null,
+        "st_mass": 0.393258,
+        "st_teff": 3272.0,
+        "sy_dist": 55.5211,
+        "sy_pnum": 3,
+        "sy_snum": 1,
+        "hostname": "TOI-1806",
+        "pl_insol": 4.8692,
+        "disc_year": 2026,
+        "pl_bmasse": 8.65,
+        "pl_orbper": 8.196064,
+        "pl_orbsmax": null,
+        "pl_orbeccen": 0.0,
+        "st_spectype": null,
+        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
+        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
+        "disc_telescope": "0.1 m TESS Telescope",
+        "disc_instrument": "TESS CCD Array",
+        "discoverymethod": "Transit"
+      },
+      "diff_summary": "New planet: TOI-1806 d",
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
+    },
+    {
+      "change_id": 3427,
+      "observed_at": "2026-10-09T06:02:58.139753+00:00",
+      "pl_name": "TOI-213 b",
+      "change_type": "NEW",
+      "field_name": null,
+      "field_tier": null,
+      "prev_value": null,
+      "new_value": {
+        "pl_eqt": 345.41,
+        "st_lum": -0.75219,
+        "st_rad": 0.672062,
+        "pl_dens": 2.27,
+        "pl_name": "TOI-213 b",
+        "pl_rade": 2.6,
+        "st_dist": null,
+        "st_mass": 0.72,
+        "st_teff": 4566.4,
+        "sy_dist": 54.3256,
+        "sy_pnum": 1,
+        "sy_snum": 1,
+        "hostname": "TOI-213",
+        "pl_insol": 3.3641,
+        "disc_year": 2026,
+        "pl_bmasse": 7.27,
+        "pl_orbper": 23.519904,
+        "pl_orbsmax": null,
+        "pl_orbeccen": 0.0,
+        "st_spectype": null,
+        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
+        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
+        "disc_telescope": "0.1 m TESS Telescope",
+        "disc_instrument": "TESS CCD Array",
+        "discoverymethod": "Transit"
+      },
+      "diff_summary": "New planet: TOI-213 b",
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
+    },
+    {
+      "change_id": 3428,
+      "observed_at": "2026-10-09T06:02:58.139753+00:00",
+      "pl_name": "TOI-2238 b",
+      "change_type": "NEW",
+      "field_name": null,
+      "field_tier": null,
+      "prev_value": null,
+      "new_value": {
+        "pl_eqt": 1464.0,
+        "st_lum": 0.41114,
+        "st_rad": 1.43087,
+        "pl_dens": 2.27,
+        "pl_name": "TOI-2238 b",
+        "pl_rade": 2.6,
+        "st_dist": null,
+        "st_mass": 1.15,
+        "st_teff": 6113.8,
+        "sy_dist": 285.78,
+        "sy_pnum": 1,
+        "sy_snum": 1,
+        "hostname": "TOI-2238",
+        "pl_insol": 764.344,
+        "disc_year": 2026,
+        "pl_bmasse": 7.27,
+        "pl_orbper": 3.390463,
+        "pl_orbsmax": null,
+        "pl_orbeccen": 0.0,
+        "st_spectype": null,
+        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
+        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
+        "disc_telescope": "0.1 m TESS Telescope",
+        "disc_instrument": "TESS CCD Array",
+        "discoverymethod": "Transit"
+      },
+      "diff_summary": "New planet: TOI-2238 b",
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
+    },
+    {
+      "change_id": 3429,
+      "observed_at": "2026-10-09T06:02:58.139753+00:00",
+      "pl_name": "TOI-2245 b",
+      "change_type": "NEW",
+      "field_name": null,
+      "field_tier": null,
+      "prev_value": null,
+      "new_value": {
+        "pl_eqt": 1530.0,
+        "st_lum": 0.40283,
+        "st_rad": 1.51258,
+        "pl_dens": 0.996,
+        "pl_name": "TOI-2245 b",
+        "pl_rade": 4.89,
+        "st_dist": null,
+        "st_mass": 1.08,
+        "st_teff": 5918.0,
+        "sy_dist": 264.842,
+        "sy_pnum": 1,
+        "sy_snum": 1,
+        "hostname": "TOI-2245",
+        "pl_insol": 911.152,
+        "disc_year": 2026,
+        "pl_bmasse": 21.2,
+        "pl_orbper": 3.7980908,
+        "pl_orbsmax": null,
+        "pl_orbeccen": 0.0,
+        "st_spectype": null,
+        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
+        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
+        "disc_telescope": "0.1 m TESS Telescope",
+        "disc_instrument": "TESS CCD Array",
+        "discoverymethod": "Transit"
+      },
+      "diff_summary": "New planet: TOI-2245 b",
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
+    },
+    {
+      "change_id": 3430,
+      "observed_at": "2026-10-09T06:02:58.139753+00:00",
+      "pl_name": "TOI-2287 b",
+      "change_type": "NEW",
+      "field_name": null,
+      "field_tier": null,
+      "prev_value": null,
+      "new_value": {
+        "pl_eqt": 898.93,
+        "st_lum": 0.2371,
+        "st_rad": 1.20105,
+        "pl_dens": 3.67,
+        "pl_name": "TOI-2287 b",
+        "pl_rade": 1.8,
+        "st_dist": null,
+        "st_mass": 1.12,
+        "st_teff": 6037.0,
+        "sy_dist": 94.9685,
+        "sy_pnum": 1,
+        "sy_snum": 1,
+        "hostname": "TOI-2287",
+        "pl_insol": 154.32,
+        "disc_year": 2026,
+        "pl_bmasse": 3.89,
+        "pl_orbper": 11.812041,
+        "pl_orbsmax": null,
+        "pl_orbeccen": 0.0,
+        "st_spectype": null,
+        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
+        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
+        "disc_telescope": "0.1 m TESS Telescope",
+        "disc_instrument": "TESS CCD Array",
+        "discoverymethod": "Transit"
+      },
+      "diff_summary": "New planet: TOI-2287 b",
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
+    },
+    {
+      "change_id": 3431,
+      "observed_at": "2026-10-09T06:02:58.139753+00:00",
+      "pl_name": "TOI-2293 b",
+      "change_type": "NEW",
+      "field_name": null,
+      "field_tier": null,
+      "prev_value": null,
+      "new_value": {
+        "pl_eqt": 503.42,
+        "st_lum": -1.39073,
+        "st_rad": 0.499376,
+        "pl_dens": 3.04,
+        "pl_name": "TOI-2293 b",
+        "pl_rade": 2.08,
+        "st_dist": null,
+        "st_mass": 0.497439,
+        "st_teff": 3668.0,
+        "sy_dist": 62.7576,
+        "sy_pnum": 1,
+        "sy_snum": 1,
+        "hostname": "TOI-2293",
+        "pl_insol": 15.1794,
+        "disc_year": 2026,
+        "pl_bmasse": 4.98,
+        "pl_orbper": 6.068314,
+        "pl_orbsmax": null,
+        "pl_orbeccen": 0.0,
+        "st_spectype": null,
+        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
+        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
+        "disc_telescope": "0.1 m TESS Telescope",
+        "disc_instrument": "TESS CCD Array",
+        "discoverymethod": "Transit"
+      },
+      "diff_summary": "New planet: TOI-2293 b",
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
+    },
+    {
+      "change_id": 3432,
+      "observed_at": "2026-10-09T06:02:58.139753+00:00",
+      "pl_name": "TOI-2392 b",
+      "change_type": "NEW",
+      "field_name": null,
+      "field_tier": null,
+      "prev_value": null,
+      "new_value": {
+        "pl_eqt": 2408.58,
+        "st_lum": 0.62854,
+        "st_rad": 1.76167,
+        "pl_dens": 2.56,
+        "pl_name": "TOI-2392 b",
+        "pl_rade": 2.37,
+        "st_dist": null,
+        "st_mass": 1.21,
+        "st_teff": 6244.5,
+        "sy_dist": 325.608,
+        "sy_pnum": 1,
+        "sy_snum": 1,
+        "hostname": "TOI-2392",
+        "pl_insol": 5586.9442,
+        "disc_year": 2026,
+        "pl_bmasse": 6.21,
+        "pl_orbper": 9.169362,
+        "pl_orbsmax": null,
+        "pl_orbeccen": 0.0,
+        "st_spectype": null,
+        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
+        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
+        "disc_telescope": "0.1 m TESS Telescope",
+        "disc_instrument": "TESS CCD Array",
+        "discoverymethod": "Transit"
+      },
+      "diff_summary": "New planet: TOI-2392 b",
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
+    },
+    {
+      "change_id": 3433,
+      "observed_at": "2026-10-09T06:02:58.139753+00:00",
+      "pl_name": "TOI-2426 b",
+      "change_type": "NEW",
+      "field_name": null,
+      "field_tier": null,
+      "prev_value": null,
+      "new_value": {
+        "pl_eqt": 1226.0,
+        "st_lum": 0.00434,
+        "st_rad": 1.02479,
+        "pl_dens": 2.58,
+        "pl_name": "TOI-2426 b",
+        "pl_rade": 2.36,
+        "st_dist": null,
+        "st_mass": 1.019,
+        "st_teff": 5716.0,
+        "sy_dist": 138.301,
+        "sy_pnum": 1,
+        "sy_snum": 1,
+        "hostname": "TOI-2426",
+        "pl_insol": 376.072,
+        "disc_year": 2026,
+        "pl_bmasse": 6.17,
+        "pl_orbper": 4.0812,
+        "pl_orbsmax": null,
+        "pl_orbeccen": 0.0,
+        "st_spectype": null,
+        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
+        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
+        "disc_telescope": "0.1 m TESS Telescope",
+        "disc_instrument": "TESS CCD Array",
+        "discoverymethod": "Transit"
+      },
+      "diff_summary": "New planet: TOI-2426 b",
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
+    },
+    {
+      "change_id": 3434,
+      "observed_at": "2026-10-09T06:02:58.139753+00:00",
+      "pl_name": "TOI-2441 b",
+      "change_type": "NEW",
+      "field_name": null,
+      "field_tier": null,
+      "prev_value": null,
+      "new_value": {
+        "pl_eqt": 363.4,
+        "st_lum": -1.54007,
+        "st_rad": 0.46769,
+        "pl_dens": 2.13,
+        "pl_name": "TOI-2441 b",
+        "pl_rade": 2.73,
+        "st_dist": null,
+        "st_mass": 0.465235,
+        "st_teff": 3478.0,
+        "sy_dist": 84.5243,
+        "sy_pnum": 1,
+        "sy_snum": 1,
+        "hostname": "TOI-2441",
+        "pl_insol": 4.1214,
+        "disc_year": 2026,
+        "pl_bmasse": 7.9,
+        "pl_orbper": 12.890155,
+        "pl_orbsmax": null,
+        "pl_orbeccen": 0.0,
+        "st_spectype": null,
+        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
+        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
+        "disc_telescope": "0.1 m TESS Telescope",
+        "disc_instrument": "TESS CCD Array",
+        "discoverymethod": "Transit"
+      },
+      "diff_summary": "New planet: TOI-2441 b",
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
+    },
+    {
+      "change_id": 3435,
+      "observed_at": "2026-10-09T06:02:58.139753+00:00",
+      "pl_name": "TOI-248 b",
+      "change_type": "NEW",
+      "field_name": null,
+      "field_tier": null,
+      "prev_value": null,
+      "new_value": {
+        "pl_eqt": 1447.24,
+        "st_lum": 0.08134,
+        "st_rad": 1.12148,
+        "pl_dens": 2.56,
+        "pl_name": "TOI-248 b",
+        "pl_rade": 2.37,
+        "st_dist": null,
+        "st_mass": 1.02,
+        "st_teff": 5711.7,
+        "sy_dist": 75.9529,
+        "sy_pnum": 1,
+        "sy_snum": 1,
+        "hostname": "TOI-248",
+        "pl_insol": 728.2554,
+        "disc_year": 2026,
+        "pl_bmasse": 6.21,
+        "pl_orbper": 5.9910723,
+        "pl_orbsmax": null,
+        "pl_orbeccen": 0.0,
+        "st_spectype": null,
+        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
+        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
+        "disc_telescope": "0.1 m TESS Telescope",
+        "disc_instrument": "TESS CCD Array",
+        "discoverymethod": "Transit"
+      },
+      "diff_summary": "New planet: TOI-248 b",
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
+    },
+    {
+      "change_id": 3436,
+      "observed_at": "2026-10-09T06:02:58.139753+00:00",
+      "pl_name": "TOI-2540 b",
+      "change_type": "NEW",
+      "field_name": null,
+      "field_tier": null,
+      "prev_value": null,
+      "new_value": {
+        "pl_eqt": 477.25,
+        "st_lum": -0.9866,
+        "st_rad": 0.661076,
+        "pl_dens": 2.68,
+        "pl_name": "TOI-2540 b",
+        "pl_rade": 2.29,
+        "st_dist": null,
+        "st_mass": 0.63,
+        "st_teff": 4023.0,
+        "sy_dist": 19.1419,
+        "sy_pnum": 1,
+        "sy_snum": 1,
+        "hostname": "TOI-2540",
+        "pl_insol": 12.2599,
+        "disc_year": 2026,
+        "pl_bmasse": 5.86,
+        "pl_orbper": 12.718739,
+        "pl_orbsmax": null,
+        "pl_orbeccen": 0.0,
+        "st_spectype": "M0V",
+        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
+        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
+        "disc_telescope": "0.1 m TESS Telescope",
+        "disc_instrument": "TESS CCD Array",
+        "discoverymethod": "Transit"
+      },
+      "diff_summary": "New planet: TOI-2540 b",
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
+    },
+    {
+      "change_id": 3437,
+      "observed_at": "2026-10-09T06:02:58.139753+00:00",
+      "pl_name": "TOI-3585 b",
+      "change_type": "NEW",
+      "field_name": null,
+      "field_tier": null,
+      "prev_value": null,
+      "new_value": {
+        "pl_eqt": 906.0,
+        "st_lum": -0.54844,
+        "st_rad": 0.818751,
+        "pl_dens": 1.19,
+        "pl_name": "TOI-3585 b",
+        "pl_rade": 4.26,
+        "st_dist": null,
+        "st_mass": 0.74,
+        "st_teff": 4652.0,
+        "sy_dist": 130.802,
+        "sy_pnum": 1,
+        "sy_snum": 1,
+        "hostname": "TOI-3585",
+        "pl_insol": 112.33,
+        "disc_year": 2026,
+        "pl_bmasse": 16.8,
+        "pl_orbper": 3.5410696,
+        "pl_orbsmax": null,
+        "pl_orbeccen": 0.0,
+        "st_spectype": null,
+        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
+        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
+        "disc_telescope": "0.1 m TESS Telescope",
+        "disc_instrument": "TESS CCD Array",
+        "discoverymethod": "Transit"
+      },
+      "diff_summary": "New planet: TOI-3585 b",
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
     },
     {
       "change_id": 3403,
@@ -3178,7 +3908,21 @@
       "prev_value": 48.3,
       "new_value": 22.0,
       "diff_summary": "HIP 67522 c pl_bmasse: 48.3 \u2192 22.0",
-      "source_snapshot_date": "2026-10-02"
+      "source_snapshot_date": "2026-10-02",
+      "prev_ref": {
+        "label": "Calculated Value",
+        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html",
+        "bibcode": null,
+        "kind": "calculated",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Chakraborty et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260618045C/abstract",
+        "bibcode": "2026arXiv260618045C",
+        "kind": "paper",
+        "role": "source"
+      }
     },
     {
       "change_id": 3406,
@@ -3190,7 +3934,21 @@
       "prev_value": 1.8,
       "new_value": 1.64,
       "diff_summary": "TOI-2427 b pl_rade: 1.8 \u2192 1.64",
-      "source_snapshot_date": "2026-10-02"
+      "source_snapshot_date": "2026-10-02",
+      "prev_ref": {
+        "label": "Giacalone et al. 2022",
+        "url": "https://ui.adsabs.harvard.edu/abs/2022AJ....163...99G/abstract",
+        "bibcode": "2022AJ....163...99G",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Schmerling et al. 2025",
+        "url": "https://ui.adsabs.harvard.edu/abs/2025A&A...699A.185S/abstract",
+        "bibcode": "2025A&A...699A.185S",
+        "kind": "paper",
+        "role": "source"
+      }
     },
     {
       "change_id": 3407,
@@ -3202,7 +3960,47 @@
       "prev_value": 3.89,
       "new_value": 5.69,
       "diff_summary": "TOI-2427 b pl_bmasse: 3.89 \u2192 5.69",
-      "source_snapshot_date": "2026-10-02"
+      "source_snapshot_date": "2026-10-02",
+      "prev_ref": {
+        "label": "Calculated Value",
+        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html",
+        "bibcode": null,
+        "kind": "calculated",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Schmerling et al. 2025",
+        "url": "https://ui.adsabs.harvard.edu/abs/2025A&A...699A.185S/abstract",
+        "bibcode": "2025A&A...699A.185S",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3401,
+      "observed_at": "2026-10-02T06:02:33.619810+00:00",
+      "pl_name": "HIP 67522 b",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_bmasse",
+      "field_tier": "A",
+      "prev_value": 71.4,
+      "new_value": 13.8,
+      "diff_summary": "HIP 67522 b pl_bmasse: 71.4 \u2192 13.8",
+      "source_snapshot_date": "2026-10-02",
+      "prev_ref": {
+        "label": "Calculated Value",
+        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html",
+        "bibcode": null,
+        "kind": "calculated",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Chakraborty et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260618045C/abstract",
+        "bibcode": "2026arXiv260618045C",
+        "kind": "paper",
+        "role": "source"
+      }
     },
     {
       "change_id": 3416,
@@ -3240,7 +4038,107 @@
         "discoverymethod": "Radial Velocity"
       },
       "diff_summary": "New planet: TOI-2427 c",
-      "source_snapshot_date": "2026-10-02"
+      "source_snapshot_date": "2026-10-02",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Schmerling et al. 2025",
+        "url": "https://ui.adsabs.harvard.edu/abs/2025A&A...699A.185S/abstract",
+        "bibcode": "2025A&A...699A.185S",
+        "kind": "paper",
+        "role": "discovery"
+      }
+    },
+    {
+      "change_id": 3400,
+      "observed_at": "2026-10-02T06:02:33.619810+00:00",
+      "pl_name": "HD 148797 c",
+      "change_type": "NEW",
+      "field_name": null,
+      "field_tier": null,
+      "prev_value": null,
+      "new_value": {
+        "pl_eqt": 650.0,
+        "st_lum": 0.58206,
+        "st_rad": 1.547,
+        "pl_dens": 0.377,
+        "pl_name": "HD 148797 c",
+        "pl_rade": 8.3618996,
+        "st_dist": null,
+        "st_mass": 1.272,
+        "st_teff": 6441.0,
+        "sy_dist": 172.374,
+        "sy_pnum": 2,
+        "sy_snum": 1,
+        "hostname": "HD 148797",
+        "pl_insol": 30.5519,
+        "disc_year": 2026,
+        "pl_bmasse": 39.6,
+        "pl_orbper": 68.1514539,
+        "pl_orbsmax": 0.3536,
+        "pl_orbeccen": 0.126,
+        "st_spectype": "F6",
+        "disc_refname": "<a refstr=ALMENARA_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260709656A/abstract target=ref>Almenara et al. 2026</a>",
+        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
+        "disc_telescope": "0.1 m TESS Telescope",
+        "disc_instrument": "TESS CCD Array",
+        "discoverymethod": "Transit"
+      },
+      "diff_summary": "New planet: HD 148797 c",
+      "source_snapshot_date": "2026-10-02",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Almenara et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260709656A/abstract",
+        "bibcode": "2026arXiv260709656A",
+        "kind": "paper",
+        "role": "discovery"
+      }
+    },
+    {
+      "change_id": 3399,
+      "observed_at": "2026-10-02T06:02:33.619810+00:00",
+      "pl_name": "HD 148797 b",
+      "change_type": "NEW",
+      "field_name": null,
+      "field_tier": null,
+      "prev_value": null,
+      "new_value": {
+        "pl_eqt": 762.0,
+        "st_lum": 0.58206,
+        "st_rad": 1.547,
+        "pl_dens": 0.39,
+        "pl_name": "HD 148797 b",
+        "pl_rade": 8.25,
+        "st_dist": null,
+        "st_mass": 1.272,
+        "st_teff": 6441.0,
+        "sy_dist": 172.374,
+        "sy_pnum": 2,
+        "sy_snum": 1,
+        "hostname": "HD 148797",
+        "pl_insol": 57.926,
+        "disc_year": 2026,
+        "pl_bmasse": 39.3,
+        "pl_orbper": 42.0988331,
+        "pl_orbsmax": 0.2568,
+        "pl_orbeccen": 0.153,
+        "st_spectype": "F6",
+        "disc_refname": "<a refstr=ALMENARA_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260709656A/abstract target=ref>Almenara et al. 2026</a>",
+        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
+        "disc_telescope": "0.1 m TESS Telescope",
+        "disc_instrument": "TESS CCD Array",
+        "discoverymethod": "Transit"
+      },
+      "diff_summary": "New planet: HD 148797 b",
+      "source_snapshot_date": "2026-10-02",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Almenara et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260709656A/abstract",
+        "bibcode": "2026arXiv260709656A",
+        "kind": "paper",
+        "role": "discovery"
+      }
     }
   ]
 }

@@ -5,595 +5,595 @@
     <link>https://github.com/markpernotto/exoplanet_citation</link>
     <description>Newly confirmed and revised exoplanet records from the NASA Exoplanet Archive, diffed nightly. Surfaces NEW / REMOVED / Tier-A parameter changes only.</description>
     <language>en-us</language>
-    <lastBuildDate>Wed, 28 Oct 2026 06:21:42 +0000</lastBuildDate>
+    <lastBuildDate>Thu, 29 Oct 2026 06:21:49 +0000</lastBuildDate>
     <ttl>1440</ttl>
-    <item>
-      <title>Parameter update — HD 65216 c: pl_orbper</title>
-      <guid isPermaLink="false">change-3497</guid>
-      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
-      <description>HD 65216 c pl_orbper: 5370.0 → 7007.0</description>
-    </item>
-    <item>
-      <title>Parameter update — HD 65216 c: pl_rade</title>
-      <guid isPermaLink="false">change-3498</guid>
-      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
-      <description>HD 65216 c pl_rade: 13.4 → 13.1</description>
-    </item>
-    <item>
-      <title>Parameter update — HD 65216 c: pl_bmasse</title>
-      <guid isPermaLink="false">change-3499</guid>
-      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
-      <description>HD 65216 c pl_bmasse: 645.1949 → 1055.19031124</description>
-    </item>
-    <item>
-      <title>Parameter update — Kepler-281 c: pl_bmasse</title>
-      <guid isPermaLink="false">change-3506</guid>
-      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
-      <description>Kepler-281 c pl_bmasse: 161.124 → 69.6183</description>
-    </item>
     <item>
       <title>Parameter update — Kepler-297 d: pl_rade</title>
       <guid isPermaLink="false">change-3508</guid>
       <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
-      <description>Kepler-297 d pl_rade: 32.6 → 7.11899996</description>
+      <description>Kepler-297 d pl_rade: 32.6 → 7.11899996. Source: Valizadegan et al. 2023 (https://ui.adsabs.harvard.edu/abs/2023AJ....166...28V/abstract). Previously: Q1-Q17 DR25 KOI Table</description>
     </item>
     <item>
       <title>Parameter update — Kepler-297 d: pl_bmasse</title>
       <guid isPermaLink="false">change-3509</guid>
       <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
-      <description>Kepler-297 d pl_bmasse: None → 40.2</description>
+      <description>Kepler-297 d pl_bmasse: None → 40.2. Source: Calculated by NASA Exoplanet Archive (https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html). Previously: Q1-Q17 DR25 KOI Table</description>
     </item>
     <item>
       <title>Parameter update — Kepler-32 e: pl_bmasse</title>
       <guid isPermaLink="false">change-3513</guid>
       <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
-      <description>Kepler-32 e pl_bmasse: 4.08181 → 1.11884</description>
+      <description>Kepler-32 e pl_bmasse: 4.08181 → 1.11884. Source: Ofir et al. 2025 (https://ui.adsabs.harvard.edu/abs/2025AJ....169...90O/abstract)</description>
     </item>
     <item>
       <title>Parameter update — Kepler-80 f: pl_bmasse</title>
       <guid isPermaLink="false">change-3514</guid>
       <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
-      <description>Kepler-80 f pl_bmasse: 4459.73 → 12651.5</description>
+      <description>Kepler-80 f pl_bmasse: 4459.73 → 12651.5. Source: Ofir et al. 2025 (https://ui.adsabs.harvard.edu/abs/2025AJ....169...90O/abstract)</description>
     </item>
     <item>
       <title>Parameter update — MOA-2011-BLG-293L b: pl_orbper</title>
       <guid isPermaLink="false">change-3515</guid>
       <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
-      <description>MOA-2011-BLG-293L b pl_orbper: 3000.0 → 550.0</description>
+      <description>MOA-2011-BLG-293L b pl_orbper: 3000.0 → 550.0. Source: Yee et al. 2012 (https://ui.adsabs.harvard.edu/abs/2012ApJ...755..102Y/abstract)</description>
     </item>
     <item>
-      <title>New exoplanet confirmed: Elias 2-24 b</title>
-      <guid isPermaLink="false">change-3489</guid>
+      <title>Parameter update — HD 65216 c: pl_orbper</title>
+      <guid isPermaLink="false">change-3497</guid>
       <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
-      <description>New planet: Elias 2-24 b</description>
+      <description>HD 65216 c pl_orbper: 5370.0 → 7007.0. Source: Wallace et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261002783W/abstract). Previously: Wittenmyer et al. 2019</description>
     </item>
     <item>
       <title>Parameter update — HD 65216 b: pl_rade</title>
       <guid isPermaLink="false">change-3491</guid>
       <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
-      <description>HD 65216 b pl_rade: 13.6 → 13.3</description>
+      <description>HD 65216 b pl_rade: 13.6 → 13.3. Source: Calculated by NASA Exoplanet Archive (https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html)</description>
     </item>
     <item>
       <title>Parameter update — HD 65216 b: pl_bmasse</title>
       <guid isPermaLink="false">change-3492</guid>
       <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
-      <description>HD 65216 b pl_bmasse: 411.58985 → 708.75734761</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TIC 219893931 b</title>
-      <guid isPermaLink="false">change-3516</guid>
-      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
-      <description>New planet: TIC 219893931 b</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TIC 237254473 b</title>
-      <guid isPermaLink="false">change-3517</guid>
-      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
-      <description>New planet: TIC 237254473 b</description>
-    </item>
-    <item>
-      <title>Parameter update — TOI-2158 b: pl_rade</title>
-      <guid isPermaLink="false">change-3519</guid>
-      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
-      <description>TOI-2158 b pl_rade: 10.76062147 → 10.07687365</description>
-    </item>
-    <item>
-      <title>Parameter update — TOI-2158 b: pl_bmasse</title>
-      <guid isPermaLink="false">change-3520</guid>
-      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
-      <description>TOI-2158 b pl_bmasse: 260.61929374 → 276.51071409</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-2158 c</title>
-      <guid isPermaLink="false">change-3527</guid>
-      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
-      <description>New planet: TOI-2158 c</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-5120 b</title>
-      <guid isPermaLink="false">change-3533</guid>
-      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
-      <description>New planet: TOI-5120 b</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-5699 b</title>
-      <guid isPermaLink="false">change-3536</guid>
-      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
-      <description>New planet: TOI-5699 b</description>
-    </item>
-    <item>
-      <title>Parameter update — TOI-942 c: pl_bmasse</title>
-      <guid isPermaLink="false">change-3537</guid>
-      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
-      <description>TOI-942 c pl_bmasse: 37.0 → 794.575</description>
+      <description>HD 65216 b pl_bmasse: 411.58985 → 708.75734761. Source: Wallace et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261002783W/abstract). Previously: Wittenmyer et al. 2019</description>
     </item>
     <item>
       <title>Parameter update — kap CrB b: pl_bmasse</title>
       <guid isPermaLink="false">change-3539</guid>
       <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
-      <description>kap CrB b pl_bmasse: 689.6911 → 591.1638</description>
+      <description>kap CrB b pl_bmasse: 689.6911 → 591.1638. Source: Baines et al. 2013 (https://ui.adsabs.harvard.edu/abs/2013ApJ...771L..17B/abstract)</description>
     </item>
     <item>
-      <title>New exoplanet confirmed: TOI-1154 b</title>
-      <guid isPermaLink="false">change-3417</guid>
-      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-1154 b</description>
+      <title>Parameter update — TOI-942 c: pl_bmasse</title>
+      <guid isPermaLink="false">change-3537</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>TOI-942 c pl_bmasse: 37.0 → 794.575. Source: Zhou et al. 2021 (https://ui.adsabs.harvard.edu/abs/2021AJ....161....2Z/abstract). Previously: Carleo et al. 2021</description>
     </item>
     <item>
-      <title>New exoplanet confirmed: TOI-1245 b</title>
-      <guid isPermaLink="false">change-3418</guid>
-      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-1245 b</description>
+      <title>Parameter update — TOI-2158 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3520</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>TOI-2158 b pl_bmasse: 260.61929374 → 276.51071409. Source: Knudstrup et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260930915K/abstract). Previously: Knudstrup et al. 2022</description>
     </item>
     <item>
-      <title>New exoplanet confirmed: TOI-1262 b</title>
-      <guid isPermaLink="false">change-3419</guid>
-      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-1262 b</description>
+      <title>Parameter update — HD 65216 c: pl_rade</title>
+      <guid isPermaLink="false">change-3498</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>HD 65216 c pl_rade: 13.4 → 13.1. Source: Calculated by NASA Exoplanet Archive (https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html)</description>
     </item>
     <item>
-      <title>New exoplanet confirmed: TOI-1281 b</title>
-      <guid isPermaLink="false">change-3420</guid>
-      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-1281 b</description>
+      <title>Parameter update — HD 65216 c: pl_bmasse</title>
+      <guid isPermaLink="false">change-3499</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>HD 65216 c pl_bmasse: 645.1949 → 1055.19031124. Source: Wallace et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261002783W/abstract). Previously: Wittenmyer et al. 2019</description>
     </item>
     <item>
-      <title>New exoplanet confirmed: TOI-1432 b</title>
-      <guid isPermaLink="false">change-3421</guid>
-      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-1432 b</description>
+      <title>Parameter update — Kepler-281 c: pl_bmasse</title>
+      <guid isPermaLink="false">change-3506</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>Kepler-281 c pl_bmasse: 161.124 → 69.6183. Source: Ofir et al. 2025 (https://ui.adsabs.harvard.edu/abs/2025AJ....169...90O/abstract)</description>
     </item>
     <item>
-      <title>New exoplanet confirmed: TOI-1435 b</title>
-      <guid isPermaLink="false">change-3422</guid>
-      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-1435 b</description>
+      <title>New exoplanet confirmed: Elias 2-24 b</title>
+      <guid isPermaLink="false">change-3489</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>New planet: Elias 2-24 b. Discovery reference: Bernardi et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026ApJ..1009L...3B/abstract)</description>
     </item>
     <item>
-      <title>New exoplanet confirmed: TOI-1441 b</title>
-      <guid isPermaLink="false">change-3423</guid>
-      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-1441 b</description>
+      <title>New exoplanet confirmed: TIC 219893931 b</title>
+      <guid isPermaLink="false">change-3516</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>New planet: TIC 219893931 b. Discovery reference: Hotnisky et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026ApJS..286...42H/abstract)</description>
     </item>
     <item>
-      <title>New exoplanet confirmed: TOI-1806 c</title>
-      <guid isPermaLink="false">change-3424</guid>
-      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-1806 c</description>
+      <title>New exoplanet confirmed: TIC 237254473 b</title>
+      <guid isPermaLink="false">change-3517</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>New planet: TIC 237254473 b. Discovery reference: Hotnisky et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026ApJS..286...42H/abstract)</description>
     </item>
     <item>
-      <title>New exoplanet confirmed: TOI-1806 d</title>
-      <guid isPermaLink="false">change-3425</guid>
-      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-1806 d</description>
+      <title>New exoplanet confirmed: TOI-2158 c</title>
+      <guid isPermaLink="false">change-3527</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>New planet: TOI-2158 c. Discovery reference: Knudstrup et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260930915K/abstract)</description>
     </item>
     <item>
-      <title>New exoplanet confirmed: TOI-213 b</title>
-      <guid isPermaLink="false">change-3427</guid>
-      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-213 b</description>
+      <title>New exoplanet confirmed: TOI-5120 b</title>
+      <guid isPermaLink="false">change-3533</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>New planet: TOI-5120 b. Discovery reference: Knudstrup et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260930915K/abstract)</description>
     </item>
     <item>
-      <title>New exoplanet confirmed: TOI-2238 b</title>
-      <guid isPermaLink="false">change-3428</guid>
-      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-2238 b</description>
+      <title>New exoplanet confirmed: TOI-5699 b</title>
+      <guid isPermaLink="false">change-3536</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>New planet: TOI-5699 b. Discovery reference: Knudstrup et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260930915K/abstract)</description>
     </item>
     <item>
-      <title>New exoplanet confirmed: TOI-2245 b</title>
-      <guid isPermaLink="false">change-3429</guid>
-      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-2245 b</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-2287 b</title>
-      <guid isPermaLink="false">change-3430</guid>
-      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-2287 b</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-2293 b</title>
-      <guid isPermaLink="false">change-3431</guid>
-      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-2293 b</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-2392 b</title>
-      <guid isPermaLink="false">change-3432</guid>
-      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-2392 b</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-2426 b</title>
-      <guid isPermaLink="false">change-3433</guid>
-      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-2426 b</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-2441 b</title>
-      <guid isPermaLink="false">change-3434</guid>
-      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-2441 b</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-248 b</title>
-      <guid isPermaLink="false">change-3435</guid>
-      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-248 b</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-2540 b</title>
-      <guid isPermaLink="false">change-3436</guid>
-      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-2540 b</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-3585 b</title>
-      <guid isPermaLink="false">change-3437</guid>
-      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-3585 b</description>
+      <title>Parameter update — TOI-2158 b: pl_rade</title>
+      <guid isPermaLink="false">change-3519</guid>
+      <pubDate>Fri, 16 Oct 2026 06:03:01 +0000</pubDate>
+      <description>TOI-2158 b pl_rade: 10.76062147 → 10.07687365. Source: Knudstrup et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260930915K/abstract). Previously: Knudstrup et al. 2022</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-3851 b</title>
       <guid isPermaLink="false">change-3438</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-3851 b</description>
+      <description>New planet: TOI-3851 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-4307 b</title>
       <guid isPermaLink="false">change-3439</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-4307 b</description>
+      <description>New planet: TOI-4307 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-4310 b</title>
       <guid isPermaLink="false">change-3440</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-4310 b</description>
+      <description>New planet: TOI-4310 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-4324 b</title>
       <guid isPermaLink="false">change-3441</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-4324 b</description>
+      <description>New planet: TOI-4324 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-435 b</title>
       <guid isPermaLink="false">change-3442</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-435 b</description>
+      <description>New planet: TOI-435 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-4443 c</title>
       <guid isPermaLink="false">change-3443</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-4443 c</description>
+      <description>New planet: TOI-4443 c. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-4468 b</title>
       <guid isPermaLink="false">change-3445</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-4468 b</description>
+      <description>New planet: TOI-4468 b. Discovery reference: Livesey et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260825208L/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-4468 c</title>
       <guid isPermaLink="false">change-3446</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-4468 c</description>
+      <description>New planet: TOI-4468 c. Discovery reference: Livesey et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260825208L/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-4499 b</title>
       <guid isPermaLink="false">change-3447</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-4499 b</description>
+      <description>New planet: TOI-4499 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-4567 b</title>
       <guid isPermaLink="false">change-3448</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-4567 b</description>
+      <description>New planet: TOI-4567 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-4616 b</title>
       <guid isPermaLink="false">change-3449</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-4616 b</description>
+      <description>New planet: TOI-4616 b. Discovery reference: Lang et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260310905L/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-4724 b</title>
       <guid isPermaLink="false">change-3450</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-4724 b</description>
+      <description>New planet: TOI-4724 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-4851 b</title>
       <guid isPermaLink="false">change-3451</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-4851 b</description>
+      <description>New planet: TOI-4851 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-5165 b</title>
       <guid isPermaLink="false">change-3452</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-5165 b</description>
+      <description>New planet: TOI-5165 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-5177 b</title>
       <guid isPermaLink="false">change-3453</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-5177 b</description>
+      <description>New planet: TOI-5177 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-5289 b</title>
       <guid isPermaLink="false">change-3454</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-5289 b</description>
+      <description>New planet: TOI-5289 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-5493 b</title>
       <guid isPermaLink="false">change-3455</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-5493 b</description>
+      <description>New planet: TOI-5493 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-5531 b</title>
       <guid isPermaLink="false">change-3456</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-5531 b</description>
+      <description>New planet: TOI-5531 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-5543 b</title>
       <guid isPermaLink="false">change-3457</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-5543 b</description>
+      <description>New planet: TOI-5543 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-5646 b</title>
       <guid isPermaLink="false">change-3458</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-5646 b</description>
+      <description>New planet: TOI-5646 b. Discovery reference: Mancini et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260824311M/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-5696 b</title>
       <guid isPermaLink="false">change-3459</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-5696 b</description>
+      <description>New planet: TOI-5696 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-5730 b</title>
       <guid isPermaLink="false">change-3460</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-5730 b</description>
+      <description>New planet: TOI-5730 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-5739 b</title>
       <guid isPermaLink="false">change-3461</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-5739 b</description>
+      <description>New planet: TOI-5739 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-5807 b</title>
       <guid isPermaLink="false">change-3462</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-5807 b</description>
+      <description>New planet: TOI-5807 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-5947 b</title>
       <guid isPermaLink="false">change-3463</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-5947 b</description>
+      <description>New planet: TOI-5947 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-5958 b</title>
       <guid isPermaLink="false">change-3464</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-5958 b</description>
+      <description>New planet: TOI-5958 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-5961 b</title>
       <guid isPermaLink="false">change-3465</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-5961 b</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-5968 b</title>
-      <guid isPermaLink="false">change-3466</guid>
-      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-5968 b</description>
+      <description>New planet: TOI-5961 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-5997 b</title>
       <guid isPermaLink="false">change-3467</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-5997 b</description>
+      <description>New planet: TOI-5997 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-6098 b</title>
       <guid isPermaLink="false">change-3468</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-6098 b</description>
+      <description>New planet: TOI-6098 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-6174 b</title>
       <guid isPermaLink="false">change-3469</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-6174 b</description>
+      <description>New planet: TOI-6174 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-6310 b</title>
       <guid isPermaLink="false">change-3470</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-6310 b</description>
+      <description>New planet: TOI-6310 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-6434 b</title>
       <guid isPermaLink="false">change-3471</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-6434 b</description>
+      <description>New planet: TOI-6434 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-6450 b</title>
       <guid isPermaLink="false">change-3472</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-6450 b</description>
+      <description>New planet: TOI-6450 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-6647 b</title>
       <guid isPermaLink="false">change-3473</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-6647 b</description>
+      <description>New planet: TOI-6647 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-6662 b</title>
       <guid isPermaLink="false">change-3474</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-6662 b</description>
+      <description>New planet: TOI-6662 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-6729 b</title>
       <guid isPermaLink="false">change-3475</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-6729 b</description>
+      <description>New planet: TOI-6729 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-6729 c</title>
       <guid isPermaLink="false">change-3476</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-6729 c</description>
+      <description>New planet: TOI-6729 c. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-7182 b</title>
       <guid isPermaLink="false">change-3477</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-7182 b</description>
+      <description>New planet: TOI-7182 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-7389 b</title>
       <guid isPermaLink="false">change-3478</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-7389 b</description>
+      <description>New planet: TOI-7389 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-7391 b</title>
       <guid isPermaLink="false">change-3479</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-7391 b</description>
+      <description>New planet: TOI-7391 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-7550 b</title>
       <guid isPermaLink="false">change-3480</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-7550 b</description>
+      <description>New planet: TOI-7550 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-783 b</title>
       <guid isPermaLink="false">change-3481</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-783 b</description>
+      <description>New planet: TOI-783 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-786 b</title>
       <guid isPermaLink="false">change-3482</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-786 b</description>
+      <description>New planet: TOI-786 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-786 c</title>
       <guid isPermaLink="false">change-3483</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-786 c</description>
+      <description>New planet: TOI-786 c. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-789 b</title>
       <guid isPermaLink="false">change-3484</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-789 b</description>
+      <description>New planet: TOI-789 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-789 c</title>
       <guid isPermaLink="false">change-3485</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-789 c</description>
+      <description>New planet: TOI-789 c. Discovery reference: Pagés Navarrete 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260922945P/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-789 d</title>
       <guid isPermaLink="false">change-3486</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-789 d</description>
+      <description>New planet: TOI-789 d. Discovery reference: Pagés Navarrete 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260922945P/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-797 b</title>
       <guid isPermaLink="false">change-3487</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-797 b</description>
+      <description>New planet: TOI-797 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-873 b</title>
       <guid isPermaLink="false">change-3488</guid>
       <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
-      <description>New planet: TOI-873 b</description>
+      <description>New planet: TOI-873 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
-      <title>New exoplanet confirmed: HD 148797 b</title>
-      <guid isPermaLink="false">change-3399</guid>
-      <pubDate>Fri, 02 Oct 2026 06:02:33 +0000</pubDate>
-      <description>New planet: HD 148797 b</description>
+      <title>New exoplanet confirmed: TOI-5968 b</title>
+      <guid isPermaLink="false">change-3466</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-5968 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
-      <title>New exoplanet confirmed: HD 148797 c</title>
-      <guid isPermaLink="false">change-3400</guid>
-      <pubDate>Fri, 02 Oct 2026 06:02:33 +0000</pubDate>
-      <description>New planet: HD 148797 c</description>
+      <title>New exoplanet confirmed: TOI-1154 b</title>
+      <guid isPermaLink="false">change-3417</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-1154 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
-      <title>Parameter update — HIP 67522 b: pl_bmasse</title>
-      <guid isPermaLink="false">change-3401</guid>
-      <pubDate>Fri, 02 Oct 2026 06:02:33 +0000</pubDate>
-      <description>HIP 67522 b pl_bmasse: 71.4 → 13.8</description>
+      <title>New exoplanet confirmed: TOI-1245 b</title>
+      <guid isPermaLink="false">change-3418</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-1245 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-1262 b</title>
+      <guid isPermaLink="false">change-3419</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-1262 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-1281 b</title>
+      <guid isPermaLink="false">change-3420</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-1281 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-1432 b</title>
+      <guid isPermaLink="false">change-3421</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-1432 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-1435 b</title>
+      <guid isPermaLink="false">change-3422</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-1435 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-1441 b</title>
+      <guid isPermaLink="false">change-3423</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-1441 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-1806 c</title>
+      <guid isPermaLink="false">change-3424</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-1806 c. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-1806 d</title>
+      <guid isPermaLink="false">change-3425</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-1806 d. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-213 b</title>
+      <guid isPermaLink="false">change-3427</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-213 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-2238 b</title>
+      <guid isPermaLink="false">change-3428</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-2238 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-2245 b</title>
+      <guid isPermaLink="false">change-3429</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-2245 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-2287 b</title>
+      <guid isPermaLink="false">change-3430</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-2287 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-2293 b</title>
+      <guid isPermaLink="false">change-3431</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-2293 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-2392 b</title>
+      <guid isPermaLink="false">change-3432</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-2392 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-2426 b</title>
+      <guid isPermaLink="false">change-3433</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-2426 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-2441 b</title>
+      <guid isPermaLink="false">change-3434</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-2441 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-248 b</title>
+      <guid isPermaLink="false">change-3435</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-248 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-2540 b</title>
+      <guid isPermaLink="false">change-3436</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-2540 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-3585 b</title>
+      <guid isPermaLink="false">change-3437</guid>
+      <pubDate>Fri, 09 Oct 2026 06:02:58 +0000</pubDate>
+      <description>New planet: TOI-3585 b. Discovery reference: Collier et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract)</description>
     </item>
     <item>
       <title>Parameter update — HIP 67522 c: pl_bmasse</title>
       <guid isPermaLink="false">change-3403</guid>
       <pubDate>Fri, 02 Oct 2026 06:02:33 +0000</pubDate>
-      <description>HIP 67522 c pl_bmasse: 48.3 → 22.0</description>
+      <description>HIP 67522 c pl_bmasse: 48.3 → 22.0. Source: Chakraborty et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260618045C/abstract). Previously: Calculated Value</description>
     </item>
     <item>
       <title>Parameter update — TOI-2427 b: pl_rade</title>
       <guid isPermaLink="false">change-3406</guid>
       <pubDate>Fri, 02 Oct 2026 06:02:33 +0000</pubDate>
-      <description>TOI-2427 b pl_rade: 1.8 → 1.64</description>
+      <description>TOI-2427 b pl_rade: 1.8 → 1.64. Source: Schmerling et al. 2025 (https://ui.adsabs.harvard.edu/abs/2025A&amp;A...699A.185S/abstract). Previously: Giacalone et al. 2022</description>
     </item>
     <item>
       <title>Parameter update — TOI-2427 b: pl_bmasse</title>
       <guid isPermaLink="false">change-3407</guid>
       <pubDate>Fri, 02 Oct 2026 06:02:33 +0000</pubDate>
-      <description>TOI-2427 b pl_bmasse: 3.89 → 5.69</description>
+      <description>TOI-2427 b pl_bmasse: 3.89 → 5.69. Source: Schmerling et al. 2025 (https://ui.adsabs.harvard.edu/abs/2025A&amp;A...699A.185S/abstract). Previously: Calculated Value</description>
+    </item>
+    <item>
+      <title>Parameter update — HIP 67522 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3401</guid>
+      <pubDate>Fri, 02 Oct 2026 06:02:33 +0000</pubDate>
+      <description>HIP 67522 b pl_bmasse: 71.4 → 13.8. Source: Chakraborty et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260618045C/abstract). Previously: Calculated Value</description>
     </item>
     <item>
       <title>New exoplanet confirmed: TOI-2427 c</title>
       <guid isPermaLink="false">change-3416</guid>
       <pubDate>Fri, 02 Oct 2026 06:02:33 +0000</pubDate>
-      <description>New planet: TOI-2427 c</description>
+      <description>New planet: TOI-2427 c. Discovery reference: Schmerling et al. 2025 (https://ui.adsabs.harvard.edu/abs/2025A&amp;A...699A.185S/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: HD 148797 c</title>
+      <guid isPermaLink="false">change-3400</guid>
+      <pubDate>Fri, 02 Oct 2026 06:02:33 +0000</pubDate>
+      <description>New planet: HD 148797 c. Discovery reference: Almenara et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260709656A/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: HD 148797 b</title>
+      <guid isPermaLink="false">change-3399</guid>
+      <pubDate>Fri, 02 Oct 2026 06:02:33 +0000</pubDate>
+      <description>New planet: HD 148797 b. Discovery reference: Almenara et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260709656A/abstract)</description>
     </item>
   </channel>
 </rss>

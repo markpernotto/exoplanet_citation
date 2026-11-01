@@ -1,17 +1,121 @@
 {
   "feed_version": "1.0",
-  "generated_at": "2026-10-31T06:21:21.043766+00:00",
+  "generated_at": "2026-11-01T06:21:17.088549+00:00",
   "freshness": {
-    "snapshot_date": "2026-10-31",
-    "source_retrieved_at": "2026-10-31T06:01:30.938917+00:00",
+    "snapshot_date": "2026-11-01",
+    "source_retrieved_at": "2026-11-01T06:01:31.380697+00:00",
     "freshness_hours": 0.33,
     "slo_freshness_hours": 26,
     "status": "ok",
     "clock": "A (time since last extract)",
     "note": "Clock A approximation. Phase-1.x work upgrades to Clock B (time since upstream last_modified)."
   },
-  "change_count": 98,
+  "change_count": 91,
   "changes": [
+    {
+      "change_id": 3492,
+      "observed_at": "2026-10-16T06:03:01.447470+00:00",
+      "pl_name": "HD 65216 b",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_bmasse",
+      "field_tier": "A",
+      "prev_value": 411.58985,
+      "new_value": 708.75734761,
+      "diff_summary": "HD 65216 b pl_bmasse: 411.58985 \u2192 708.75734761",
+      "source_snapshot_date": "2026-10-16",
+      "prev_ref": {
+        "label": "Wittenmyer et al. 2019",
+        "url": "https://ui.adsabs.harvard.edu/abs/2019MNRAS.484.5859W/abstract",
+        "bibcode": "2019MNRAS.484.5859W",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Wallace et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv261002783W/abstract",
+        "bibcode": "2026arXiv261002783W",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3498,
+      "observed_at": "2026-10-16T06:03:01.447470+00:00",
+      "pl_name": "HD 65216 c",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_rade",
+      "field_tier": "A",
+      "prev_value": 13.4,
+      "new_value": 13.1,
+      "diff_summary": "HD 65216 c pl_rade: 13.4 \u2192 13.1",
+      "source_snapshot_date": "2026-10-16",
+      "prev_ref": {
+        "label": "Calculated Value",
+        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html",
+        "bibcode": null,
+        "kind": "calculated",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Calculated Value",
+        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html",
+        "bibcode": null,
+        "kind": "calculated",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3499,
+      "observed_at": "2026-10-16T06:03:01.447470+00:00",
+      "pl_name": "HD 65216 c",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_bmasse",
+      "field_tier": "A",
+      "prev_value": 645.1949,
+      "new_value": 1055.19031124,
+      "diff_summary": "HD 65216 c pl_bmasse: 645.1949 \u2192 1055.19031124",
+      "source_snapshot_date": "2026-10-16",
+      "prev_ref": {
+        "label": "Wittenmyer et al. 2019",
+        "url": "https://ui.adsabs.harvard.edu/abs/2019MNRAS.484.5859W/abstract",
+        "bibcode": "2019MNRAS.484.5859W",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Wallace et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv261002783W/abstract",
+        "bibcode": "2026arXiv261002783W",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3506,
+      "observed_at": "2026-10-16T06:03:01.447470+00:00",
+      "pl_name": "Kepler-281 c",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_bmasse",
+      "field_tier": "A",
+      "prev_value": 161.124,
+      "new_value": 69.6183,
+      "diff_summary": "Kepler-281 c pl_bmasse: 161.124 \u2192 69.6183",
+      "source_snapshot_date": "2026-10-16",
+      "prev_ref": {
+        "label": "Ofir et al. 2025",
+        "url": "https://ui.adsabs.harvard.edu/abs/2025AJ....169...90O/abstract",
+        "bibcode": "2025AJ....169...90O",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Ofir et al. 2025",
+        "url": "https://ui.adsabs.harvard.edu/abs/2025AJ....169...90O/abstract",
+        "bibcode": "2025AJ....169...90O",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
     {
       "change_id": 3508,
       "observed_at": "2026-10-16T06:03:01.447470+00:00",
@@ -191,188 +295,6 @@
         "url": "https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html",
         "bibcode": null,
         "kind": "calculated",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3492,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "HD 65216 b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 411.58985,
-      "new_value": 708.75734761,
-      "diff_summary": "HD 65216 b pl_bmasse: 411.58985 \u2192 708.75734761",
-      "source_snapshot_date": "2026-10-16",
-      "prev_ref": {
-        "label": "Wittenmyer et al. 2019",
-        "url": "https://ui.adsabs.harvard.edu/abs/2019MNRAS.484.5859W/abstract",
-        "bibcode": "2019MNRAS.484.5859W",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Wallace et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv261002783W/abstract",
-        "bibcode": "2026arXiv261002783W",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3539,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "kap CrB b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 689.6911,
-      "new_value": 591.1638,
-      "diff_summary": "kap CrB b pl_bmasse: 689.6911 \u2192 591.1638",
-      "source_snapshot_date": "2026-10-16",
-      "prev_ref": {
-        "label": "Baines et al. 2013",
-        "url": "https://ui.adsabs.harvard.edu/abs/2013ApJ...771L..17B/abstract",
-        "bibcode": "2013ApJ...771L..17B",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Baines et al. 2013",
-        "url": "https://ui.adsabs.harvard.edu/abs/2013ApJ...771L..17B/abstract",
-        "bibcode": "2013ApJ...771L..17B",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3537,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "TOI-942 c",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 37.0,
-      "new_value": 794.575,
-      "diff_summary": "TOI-942 c pl_bmasse: 37.0 \u2192 794.575",
-      "source_snapshot_date": "2026-10-16",
-      "prev_ref": {
-        "label": "Carleo et al. 2021",
-        "url": "https://ui.adsabs.harvard.edu/abs/2021A&A...645A..71C/abstract",
-        "bibcode": "2021A&A...645A..71C",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Zhou et al. 2021",
-        "url": "https://ui.adsabs.harvard.edu/abs/2021AJ....161....2Z/abstract",
-        "bibcode": "2021AJ....161....2Z",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3520,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "TOI-2158 b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 260.61929374,
-      "new_value": 276.51071409,
-      "diff_summary": "TOI-2158 b pl_bmasse: 260.61929374 \u2192 276.51071409",
-      "source_snapshot_date": "2026-10-16",
-      "prev_ref": {
-        "label": "Knudstrup et al. 2022",
-        "url": "https://ui.adsabs.harvard.edu/abs/2022A&A...667A..22K/abstract",
-        "bibcode": "2022A&A...667A..22K",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Knudstrup et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260930915K/abstract",
-        "bibcode": "2026arXiv260930915K",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3498,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "HD 65216 c",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_rade",
-      "field_tier": "A",
-      "prev_value": 13.4,
-      "new_value": 13.1,
-      "diff_summary": "HD 65216 c pl_rade: 13.4 \u2192 13.1",
-      "source_snapshot_date": "2026-10-16",
-      "prev_ref": {
-        "label": "Calculated Value",
-        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html",
-        "bibcode": null,
-        "kind": "calculated",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Calculated Value",
-        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html",
-        "bibcode": null,
-        "kind": "calculated",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3499,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "HD 65216 c",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 645.1949,
-      "new_value": 1055.19031124,
-      "diff_summary": "HD 65216 c pl_bmasse: 645.1949 \u2192 1055.19031124",
-      "source_snapshot_date": "2026-10-16",
-      "prev_ref": {
-        "label": "Wittenmyer et al. 2019",
-        "url": "https://ui.adsabs.harvard.edu/abs/2019MNRAS.484.5859W/abstract",
-        "bibcode": "2019MNRAS.484.5859W",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Wallace et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv261002783W/abstract",
-        "bibcode": "2026arXiv261002783W",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3506,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "Kepler-281 c",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 161.124,
-      "new_value": 69.6183,
-      "diff_summary": "Kepler-281 c pl_bmasse: 161.124 \u2192 69.6183",
-      "source_snapshot_date": "2026-10-16",
-      "prev_ref": {
-        "label": "Ofir et al. 2025",
-        "url": "https://ui.adsabs.harvard.edu/abs/2025AJ....169...90O/abstract",
-        "bibcode": "2025AJ....169...90O",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Ofir et al. 2025",
-        "url": "https://ui.adsabs.harvard.edu/abs/2025AJ....169...90O/abstract",
-        "bibcode": "2025AJ....169...90O",
-        "kind": "paper",
         "role": "source"
       }
     },
@@ -674,6 +596,84 @@
         "label": "Knudstrup et al. 2026",
         "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260930915K/abstract",
         "bibcode": "2026arXiv260930915K",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3520,
+      "observed_at": "2026-10-16T06:03:01.447470+00:00",
+      "pl_name": "TOI-2158 b",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_bmasse",
+      "field_tier": "A",
+      "prev_value": 260.61929374,
+      "new_value": 276.51071409,
+      "diff_summary": "TOI-2158 b pl_bmasse: 260.61929374 \u2192 276.51071409",
+      "source_snapshot_date": "2026-10-16",
+      "prev_ref": {
+        "label": "Knudstrup et al. 2022",
+        "url": "https://ui.adsabs.harvard.edu/abs/2022A&A...667A..22K/abstract",
+        "bibcode": "2022A&A...667A..22K",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Knudstrup et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260930915K/abstract",
+        "bibcode": "2026arXiv260930915K",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3537,
+      "observed_at": "2026-10-16T06:03:01.447470+00:00",
+      "pl_name": "TOI-942 c",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_bmasse",
+      "field_tier": "A",
+      "prev_value": 37.0,
+      "new_value": 794.575,
+      "diff_summary": "TOI-942 c pl_bmasse: 37.0 \u2192 794.575",
+      "source_snapshot_date": "2026-10-16",
+      "prev_ref": {
+        "label": "Carleo et al. 2021",
+        "url": "https://ui.adsabs.harvard.edu/abs/2021A&A...645A..71C/abstract",
+        "bibcode": "2021A&A...645A..71C",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Zhou et al. 2021",
+        "url": "https://ui.adsabs.harvard.edu/abs/2021AJ....161....2Z/abstract",
+        "bibcode": "2021AJ....161....2Z",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3539,
+      "observed_at": "2026-10-16T06:03:01.447470+00:00",
+      "pl_name": "kap CrB b",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_bmasse",
+      "field_tier": "A",
+      "prev_value": 689.6911,
+      "new_value": 591.1638,
+      "diff_summary": "kap CrB b pl_bmasse: 689.6911 \u2192 591.1638",
+      "source_snapshot_date": "2026-10-16",
+      "prev_ref": {
+        "label": "Baines et al. 2013",
+        "url": "https://ui.adsabs.harvard.edu/abs/2013ApJ...771L..17B/abstract",
+        "bibcode": "2013ApJ...771L..17B",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Baines et al. 2013",
+        "url": "https://ui.adsabs.harvard.edu/abs/2013ApJ...771L..17B/abstract",
+        "bibcode": "2013ApJ...771L..17B",
         "kind": "paper",
         "role": "source"
       }
@@ -1921,6 +1921,52 @@
       }
     },
     {
+      "change_id": 3466,
+      "observed_at": "2026-10-09T06:02:58.139753+00:00",
+      "pl_name": "TOI-5968 b",
+      "change_type": "NEW",
+      "field_name": null,
+      "field_tier": null,
+      "prev_value": null,
+      "new_value": {
+        "pl_eqt": 1180.0,
+        "st_lum": 0.09818,
+        "st_rad": 1.05723,
+        "pl_dens": 2.17,
+        "pl_name": "TOI-5968 b",
+        "pl_rade": 2.69,
+        "st_dist": null,
+        "st_mass": 1.085,
+        "st_teff": 5940.0,
+        "sy_dist": 122.831,
+        "sy_pnum": 1,
+        "sy_snum": 1,
+        "hostname": "TOI-5968",
+        "pl_insol": 322.574,
+        "disc_year": 2026,
+        "pl_bmasse": 7.7,
+        "pl_orbper": 9.21504,
+        "pl_orbsmax": null,
+        "pl_orbeccen": 0.0,
+        "st_spectype": null,
+        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
+        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
+        "disc_telescope": "0.1 m TESS Telescope",
+        "disc_instrument": "TESS CCD Array",
+        "discoverymethod": "Transit"
+      },
+      "diff_summary": "New planet: TOI-5968 b",
+      "source_snapshot_date": "2026-10-09",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Collier et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
+        "bibcode": "2026arXiv260821560C",
+        "kind": "paper",
+        "role": "discovery"
+      }
+    },
+    {
       "change_id": 3467,
       "observed_at": "2026-10-09T06:02:58.139753+00:00",
       "pl_name": "TOI-5997 b",
@@ -2841,52 +2887,6 @@
       }
     },
     {
-      "change_id": 3487,
-      "observed_at": "2026-10-09T06:02:58.139753+00:00",
-      "pl_name": "TOI-797 b",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": 729.35,
-        "st_lum": -1.46571,
-        "st_rad": 0.473702,
-        "pl_dens": 5.96,
-        "pl_name": "TOI-797 b",
-        "pl_rade": 1.21,
-        "st_dist": null,
-        "st_mass": 0.471474,
-        "st_teff": 3607.0,
-        "sy_dist": 56.1927,
-        "sy_pnum": 1,
-        "sy_snum": 1,
-        "hostname": "TOI-797",
-        "pl_insol": 66.8766,
-        "disc_year": 2026,
-        "pl_bmasse": 1.92,
-        "pl_orbper": 1.80079489,
-        "pl_orbsmax": null,
-        "pl_orbeccen": 0.0,
-        "st_spectype": null,
-        "disc_refname": "<a refstr=COLLIER_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract target=ref>Collier et al. 2026</a>",
-        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
-        "disc_telescope": "0.1 m TESS Telescope",
-        "disc_instrument": "TESS CCD Array",
-        "discoverymethod": "Transit"
-      },
-      "diff_summary": "New planet: TOI-797 b",
-      "source_snapshot_date": "2026-10-09",
-      "prev_ref": null,
-      "new_ref": {
-        "label": "Collier et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
-        "bibcode": "2026arXiv260821560C",
-        "kind": "paper",
-        "role": "discovery"
-      }
-    },
-    {
       "change_id": 3488,
       "observed_at": "2026-10-09T06:02:58.139753+00:00",
       "pl_name": "TOI-873 b",
@@ -2933,31 +2933,31 @@
       }
     },
     {
-      "change_id": 3466,
+      "change_id": 3487,
       "observed_at": "2026-10-09T06:02:58.139753+00:00",
-      "pl_name": "TOI-5968 b",
+      "pl_name": "TOI-797 b",
       "change_type": "NEW",
       "field_name": null,
       "field_tier": null,
       "prev_value": null,
       "new_value": {
-        "pl_eqt": 1180.0,
-        "st_lum": 0.09818,
-        "st_rad": 1.05723,
-        "pl_dens": 2.17,
-        "pl_name": "TOI-5968 b",
-        "pl_rade": 2.69,
+        "pl_eqt": 729.35,
+        "st_lum": -1.46571,
+        "st_rad": 0.473702,
+        "pl_dens": 5.96,
+        "pl_name": "TOI-797 b",
+        "pl_rade": 1.21,
         "st_dist": null,
-        "st_mass": 1.085,
-        "st_teff": 5940.0,
-        "sy_dist": 122.831,
+        "st_mass": 0.471474,
+        "st_teff": 3607.0,
+        "sy_dist": 56.1927,
         "sy_pnum": 1,
         "sy_snum": 1,
-        "hostname": "TOI-5968",
-        "pl_insol": 322.574,
+        "hostname": "TOI-797",
+        "pl_insol": 66.8766,
         "disc_year": 2026,
-        "pl_bmasse": 7.7,
-        "pl_orbper": 9.21504,
+        "pl_bmasse": 1.92,
+        "pl_orbper": 1.80079489,
         "pl_orbsmax": null,
         "pl_orbeccen": 0.0,
         "st_spectype": null,
@@ -2967,7 +2967,7 @@
         "disc_instrument": "TESS CCD Array",
         "discoverymethod": "Transit"
       },
-      "diff_summary": "New planet: TOI-5968 b",
+      "diff_summary": "New planet: TOI-797 b",
       "source_snapshot_date": "2026-10-09",
       "prev_ref": null,
       "new_ref": {
@@ -3894,248 +3894,6 @@
         "label": "Collier et al. 2026",
         "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260821560C/abstract",
         "bibcode": "2026arXiv260821560C",
-        "kind": "paper",
-        "role": "discovery"
-      }
-    },
-    {
-      "change_id": 3403,
-      "observed_at": "2026-10-02T06:02:33.619810+00:00",
-      "pl_name": "HIP 67522 c",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 48.3,
-      "new_value": 22.0,
-      "diff_summary": "HIP 67522 c pl_bmasse: 48.3 \u2192 22.0",
-      "source_snapshot_date": "2026-10-02",
-      "prev_ref": {
-        "label": "Calculated Value",
-        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html",
-        "bibcode": null,
-        "kind": "calculated",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Chakraborty et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260618045C/abstract",
-        "bibcode": "2026arXiv260618045C",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3406,
-      "observed_at": "2026-10-02T06:02:33.619810+00:00",
-      "pl_name": "TOI-2427 b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_rade",
-      "field_tier": "A",
-      "prev_value": 1.8,
-      "new_value": 1.64,
-      "diff_summary": "TOI-2427 b pl_rade: 1.8 \u2192 1.64",
-      "source_snapshot_date": "2026-10-02",
-      "prev_ref": {
-        "label": "Giacalone et al. 2022",
-        "url": "https://ui.adsabs.harvard.edu/abs/2022AJ....163...99G/abstract",
-        "bibcode": "2022AJ....163...99G",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Schmerling et al. 2025",
-        "url": "https://ui.adsabs.harvard.edu/abs/2025A&A...699A.185S/abstract",
-        "bibcode": "2025A&A...699A.185S",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3407,
-      "observed_at": "2026-10-02T06:02:33.619810+00:00",
-      "pl_name": "TOI-2427 b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 3.89,
-      "new_value": 5.69,
-      "diff_summary": "TOI-2427 b pl_bmasse: 3.89 \u2192 5.69",
-      "source_snapshot_date": "2026-10-02",
-      "prev_ref": {
-        "label": "Calculated Value",
-        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html",
-        "bibcode": null,
-        "kind": "calculated",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Schmerling et al. 2025",
-        "url": "https://ui.adsabs.harvard.edu/abs/2025A&A...699A.185S/abstract",
-        "bibcode": "2025A&A...699A.185S",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3401,
-      "observed_at": "2026-10-02T06:02:33.619810+00:00",
-      "pl_name": "HIP 67522 b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 71.4,
-      "new_value": 13.8,
-      "diff_summary": "HIP 67522 b pl_bmasse: 71.4 \u2192 13.8",
-      "source_snapshot_date": "2026-10-02",
-      "prev_ref": {
-        "label": "Calculated Value",
-        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html",
-        "bibcode": null,
-        "kind": "calculated",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Chakraborty et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260618045C/abstract",
-        "bibcode": "2026arXiv260618045C",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3416,
-      "observed_at": "2026-10-02T06:02:33.619810+00:00",
-      "pl_name": "TOI-2427 c",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": 729.62,
-        "st_lum": -0.95861,
-        "st_rad": 0.648,
-        "pl_dens": 2.47,
-        "pl_name": "TOI-2427 c",
-        "pl_rade": 2.43,
-        "st_dist": null,
-        "st_mass": 0.639,
-        "st_teff": 4203.0,
-        "sy_dist": 28.5147,
-        "sy_pnum": 2,
-        "sy_snum": 1,
-        "hostname": "TOI-2427",
-        "pl_insol": 44.0,
-        "disc_year": 2025,
-        "pl_bmasse": 6.46,
-        "pl_orbper": 5.15,
-        "pl_orbsmax": 0.05,
-        "pl_orbeccen": 0.089,
-        "st_spectype": "K7 V",
-        "disc_refname": "<a refstr=SCHMERLING_ET_AL_2025 href=https://ui.adsabs.harvard.edu/abs/2025A&A...699A.185S/abstract target=ref>Schmerling et al. 2025</a>",
-        "disc_facility": "La Silla Observatory",
-        "disc_telescope": "3.6 m ESO Telescope",
-        "disc_instrument": "HARPS Spectrograph",
-        "discoverymethod": "Radial Velocity"
-      },
-      "diff_summary": "New planet: TOI-2427 c",
-      "source_snapshot_date": "2026-10-02",
-      "prev_ref": null,
-      "new_ref": {
-        "label": "Schmerling et al. 2025",
-        "url": "https://ui.adsabs.harvard.edu/abs/2025A&A...699A.185S/abstract",
-        "bibcode": "2025A&A...699A.185S",
-        "kind": "paper",
-        "role": "discovery"
-      }
-    },
-    {
-      "change_id": 3400,
-      "observed_at": "2026-10-02T06:02:33.619810+00:00",
-      "pl_name": "HD 148797 c",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": 650.0,
-        "st_lum": 0.58206,
-        "st_rad": 1.547,
-        "pl_dens": 0.377,
-        "pl_name": "HD 148797 c",
-        "pl_rade": 8.3618996,
-        "st_dist": null,
-        "st_mass": 1.272,
-        "st_teff": 6441.0,
-        "sy_dist": 172.374,
-        "sy_pnum": 2,
-        "sy_snum": 1,
-        "hostname": "HD 148797",
-        "pl_insol": 30.5519,
-        "disc_year": 2026,
-        "pl_bmasse": 39.6,
-        "pl_orbper": 68.1514539,
-        "pl_orbsmax": 0.3536,
-        "pl_orbeccen": 0.126,
-        "st_spectype": "F6",
-        "disc_refname": "<a refstr=ALMENARA_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260709656A/abstract target=ref>Almenara et al. 2026</a>",
-        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
-        "disc_telescope": "0.1 m TESS Telescope",
-        "disc_instrument": "TESS CCD Array",
-        "discoverymethod": "Transit"
-      },
-      "diff_summary": "New planet: HD 148797 c",
-      "source_snapshot_date": "2026-10-02",
-      "prev_ref": null,
-      "new_ref": {
-        "label": "Almenara et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260709656A/abstract",
-        "bibcode": "2026arXiv260709656A",
-        "kind": "paper",
-        "role": "discovery"
-      }
-    },
-    {
-      "change_id": 3399,
-      "observed_at": "2026-10-02T06:02:33.619810+00:00",
-      "pl_name": "HD 148797 b",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": 762.0,
-        "st_lum": 0.58206,
-        "st_rad": 1.547,
-        "pl_dens": 0.39,
-        "pl_name": "HD 148797 b",
-        "pl_rade": 8.25,
-        "st_dist": null,
-        "st_mass": 1.272,
-        "st_teff": 6441.0,
-        "sy_dist": 172.374,
-        "sy_pnum": 2,
-        "sy_snum": 1,
-        "hostname": "HD 148797",
-        "pl_insol": 57.926,
-        "disc_year": 2026,
-        "pl_bmasse": 39.3,
-        "pl_orbper": 42.0988331,
-        "pl_orbsmax": 0.2568,
-        "pl_orbeccen": 0.153,
-        "st_spectype": "F6",
-        "disc_refname": "<a refstr=ALMENARA_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260709656A/abstract target=ref>Almenara et al. 2026</a>",
-        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
-        "disc_telescope": "0.1 m TESS Telescope",
-        "disc_instrument": "TESS CCD Array",
-        "discoverymethod": "Transit"
-      },
-      "diff_summary": "New planet: HD 148797 b",
-      "source_snapshot_date": "2026-10-02",
-      "prev_ref": null,
-      "new_ref": {
-        "label": "Almenara et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260709656A/abstract",
-        "bibcode": "2026arXiv260709656A",
         "kind": "paper",
         "role": "discovery"
       }

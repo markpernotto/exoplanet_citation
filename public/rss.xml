@@ -5,13 +5,259 @@
     <link>https://github.com/markpernotto/exoplanet_citation</link>
     <description>Newly confirmed and revised exoplanet records from the NASA Exoplanet Archive, diffed nightly. Surfaces NEW / REMOVED / Tier-A parameter changes only.</description>
     <language>en-us</language>
-    <lastBuildDate>Wed, 11 Nov 2026 06:05:22 +0000</lastBuildDate>
+    <lastBuildDate>Thu, 12 Nov 2026 06:06:17 +0000</lastBuildDate>
     <ttl>1440</ttl>
     <item>
-      <title>Parameter update — BD+20 594 b: pl_rade</title>
-      <guid isPermaLink="false">change-3542</guid>
+      <title>Parameter update — Gaia-4 b: pl_orbper</title>
+      <guid isPermaLink="false">change-3682</guid>
+      <pubDate>Thu, 12 Nov 2026 06:03:14 +0000</pubDate>
+      <description>Gaia-4 b pl_orbper: 571.3 → 588.58. Source: Barbato et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026A&amp;A...712A.213B/abstract). Previously: Stefánsson et al. 2025</description>
+    </item>
+    <item>
+      <title>Parameter update — Gaia-4 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3683</guid>
+      <pubDate>Thu, 12 Nov 2026 06:03:14 +0000</pubDate>
+      <description>Gaia-4 b pl_bmasse: 3750.3752026 → 3626.42212387. Source: Barbato et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026A&amp;A...712A.213B/abstract). Previously: Stefánsson et al. 2025</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 219134 b: pl_rade</title>
+      <guid isPermaLink="false">change-3696</guid>
+      <pubDate>Thu, 12 Nov 2026 06:03:14 +0000</pubDate>
+      <description>HD 219134 b pl_rade: 1.602 → 1.554. Source: Bétrisey et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261013200B/abstract). Previously: Gillon et al. 2017</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 219134 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3697</guid>
+      <pubDate>Thu, 12 Nov 2026 06:03:14 +0000</pubDate>
+      <description>HD 219134 b pl_bmasse: 4.74 → 4.608. Source: Bétrisey et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261013200B/abstract). Previously: Gillon et al. 2017</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 219134 c: pl_rade</title>
+      <guid isPermaLink="false">change-3705</guid>
+      <pubDate>Thu, 12 Nov 2026 06:03:14 +0000</pubDate>
+      <description>HD 219134 c pl_rade: 1.511 → 1.465. Source: Bétrisey et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261013200B/abstract). Previously: Gillon et al. 2017</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 219134 c: pl_bmasse</title>
+      <guid isPermaLink="false">change-3706</guid>
+      <pubDate>Thu, 12 Nov 2026 06:03:14 +0000</pubDate>
+      <description>HD 219134 c pl_bmasse: 4.36 → 4.244. Source: Bétrisey et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261013200B/abstract). Previously: Gillon et al. 2017</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 219134 d: pl_rade</title>
+      <guid isPermaLink="false">change-3714</guid>
+      <pubDate>Thu, 12 Nov 2026 06:03:14 +0000</pubDate>
+      <description>HD 219134 d pl_rade: 1.61 → 1.554. Source: Bétrisey et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261013200B/abstract). Previously: Gillon et al. 2017</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 219134 f: pl_rade</title>
+      <guid isPermaLink="false">change-3721</guid>
+      <pubDate>Thu, 12 Nov 2026 06:03:14 +0000</pubDate>
+      <description>HD 219134 f pl_rade: 1.31 → 1.262. Source: Bétrisey et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261013200B/abstract). Previously: Gillon et al. 2017</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: HIP 105707 b</title>
+      <guid isPermaLink="false">change-3728</guid>
+      <pubDate>Thu, 12 Nov 2026 06:03:14 +0000</pubDate>
+      <description>New planet: HIP 105707 b. Discovery reference: Barbato et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026A&amp;A...712A.213B/abstract)</description>
+    </item>
+    <item>
+      <title>Parameter update — K2-233 b: pl_rade</title>
+      <guid isPermaLink="false">change-3736</guid>
+      <pubDate>Thu, 12 Nov 2026 06:03:14 +0000</pubDate>
+      <description>K2-233 b pl_rade: 1.315 → 1.248. Source: Fardella et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261009954F/abstract). Previously: Barragán et al. 2023</description>
+    </item>
+    <item>
+      <title>Parameter update — K2-233 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3737</guid>
+      <pubDate>Thu, 12 Nov 2026 06:03:14 +0000</pubDate>
+      <description>K2-233 b pl_bmasse: 2.4 → 3.4. Source: Fardella et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261009954F/abstract). Previously: Barragán et al. 2023</description>
+    </item>
+    <item>
+      <title>Parameter update — K2-233 c: pl_rade</title>
+      <guid isPermaLink="false">change-3745</guid>
+      <pubDate>Thu, 12 Nov 2026 06:03:14 +0000</pubDate>
+      <description>K2-233 c pl_rade: 1.272 → 1.186. Source: Fardella et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261009954F/abstract). Previously: Barragán et al. 2023</description>
+    </item>
+    <item>
+      <title>Parameter update — K2-233 c: pl_bmasse</title>
+      <guid isPermaLink="false">change-3746</guid>
+      <pubDate>Thu, 12 Nov 2026 06:03:14 +0000</pubDate>
+      <description>K2-233 c pl_bmasse: 4.6 → 4.7. Source: Fardella et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261009954F/abstract). Previously: Barragán et al. 2023</description>
+    </item>
+    <item>
+      <title>Parameter update — K2-233 d: pl_rade</title>
+      <guid isPermaLink="false">change-3754</guid>
+      <pubDate>Thu, 12 Nov 2026 06:03:14 +0000</pubDate>
+      <description>K2-233 d pl_rade: 2.363 → 2.301. Source: Fardella et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261009954F/abstract). Previously: Barragán et al. 2023</description>
+    </item>
+    <item>
+      <title>Parameter update — K2-233 d: pl_bmasse</title>
+      <guid isPermaLink="false">change-3755</guid>
+      <pubDate>Thu, 12 Nov 2026 06:03:14 +0000</pubDate>
+      <description>K2-233 d pl_bmasse: 10.3 → 5.6. Source: Fardella et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261009954F/abstract). Previously: Barragán et al. 2023</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: KMT-2026-BLG-0083L b</title>
+      <guid isPermaLink="false">change-3763</guid>
+      <pubDate>Thu, 12 Nov 2026 06:03:14 +0000</pubDate>
+      <description>New planet: KMT-2026-BLG-0083L b. Discovery reference: Han et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026PASP..138i4404H/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: KMT-2026-BLG-0083L c</title>
+      <guid isPermaLink="false">change-3764</guid>
+      <pubDate>Thu, 12 Nov 2026 06:03:14 +0000</pubDate>
+      <description>New planet: KMT-2026-BLG-0083L c. Discovery reference: Han et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026PASP..138i4404H/abstract)</description>
+    </item>
+    <item>
+      <title>Parameter update — TIC 219893931 b: pl_rade</title>
+      <guid isPermaLink="false">change-3770</guid>
+      <pubDate>Thu, 12 Nov 2026 06:03:14 +0000</pubDate>
+      <description>TIC 219893931 b pl_rade: 2.92 → 3.03. Source: Lastovka et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261028518L/abstract). Previously: Hotnisky et al. 2026</description>
+    </item>
+    <item>
+      <title>Parameter update — TIC 219893931 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3771</guid>
+      <pubDate>Thu, 12 Nov 2026 06:03:14 +0000</pubDate>
+      <description>TIC 219893931 b pl_bmasse: 8.85 → 9.43. Source: Calculated by NASA Exoplanet Archive (https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TIC 220432308 b</title>
+      <guid isPermaLink="false">change-3777</guid>
+      <pubDate>Thu, 12 Nov 2026 06:03:14 +0000</pubDate>
+      <description>New planet: TIC 220432308 b. Discovery reference: Lastovka et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261028518L/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-4596 b</title>
+      <guid isPermaLink="false">change-3781</guid>
+      <pubDate>Thu, 12 Nov 2026 06:03:14 +0000</pubDate>
+      <description>New planet: TOI-4596 b. Discovery reference: Handley et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026ApJ..1011...42H/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TYC 4998-437-1 b</title>
+      <guid isPermaLink="false">change-3787</guid>
+      <pubDate>Thu, 12 Nov 2026 06:03:14 +0000</pubDate>
+      <description>New planet: TYC 4998-437-1 b. Discovery reference: Barbato et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026A&amp;A...712A.213B/abstract)</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-32 e: pl_bmasse</title>
+      <guid isPermaLink="false">change-3652</guid>
       <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
-      <description>BD+20 594 b pl_rade: 2.57807 → 2.23. Source: Hobson et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026A&amp;A...711A.198H/abstract). Previously: Stassun et al. 2017</description>
+      <description>Kepler-32 e pl_bmasse: 1.11884 → 4.08181. Source: Ofir et al. 2025 (https://ui.adsabs.harvard.edu/abs/2025AJ....169...90O/abstract)</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-32 f: pl_bmasse</title>
+      <guid isPermaLink="false">change-3653</guid>
+      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
+      <description>Kepler-32 f pl_bmasse: 1862.11 → 969.228. Source: Ofir et al. 2025 (https://ui.adsabs.harvard.edu/abs/2025AJ....169...90O/abstract)</description>
+    </item>
+    <item>
+      <title>Parameter update — Kepler-725 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3654</guid>
+      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
+      <description>Kepler-725 b pl_bmasse: 521.76244 → 666.95412. Source: Lammers &amp; Winn 2026 (https://ui.adsabs.harvard.edu/abs/2026AJ....171..345L/abstract)</description>
+    </item>
+    <item>
+      <title>Parameter update — MOA-2011-BLG-293L b: pl_orbper</title>
+      <guid isPermaLink="false">change-3657</guid>
+      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
+      <description>MOA-2011-BLG-293L b pl_orbper: 550.0 → 3000.0. Source: Yee et al. 2012 (https://ui.adsabs.harvard.edu/abs/2012ApJ...755..102Y/abstract)</description>
+    </item>
+    <item>
+      <title>Parameter update — TIC 393818343 b: pl_rade</title>
+      <guid isPermaLink="false">change-3659</guid>
+      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
+      <description>TIC 393818343 b pl_rade: 12.18416202 → 12.02723629. Source: Heidari et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261008584H/abstract). Previously: Sgro et al. 2024</description>
+    </item>
+    <item>
+      <title>Parameter update — TIC 393818343 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3660</guid>
+      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
+      <description>TIC 393818343 b pl_bmasse: 1379.37528638 → 1353.94901382. Source: Heidari et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261008584H/abstract). Previously: Sgro et al. 2024</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-1355 b</title>
+      <guid isPermaLink="false">change-3667</guid>
+      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
+      <description>New planet: TOI-1355 b. Discovery reference: Watanabe et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260817387W/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-214 b</title>
+      <guid isPermaLink="false">change-3668</guid>
+      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
+      <description>New planet: TOI-214 b. Discovery reference: Hobson et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026A&amp;A...711A.198H/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-214 c</title>
+      <guid isPermaLink="false">change-3669</guid>
+      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
+      <description>New planet: TOI-214 c. Discovery reference: Hobson et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026A&amp;A...711A.198H/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-5217 A b</title>
+      <guid isPermaLink="false">change-3671</guid>
+      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
+      <description>New planet: TOI-5217 A b. Discovery reference: Heidari et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261008584H/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-5893 b</title>
+      <guid isPermaLink="false">change-3673</guid>
+      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
+      <description>New planet: TOI-5893 b. Discovery reference: Heidari et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261008584H/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-6457 b</title>
+      <guid isPermaLink="false">change-3674</guid>
+      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
+      <description>New planet: TOI-6457 b. Discovery reference: Heidari et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261008584H/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-6649 b</title>
+      <guid isPermaLink="false">change-3675</guid>
+      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
+      <description>New planet: TOI-6649 b. Discovery reference: Heidari et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261008584H/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-6842 A b</title>
+      <guid isPermaLink="false">change-3676</guid>
+      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
+      <description>New planet: TOI-6842 A b. Discovery reference: Heidari et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261008584H/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-7025 b</title>
+      <guid isPermaLink="false">change-3677</guid>
+      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
+      <description>New planet: TOI-7025 b. Discovery reference: Heidari et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261008584H/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-713 b</title>
+      <guid isPermaLink="false">change-3678</guid>
+      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
+      <description>New planet: TOI-713 b. Discovery reference: Hobson et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026A&amp;A...711A.198H/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-713 c</title>
+      <guid isPermaLink="false">change-3679</guid>
+      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
+      <description>New planet: TOI-713 c. Discovery reference: Hobson et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026A&amp;A...711A.198H/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-7176 b</title>
+      <guid isPermaLink="false">change-3680</guid>
+      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
+      <description>New planet: TOI-7176 b. Discovery reference: Heidari et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261008584H/abstract)</description>
+    </item>
+    <item>
+      <title>Parameter update — TOI-942 c: pl_bmasse</title>
+      <guid isPermaLink="false">change-3681</guid>
+      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
+      <description>TOI-942 c pl_bmasse: 794.575 → 37.0. Source: Carleo et al. 2021 (https://ui.adsabs.harvard.edu/abs/2021A&amp;A...645A..71C/abstract). Previously: Zhou et al. 2021</description>
+    </item>
+    <item>
+      <title>Parameter update — K2-62 c: pl_rade</title>
+      <guid isPermaLink="false">change-3643</guid>
+      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
+      <description>K2-62 c pl_rade: 1.99 → 2.17. Source: Hobson et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026A&amp;A...711A.198H/abstract). Previously: Howard et al. 2025</description>
     </item>
     <item>
       <title>Parameter update — BD+20 594 b: pl_bmasse</title>
@@ -128,130 +374,16 @@
       <description>K2-62 b pl_bmasse: 4.74 → 4.0. Source: Hobson et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026A&amp;A...711A.198H/abstract). Previously: Calculated Value</description>
     </item>
     <item>
-      <title>Parameter update — K2-62 c: pl_rade</title>
-      <guid isPermaLink="false">change-3643</guid>
+      <title>Parameter update — BD+20 594 b: pl_rade</title>
+      <guid isPermaLink="false">change-3542</guid>
       <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
-      <description>K2-62 c pl_rade: 1.99 → 2.17. Source: Hobson et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026A&amp;A...711A.198H/abstract). Previously: Howard et al. 2025</description>
+      <description>BD+20 594 b pl_rade: 2.57807 → 2.23. Source: Hobson et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026A&amp;A...711A.198H/abstract). Previously: Stassun et al. 2017</description>
     </item>
     <item>
       <title>Parameter update — K2-62 c: pl_bmasse</title>
       <guid isPermaLink="false">change-3644</guid>
       <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
       <description>K2-62 c pl_bmasse: 4.62 → 6.6. Source: Hobson et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026A&amp;A...711A.198H/abstract). Previously: Calculated Value</description>
-    </item>
-    <item>
-      <title>Parameter update — Kepler-32 e: pl_bmasse</title>
-      <guid isPermaLink="false">change-3652</guid>
-      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
-      <description>Kepler-32 e pl_bmasse: 1.11884 → 4.08181. Source: Ofir et al. 2025 (https://ui.adsabs.harvard.edu/abs/2025AJ....169...90O/abstract)</description>
-    </item>
-    <item>
-      <title>Parameter update — Kepler-32 f: pl_bmasse</title>
-      <guid isPermaLink="false">change-3653</guid>
-      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
-      <description>Kepler-32 f pl_bmasse: 1862.11 → 969.228. Source: Ofir et al. 2025 (https://ui.adsabs.harvard.edu/abs/2025AJ....169...90O/abstract)</description>
-    </item>
-    <item>
-      <title>Parameter update — Kepler-725 b: pl_bmasse</title>
-      <guid isPermaLink="false">change-3654</guid>
-      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
-      <description>Kepler-725 b pl_bmasse: 521.76244 → 666.95412. Source: Lammers &amp; Winn 2026 (https://ui.adsabs.harvard.edu/abs/2026AJ....171..345L/abstract)</description>
-    </item>
-    <item>
-      <title>Parameter update — MOA-2011-BLG-293L b: pl_orbper</title>
-      <guid isPermaLink="false">change-3657</guid>
-      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
-      <description>MOA-2011-BLG-293L b pl_orbper: 550.0 → 3000.0. Source: Yee et al. 2012 (https://ui.adsabs.harvard.edu/abs/2012ApJ...755..102Y/abstract)</description>
-    </item>
-    <item>
-      <title>Parameter update — TIC 393818343 b: pl_rade</title>
-      <guid isPermaLink="false">change-3659</guid>
-      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
-      <description>TIC 393818343 b pl_rade: 12.18416202 → 12.02723629. Source: Heidari et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261008584H/abstract). Previously: Sgro et al. 2024</description>
-    </item>
-    <item>
-      <title>Parameter update — TIC 393818343 b: pl_bmasse</title>
-      <guid isPermaLink="false">change-3660</guid>
-      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
-      <description>TIC 393818343 b pl_bmasse: 1379.37528638 → 1353.94901382. Source: Heidari et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261008584H/abstract). Previously: Sgro et al. 2024</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-1355 b</title>
-      <guid isPermaLink="false">change-3667</guid>
-      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
-      <description>New planet: TOI-1355 b. Discovery reference: Watanabe et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260817387W/abstract)</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-214 b</title>
-      <guid isPermaLink="false">change-3668</guid>
-      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
-      <description>New planet: TOI-214 b. Discovery reference: Hobson et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026A&amp;A...711A.198H/abstract)</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-214 c</title>
-      <guid isPermaLink="false">change-3669</guid>
-      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
-      <description>New planet: TOI-214 c. Discovery reference: Hobson et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026A&amp;A...711A.198H/abstract)</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-5217 A b</title>
-      <guid isPermaLink="false">change-3671</guid>
-      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
-      <description>New planet: TOI-5217 A b. Discovery reference: Heidari et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261008584H/abstract)</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-5893 b</title>
-      <guid isPermaLink="false">change-3673</guid>
-      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
-      <description>New planet: TOI-5893 b. Discovery reference: Heidari et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261008584H/abstract)</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-6457 b</title>
-      <guid isPermaLink="false">change-3674</guid>
-      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
-      <description>New planet: TOI-6457 b. Discovery reference: Heidari et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261008584H/abstract)</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-6649 b</title>
-      <guid isPermaLink="false">change-3675</guid>
-      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
-      <description>New planet: TOI-6649 b. Discovery reference: Heidari et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261008584H/abstract)</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-6842 A b</title>
-      <guid isPermaLink="false">change-3676</guid>
-      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
-      <description>New planet: TOI-6842 A b. Discovery reference: Heidari et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261008584H/abstract)</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-7025 b</title>
-      <guid isPermaLink="false">change-3677</guid>
-      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
-      <description>New planet: TOI-7025 b. Discovery reference: Heidari et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261008584H/abstract)</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-713 b</title>
-      <guid isPermaLink="false">change-3678</guid>
-      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
-      <description>New planet: TOI-713 b. Discovery reference: Hobson et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026A&amp;A...711A.198H/abstract)</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-713 c</title>
-      <guid isPermaLink="false">change-3679</guid>
-      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
-      <description>New planet: TOI-713 c. Discovery reference: Hobson et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026A&amp;A...711A.198H/abstract)</description>
-    </item>
-    <item>
-      <title>New exoplanet confirmed: TOI-7176 b</title>
-      <guid isPermaLink="false">change-3680</guid>
-      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
-      <description>New planet: TOI-7176 b. Discovery reference: Heidari et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261008584H/abstract)</description>
-    </item>
-    <item>
-      <title>Parameter update — TOI-942 c: pl_bmasse</title>
-      <guid isPermaLink="false">change-3681</guid>
-      <pubDate>Fri, 06 Nov 2026 06:03:17 +0000</pubDate>
-      <description>TOI-942 c pl_bmasse: 794.575 → 37.0. Source: Carleo et al. 2021 (https://ui.adsabs.harvard.edu/abs/2021A&amp;A...645A..71C/abstract). Previously: Zhou et al. 2021</description>
     </item>
     <item>
       <title>Parameter update — HD 65216 c: pl_orbper</title>

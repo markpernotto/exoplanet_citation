@@ -1,16 +1,16 @@
 {
   "feed_version": "1.0",
-  "generated_at": "2026-11-14T06:05:35.951793+00:00",
+  "generated_at": "2026-11-15T06:05:40.579694+00:00",
   "freshness": {
-    "snapshot_date": "2026-11-14",
-    "source_retrieved_at": "2026-11-14T06:01:48.155538+00:00",
+    "snapshot_date": "2026-11-15",
+    "source_retrieved_at": "2026-11-15T06:01:46.661674+00:00",
     "freshness_hours": 0.06,
     "slo_freshness_hours": 26,
     "status": "ok",
     "clock": "A (time since last extract)",
     "note": "Clock A approximation. Phase-1.x work upgrades to Clock B (time since upstream last_modified)."
   },
-  "change_count": 84,
+  "change_count": 63,
   "changes": [
     {
       "change_id": 3682,
@@ -702,6 +702,598 @@
         "bibcode": "2026A&A...712A.213B",
         "kind": "paper",
         "role": "discovery"
+      }
+    },
+    {
+      "change_id": 3542,
+      "observed_at": "2026-11-06T06:03:17.724930+00:00",
+      "pl_name": "BD+20 594 b",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_rade",
+      "field_tier": "A",
+      "prev_value": 2.57807,
+      "new_value": 2.23,
+      "diff_summary": "BD+20 594 b pl_rade: 2.57807 \u2192 2.23",
+      "source_snapshot_date": "2026-11-06",
+      "prev_ref": {
+        "label": "Stassun et al. 2017",
+        "url": "https://ui.adsabs.harvard.edu/abs/2017AJ....153..136S/abstract",
+        "bibcode": "2017AJ....153..136S",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Hobson et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
+        "bibcode": "2026A&A...711A.198H",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3543,
+      "observed_at": "2026-11-06T06:03:17.724930+00:00",
+      "pl_name": "BD+20 594 b",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_bmasse",
+      "field_tier": "A",
+      "prev_value": 22.2481,
+      "new_value": 5.2,
+      "diff_summary": "BD+20 594 b pl_bmasse: 22.2481 \u2192 5.2",
+      "source_snapshot_date": "2026-11-06",
+      "prev_ref": {
+        "label": "Stassun et al. 2017",
+        "url": "https://ui.adsabs.harvard.edu/abs/2017AJ....153..136S/abstract",
+        "bibcode": "2017AJ....153..136S",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Hobson et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
+        "bibcode": "2026A&A...711A.198H",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3553,
+      "observed_at": "2026-11-06T06:03:17.724930+00:00",
+      "pl_name": "GJ 1252 b",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_bmasse",
+      "field_tier": "A",
+      "prev_value": 1.32,
+      "new_value": 1.54,
+      "diff_summary": "GJ 1252 b pl_bmasse: 1.32 \u2192 1.54",
+      "source_snapshot_date": "2026-11-06",
+      "prev_ref": {
+        "label": "Luque & Pall\u00e9 2022",
+        "url": "https://ui.adsabs.harvard.edu/abs/2022Sci...377.1211L/abstract",
+        "bibcode": "2022Sci...377.1211L",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Weisserman et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...709A.165W/abstract",
+        "bibcode": "2026A&A...709A.165W",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3557,
+      "observed_at": "2026-11-06T06:03:17.724930+00:00",
+      "pl_name": "GJ 143 b",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_rade",
+      "field_tier": "A",
+      "prev_value": 2.61,
+      "new_value": 2.809,
+      "diff_summary": "GJ 143 b pl_rade: 2.61 \u2192 2.809",
+      "source_snapshot_date": "2026-11-06",
+      "prev_ref": {
+        "label": "Dragomir et al. 2019",
+        "url": "https://ui.adsabs.harvard.edu/abs/2019ApJ...875L...7D/abstract",
+        "bibcode": "2019ApJ...875L...7D",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Hobson et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
+        "bibcode": "2026A&A...711A.198H",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3558,
+      "observed_at": "2026-11-06T06:03:17.724930+00:00",
+      "pl_name": "GJ 143 b",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_bmasse",
+      "field_tier": "A",
+      "prev_value": 22.7,
+      "new_value": 25.9,
+      "diff_summary": "GJ 143 b pl_bmasse: 22.7 \u2192 25.9",
+      "source_snapshot_date": "2026-11-06",
+      "prev_ref": {
+        "label": "Dragomir et al. 2019",
+        "url": "https://ui.adsabs.harvard.edu/abs/2019ApJ...875L...7D/abstract",
+        "bibcode": "2019ApJ...875L...7D",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Hobson et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
+        "bibcode": "2026A&A...711A.198H",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3567,
+      "observed_at": "2026-11-06T06:03:17.724930+00:00",
+      "pl_name": "HD 21749 c",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_rade",
+      "field_tier": "A",
+      "prev_value": 0.892,
+      "new_value": 0.984,
+      "diff_summary": "HD 21749 c pl_rade: 0.892 \u2192 0.984",
+      "source_snapshot_date": "2026-11-06",
+      "prev_ref": {
+        "label": "Dragomir et al. 2019",
+        "url": "https://ui.adsabs.harvard.edu/abs/2019ApJ...875L...7D/abstract",
+        "bibcode": "2019ApJ...875L...7D",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Hobson et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
+        "bibcode": "2026A&A...711A.198H",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3568,
+      "observed_at": "2026-11-06T06:03:17.724930+00:00",
+      "pl_name": "HD 21749 c",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_bmasse",
+      "field_tier": "A",
+      "prev_value": 3.7,
+      "new_value": 1.43,
+      "diff_summary": "HD 21749 c pl_bmasse: 3.7 \u2192 1.43",
+      "source_snapshot_date": "2026-11-06",
+      "prev_ref": {
+        "label": "Dragomir et al. 2019",
+        "url": "https://ui.adsabs.harvard.edu/abs/2019ApJ...875L...7D/abstract",
+        "bibcode": "2019ApJ...875L...7D",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Hobson et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
+        "bibcode": "2026A&A...711A.198H",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3577,
+      "observed_at": "2026-11-06T06:03:17.724930+00:00",
+      "pl_name": "HD 715 b",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_rade",
+      "field_tier": "A",
+      "prev_value": 11.99360935,
+      "new_value": 11.61250401,
+      "diff_summary": "HD 715 b pl_rade: 11.99360935 \u2192 11.61250401",
+      "source_snapshot_date": "2026-11-06",
+      "prev_ref": {
+        "label": "Venner et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026AJ....172..162V/abstract",
+        "bibcode": "2026AJ....172..162V",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Heidari et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv261008584H/abstract",
+        "bibcode": "2026arXiv261008584H",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3578,
+      "observed_at": "2026-11-06T06:03:17.724930+00:00",
+      "pl_name": "HD 715 b",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_bmasse",
+      "field_tier": "A",
+      "prev_value": 201.82103844,
+      "new_value": 199.27841119,
+      "diff_summary": "HD 715 b pl_bmasse: 201.82103844 \u2192 199.27841119",
+      "source_snapshot_date": "2026-11-06",
+      "prev_ref": {
+        "label": "Venner et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026AJ....172..162V/abstract",
+        "bibcode": "2026AJ....172..162V",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Heidari et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv261008584H/abstract",
+        "bibcode": "2026arXiv261008584H",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3587,
+      "observed_at": "2026-11-06T06:03:17.724930+00:00",
+      "pl_name": "HIP 8152 b",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_rade",
+      "field_tier": "A",
+      "prev_value": 2.53625843,
+      "new_value": 2.57,
+      "diff_summary": "HIP 8152 b pl_rade: 2.53625843 \u2192 2.57",
+      "source_snapshot_date": "2026-11-06",
+      "prev_ref": {
+        "label": "Polanski et al. 2024",
+        "url": "https://ui.adsabs.harvard.edu/abs/2024ApJS..272...32P/abstract",
+        "bibcode": "2024ApJS..272...32P",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Hobson et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
+        "bibcode": "2026A&A...711A.198H",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3588,
+      "observed_at": "2026-11-06T06:03:17.724930+00:00",
+      "pl_name": "HIP 8152 b",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_bmasse",
+      "field_tier": "A",
+      "prev_value": 8.9,
+      "new_value": 7.39,
+      "diff_summary": "HIP 8152 b pl_bmasse: 8.9 \u2192 7.39",
+      "source_snapshot_date": "2026-11-06",
+      "prev_ref": {
+        "label": "Polanski et al. 2024",
+        "url": "https://ui.adsabs.harvard.edu/abs/2024ApJS..272...32P/abstract",
+        "bibcode": "2024ApJS..272...32P",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Hobson et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
+        "bibcode": "2026A&A...711A.198H",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3597,
+      "observed_at": "2026-11-06T06:03:17.724930+00:00",
+      "pl_name": "HIP 8152 c",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_rade",
+      "field_tier": "A",
+      "prev_value": 2.52442508,
+      "new_value": 2.48,
+      "diff_summary": "HIP 8152 c pl_rade: 2.52442508 \u2192 2.48",
+      "source_snapshot_date": "2026-11-06",
+      "prev_ref": {
+        "label": "Polanski et al. 2024",
+        "url": "https://ui.adsabs.harvard.edu/abs/2024ApJS..272...32P/abstract",
+        "bibcode": "2024ApJS..272...32P",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Hobson et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
+        "bibcode": "2026A&A...711A.198H",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3598,
+      "observed_at": "2026-11-06T06:03:17.724930+00:00",
+      "pl_name": "HIP 8152 c",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_bmasse",
+      "field_tier": "A",
+      "prev_value": 10.7,
+      "new_value": 9.0,
+      "diff_summary": "HIP 8152 c pl_bmasse: 10.7 \u2192 9.0",
+      "source_snapshot_date": "2026-11-06",
+      "prev_ref": {
+        "label": "Polanski et al. 2024",
+        "url": "https://ui.adsabs.harvard.edu/abs/2024ApJS..272...32P/abstract",
+        "bibcode": "2024ApJS..272...32P",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Hobson et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
+        "bibcode": "2026A&A...711A.198H",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3608,
+      "observed_at": "2026-11-06T06:03:17.724930+00:00",
+      "pl_name": "K2-105 b",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_rade",
+      "field_tier": "A",
+      "prev_value": 3.4,
+      "new_value": 3.145,
+      "diff_summary": "K2-105 b pl_rade: 3.4 \u2192 3.145",
+      "source_snapshot_date": "2026-11-06",
+      "prev_ref": {
+        "label": "Howard et al. 2025",
+        "url": "https://ui.adsabs.harvard.edu/abs/2025ApJS..278...52H/abstract",
+        "bibcode": "2025ApJS..278...52H",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Hobson et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
+        "bibcode": "2026A&A...711A.198H",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3609,
+      "observed_at": "2026-11-06T06:03:17.724930+00:00",
+      "pl_name": "K2-105 b",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_bmasse",
+      "field_tier": "A",
+      "prev_value": 15.4,
+      "new_value": 5.0,
+      "diff_summary": "K2-105 b pl_bmasse: 15.4 \u2192 5.0",
+      "source_snapshot_date": "2026-11-06",
+      "prev_ref": {
+        "label": "Howard et al. 2025",
+        "url": "https://ui.adsabs.harvard.edu/abs/2025ApJS..278...52H/abstract",
+        "bibcode": "2025ApJS..278...52H",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Hobson et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
+        "bibcode": "2026A&A...711A.198H",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3619,
+      "observed_at": "2026-11-06T06:03:17.724930+00:00",
+      "pl_name": "K2-105 c",
+      "change_type": "NEW",
+      "field_name": null,
+      "field_tier": null,
+      "prev_value": null,
+      "new_value": {
+        "pl_eqt": 1037.0,
+        "st_lum": -0.2225,
+        "st_rad": 0.887,
+        "pl_dens": 1.64,
+        "pl_name": "K2-105 c",
+        "pl_rade": 3.34,
+        "st_dist": null,
+        "st_mass": 0.925,
+        "st_teff": 5400.0,
+        "sy_dist": 197.989,
+        "sy_pnum": 2,
+        "sy_snum": 1,
+        "hostname": "K2-105",
+        "pl_insol": 191.6,
+        "disc_year": 2026,
+        "pl_bmasse": 11.1,
+        "pl_orbper": 5.02173,
+        "pl_orbsmax": 0.0559,
+        "pl_orbeccen": 0.0,
+        "st_spectype": "G9 V",
+        "disc_refname": "<a refstr=HOBSON_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract target=ref>Hobson et al. 2026</a>",
+        "disc_facility": "Paranal Observatory",
+        "disc_telescope": "8.2 m ESO VLT UT3 Melipal Telescope",
+        "disc_instrument": "ESPRESSO",
+        "discoverymethod": "Radial Velocity"
+      },
+      "diff_summary": "New planet: K2-105 c",
+      "source_snapshot_date": "2026-11-06",
+      "prev_ref": null,
+      "new_ref": {
+        "label": "Hobson et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
+        "bibcode": "2026A&A...711A.198H",
+        "kind": "paper",
+        "role": "discovery"
+      }
+    },
+    {
+      "change_id": 3621,
+      "observed_at": "2026-11-06T06:03:17.724930+00:00",
+      "pl_name": "K2-184 b",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_rade",
+      "field_tier": "A",
+      "prev_value": 1.47,
+      "new_value": 1.216,
+      "diff_summary": "K2-184 b pl_rade: 1.47 \u2192 1.216",
+      "source_snapshot_date": "2026-11-06",
+      "prev_ref": {
+        "label": "Castro-Gonz\u00e1lez et al. 2022",
+        "url": "https://ui.adsabs.harvard.edu/abs/2022MNRAS.509.1075C/abstract",
+        "bibcode": "2022MNRAS.509.1075C",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Hobson et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
+        "bibcode": "2026A&A...711A.198H",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3622,
+      "observed_at": "2026-11-06T06:03:17.724930+00:00",
+      "pl_name": "K2-184 b",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_bmasse",
+      "field_tier": "A",
+      "prev_value": 2.76,
+      "new_value": 10.9,
+      "diff_summary": "K2-184 b pl_bmasse: 2.76 \u2192 10.9",
+      "source_snapshot_date": "2026-11-06",
+      "prev_ref": {
+        "label": "Calculated Value",
+        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html",
+        "bibcode": null,
+        "kind": "calculated",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Hobson et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
+        "bibcode": "2026A&A...711A.198H",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3633,
+      "observed_at": "2026-11-06T06:03:17.724930+00:00",
+      "pl_name": "K2-62 b",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_rade",
+      "field_tier": "A",
+      "prev_value": 2.02,
+      "new_value": 1.77,
+      "diff_summary": "K2-62 b pl_rade: 2.02 \u2192 1.77",
+      "source_snapshot_date": "2026-11-06",
+      "prev_ref": {
+        "label": "Howard et al. 2025",
+        "url": "https://ui.adsabs.harvard.edu/abs/2025ApJS..278...52H/abstract",
+        "bibcode": "2025ApJS..278...52H",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Hobson et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
+        "bibcode": "2026A&A...711A.198H",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3634,
+      "observed_at": "2026-11-06T06:03:17.724930+00:00",
+      "pl_name": "K2-62 b",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_bmasse",
+      "field_tier": "A",
+      "prev_value": 4.74,
+      "new_value": 4.0,
+      "diff_summary": "K2-62 b pl_bmasse: 4.74 \u2192 4.0",
+      "source_snapshot_date": "2026-11-06",
+      "prev_ref": {
+        "label": "Calculated Value",
+        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html",
+        "bibcode": null,
+        "kind": "calculated",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Hobson et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
+        "bibcode": "2026A&A...711A.198H",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3643,
+      "observed_at": "2026-11-06T06:03:17.724930+00:00",
+      "pl_name": "K2-62 c",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_rade",
+      "field_tier": "A",
+      "prev_value": 1.99,
+      "new_value": 2.17,
+      "diff_summary": "K2-62 c pl_rade: 1.99 \u2192 2.17",
+      "source_snapshot_date": "2026-11-06",
+      "prev_ref": {
+        "label": "Howard et al. 2025",
+        "url": "https://ui.adsabs.harvard.edu/abs/2025ApJS..278...52H/abstract",
+        "bibcode": "2025ApJS..278...52H",
+        "kind": "paper",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Hobson et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
+        "bibcode": "2026A&A...711A.198H",
+        "kind": "paper",
+        "role": "source"
+      }
+    },
+    {
+      "change_id": 3644,
+      "observed_at": "2026-11-06T06:03:17.724930+00:00",
+      "pl_name": "K2-62 c",
+      "change_type": "PARAMETER_CHANGE",
+      "field_name": "pl_bmasse",
+      "field_tier": "A",
+      "prev_value": 4.62,
+      "new_value": 6.6,
+      "diff_summary": "K2-62 c pl_bmasse: 4.62 \u2192 6.6",
+      "source_snapshot_date": "2026-11-06",
+      "prev_ref": {
+        "label": "Calculated Value",
+        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html",
+        "bibcode": null,
+        "kind": "calculated",
+        "role": "source"
+      },
+      "new_ref": {
+        "label": "Hobson et al. 2026",
+        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
+        "bibcode": "2026A&A...711A.198H",
+        "kind": "paper",
+        "role": "source"
       }
     },
     {
@@ -1434,1264 +2026,6 @@
         "label": "Carleo et al. 2021",
         "url": "https://ui.adsabs.harvard.edu/abs/2021A&A...645A..71C/abstract",
         "bibcode": "2021A&A...645A..71C",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3643,
-      "observed_at": "2026-11-06T06:03:17.724930+00:00",
-      "pl_name": "K2-62 c",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_rade",
-      "field_tier": "A",
-      "prev_value": 1.99,
-      "new_value": 2.17,
-      "diff_summary": "K2-62 c pl_rade: 1.99 \u2192 2.17",
-      "source_snapshot_date": "2026-11-06",
-      "prev_ref": {
-        "label": "Howard et al. 2025",
-        "url": "https://ui.adsabs.harvard.edu/abs/2025ApJS..278...52H/abstract",
-        "bibcode": "2025ApJS..278...52H",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Hobson et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
-        "bibcode": "2026A&A...711A.198H",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3543,
-      "observed_at": "2026-11-06T06:03:17.724930+00:00",
-      "pl_name": "BD+20 594 b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 22.2481,
-      "new_value": 5.2,
-      "diff_summary": "BD+20 594 b pl_bmasse: 22.2481 \u2192 5.2",
-      "source_snapshot_date": "2026-11-06",
-      "prev_ref": {
-        "label": "Stassun et al. 2017",
-        "url": "https://ui.adsabs.harvard.edu/abs/2017AJ....153..136S/abstract",
-        "bibcode": "2017AJ....153..136S",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Hobson et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
-        "bibcode": "2026A&A...711A.198H",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3553,
-      "observed_at": "2026-11-06T06:03:17.724930+00:00",
-      "pl_name": "GJ 1252 b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 1.32,
-      "new_value": 1.54,
-      "diff_summary": "GJ 1252 b pl_bmasse: 1.32 \u2192 1.54",
-      "source_snapshot_date": "2026-11-06",
-      "prev_ref": {
-        "label": "Luque & Pall\u00e9 2022",
-        "url": "https://ui.adsabs.harvard.edu/abs/2022Sci...377.1211L/abstract",
-        "bibcode": "2022Sci...377.1211L",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Weisserman et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...709A.165W/abstract",
-        "bibcode": "2026A&A...709A.165W",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3557,
-      "observed_at": "2026-11-06T06:03:17.724930+00:00",
-      "pl_name": "GJ 143 b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_rade",
-      "field_tier": "A",
-      "prev_value": 2.61,
-      "new_value": 2.809,
-      "diff_summary": "GJ 143 b pl_rade: 2.61 \u2192 2.809",
-      "source_snapshot_date": "2026-11-06",
-      "prev_ref": {
-        "label": "Dragomir et al. 2019",
-        "url": "https://ui.adsabs.harvard.edu/abs/2019ApJ...875L...7D/abstract",
-        "bibcode": "2019ApJ...875L...7D",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Hobson et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
-        "bibcode": "2026A&A...711A.198H",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3558,
-      "observed_at": "2026-11-06T06:03:17.724930+00:00",
-      "pl_name": "GJ 143 b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 22.7,
-      "new_value": 25.9,
-      "diff_summary": "GJ 143 b pl_bmasse: 22.7 \u2192 25.9",
-      "source_snapshot_date": "2026-11-06",
-      "prev_ref": {
-        "label": "Dragomir et al. 2019",
-        "url": "https://ui.adsabs.harvard.edu/abs/2019ApJ...875L...7D/abstract",
-        "bibcode": "2019ApJ...875L...7D",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Hobson et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
-        "bibcode": "2026A&A...711A.198H",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3567,
-      "observed_at": "2026-11-06T06:03:17.724930+00:00",
-      "pl_name": "HD 21749 c",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_rade",
-      "field_tier": "A",
-      "prev_value": 0.892,
-      "new_value": 0.984,
-      "diff_summary": "HD 21749 c pl_rade: 0.892 \u2192 0.984",
-      "source_snapshot_date": "2026-11-06",
-      "prev_ref": {
-        "label": "Dragomir et al. 2019",
-        "url": "https://ui.adsabs.harvard.edu/abs/2019ApJ...875L...7D/abstract",
-        "bibcode": "2019ApJ...875L...7D",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Hobson et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
-        "bibcode": "2026A&A...711A.198H",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3568,
-      "observed_at": "2026-11-06T06:03:17.724930+00:00",
-      "pl_name": "HD 21749 c",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 3.7,
-      "new_value": 1.43,
-      "diff_summary": "HD 21749 c pl_bmasse: 3.7 \u2192 1.43",
-      "source_snapshot_date": "2026-11-06",
-      "prev_ref": {
-        "label": "Dragomir et al. 2019",
-        "url": "https://ui.adsabs.harvard.edu/abs/2019ApJ...875L...7D/abstract",
-        "bibcode": "2019ApJ...875L...7D",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Hobson et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
-        "bibcode": "2026A&A...711A.198H",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3577,
-      "observed_at": "2026-11-06T06:03:17.724930+00:00",
-      "pl_name": "HD 715 b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_rade",
-      "field_tier": "A",
-      "prev_value": 11.99360935,
-      "new_value": 11.61250401,
-      "diff_summary": "HD 715 b pl_rade: 11.99360935 \u2192 11.61250401",
-      "source_snapshot_date": "2026-11-06",
-      "prev_ref": {
-        "label": "Venner et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026AJ....172..162V/abstract",
-        "bibcode": "2026AJ....172..162V",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Heidari et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv261008584H/abstract",
-        "bibcode": "2026arXiv261008584H",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3578,
-      "observed_at": "2026-11-06T06:03:17.724930+00:00",
-      "pl_name": "HD 715 b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 201.82103844,
-      "new_value": 199.27841119,
-      "diff_summary": "HD 715 b pl_bmasse: 201.82103844 \u2192 199.27841119",
-      "source_snapshot_date": "2026-11-06",
-      "prev_ref": {
-        "label": "Venner et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026AJ....172..162V/abstract",
-        "bibcode": "2026AJ....172..162V",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Heidari et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv261008584H/abstract",
-        "bibcode": "2026arXiv261008584H",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3587,
-      "observed_at": "2026-11-06T06:03:17.724930+00:00",
-      "pl_name": "HIP 8152 b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_rade",
-      "field_tier": "A",
-      "prev_value": 2.53625843,
-      "new_value": 2.57,
-      "diff_summary": "HIP 8152 b pl_rade: 2.53625843 \u2192 2.57",
-      "source_snapshot_date": "2026-11-06",
-      "prev_ref": {
-        "label": "Polanski et al. 2024",
-        "url": "https://ui.adsabs.harvard.edu/abs/2024ApJS..272...32P/abstract",
-        "bibcode": "2024ApJS..272...32P",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Hobson et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
-        "bibcode": "2026A&A...711A.198H",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3588,
-      "observed_at": "2026-11-06T06:03:17.724930+00:00",
-      "pl_name": "HIP 8152 b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 8.9,
-      "new_value": 7.39,
-      "diff_summary": "HIP 8152 b pl_bmasse: 8.9 \u2192 7.39",
-      "source_snapshot_date": "2026-11-06",
-      "prev_ref": {
-        "label": "Polanski et al. 2024",
-        "url": "https://ui.adsabs.harvard.edu/abs/2024ApJS..272...32P/abstract",
-        "bibcode": "2024ApJS..272...32P",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Hobson et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
-        "bibcode": "2026A&A...711A.198H",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3597,
-      "observed_at": "2026-11-06T06:03:17.724930+00:00",
-      "pl_name": "HIP 8152 c",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_rade",
-      "field_tier": "A",
-      "prev_value": 2.52442508,
-      "new_value": 2.48,
-      "diff_summary": "HIP 8152 c pl_rade: 2.52442508 \u2192 2.48",
-      "source_snapshot_date": "2026-11-06",
-      "prev_ref": {
-        "label": "Polanski et al. 2024",
-        "url": "https://ui.adsabs.harvard.edu/abs/2024ApJS..272...32P/abstract",
-        "bibcode": "2024ApJS..272...32P",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Hobson et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
-        "bibcode": "2026A&A...711A.198H",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3598,
-      "observed_at": "2026-11-06T06:03:17.724930+00:00",
-      "pl_name": "HIP 8152 c",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 10.7,
-      "new_value": 9.0,
-      "diff_summary": "HIP 8152 c pl_bmasse: 10.7 \u2192 9.0",
-      "source_snapshot_date": "2026-11-06",
-      "prev_ref": {
-        "label": "Polanski et al. 2024",
-        "url": "https://ui.adsabs.harvard.edu/abs/2024ApJS..272...32P/abstract",
-        "bibcode": "2024ApJS..272...32P",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Hobson et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
-        "bibcode": "2026A&A...711A.198H",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3608,
-      "observed_at": "2026-11-06T06:03:17.724930+00:00",
-      "pl_name": "K2-105 b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_rade",
-      "field_tier": "A",
-      "prev_value": 3.4,
-      "new_value": 3.145,
-      "diff_summary": "K2-105 b pl_rade: 3.4 \u2192 3.145",
-      "source_snapshot_date": "2026-11-06",
-      "prev_ref": {
-        "label": "Howard et al. 2025",
-        "url": "https://ui.adsabs.harvard.edu/abs/2025ApJS..278...52H/abstract",
-        "bibcode": "2025ApJS..278...52H",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Hobson et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
-        "bibcode": "2026A&A...711A.198H",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3609,
-      "observed_at": "2026-11-06T06:03:17.724930+00:00",
-      "pl_name": "K2-105 b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 15.4,
-      "new_value": 5.0,
-      "diff_summary": "K2-105 b pl_bmasse: 15.4 \u2192 5.0",
-      "source_snapshot_date": "2026-11-06",
-      "prev_ref": {
-        "label": "Howard et al. 2025",
-        "url": "https://ui.adsabs.harvard.edu/abs/2025ApJS..278...52H/abstract",
-        "bibcode": "2025ApJS..278...52H",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Hobson et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
-        "bibcode": "2026A&A...711A.198H",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3619,
-      "observed_at": "2026-11-06T06:03:17.724930+00:00",
-      "pl_name": "K2-105 c",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": 1037.0,
-        "st_lum": -0.2225,
-        "st_rad": 0.887,
-        "pl_dens": 1.64,
-        "pl_name": "K2-105 c",
-        "pl_rade": 3.34,
-        "st_dist": null,
-        "st_mass": 0.925,
-        "st_teff": 5400.0,
-        "sy_dist": 197.989,
-        "sy_pnum": 2,
-        "sy_snum": 1,
-        "hostname": "K2-105",
-        "pl_insol": 191.6,
-        "disc_year": 2026,
-        "pl_bmasse": 11.1,
-        "pl_orbper": 5.02173,
-        "pl_orbsmax": 0.0559,
-        "pl_orbeccen": 0.0,
-        "st_spectype": "G9 V",
-        "disc_refname": "<a refstr=HOBSON_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract target=ref>Hobson et al. 2026</a>",
-        "disc_facility": "Paranal Observatory",
-        "disc_telescope": "8.2 m ESO VLT UT3 Melipal Telescope",
-        "disc_instrument": "ESPRESSO",
-        "discoverymethod": "Radial Velocity"
-      },
-      "diff_summary": "New planet: K2-105 c",
-      "source_snapshot_date": "2026-11-06",
-      "prev_ref": null,
-      "new_ref": {
-        "label": "Hobson et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
-        "bibcode": "2026A&A...711A.198H",
-        "kind": "paper",
-        "role": "discovery"
-      }
-    },
-    {
-      "change_id": 3621,
-      "observed_at": "2026-11-06T06:03:17.724930+00:00",
-      "pl_name": "K2-184 b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_rade",
-      "field_tier": "A",
-      "prev_value": 1.47,
-      "new_value": 1.216,
-      "diff_summary": "K2-184 b pl_rade: 1.47 \u2192 1.216",
-      "source_snapshot_date": "2026-11-06",
-      "prev_ref": {
-        "label": "Castro-Gonz\u00e1lez et al. 2022",
-        "url": "https://ui.adsabs.harvard.edu/abs/2022MNRAS.509.1075C/abstract",
-        "bibcode": "2022MNRAS.509.1075C",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Hobson et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
-        "bibcode": "2026A&A...711A.198H",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3622,
-      "observed_at": "2026-11-06T06:03:17.724930+00:00",
-      "pl_name": "K2-184 b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 2.76,
-      "new_value": 10.9,
-      "diff_summary": "K2-184 b pl_bmasse: 2.76 \u2192 10.9",
-      "source_snapshot_date": "2026-11-06",
-      "prev_ref": {
-        "label": "Calculated Value",
-        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html",
-        "bibcode": null,
-        "kind": "calculated",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Hobson et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
-        "bibcode": "2026A&A...711A.198H",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3633,
-      "observed_at": "2026-11-06T06:03:17.724930+00:00",
-      "pl_name": "K2-62 b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_rade",
-      "field_tier": "A",
-      "prev_value": 2.02,
-      "new_value": 1.77,
-      "diff_summary": "K2-62 b pl_rade: 2.02 \u2192 1.77",
-      "source_snapshot_date": "2026-11-06",
-      "prev_ref": {
-        "label": "Howard et al. 2025",
-        "url": "https://ui.adsabs.harvard.edu/abs/2025ApJS..278...52H/abstract",
-        "bibcode": "2025ApJS..278...52H",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Hobson et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
-        "bibcode": "2026A&A...711A.198H",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3634,
-      "observed_at": "2026-11-06T06:03:17.724930+00:00",
-      "pl_name": "K2-62 b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 4.74,
-      "new_value": 4.0,
-      "diff_summary": "K2-62 b pl_bmasse: 4.74 \u2192 4.0",
-      "source_snapshot_date": "2026-11-06",
-      "prev_ref": {
-        "label": "Calculated Value",
-        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html",
-        "bibcode": null,
-        "kind": "calculated",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Hobson et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
-        "bibcode": "2026A&A...711A.198H",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3542,
-      "observed_at": "2026-11-06T06:03:17.724930+00:00",
-      "pl_name": "BD+20 594 b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_rade",
-      "field_tier": "A",
-      "prev_value": 2.57807,
-      "new_value": 2.23,
-      "diff_summary": "BD+20 594 b pl_rade: 2.57807 \u2192 2.23",
-      "source_snapshot_date": "2026-11-06",
-      "prev_ref": {
-        "label": "Stassun et al. 2017",
-        "url": "https://ui.adsabs.harvard.edu/abs/2017AJ....153..136S/abstract",
-        "bibcode": "2017AJ....153..136S",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Hobson et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
-        "bibcode": "2026A&A...711A.198H",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3644,
-      "observed_at": "2026-11-06T06:03:17.724930+00:00",
-      "pl_name": "K2-62 c",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 4.62,
-      "new_value": 6.6,
-      "diff_summary": "K2-62 c pl_bmasse: 4.62 \u2192 6.6",
-      "source_snapshot_date": "2026-11-06",
-      "prev_ref": {
-        "label": "Calculated Value",
-        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html",
-        "bibcode": null,
-        "kind": "calculated",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Hobson et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026A&A...711A.198H/abstract",
-        "bibcode": "2026A&A...711A.198H",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3497,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "HD 65216 c",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_orbper",
-      "field_tier": "A",
-      "prev_value": 5370.0,
-      "new_value": 7007.0,
-      "diff_summary": "HD 65216 c pl_orbper: 5370.0 \u2192 7007.0",
-      "source_snapshot_date": "2026-10-16",
-      "prev_ref": {
-        "label": "Wittenmyer et al. 2019",
-        "url": "https://ui.adsabs.harvard.edu/abs/2019MNRAS.484.5859W/abstract",
-        "bibcode": "2019MNRAS.484.5859W",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Wallace et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv261002783W/abstract",
-        "bibcode": "2026arXiv261002783W",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3498,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "HD 65216 c",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_rade",
-      "field_tier": "A",
-      "prev_value": 13.4,
-      "new_value": 13.1,
-      "diff_summary": "HD 65216 c pl_rade: 13.4 \u2192 13.1",
-      "source_snapshot_date": "2026-10-16",
-      "prev_ref": {
-        "label": "Calculated Value",
-        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html",
-        "bibcode": null,
-        "kind": "calculated",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Calculated Value",
-        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html",
-        "bibcode": null,
-        "kind": "calculated",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3499,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "HD 65216 c",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 645.1949,
-      "new_value": 1055.19031124,
-      "diff_summary": "HD 65216 c pl_bmasse: 645.1949 \u2192 1055.19031124",
-      "source_snapshot_date": "2026-10-16",
-      "prev_ref": {
-        "label": "Wittenmyer et al. 2019",
-        "url": "https://ui.adsabs.harvard.edu/abs/2019MNRAS.484.5859W/abstract",
-        "bibcode": "2019MNRAS.484.5859W",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Wallace et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv261002783W/abstract",
-        "bibcode": "2026arXiv261002783W",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3506,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "Kepler-281 c",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 161.124,
-      "new_value": 69.6183,
-      "diff_summary": "Kepler-281 c pl_bmasse: 161.124 \u2192 69.6183",
-      "source_snapshot_date": "2026-10-16",
-      "prev_ref": {
-        "label": "Ofir et al. 2025",
-        "url": "https://ui.adsabs.harvard.edu/abs/2025AJ....169...90O/abstract",
-        "bibcode": "2025AJ....169...90O",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Ofir et al. 2025",
-        "url": "https://ui.adsabs.harvard.edu/abs/2025AJ....169...90O/abstract",
-        "bibcode": "2025AJ....169...90O",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3508,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "Kepler-297 d",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_rade",
-      "field_tier": "A",
-      "prev_value": 32.6,
-      "new_value": 7.11899996,
-      "diff_summary": "Kepler-297 d pl_rade: 32.6 \u2192 7.11899996",
-      "source_snapshot_date": "2026-10-16",
-      "prev_ref": {
-        "label": "Q1-Q17 DR25 KOI Table",
-        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/Kepler_KOI_docs.html",
-        "bibcode": null,
-        "kind": "catalog",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Valizadegan et al. 2023",
-        "url": "https://ui.adsabs.harvard.edu/abs/2023AJ....166...28V/abstract",
-        "bibcode": "2023AJ....166...28V",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3509,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "Kepler-297 d",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": null,
-      "new_value": 40.2,
-      "diff_summary": "Kepler-297 d pl_bmasse: None \u2192 40.2",
-      "source_snapshot_date": "2026-10-16",
-      "prev_ref": {
-        "label": "Q1-Q17 DR25 KOI Table",
-        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/Kepler_KOI_docs.html",
-        "bibcode": null,
-        "kind": "catalog",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Calculated Value",
-        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html",
-        "bibcode": null,
-        "kind": "calculated",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3513,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "Kepler-32 e",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 4.08181,
-      "new_value": 1.11884,
-      "diff_summary": "Kepler-32 e pl_bmasse: 4.08181 \u2192 1.11884",
-      "source_snapshot_date": "2026-10-16",
-      "prev_ref": {
-        "label": "Ofir et al. 2025",
-        "url": "https://ui.adsabs.harvard.edu/abs/2025AJ....169...90O/abstract",
-        "bibcode": "2025AJ....169...90O",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Ofir et al. 2025",
-        "url": "https://ui.adsabs.harvard.edu/abs/2025AJ....169...90O/abstract",
-        "bibcode": "2025AJ....169...90O",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3514,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "Kepler-80 f",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 4459.73,
-      "new_value": 12651.5,
-      "diff_summary": "Kepler-80 f pl_bmasse: 4459.73 \u2192 12651.5",
-      "source_snapshot_date": "2026-10-16",
-      "prev_ref": {
-        "label": "Ofir et al. 2025",
-        "url": "https://ui.adsabs.harvard.edu/abs/2025AJ....169...90O/abstract",
-        "bibcode": "2025AJ....169...90O",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Ofir et al. 2025",
-        "url": "https://ui.adsabs.harvard.edu/abs/2025AJ....169...90O/abstract",
-        "bibcode": "2025AJ....169...90O",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3515,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "MOA-2011-BLG-293L b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_orbper",
-      "field_tier": "A",
-      "prev_value": 3000.0,
-      "new_value": 550.0,
-      "diff_summary": "MOA-2011-BLG-293L b pl_orbper: 3000.0 \u2192 550.0",
-      "source_snapshot_date": "2026-10-16",
-      "prev_ref": {
-        "label": "Yee et al. 2012",
-        "url": "https://ui.adsabs.harvard.edu/abs/2012ApJ...755..102Y/abstract",
-        "bibcode": "2012ApJ...755..102Y",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Yee et al. 2012",
-        "url": "https://ui.adsabs.harvard.edu/abs/2012ApJ...755..102Y/abstract",
-        "bibcode": "2012ApJ...755..102Y",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3491,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "HD 65216 b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_rade",
-      "field_tier": "A",
-      "prev_value": 13.6,
-      "new_value": 13.3,
-      "diff_summary": "HD 65216 b pl_rade: 13.6 \u2192 13.3",
-      "source_snapshot_date": "2026-10-16",
-      "prev_ref": {
-        "label": "Calculated Value",
-        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html",
-        "bibcode": null,
-        "kind": "calculated",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Calculated Value",
-        "url": "https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html",
-        "bibcode": null,
-        "kind": "calculated",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3492,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "HD 65216 b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 411.58985,
-      "new_value": 708.75734761,
-      "diff_summary": "HD 65216 b pl_bmasse: 411.58985 \u2192 708.75734761",
-      "source_snapshot_date": "2026-10-16",
-      "prev_ref": {
-        "label": "Wittenmyer et al. 2019",
-        "url": "https://ui.adsabs.harvard.edu/abs/2019MNRAS.484.5859W/abstract",
-        "bibcode": "2019MNRAS.484.5859W",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Wallace et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv261002783W/abstract",
-        "bibcode": "2026arXiv261002783W",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3489,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "Elias 2-24 b",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": null,
-        "st_lum": null,
-        "st_rad": null,
-        "pl_dens": 2.24,
-        "pl_name": "Elias 2-24 b",
-        "pl_rade": 13.2,
-        "st_dist": null,
-        "st_mass": 0.78,
-        "st_teff": 4483.0,
-        "sy_dist": 135.745,
-        "sy_pnum": 1,
-        "sy_snum": 1,
-        "hostname": "Elias 2-24",
-        "pl_insol": null,
-        "disc_year": 2026,
-        "pl_bmasse": 937.59380065,
-        "pl_orbper": null,
-        "pl_orbsmax": 54.9,
-        "pl_orbeccen": 0.0,
-        "st_spectype": "K6",
-        "disc_refname": "<a refstr=BERNARDI_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026ApJ..1009L...3B/abstract target=ref>Bernardi et al. 2026</a>",
-        "disc_facility": "W. M. Keck Observatory",
-        "disc_telescope": "10 m Keck II Telescope",
-        "disc_instrument": "NIRC2 Camera",
-        "discoverymethod": "Imaging"
-      },
-      "diff_summary": "New planet: Elias 2-24 b",
-      "source_snapshot_date": "2026-10-16",
-      "prev_ref": null,
-      "new_ref": {
-        "label": "Bernardi et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026ApJ..1009L...3B/abstract",
-        "bibcode": "2026ApJ..1009L...3B",
-        "kind": "paper",
-        "role": "discovery"
-      }
-    },
-    {
-      "change_id": 3516,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "TIC 219893931 b",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": null,
-        "st_lum": 0.27646,
-        "st_rad": 1.284,
-        "pl_dens": 1.95,
-        "pl_name": "TIC 219893931 b",
-        "pl_rade": 2.92,
-        "st_dist": null,
-        "st_mass": 1.14,
-        "st_teff": 5956.0,
-        "sy_dist": 410.453,
-        "sy_pnum": 1,
-        "sy_snum": 1,
-        "hostname": "TIC 219893931",
-        "pl_insol": null,
-        "disc_year": 2026,
-        "pl_bmasse": 8.85,
-        "pl_orbper": 6.410389,
-        "pl_orbsmax": null,
-        "pl_orbeccen": null,
-        "st_spectype": null,
-        "disc_refname": "<a refstr=HOTNISKY_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026ApJS..286...42H/abstract target=ref>Hotnisky et al. 2026</a>",
-        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
-        "disc_telescope": "0.1 m TESS Telescope",
-        "disc_instrument": "TESS CCD Array",
-        "discoverymethod": "Transit"
-      },
-      "diff_summary": "New planet: TIC 219893931 b",
-      "source_snapshot_date": "2026-10-16",
-      "prev_ref": null,
-      "new_ref": {
-        "label": "Hotnisky et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026ApJS..286...42H/abstract",
-        "bibcode": "2026ApJS..286...42H",
-        "kind": "paper",
-        "role": "discovery"
-      }
-    },
-    {
-      "change_id": 3517,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "TIC 237254473 b",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": null,
-        "st_lum": 0.2393,
-        "st_rad": 1.362,
-        "pl_dens": 1.67,
-        "pl_name": "TIC 237254473 b",
-        "pl_rade": 3.3,
-        "st_dist": null,
-        "st_mass": 1.12,
-        "st_teff": 5700.0,
-        "sy_dist": 406.633,
-        "sy_pnum": 1,
-        "sy_snum": 1,
-        "hostname": "TIC 237254473",
-        "pl_insol": null,
-        "disc_year": 2026,
-        "pl_bmasse": 10.9,
-        "pl_orbper": 10.117702,
-        "pl_orbsmax": null,
-        "pl_orbeccen": null,
-        "st_spectype": null,
-        "disc_refname": "<a refstr=HOTNISKY_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026ApJS..286...42H/abstract target=ref>Hotnisky et al. 2026</a>",
-        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
-        "disc_telescope": "0.1 m TESS Telescope",
-        "disc_instrument": "TESS CCD Array",
-        "discoverymethod": "Transit"
-      },
-      "diff_summary": "New planet: TIC 237254473 b",
-      "source_snapshot_date": "2026-10-16",
-      "prev_ref": null,
-      "new_ref": {
-        "label": "Hotnisky et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026ApJS..286...42H/abstract",
-        "bibcode": "2026ApJS..286...42H",
-        "kind": "paper",
-        "role": "discovery"
-      }
-    },
-    {
-      "change_id": 3527,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "TOI-2158 c",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": null,
-        "st_lum": 0.2308,
-        "st_rad": 1.32,
-        "pl_dens": 1.15,
-        "pl_name": "TOI-2158 c",
-        "pl_rade": 13.5,
-        "st_dist": null,
-        "st_mass": 1.12,
-        "st_teff": 5673.0,
-        "sy_dist": 198.473,
-        "sy_pnum": 2,
-        "sy_snum": 1,
-        "hostname": "TOI-2158",
-        "pl_insol": null,
-        "disc_year": 2026,
-        "pl_bmasse": 514.88201934,
-        "pl_orbper": 414.5,
-        "pl_orbsmax": null,
-        "pl_orbeccen": 0.54,
-        "st_spectype": null,
-        "disc_refname": "<a refstr=KNUDSTRUP_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260930915K/abstract target=ref>Knudstrup et al. 2026</a>",
-        "disc_facility": "Multiple Facilities",
-        "disc_telescope": "Multiple Telescopes",
-        "disc_instrument": "Multiple Instruments",
-        "discoverymethod": "Radial Velocity"
-      },
-      "diff_summary": "New planet: TOI-2158 c",
-      "source_snapshot_date": "2026-10-16",
-      "prev_ref": null,
-      "new_ref": {
-        "label": "Knudstrup et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260930915K/abstract",
-        "bibcode": "2026arXiv260930915K",
-        "kind": "paper",
-        "role": "discovery"
-      }
-    },
-    {
-      "change_id": 3533,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "TOI-5120 b",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": 796.0,
-        "st_lum": 0.33652,
-        "st_rad": 1.42,
-        "pl_dens": 1.68,
-        "pl_name": "TOI-5120 b",
-        "pl_rade": 10.8615023,
-        "st_dist": null,
-        "st_mass": 1.12,
-        "st_teff": 5763.0,
-        "sy_dist": 229.962,
-        "sy_pnum": 1,
-        "sy_snum": 1,
-        "hostname": "TOI-5120",
-        "pl_insol": 66.0,
-        "disc_year": 2026,
-        "pl_bmasse": 390.92894061,
-        "pl_orbper": 24.91645,
-        "pl_orbsmax": 0.172,
-        "pl_orbeccen": 0.1,
-        "st_spectype": null,
-        "disc_refname": "<a refstr=KNUDSTRUP_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260930915K/abstract target=ref>Knudstrup et al. 2026</a>",
-        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
-        "disc_telescope": "0.1 m TESS Telescope",
-        "disc_instrument": "TESS CCD Array",
-        "discoverymethod": "Transit"
-      },
-      "diff_summary": "New planet: TOI-5120 b",
-      "source_snapshot_date": "2026-10-16",
-      "prev_ref": null,
-      "new_ref": {
-        "label": "Knudstrup et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260930915K/abstract",
-        "bibcode": "2026arXiv260930915K",
-        "kind": "paper",
-        "role": "discovery"
-      }
-    },
-    {
-      "change_id": 3536,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "TOI-5699 b",
-      "change_type": "NEW",
-      "field_name": null,
-      "field_tier": null,
-      "prev_value": null,
-      "new_value": {
-        "pl_eqt": 906.0,
-        "st_lum": 0.51882,
-        "st_rad": 1.64,
-        "pl_dens": 0.314,
-        "pl_name": "TOI-5699 b",
-        "pl_rade": 11.16414478,
-        "st_dist": null,
-        "st_mass": 1.13,
-        "st_teff": 5905.0,
-        "sy_dist": 304.745,
-        "sy_pnum": 1,
-        "sy_snum": 1,
-        "hostname": "TOI-5699",
-        "pl_insol": 112.0,
-        "disc_year": 2026,
-        "pl_bmasse": 79.45710175,
-        "pl_orbper": 22.0185,
-        "pl_orbsmax": 0.16,
-        "pl_orbeccen": 0.3,
-        "st_spectype": null,
-        "disc_refname": "<a refstr=KNUDSTRUP_ET_AL_2026 href=https://ui.adsabs.harvard.edu/abs/2026arXiv260930915K/abstract target=ref>Knudstrup et al. 2026</a>",
-        "disc_facility": "Transiting Exoplanet Survey Satellite (TESS)",
-        "disc_telescope": "0.1 m TESS Telescope",
-        "disc_instrument": "TESS CCD Array",
-        "discoverymethod": "Transit"
-      },
-      "diff_summary": "New planet: TOI-5699 b",
-      "source_snapshot_date": "2026-10-16",
-      "prev_ref": null,
-      "new_ref": {
-        "label": "Knudstrup et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260930915K/abstract",
-        "bibcode": "2026arXiv260930915K",
-        "kind": "paper",
-        "role": "discovery"
-      }
-    },
-    {
-      "change_id": 3519,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "TOI-2158 b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_rade",
-      "field_tier": "A",
-      "prev_value": 10.76062147,
-      "new_value": 10.07687365,
-      "diff_summary": "TOI-2158 b pl_rade: 10.76062147 \u2192 10.07687365",
-      "source_snapshot_date": "2026-10-16",
-      "prev_ref": {
-        "label": "Knudstrup et al. 2022",
-        "url": "https://ui.adsabs.harvard.edu/abs/2022A&A...667A..22K/abstract",
-        "bibcode": "2022A&A...667A..22K",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Knudstrup et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260930915K/abstract",
-        "bibcode": "2026arXiv260930915K",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3520,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "TOI-2158 b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 260.61929374,
-      "new_value": 276.51071409,
-      "diff_summary": "TOI-2158 b pl_bmasse: 260.61929374 \u2192 276.51071409",
-      "source_snapshot_date": "2026-10-16",
-      "prev_ref": {
-        "label": "Knudstrup et al. 2022",
-        "url": "https://ui.adsabs.harvard.edu/abs/2022A&A...667A..22K/abstract",
-        "bibcode": "2022A&A...667A..22K",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Knudstrup et al. 2026",
-        "url": "https://ui.adsabs.harvard.edu/abs/2026arXiv260930915K/abstract",
-        "bibcode": "2026arXiv260930915K",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3537,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "TOI-942 c",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 37.0,
-      "new_value": 794.575,
-      "diff_summary": "TOI-942 c pl_bmasse: 37.0 \u2192 794.575",
-      "source_snapshot_date": "2026-10-16",
-      "prev_ref": {
-        "label": "Carleo et al. 2021",
-        "url": "https://ui.adsabs.harvard.edu/abs/2021A&A...645A..71C/abstract",
-        "bibcode": "2021A&A...645A..71C",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Zhou et al. 2021",
-        "url": "https://ui.adsabs.harvard.edu/abs/2021AJ....161....2Z/abstract",
-        "bibcode": "2021AJ....161....2Z",
-        "kind": "paper",
-        "role": "source"
-      }
-    },
-    {
-      "change_id": 3539,
-      "observed_at": "2026-10-16T06:03:01.447470+00:00",
-      "pl_name": "kap CrB b",
-      "change_type": "PARAMETER_CHANGE",
-      "field_name": "pl_bmasse",
-      "field_tier": "A",
-      "prev_value": 689.6911,
-      "new_value": 591.1638,
-      "diff_summary": "kap CrB b pl_bmasse: 689.6911 \u2192 591.1638",
-      "source_snapshot_date": "2026-10-16",
-      "prev_ref": {
-        "label": "Baines et al. 2013",
-        "url": "https://ui.adsabs.harvard.edu/abs/2013ApJ...771L..17B/abstract",
-        "bibcode": "2013ApJ...771L..17B",
-        "kind": "paper",
-        "role": "source"
-      },
-      "new_ref": {
-        "label": "Baines et al. 2013",
-        "url": "https://ui.adsabs.harvard.edu/abs/2013ApJ...771L..17B/abstract",
-        "bibcode": "2013ApJ...771L..17B",
         "kind": "paper",
         "role": "source"
       }

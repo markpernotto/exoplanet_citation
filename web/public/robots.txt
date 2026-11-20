@@ -8,6 +8,7 @@
 # Everything below /api/ stays crawlable because planet pages render from it.
 # The exceptions are the 3D scene payload and the per-system starfield PNG,
 # which are expensive to generate and have no use in a search index.
+# (The starfield is served as /api/starfield/{planet}.webp.)
 
 User-agent: *
 Disallow: /api/starfield/

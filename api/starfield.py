@@ -880,7 +880,13 @@ def rasterize_skytexture(
     return pil
 
 
-def render_png(
+# WebP quality for the served sky texture. At 6144x3072 a PNG is ~16 MB,
+# which is over Vercel's 10 MB limit for caching a function response at the
+# edge, so every request re-rendered. q95 WebP is ~4.5 MB and encodes in ~1 s.
+WEBP_QUALITY = 95
+
+
+def render_webp(
     catalog: pd.DataFrame,
     host_xyz_pc: tuple[float, float, float],
     *,
@@ -888,7 +894,7 @@ def render_png(
     height: int = DEFAULT_HEIGHT,
     mag_cutoff: float = DEFAULT_MAG_CUTOFF,
 ) -> bytes:
-    """Convenience wrapper: rasterize, encode as PNG, return bytes."""
+    """Convenience wrapper: rasterize, encode as WebP, return bytes."""
     import io
     img = rasterize_skytexture(
         catalog=catalog,
@@ -898,30 +904,30 @@ def render_png(
         mag_cutoff=mag_cutoff,
     )
     buf = io.BytesIO()
-    img.save(buf, format="PNG", optimize=False)
+    img.save(buf, format="WEBP", quality=WEBP_QUALITY)
     return buf.getvalue()
 
 
 @lru_cache(maxsize=16)
-def render_png_cached(
+def render_webp_cached(
     host_xyz_pc: tuple[float, float, float],
     width: int = DEFAULT_WIDTH,
     height: int = DEFAULT_HEIGHT,
     mag_cutoff: float = DEFAULT_MAG_CUTOFF,
 ) -> bytes:
-    """Per-host PNG cache. Keyed by (host_xyz_pc, width, height, mag_cutoff).
+    """Per-host WebP cache. Keyed by (host_xyz_pc, width, height, mag_cutoff).
 
-    Cold render at 8K runs several seconds (dominated by per-star ellipse
+    Cold render runs several seconds (dominated by per-star ellipse
     drawing + LANCZOS upsample of the diffuse layer to full resolution);
     keeping the most recent 16 hosts cached in-process makes repeat visits
     instant. The catalog itself is already process-cached by load_catalog().
 
-    16 × ~5 MB/PNG ≈ 80 MB peak. The OS-level Cache-Control on the endpoint
-    is a separate layer; this cache helps fresh requests (no browser cache,
+    16 × ~4.5 MB ≈ 72 MB peak. The Cache-Control on the endpoint is a
+    separate layer; this cache helps fresh requests (no browser cache,
     multiple users hitting the same host, post-redeploy warmups).
     """
     catalog = load_catalog()
-    return render_png(
+    return render_webp(
         catalog=catalog,
         host_xyz_pc=host_xyz_pc,
         width=width,

@@ -18,7 +18,7 @@ from api.starfield import (
     DEFAULT_WIDTH,
     bprp_to_rgb,
     rasterize_skytexture,
-    render_png,
+    render_webp,
 )
 
 # Test dimensions: production DEFAULT_WIDTH/HEIGHT are 8192×4096. Pinning
@@ -249,18 +249,18 @@ def test_output_dimensions_custom():
     assert img.size == (512, 256)
 
 
-def test_render_png_returns_valid_png_bytes():
-    """render_png should produce a PNG header that PIL can read back."""
+def test_render_webp_returns_valid_webp_bytes():
+    """render_webp should produce a WebP header that PIL can read back."""
     catalog = _single_star_catalog(x=10.0, y=0.0, z=0.0, abs_mag=2.0)
-    png_bytes = render_png(
+    webp_bytes = render_webp(
         catalog, host_xyz_pc=(0.0, 0.0, 0.0), width=128, height=64,
     )
-    assert png_bytes[:8] == b"\x89PNG\r\n\x1a\n"
+    assert webp_bytes[:4] == b"RIFF" and webp_bytes[8:12] == b"WEBP"
     # Round-trip read back to confirm valid encoding.
     import io
 
     from PIL import Image
-    img = Image.open(io.BytesIO(png_bytes))
+    img = Image.open(io.BytesIO(webp_bytes))
     assert img.size == (128, 64)
 
 

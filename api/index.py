@@ -88,7 +88,7 @@ from api.models import (
 )
 from api.references import change_description, change_refs
 from api.scene import derive_scene_hints
-from api.starfield import render_png_cached
+from api.starfield import render_webp_cached
 
 load_dotenv()
 
@@ -1090,16 +1090,17 @@ def planet_host_star(pl_name: str) -> HostStarGaia:
 # ---------- Starfield (per-vantage sky texture) ----------
 
 @app.get(
-    "/api/starfield/{pl_name}.png",
+    "/api/starfield/{pl_name}.webp",
     response_class=Response,
     tags=["scene"],
     summary="Per-vantage equirectangular sky texture as seen from this planet's host system",
 )
 def planet_starfield(pl_name: str) -> Response:
     """Reproject the Gaia DR3 starfield from this host system's vantage and
-    return the result as a 6144×3072 equirectangular PNG.
+    return the result as a 6144×3072 equirectangular WebP (~4.5 MB; a PNG
+    was ~16 MB, over Vercel's 10 MB edge-cache limit, so it never cached).
 
-    Used by the frontend skydome in `web/src/pages/ScenePage.tsx`: the PNG
+    Used by the frontend skydome in `web/src/pages/ScenePage.tsx`: the image
     is mapped onto the inside of a sphere around the camera, sampled by view
     direction per eye in WebXR. Each star's apparent magnitude is recomputed
     from the host's distance, so nearby stars get visibly shifted while
@@ -1141,13 +1142,13 @@ def planet_starfield(pl_name: str) -> Response:
             ),
         )
 
-    # render_png_cached is process-cached by (host_xyz_pc, dims, mag_cutoff).
-    # Cold renders at 6K take ~3-4 seconds; hot lookups are instant.
-    png_bytes = render_png_cached(tuple(host_xyz))
+    # render_webp_cached is process-cached by (host_xyz_pc, dims, mag_cutoff).
+    # Cold renders at 6K take several seconds; hot lookups are instant.
+    img_bytes = render_webp_cached(tuple(host_xyz))
 
     return Response(
-        content=png_bytes,
-        media_type="image/png",
+        content=img_bytes,
+        media_type="image/webp",
         # Cold renders cost seconds of function CPU each, so the edge cache
         # is what keeps this endpoint affordable. See the docstring.
         headers={"Cache-Control": "public, max-age=86400, s-maxage=31536000"},

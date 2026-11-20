@@ -4899,8 +4899,8 @@ function DebrisDiskAxis({
 }
 
 // ── Per-vantage starfield + diffuse galaxy skydome ─────────────────────
-// Phase 2/3/4: fetches a server-rendered equirectangular PNG from
-// /api/starfield/:plName.png that contains both the per-vantage star
+// Phase 2/3/4: fetches a server-rendered equirectangular WebP from
+// /api/starfield/:plName.webp that contains both the per-vantage star
 // rasterization (Gaia + procedural Milky Way particles, all in one
 // textured layer) and the line-of-sight integrated diffuse galaxy glow
 // composited in linear-light space (api/starfield.py:composite_diffuse_onto).
@@ -4931,7 +4931,7 @@ function Starfield({ plName }: { plName: string }) {
   useEffect(() => {
     let cancelled = false;
     const loader = new THREE.TextureLoader();
-    const url = `/api/starfield/${encodeURIComponent(plName)}.png`;
+    const url = `/api/starfield/${encodeURIComponent(plName)}.webp`;
     loader.load(
       url,
       (tex) => {

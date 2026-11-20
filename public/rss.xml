@@ -5,8 +5,122 @@
     <link>https://github.com/markpernotto/exoplanet_citation</link>
     <description>Newly confirmed and revised exoplanet records from the NASA Exoplanet Archive, diffed nightly. Surfaces NEW / REMOVED / Tier-A parameter changes only.</description>
     <language>en-us</language>
-    <lastBuildDate>Thu, 19 Nov 2026 06:05:13 +0000</lastBuildDate>
+    <lastBuildDate>Fri, 20 Nov 2026 06:06:20 +0000</lastBuildDate>
     <ttl>1440</ttl>
+    <item>
+      <title>Exoplanet removed: Gliese 48 b</title>
+      <guid isPermaLink="false">change-3788</guid>
+      <pubDate>Fri, 20 Nov 2026 06:02:48 +0000</pubDate>
+      <description>Removed planet: Gliese 48 b. Discovery reference: Conzo et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026OEJV..273....1C/abstract)</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 39091 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3791</guid>
+      <pubDate>Fri, 20 Nov 2026 06:02:48 +0000</pubDate>
+      <description>HD 39091 b pl_bmasse: 4481.3805387 → 3941.0722468. Source: Piccinini et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026A&amp;A...707A.104P/abstract). Previously: Damasso et al. 2020</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 48948 b: pl_rade</title>
+      <guid isPermaLink="false">change-3798</guid>
+      <pubDate>Fri, 20 Nov 2026 06:02:48 +0000</pubDate>
+      <description>HD 48948 b pl_rade: 2.06 → 2.19. Source: Calculated by NASA Exoplanet Archive (https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html)</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 48948 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3799</guid>
+      <pubDate>Fri, 20 Nov 2026 06:02:48 +0000</pubDate>
+      <description>HD 48948 b pl_bmasse: 4.88 → 5.43. Source: Dalal et al. 2024 (https://ui.adsabs.harvard.edu/abs/2024MNRAS.534.2410D/abstract)</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 48948 c: pl_rade</title>
+      <guid isPermaLink="false">change-3803</guid>
+      <pubDate>Fri, 20 Nov 2026 06:02:48 +0000</pubDate>
+      <description>HD 48948 c pl_rade: 2.6 → 2.4. Source: Calculated by NASA Exoplanet Archive (https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html)</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 48948 c: pl_bmasse</title>
+      <guid isPermaLink="false">change-3804</guid>
+      <pubDate>Fri, 20 Nov 2026 06:02:48 +0000</pubDate>
+      <description>HD 48948 c pl_bmasse: 7.27 → 6.33. Source: Dalal et al. 2024 (https://ui.adsabs.harvard.edu/abs/2024MNRAS.534.2410D/abstract)</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 48948 d: pl_rade</title>
+      <guid isPermaLink="false">change-3809</guid>
+      <pubDate>Fri, 20 Nov 2026 06:02:48 +0000</pubDate>
+      <description>HD 48948 d pl_rade: 3.24 → 3.15. Source: Calculated by NASA Exoplanet Archive (https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html)</description>
+    </item>
+    <item>
+      <title>Parameter update — HD 48948 d: pl_bmasse</title>
+      <guid isPermaLink="false">change-3810</guid>
+      <pubDate>Fri, 20 Nov 2026 06:02:48 +0000</pubDate>
+      <description>HD 48948 d pl_bmasse: 10.59 → 10.05. Source: Dalal et al. 2024 (https://ui.adsabs.harvard.edu/abs/2024MNRAS.534.2410D/abstract)</description>
+    </item>
+    <item>
+      <title>Parameter update — KMT-2019-BLG-0253L b: pl_rade</title>
+      <guid isPermaLink="false">change-3815</guid>
+      <pubDate>Fri, 20 Nov 2026 06:02:48 +0000</pubDate>
+      <description>KMT-2019-BLG-0253L b pl_rade: 2.99 → 2.58. Source: Calculated by NASA Exoplanet Archive (https://exoplanetarchive.ipac.caltech.edu/docs/pscp_calc.html)</description>
+    </item>
+    <item>
+      <title>Parameter update — KMT-2019-BLG-0253L b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3816</guid>
+      <pubDate>Fri, 20 Nov 2026 06:02:48 +0000</pubDate>
+      <description>KMT-2019-BLG-0253L b pl_bmasse: 9.2 → 7.18. Source: Bhadra et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026AJ....172..281B/abstract). Previously: Hwang et al. 2022</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: OGLE-2013-BLG-1125L b</title>
+      <guid isPermaLink="false">change-3822</guid>
+      <pubDate>Fri, 20 Nov 2026 06:02:48 +0000</pubDate>
+      <description>New planet: OGLE-2013-BLG-1125L b. Discovery reference: Bachelet et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261029610B/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: OGLE-2015-BLG-1395L b</title>
+      <guid isPermaLink="false">change-3823</guid>
+      <pubDate>Fri, 20 Nov 2026 06:02:48 +0000</pubDate>
+      <description>New planet: OGLE-2015-BLG-1395L b. Discovery reference: Cole et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261032020C/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: RX J0534.0-0221 b</title>
+      <guid isPermaLink="false">change-3824</guid>
+      <pubDate>Fri, 20 Nov 2026 06:02:48 +0000</pubDate>
+      <description>New planet: RX J0534.0-0221 b. Discovery reference: Ferrer-Chavez et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv260920748F/abstract)</description>
+    </item>
+    <item>
+      <title>New exoplanet confirmed: TOI-2535 b</title>
+      <guid isPermaLink="false">change-3825</guid>
+      <pubDate>Fri, 20 Nov 2026 06:02:48 +0000</pubDate>
+      <description>New planet: TOI-2535 b. Discovery reference: Yee et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026arXiv261113343Y/abstract)</description>
+    </item>
+    <item>
+      <title>Parameter update — WASP-13 b: pl_rade</title>
+      <guid isPermaLink="false">change-3827</guid>
+      <pubDate>Fri, 20 Nov 2026 06:02:48 +0000</pubDate>
+      <description>WASP-13 b pl_rade: 13.67498 → 16.0288424. Source: Sicilia et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026MNRAS.tmp.1783S/abstract). Previously: Stassun et al. 2017</description>
+    </item>
+    <item>
+      <title>Parameter update — WASP-13 b: pl_bmasse</title>
+      <guid isPermaLink="false">change-3828</guid>
+      <pubDate>Fri, 20 Nov 2026 06:02:48 +0000</pubDate>
+      <description>WASP-13 b pl_bmasse: 114.4188 → 163.68162961. Source: Sicilia et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026MNRAS.tmp.1783S/abstract). Previously: Stassun et al. 2017</description>
+    </item>
+    <item>
+      <title>Parameter update — pi Men c: pl_rade</title>
+      <guid isPermaLink="false">change-3834</guid>
+      <pubDate>Fri, 20 Nov 2026 06:02:48 +0000</pubDate>
+      <description>pi Men c pl_rade: 2.0189 → 2.10728837. Source: Larsen et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026AJ....172..159L/abstract). Previously: Kunovac Hodžić et al. 2021</description>
+    </item>
+    <item>
+      <title>Parameter update — pi Men c: pl_bmasse</title>
+      <guid isPermaLink="false">change-3835</guid>
+      <pubDate>Fri, 20 Nov 2026 06:02:48 +0000</pubDate>
+      <description>pi Men c pl_bmasse: 3.63 → 3.5. Source: Larsen et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026AJ....172..159L/abstract). Previously: Hatzes et al. 2022</description>
+    </item>
+    <item>
+      <title>Parameter update — pi Men d: pl_orbper</title>
+      <guid isPermaLink="false">change-3840</guid>
+      <pubDate>Fri, 20 Nov 2026 06:02:48 +0000</pubDate>
+      <description>pi Men d pl_orbper: 124.64 → 123.1. Source: Larsen et al. 2026 (https://ui.adsabs.harvard.edu/abs/2026AJ....172..159L/abstract). Previously: Hatzes et al. 2022</description>
+    </item>
     <item>
       <title>Parameter update — Gaia-4 b: pl_orbper</title>
       <guid isPermaLink="false">change-3682</guid>

@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, OrbitControls } from '@react-three/drei';
 import { Bloom, EffectComposer } from '@react-three/postprocessing';
-import { createXRStore, useXR, useXRInputSourceState, XR, XROrigin, XRSpace } from '@react-three/xr';
+import { createXRStore, useXR, XR, XROrigin } from '@react-three/xr';
 import * as THREE from 'three';
 import { api, type BinaryCompanion, type DerivedMeasurementRow, type DiscoveryPaper, type OrbitalGeometryRecord, type PlanetDetail, type SceneResponse } from '../api';
 import LoadingBar from '../components/LoadingBar';
@@ -206,6 +206,27 @@ export default function ScenePage() {
   // sunWorldPos was declared at the top of the component (alongside other
   // hooks) to satisfy React's rules-of-hooks. It's used here to point the
   // surface-view camera tracker at the sun, which always lives at origin.
+
+  // In-headset counterpart of PlaybackControls (press Y in VR). Same state,
+  // same gating, so the two panels stay in step.
+  const vrMenu = (
+    <VRMenu
+      plName={scene.planet.pl_name}
+      paused={paused} setPaused={setPaused}
+      speed={speed} setSpeed={setSpeed}
+      viewMode={viewMode} setViewMode={setViewMode}
+      showRuler={showRuler} setShowRuler={setShowRuler}
+      showCompanions={showCompanions} setShowCompanions={setShowCompanions}
+      hasCompanions={scene.binary_companions.length > 0}
+      showStarLabels={showStarLabels} setShowStarLabels={setShowStarLabels}
+      irMode={irMode} setIrMode={setIrMode}
+      showStellarReference={showStellarReference} setShowStellarReference={setShowStellarReference}
+      hasStellarReference={hasStellarReference}
+      showDebrisDiskAxis={showDebrisDiskAxis} setShowDebrisDiskAxis={setShowDebrisDiskAxis}
+      alignToDiskAxis={alignToDiskAxis} setAlignToDiskAxis={setAlignToDiskAxis}
+      hasInclinedDebrisDisk={hasInclinedDebrisDisk}
+    />
+  );
   return (
     <>
       {!panelCollapsed && (
@@ -349,11 +370,11 @@ export default function ScenePage() {
               speed={1.5}
               surfaceProps={{ focalPosRef, surfaceOffset, maxOrbit }}
             >
-              <VRWristMenu paused={paused} setPaused={setPaused} />
+              {vrMenu}
             </VRRig>
           ) : (
             <VRRig initialPos={[3, 0.5, 1.5]} speed={1.5}>
-              <VRWristMenu paused={paused} setPaused={setPaused} />
+              {vrMenu}
             </VRRig>
           )}
           <PostProcessing />
@@ -2538,20 +2559,40 @@ function VRRig({
 }: VRRigProps) {
   const originRef = useRef<THREE.Group>(null);
   const inXR = useXR((s) => s.session != null);
-  const { camera } = useThree();
+  const gl = useThree((s) => s.gl);
+  // Surface mode: extra yaw the user adds with the right stick, on top of
+  // the automatic face-the-sun yaw.
+  const surfaceYaw = useRef(0);
+  const headOffset = useMemo(() => new THREE.Vector3(), []);
+
+  // Surface mode ("ride the planet"): put the user's EYES on the planet
+  // (just above its surface), not their feet. The XROrigin is the floor, and
+  // the head is ~1.2-1.7 m above it, which at VR scale (the whole system is
+  // a few meters across) left the rider far above the orbit line.
+  // The origin is also turned to face the host star at the system origin,
+  // so the sun stays ahead of the user through the whole orbit; Kepler
+  // timing (faster near periapsis) comes from the orbit animation itself.
   const syncToSurface = useCallback(() => {
     if (!surfaceProps) return;
     const origin = originRef.current;
     if (!origin) return;
     const { focalPosRef, surfaceOffset, maxOrbit } = surfaceProps;
     const scale = vrScaleFactor(maxOrbit);
-    const yOffset = surfaceOffset * scale;
-    origin.position.set(
-      focalPosRef.current.x * scale,
-      focalPosRef.current.y * scale + yOffset,
-      focalPosRef.current.z * scale,
-    );
-  }, [surfaceProps]);
+    const tx = focalPosRef.current.x * scale;
+    const ty = focalPosRef.current.y * scale + surfaceOffset * scale;
+    const tz = focalPosRef.current.z * scale;
+    // Face the star: origin's forward (-Z) points from the planet toward
+    // (0, 0, 0). yaw = atan2(tx, tz) maps -Z onto (-tx, -tz).
+    origin.rotation.set(0, Math.atan2(tx, tz) + surfaceYaw.current, 0);
+    // Shift the origin so the head (not the floor) lands on the target.
+    // The XR camera's local position is the head relative to the origin.
+    if (gl.xr.isPresenting) {
+      headOffset.copy(gl.xr.getCamera().position).applyEuler(origin.rotation);
+    } else {
+      headOffset.set(0, 0, 0);
+    }
+    origin.position.set(tx - headOffset.x, ty - headOffset.y, tz - headOffset.z);
+  }, [surfaceProps, gl, headOffset]);
 
   // Thumbstick locomotion, read directly from the controllers each frame.
   // (We used to use the library's useXRControllerLocomotion, but its snap
@@ -2571,7 +2612,7 @@ function VRRig({
   const headPos = useMemo(() => new THREE.Vector3(), []);
   const headQuat = useMemo(() => new THREE.Quaternion(), []);
   const moveDir = useMemo(() => new THREE.Vector3(), []);
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     if (!inXR) return;
     const origin = originRef.current;
     if (!origin) return;
@@ -2589,7 +2630,7 @@ function VRRig({
     if (!surfaceProps) {
       const { x, y } = stick('left');
       if (Math.hypot(x, y) > VR_MOVE_DEADZONE) {
-        camera.getWorldQuaternion(headQuat);
+        headWorldPose(state, headPos, headQuat);
         moveDir.set(x, 0, y).applyQuaternion(headQuat).multiplyScalar(speed * delta);
         origin.position.add(moveDir);
       }
@@ -2611,7 +2652,13 @@ function VRRig({
     if (Math.abs(x) < VR_TURN_DEADZONE) return;
     const t = (Math.abs(x) - VR_TURN_DEADZONE) / (1 - VR_TURN_DEADZONE);
     const angle = -Math.sign(x) * t * t * VR_TURN_SPEED_RAD_PER_SEC * delta; // push right = turn right
-    camera.getWorldPosition(headPos);
+    if (surfaceProps) {
+      // Riding: the face-the-sun yaw is reapplied every frame, so the
+      // stick adds an offset to it instead of turning the origin directly.
+      surfaceYaw.current += angle;
+      return;
+    }
+    headWorldPose(state, headPos);
     const dx = origin.position.x - headPos.x;
     const dz = origin.position.z - headPos.z;
     const cos = Math.cos(angle);
@@ -2650,99 +2697,422 @@ const VR_TURN_DEADZONE = 0.15;
 // but enough that a slightly off-center stick doesn't drift the user.
 const VR_MOVE_DEADZONE = 0.08;
 
-// ── VR wrist menu ─────────────────────────────────────────────────────
-// The web control panel is DOM and doesn't exist inside the headset, so VR
-// gets its own panel: press Y on the left controller to show it above the
-// left wrist, point with the right controller, pull the trigger to press.
+// ── VR menu ───────────────────────────────────────────────────────────
+// The web control panel (PlaybackControls) is DOM and doesn't exist inside
+// the headset, so VR gets its own: press Y on the left controller and a
+// panel appears about an arm's length in front of the user; point with
+// either controller and pull the trigger to press; Y again closes it.
 //
-// Built from plain meshes + canvas-texture labels (MeshBasicMaterial)
-// rather than a UI library or troika text: the Quest 3 multiview pipeline
-// has silently rejected custom shaders here before, and textured quads are
-// the primitive known to render in-headset.
+// It carries the same controls as PlaybackControls, with the same gating
+// (spin axis / disk toggles / companions only when the system has them).
 //
-// FIRST PASS: a single play/pause button, to prove the panel renders and
-// the controller ray can press it before building out the full menu.
+// The whole panel is ONE plane with ONE canvas texture (MeshBasicMaterial),
+// redrawn when state or hover changes; presses are hit-tested against the
+// button rectangles using the ray's UV on the plane. That keeps every
+// button visually consistent, lets the panel use the site theme's real font
+// and glow, and sticks to the primitive known to render in the Quest 3
+// multiview pipeline (textured quads; custom shaders have failed silently
+// there before). No UI library or troika text needed.
+//
+// Theme: if a retro theme (?theme=) was active when the user entered VR,
+// the panel is drawn in it: the theme's CSS colors and font, plus glow and
+// scanlines for the phosphor themes and the double DOS border for CGA/EGA.
+// Only the panel is themed; the 3D scene is untouched.
 
-function makeLabelTexture(text: string, active: boolean): THREE.CanvasTexture {
-  const canvas = document.createElement('canvas');
-  canvas.width = 256;
-  canvas.height = 96;
-  const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = active ? '#e8ecf4' : '#1a1f2b';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.strokeStyle = '#5a6478';
-  ctx.lineWidth = 4;
-  ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
-  ctx.fillStyle = active ? '#0b0d12' : '#e8ecf4';
-  ctx.font = '600 40px system-ui, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
-}
-
-function VRMenuButton({
-  label, active, position, onPress,
-}: {
-  label: string;
-  active: boolean;
-  position: [number, number, number];
-  onPress: () => void;
-}) {
-  const [hovered, setHovered] = useState(false);
-  const texture = useMemo(() => makeLabelTexture(label, active), [label, active]);
-  useEffect(() => () => texture.dispose(), [texture]);
-  return (
-    <mesh
-      position={position}
-      scale={hovered ? 1.08 : 1}
-      onClick={(e) => { e.stopPropagation(); onPress(); }}
-      onPointerOver={() => setHovered(true)}
-      onPointerOut={() => setHovered(false)}
-    >
-      {/* 8 cm x 3 cm, matching the 256x96 label canvas aspect */}
-      <planeGeometry args={[0.08, 0.03]} />
-      <meshBasicMaterial map={texture} toneMapped={false} />
-    </mesh>
-  );
-}
-
-function VRWristMenu({
-  paused, setPaused,
-}: {
+type VRMenuProps = {
+  plName: string;
   paused: boolean; setPaused: (p: boolean) => void;
-}) {
+  speed: number; setSpeed: (s: number) => void;
+  viewMode: 'system' | 'surface'; setViewMode: (v: 'system' | 'surface') => void;
+  showRuler: boolean; setShowRuler: (v: boolean) => void;
+  showCompanions: boolean; setShowCompanions: (v: boolean) => void;
+  hasCompanions: boolean;
+  showStarLabels: boolean; setShowStarLabels: (v: boolean) => void;
+  irMode: boolean; setIrMode: (v: boolean) => void;
+  showStellarReference: boolean; setShowStellarReference: (v: boolean) => void;
+  hasStellarReference: boolean;
+  showDebrisDiskAxis: boolean; setShowDebrisDiskAxis: (v: boolean) => void;
+  alignToDiskAxis: boolean; setAlignToDiskAxis: (v: boolean) => void;
+  hasInclinedDebrisDisk: boolean;
+};
+
+type VRMenuItem =
+  | { kind: 'heading'; text: string }
+  | { kind: 'note'; text: string }
+  | { kind: 'buttons'; buttons: { id: string; label: string; active: boolean; onPress: () => void }[] };
+
+type VRMenuTheme = {
+  bg: string; fg: string; muted: string; accent: string; border: string;
+  font: string; fontScale: number; glow: boolean; scanlines: boolean; doubleBorder: boolean;
+};
+
+// Snapshot the page's current theme from its CSS variables, so the panel
+// follows whatever theme the page had (including themes added later).
+function readVRMenuTheme(): VRMenuTheme {
+  const root = getComputedStyle(document.documentElement);
+  const v = (name: string, fallback: string) => root.getPropertyValue(name).trim() || fallback;
+  const slug = document.documentElement.dataset.theme ?? '';
+  const body = getComputedStyle(document.body);
+  const font = body.fontFamily || 'system-ui, sans-serif';
+  return {
+    bg: v('--bg', '#0b0d12'),
+    fg: v('--fg', '#e8eaf0'),
+    muted: v('--fg-muted', '#9099aa'),
+    accent: v('--accent', '#6db4ff'),
+    border: v('--border', '#232838'),
+    font,
+    // VT323 draws much smaller than other faces at the same pixel size.
+    fontScale: /VT323/.test(font) ? 1.35 : 1,
+    glow: body.textShadow !== 'none' && body.textShadow !== '',
+    scanlines: slug === 'phosphor-green' || slug === 'amber',
+    doubleBorder: slug === 'cga' || slug === 'ega',
+  };
+}
+
+const VR_MENU_W = 1024;          // canvas px
+const VR_MENU_WORLD_W = 0.6;     // panel width in meters
+const VR_MENU_DISTANCE_M = 0.7;  // how far in front of the head it sits
+const VR_MENU_FOLLOW_DEG = 30;   // drift past this and it glides back into view
+
+// The head's WORLD pose, for anything VR-relative (menu placement, stick
+// movement, turning pivot, billboards). Outside VR it's just the camera.
+//
+// In VR we build it ourselves: the XR camera's position/quaternion are the
+// fresh head pose relative to the XROrigin (three writes them from the
+// viewer pose before our frame callbacks run), and the XROrigin's matrix
+// carries the user's stick movement and turning. Three's own world matrices
+// for the XR cameras are rewritten during render without the origin, so
+// reading them from a frame callback gives an origin-less or stale pose.
+const _headParentQuat = new THREE.Quaternion();
+function headWorldPose(
+  state: { camera: THREE.Camera; gl: THREE.WebGLRenderer },
+  outPos: THREE.Vector3,
+  outQuat?: THREE.Quaternion,
+): void {
+  if (!state.gl.xr.isPresenting) {
+    state.camera.getWorldPosition(outPos);
+    if (outQuat) state.camera.getWorldQuaternion(outQuat);
+    return;
+  }
+  const cam = state.gl.xr.getCamera();
+  outPos.copy(cam.position);
+  if (outQuat) outQuat.copy(cam.quaternion);
+  const origin = cam.parent; // XROrigin adds the XR camera to its group
+  if (origin) {
+    origin.updateWorldMatrix(true, false);
+    outPos.applyMatrix4(origin.matrixWorld);
+    if (outQuat) outQuat.premultiply(origin.getWorldQuaternion(_headParentQuat));
+  }
+}
+const VR_MENU_PAD = 36;
+const VR_MENU_BTN_H = 72;
+const VR_MENU_GAP = 14;
+
+type VRMenuHitBox = { id: string; x: number; y: number; w: number; h: number; onPress: () => void };
+
+// Draws the panel; returns the canvas height used and the button hit boxes.
+function drawVRMenu(
+  ctx: CanvasRenderingContext2D,
+  items: VRMenuItem[],
+  theme: VRMenuTheme,
+  hoveredId: string | null,
+  measureOnly: boolean,
+): { height: number; boxes: VRMenuHitBox[] } {
+  const boxes: VRMenuHitBox[] = [];
+  const W = VR_MENU_W;
+  const innerW = W - VR_MENU_PAD * 2;
+  const font = (px: number, weight = 600) => `${weight} ${Math.round(px * theme.fontScale)}px ${theme.font}`;
+  const glowOn = (color: string) => {
+    if (!theme.glow) return;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 14;
+  };
+  const glowOff = () => { ctx.shadowBlur = 0; ctx.shadowColor = 'transparent'; };
+
+  let y = VR_MENU_PAD;
+  for (const item of items) {
+    if (item.kind === 'heading') {
+      if (!measureOnly) {
+        ctx.font = font(30, 600);
+        ctx.fillStyle = theme.muted;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        glowOn(theme.muted);
+        ctx.fillText(item.text, VR_MENU_PAD, y);
+        glowOff();
+      }
+      y += 30 * theme.fontScale + 12;
+    } else if (item.kind === 'note') {
+      if (!measureOnly) {
+        ctx.font = font(26, 400);
+        ctx.fillStyle = theme.muted;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText(item.text, VR_MENU_PAD, y);
+      }
+      y += 26 * theme.fontScale + 14;
+    } else {
+      // Lay buttons out in rows, up to 4 per row, equal widths.
+      const perRow = Math.min(4, item.buttons.length);
+      const btnW = (innerW - VR_MENU_GAP * (perRow - 1)) / perRow;
+      item.buttons.forEach((b, i) => {
+        const col = i % perRow;
+        const row = Math.floor(i / perRow);
+        const bx = VR_MENU_PAD + col * (btnW + VR_MENU_GAP);
+        const by = y + row * (VR_MENU_BTN_H + VR_MENU_GAP);
+        boxes.push({ id: b.id, x: bx, y: by, w: btnW, h: VR_MENU_BTN_H, onPress: b.onPress });
+        if (measureOnly) return;
+        const hovered = hoveredId === b.id;
+        if (b.active) {
+          ctx.fillStyle = theme.fg;
+          glowOn(theme.fg);
+          ctx.fillRect(bx, by, btnW, VR_MENU_BTN_H);
+          glowOff();
+        } else if (hovered) {
+          ctx.fillStyle = theme.border;
+          ctx.fillRect(bx, by, btnW, VR_MENU_BTN_H);
+        }
+        ctx.strokeStyle = hovered ? theme.accent : (theme.doubleBorder ? theme.fg : theme.border);
+        ctx.lineWidth = hovered ? 5 : 3;
+        ctx.strokeRect(bx + 1.5, by + 1.5, btnW - 3, VR_MENU_BTN_H - 3);
+        ctx.font = font(34, 600);
+        ctx.fillStyle = b.active ? theme.bg : (hovered ? theme.fg : theme.muted);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        if (!b.active) glowOn(ctx.fillStyle as string);
+        ctx.fillText(b.label, bx + btnW / 2, by + VR_MENU_BTN_H / 2 + 2, btnW - 16);
+        glowOff();
+      });
+      const rows = Math.ceil(item.buttons.length / perRow);
+      y += rows * VR_MENU_BTN_H + (rows - 1) * VR_MENU_GAP + 22;
+    }
+  }
+  return { height: Math.ceil(y + VR_MENU_PAD - 22), boxes };
+}
+
+function VRMenu(props: VRMenuProps) {
+  const {
+    plName, paused, setPaused, speed, setSpeed, viewMode, setViewMode,
+    showRuler, setShowRuler, showCompanions, setShowCompanions, hasCompanions,
+    showStarLabels, setShowStarLabels, irMode, setIrMode,
+    showStellarReference, setShowStellarReference, hasStellarReference,
+    showDebrisDiskAxis, setShowDebrisDiskAxis, alignToDiskAxis, setAlignToDiskAxis,
+    hasInclinedDebrisDisk,
+  } = props;
   const [open, setOpen] = useState(false);
-  const left = useXRInputSourceState('controller', 'left');
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [fontsReady, setFontsReady] = useState(0);
+  const groupRef = useRef<THREE.Group>(null);
+  const needsPlacement = useRef(false);
   const yWasPressed = useRef(false);
+  // Theme is re-read each time the menu opens, so it reflects whatever
+  // theme the page had when the user went into VR.
+  const [theme, setTheme] = useState<VRMenuTheme>(readVRMenuTheme);
+
+  // Webfonts (VT323, Silkscreen) must be loaded before canvas can draw them.
+  useEffect(() => {
+    let cancelled = false;
+    document.fonts?.load(`40px ${theme.font}`).then(() => {
+      if (!cancelled) setFontsReady((n) => n + 1);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [theme.font]);
 
   // Y-button toggle with edge detection (one press = one toggle).
   useFrame(() => {
-    const pressed = left?.gamepad['y-button']?.state === 'pressed';
-    if (pressed && !yWasPressed.current) setOpen((o) => !o);
-    yWasPressed.current = pressed;
+    const left = xrStore.getState().inputSourceStates.find(
+      (s) => s.type === 'controller' && s.inputSource.handedness === 'left',
+    );
+    const pressed = left?.type === 'controller' && left.gamepad['y-button']?.state === 'pressed';
+    if (pressed && !yWasPressed.current) {
+      if (!open) {
+        needsPlacement.current = true;
+        setTheme(readVRMenuTheme());
+      }
+      setOpen(!open);
+      setHoveredId(null);
+    }
+    yWasPressed.current = !!pressed;
   });
 
-  if (!left || !open) return null;
+  const exitThenSwitch = (mode: 'system' | 'surface') => {
+    if (mode === viewMode) return;
+    // Switching view mode remounts the whole Canvas, which would kill the
+    // XR session mid-frame. End the session cleanly first; the user lands
+    // on the desktop view in the new mode and can re-enter VR.
+    const session = xrStore.getState().session;
+    const go = () => setViewMode(mode);
+    if (session) session.end().then(go).catch(go); else go();
+  };
+
+  const items: VRMenuItem[] = [
+    { kind: 'heading', text: plName },
+    { kind: 'buttons', buttons: [
+      { id: 'v-system', label: 'system view', active: viewMode === 'system', onPress: () => exitThenSwitch('system') },
+      { id: 'v-surface', label: 'from surface', active: viewMode === 'surface', onPress: () => exitThenSwitch('surface') },
+    ] },
+    { kind: 'heading', text: 'playback' },
+    { kind: 'buttons', buttons: [
+      { id: 'play', label: paused ? 'play' : 'pause', active: !paused, onPress: () => setPaused(!paused) },
+      ...[0.25, 1, 4, 16].map((s) => ({
+        id: `speed-${s}`, label: `${s}×`, active: speed === s, onPress: () => setSpeed(s),
+      })),
+    ] },
+    { kind: 'heading', text: 'display' },
+    { kind: 'buttons', buttons: [
+      { id: 'ruler', label: 'ruler', active: showRuler, onPress: () => setShowRuler(!showRuler) },
+      ...(hasCompanions ? [
+        { id: 'companions', label: 'companions', active: showCompanions, onPress: () => setShowCompanions(!showCompanions) },
+        { id: 'labels', label: 'star labels', active: showStarLabels, onPress: () => setShowStarLabels(!showStarLabels) },
+      ] : []),
+      { id: 'ir', label: 'IR', active: irMode, onPress: () => setIrMode(!irMode) },
+      ...(hasStellarReference ? [
+        { id: 'spin', label: 'spin axis', active: showStellarReference, onPress: () => setShowStellarReference(!showStellarReference) },
+      ] : []),
+      ...(hasInclinedDebrisDisk ? [
+        { id: 'disk-axis', label: 'disk axis', active: showDebrisDiskAxis, onPress: () => setShowDebrisDiskAxis(!showDebrisDiskAxis) },
+        { id: 'align', label: 'align to disk', active: alignToDiskAxis, onPress: () => setAlignToDiskAxis(!alignToDiskAxis) },
+      ] : []),
+    ] },
+    { kind: 'buttons', buttons: [
+      { id: 'exit', label: 'exit VR', active: false, onPress: () => { xrStore.getState().session?.end().catch(() => {}); } },
+    ] },
+    { kind: 'note', text: 'Y: close menu · left stick: move · right stick: turn / rise' },
+  ];
+
+  // One canvas, sized to the content.
+  const canvas = useMemo(() => document.createElement('canvas'), []);
+  const texture = useMemo(() => {
+    const t = new THREE.CanvasTexture(canvas);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 4;
+    return t;
+  }, [canvas]);
+  useEffect(() => () => texture.dispose(), [texture]);
+
+  const ctx = canvas.getContext('2d')!;
+  const { height, boxes } = drawVRMenu(ctx, items, theme, hoveredId, true);
+  const boxesRef = useRef(boxes);
+  boxesRef.current = boxes;
+
+  // Redraw whenever anything visible changes.
+  const drawKey = JSON.stringify([items.map((i) => i.kind === 'buttons'
+    ? i.buttons.map((b) => [b.id, b.label, b.active]) : i.text), hoveredId, fontsReady]);
+  useEffect(() => {
+    if (!open) return;
+    if (canvas.width !== VR_MENU_W || canvas.height !== height) {
+      canvas.width = VR_MENU_W;
+      canvas.height = height;
+    }
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.globalAlpha = 0.92;
+    ctx.fillStyle = theme.bg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.globalAlpha = 1;
+    if (theme.doubleBorder) {
+      ctx.strokeStyle = theme.fg;
+      ctx.lineWidth = 4;
+      ctx.strokeRect(6, 6, canvas.width - 12, canvas.height - 12);
+      ctx.lineWidth = 2;
+      ctx.strokeRect(16, 16, canvas.width - 32, canvas.height - 32);
+    } else {
+      ctx.strokeStyle = theme.border;
+      ctx.lineWidth = 4;
+      ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
+    }
+    drawVRMenu(ctx, items, theme, hoveredId, false);
+    if (theme.scanlines) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
+      for (let sy = 3; sy < canvas.height; sy += 4) ctx.fillRect(0, sy, canvas.width, 1);
+    }
+    texture.needsUpdate = true;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, drawKey, height]);
+
+  // Placement: on open the panel snaps ~0.7 m ahead of the head (level,
+  // slightly below eye height), facing the user. While open it lazily
+  // follows: if it drifts more than VR_MENU_FOLLOW_DEG out of the user's
+  // forward view, or too near/far (they turned or flew off), it glides back
+  // in front of them, then holds still so it's easy to point at. It's
+  // parented to the XROrigin, so stick movement carries it along for free.
+  const headPos = useMemo(() => new THREE.Vector3(), []);
+  const headDir = useMemo(() => new THREE.Vector3(), []);
+  const targetPos = useMemo(() => new THREE.Vector3(), []);
+  const currentPos = useMemo(() => new THREE.Vector3(), []);
+  const toPanel = useMemo(() => new THREE.Vector3(), []);
+  const parentQuat = useMemo(() => new THREE.Quaternion(), []);
+  const targetQuat = useMemo(() => new THREE.Quaternion(), []);
+  const yawEuler = useMemo(() => new THREE.Euler(), []);
+  const headQuat = useMemo(() => new THREE.Quaternion(), []);
+  const following = useRef(false);
+  useFrame((state, delta) => {
+    const group = groupRef.current;
+    if (!open || !group || !group.parent) return;
+    headWorldPose(state, headPos, headQuat);
+    headDir.set(0, 0, -1).applyQuaternion(headQuat);
+    headDir.y = 0;
+    if (headDir.lengthSq() < 1e-6) headDir.set(0, 0, -1);
+    headDir.normalize();
+
+    // Where the panel would ideally be right now, in origin-local space.
+    targetPos.copy(headPos).addScaledVector(headDir, VR_MENU_DISTANCE_M);
+    targetPos.y -= 0.12;
+    yawEuler.set(0, Math.atan2(headPos.x - targetPos.x, headPos.z - targetPos.z), 0);
+    group.parent.updateWorldMatrix(true, false);
+    group.parent.getWorldQuaternion(parentQuat);
+    targetQuat.setFromEuler(yawEuler).premultiply(parentQuat.invert());
+    group.parent.worldToLocal(targetPos);
+
+    if (needsPlacement.current) {
+      needsPlacement.current = false;
+      following.current = false;
+      group.position.copy(targetPos);
+      group.quaternion.copy(targetQuat);
+      return;
+    }
+
+    // Has the panel drifted out of comfortable view?
+    group.getWorldPosition(currentPos);
+    toPanel.subVectors(currentPos, headPos);
+    const dist = toPanel.length();
+    toPanel.y = 0;
+    const offDeg = toPanel.lengthSq() > 1e-6
+      ? THREE.MathUtils.radToDeg(toPanel.normalize().angleTo(headDir))
+      : 0;
+    if (offDeg > VR_MENU_FOLLOW_DEG || dist < 0.35 || dist > 1.3) following.current = true;
+
+    if (following.current) {
+      const k = 1 - Math.exp(-6 * delta); // smooth, frame-rate independent
+      group.position.lerp(targetPos, k);
+      group.quaternion.slerp(targetQuat, k);
+      if (group.position.distanceTo(targetPos) < 0.01 && group.quaternion.angleTo(targetQuat) < 0.02) {
+        following.current = false;
+      }
+    }
+  });
+
+  const hitAt = (uv: THREE.Vector2 | undefined) => {
+    if (!uv) return undefined;
+    const px = uv.x * VR_MENU_W;
+    const py = (1 - uv.y) * height;
+    return boxesRef.current.find((b) => px >= b.x && px <= b.x + b.w && py >= b.y && py <= b.y + b.h);
+  };
+
+  const worldH = VR_MENU_WORLD_W * (height / VR_MENU_W);
   return (
-    <XRSpace space={left.inputSource.gripSpace!}>
-      {/* Floats ~6 cm above the controller, tilted back toward the user's
-          face so it reads naturally when the wrist is raised. */}
-      <group position={[0, 0.06, 0.02]} rotation={[-Math.PI / 4, 0, 0]}>
-        <mesh position={[0, 0, -0.001]}>
-          <planeGeometry args={[0.1, 0.045]} />
-          <meshBasicMaterial color="#0b0d12" transparent opacity={0.85} toneMapped={false} />
+    <group ref={groupRef} visible={open}>
+      {open && (
+        <mesh
+          renderOrder={1000}
+          onPointerMove={(e) => { e.stopPropagation(); setHoveredId(hitAt(e.uv)?.id ?? null); }}
+          onPointerOut={() => setHoveredId(null)}
+          onClick={(e) => { e.stopPropagation(); hitAt(e.uv)?.onPress(); }}
+        >
+          <planeGeometry args={[VR_MENU_WORLD_W, worldH]} />
+          <meshBasicMaterial map={texture} transparent toneMapped={false} depthTest={false} />
         </mesh>
-        <VRMenuButton
-          label={paused ? 'play' : 'pause'}
-          active={!paused}
-          position={[0, 0, 0]}
-          onPress={() => setPaused(!paused)}
-        />
-      </group>
-    </XRSpace>
+      )}
+    </group>
   );
 }
 
@@ -4463,7 +4833,7 @@ function StellarCorona({
   const camWorld = useMemo(() => new THREE.Vector3(), []);
   useFrame((state) => {
     if (meshRef.current) {
-      state.camera.getWorldPosition(camWorld);
+      headWorldPose(state, camWorld);
       meshRef.current.lookAt(camWorld);
     }
   });

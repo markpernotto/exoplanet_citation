@@ -365,3 +365,34 @@ def test_many_stars_render_to_distinct_pixels():
     # And that distinct stars produced distinct bright regions.
     n_lit = np.count_nonzero(arr.sum(axis=2) > 50)   # ignore halo skirts
     assert n_lit >= 50   # at least half the stars are clearly visible cores
+
+
+# ── local resolution overrides (.env) ──────────────────────────────────────
+
+def test_settings_from_env_defaults(monkeypatch):
+    from api.starfield import (
+        DEFAULT_HEIGHT,
+        DEFAULT_MAG_CUTOFF,
+        DEFAULT_WIDTH,
+        WEBP_QUALITY,
+        settings_from_env,
+    )
+    for name in ("STARFIELD_WIDTH", "STARFIELD_MAG_CUTOFF", "STARFIELD_WEBP_QUALITY"):
+        monkeypatch.setenv(name, "")  # blank, as in .env.example
+    assert settings_from_env() == (DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_MAG_CUTOFF, WEBP_QUALITY)
+
+
+def test_settings_from_env_overrides(monkeypatch):
+    from api.starfield import settings_from_env
+    monkeypatch.setenv("STARFIELD_WIDTH", "16382")
+    monkeypatch.setenv("STARFIELD_MAG_CUTOFF", "16")
+    monkeypatch.setenv("STARFIELD_WEBP_QUALITY", "90")
+    assert settings_from_env() == (16382, 8191, 16.0, 90)
+
+
+@pytest.mark.parametrize("width", ["16384", "1023", "6145"])
+def test_settings_from_env_rejects_bad_width(monkeypatch, width):
+    from api.starfield import settings_from_env
+    monkeypatch.setenv("STARFIELD_WIDTH", width)
+    with pytest.raises(ValueError, match="STARFIELD_WIDTH"):
+        settings_from_env()

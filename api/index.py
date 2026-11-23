@@ -88,7 +88,7 @@ from api.models import (
 )
 from api.references import change_description, change_refs
 from api.scene import derive_scene_hints
-from api.starfield import render_webp_cached
+from api.starfield import render_webp_cached, settings_from_env
 
 load_dotenv()
 
@@ -1144,7 +1144,9 @@ def planet_starfield(pl_name: str) -> Response:
 
     # render_webp_cached is process-cached by (host_xyz_pc, dims, mag_cutoff).
     # Cold renders at 6K take several seconds; hot lookups are instant.
-    img_bytes = render_webp_cached(tuple(host_xyz))
+    # Width / mag cutoff / quality come from .env for local users (see
+    # .env.example); unset means the public-site defaults.
+    img_bytes = render_webp_cached(tuple(host_xyz), *settings_from_env())
 
     return Response(
         content=img_bytes,

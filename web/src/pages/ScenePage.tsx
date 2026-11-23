@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, OrbitControls } from '@react-three/drei';
 import { Bloom, EffectComposer } from '@react-three/postprocessing';
-import { createXRStore, useXR, useXRControllerLocomotion, XR, XROrigin } from '@react-three/xr';
+import { createXRStore, useXR, useXRInputSourceState, XR, XROrigin, XRSpace } from '@react-three/xr';
 import * as THREE from 'three';
 import { api, type BinaryCompanion, type DerivedMeasurementRow, type DiscoveryPaper, type OrbitalGeometryRecord, type PlanetDetail, type SceneResponse } from '../api';
 import LoadingBar from '../components/LoadingBar';
@@ -348,9 +348,13 @@ export default function ScenePage() {
               initialPos={[3, 0.5, 1.5]}
               speed={1.5}
               surfaceProps={{ focalPosRef, surfaceOffset, maxOrbit }}
-            />
+            >
+              <VRWristMenu paused={paused} setPaused={setPaused} />
+            </VRRig>
           ) : (
-            <VRRig initialPos={[3, 0.5, 1.5]} speed={1.5} />
+            <VRRig initialPos={[3, 0.5, 1.5]} speed={1.5}>
+              <VRWristMenu paused={paused} setPaused={setPaused} />
+            </VRRig>
           )}
           <PostProcessing />
         </XR>
@@ -2517,6 +2521,8 @@ function VRSceneScale({ children, maxOrbit }: { children: React.ReactNode; maxOr
 type VRRigProps = {
   initialPos: [number, number, number];
   speed: number;
+  /** Rendered inside the XROrigin so it moves with the user (wrist menu). */
+  children?: React.ReactNode;
   surfaceProps?: {
     focalPosRef: React.MutableRefObject<THREE.Vector3>;
     surfaceOffset: number;  // in scene-AU
@@ -2528,9 +2534,11 @@ function VRRig({
   initialPos,
   speed,
   surfaceProps,
+  children,
 }: VRRigProps) {
   const originRef = useRef<THREE.Group>(null);
   const inXR = useXR((s) => s.session != null);
+  const { camera } = useThree();
   const syncToSurface = useCallback(() => {
     if (!surfaceProps) return;
     const origin = originRef.current;
@@ -2545,25 +2553,73 @@ function VRRig({
     );
   }, [surfaceProps]);
 
-  // Callback form (instead of ref form) so we can apply the full XYZ velocity
-  // vector. The default hook implementation only adds velocity.x and velocity.z
-  // to target.position, dropping the Y component — which means if the user is
-  // above the orbital plane and pushes the thumbstick forward while looking
-  // down at the system, they slide horizontally instead of diving in.
-  // In surface mode (surfaceProps provided), locomotion is disabled: the user
-  // is locked to the planet's position and should not drift away from it.
-  useXRControllerLocomotion(
-    (velocity, rotationVelocityY, deltaTime) => {
-      if (surfaceProps) return; // surface mode: planet tracking overrides locomotion
-      const origin = originRef.current;
-      if (!origin) return;
-      origin.position.x += velocity.x * deltaTime;
-      origin.position.y += velocity.y * deltaTime;
-      origin.position.z += velocity.z * deltaTime;
-      if (rotationVelocityY) origin.rotation.y += rotationVelocityY;
-    },
-    { speed },
-  );
+  // Thumbstick locomotion, read directly from the controllers each frame.
+  // (We used to use the library's useXRControllerLocomotion, but its snap
+  // turn jumps 45°, its smooth turn is a fixed on/off speed, rotation-only
+  // frames re-send the last movement velocity, and switching its rotation
+  // off left movement dead in the headset. One loop of our own is simpler.)
+  //
+  // LEFT stick moves: forward = the direction the head is facing, including
+  // up/down, so looking down at the system and pushing forward dives in.
+  // Disabled in surface mode, where the user rides the planet instead.
+  //
+  // RIGHT stick turns: smooth, proportional to how far the stick is pushed,
+  // pivoting around the head so the world doesn't swing sideways when the
+  // user isn't at the center of their play space. Allowed in surface mode
+  // (syncToSurface only rewrites position) so the user can look around the
+  // sky without physically spinning.
+  const headPos = useMemo(() => new THREE.Vector3(), []);
+  const headQuat = useMemo(() => new THREE.Quaternion(), []);
+  const moveDir = useMemo(() => new THREE.Vector3(), []);
+  useFrame((_, delta) => {
+    if (!inXR) return;
+    const origin = originRef.current;
+    if (!origin) return;
+    const { inputSourceStates } = xrStore.getState();
+    const stick = (hand: 'left' | 'right') => {
+      const s = inputSourceStates.find(
+        (st) => st.type === 'controller' && st.inputSource.handedness === hand,
+      );
+      const t = s?.type === 'controller' ? s.gamepad['xr-standard-thumbstick'] : undefined;
+      return { x: t?.xAxis ?? 0, y: t?.yAxis ?? 0 };
+    };
+
+    // Move (left stick). Stick y is negative when pushed forward, and the
+    // head looks down its local -Z, so (x, 0, y) maps straight into head space.
+    if (!surfaceProps) {
+      const { x, y } = stick('left');
+      if (Math.hypot(x, y) > VR_MOVE_DEADZONE) {
+        camera.getWorldQuaternion(headQuat);
+        moveDir.set(x, 0, y).applyQuaternion(headQuat).multiplyScalar(speed * delta);
+        origin.position.add(moveDir);
+      }
+    }
+
+    const right = stick('right');
+
+    // Rise / sink (right stick up/down): straight up or down in the world,
+    // whichever way the head is facing. Same curve as turning. Off in
+    // surface mode, where the user is pinned to the planet.
+    if (!surfaceProps && Math.abs(right.y) > VR_TURN_DEADZONE) {
+      const t = (Math.abs(right.y) - VR_TURN_DEADZONE) / (1 - VR_TURN_DEADZONE);
+      origin.position.y += -Math.sign(right.y) * t * t * speed * delta; // push up = rise
+    }
+
+    // Turn (right stick left/right). Rescale past the dead zone, then square
+    // it so small pushes give fine control and a full push gives full speed.
+    const { x } = right;
+    if (Math.abs(x) < VR_TURN_DEADZONE) return;
+    const t = (Math.abs(x) - VR_TURN_DEADZONE) / (1 - VR_TURN_DEADZONE);
+    const angle = -Math.sign(x) * t * t * VR_TURN_SPEED_RAD_PER_SEC * delta; // push right = turn right
+    camera.getWorldPosition(headPos);
+    const dx = origin.position.x - headPos.x;
+    const dz = origin.position.z - headPos.z;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    origin.position.x = headPos.x + dx * cos + dz * sin;
+    origin.position.z = headPos.z - dx * sin + dz * cos;
+    origin.rotation.y += angle;
+  });
 
   // Snap the user onto the focal planet as soon as an XR session starts, so
   // the first immersive frame doesn't briefly render from the default spawn.
@@ -2583,7 +2639,111 @@ function VRRig({
     syncToSurface();
   });
 
-  return <XROrigin ref={originRef} position={initialPos} />;
+  return <XROrigin ref={originRef} position={initialPos}>{children}</XROrigin>;
+}
+
+// Right-stick turn tuning. ~86°/sec at full push; 0.15 dead zone so a
+// resting thumb doesn't creep the view.
+const VR_TURN_SPEED_RAD_PER_SEC = 1.5;
+const VR_TURN_DEADZONE = 0.15;
+// Left-stick move dead zone: small, so movement still feels immediate,
+// but enough that a slightly off-center stick doesn't drift the user.
+const VR_MOVE_DEADZONE = 0.08;
+
+// ── VR wrist menu ─────────────────────────────────────────────────────
+// The web control panel is DOM and doesn't exist inside the headset, so VR
+// gets its own panel: press Y on the left controller to show it above the
+// left wrist, point with the right controller, pull the trigger to press.
+//
+// Built from plain meshes + canvas-texture labels (MeshBasicMaterial)
+// rather than a UI library or troika text: the Quest 3 multiview pipeline
+// has silently rejected custom shaders here before, and textured quads are
+// the primitive known to render in-headset.
+//
+// FIRST PASS: a single play/pause button, to prove the panel renders and
+// the controller ray can press it before building out the full menu.
+
+function makeLabelTexture(text: string, active: boolean): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 96;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = active ? '#e8ecf4' : '#1a1f2b';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = '#5a6478';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
+  ctx.fillStyle = active ? '#0b0d12' : '#e8ecf4';
+  ctx.font = '600 40px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+function VRMenuButton({
+  label, active, position, onPress,
+}: {
+  label: string;
+  active: boolean;
+  position: [number, number, number];
+  onPress: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const texture = useMemo(() => makeLabelTexture(label, active), [label, active]);
+  useEffect(() => () => texture.dispose(), [texture]);
+  return (
+    <mesh
+      position={position}
+      scale={hovered ? 1.08 : 1}
+      onClick={(e) => { e.stopPropagation(); onPress(); }}
+      onPointerOver={() => setHovered(true)}
+      onPointerOut={() => setHovered(false)}
+    >
+      {/* 8 cm x 3 cm, matching the 256x96 label canvas aspect */}
+      <planeGeometry args={[0.08, 0.03]} />
+      <meshBasicMaterial map={texture} toneMapped={false} />
+    </mesh>
+  );
+}
+
+function VRWristMenu({
+  paused, setPaused,
+}: {
+  paused: boolean; setPaused: (p: boolean) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const left = useXRInputSourceState('controller', 'left');
+  const yWasPressed = useRef(false);
+
+  // Y-button toggle with edge detection (one press = one toggle).
+  useFrame(() => {
+    const pressed = left?.gamepad['y-button']?.state === 'pressed';
+    if (pressed && !yWasPressed.current) setOpen((o) => !o);
+    yWasPressed.current = pressed;
+  });
+
+  if (!left || !open) return null;
+  return (
+    <XRSpace space={left.inputSource.gripSpace!}>
+      {/* Floats ~6 cm above the controller, tilted back toward the user's
+          face so it reads naturally when the wrist is raised. */}
+      <group position={[0, 0.06, 0.02]} rotation={[-Math.PI / 4, 0, 0]}>
+        <mesh position={[0, 0, -0.001]}>
+          <planeGeometry args={[0.1, 0.045]} />
+          <meshBasicMaterial color="#0b0d12" transparent opacity={0.85} toneMapped={false} />
+        </mesh>
+        <VRMenuButton
+          label={paused ? 'play' : 'pause'}
+          active={!paused}
+          position={[0, 0, 0]}
+          onPress={() => setPaused(!paused)}
+        />
+      </group>
+    </XRSpace>
+  );
 }
 
 // Bloom post-process pipeline, skipped while in VR. The EffectComposer
@@ -4294,9 +4454,17 @@ function StellarCorona({
   // share one billboard orientation.  The IPD-induced per-eye angular
   // difference is negligible at any realistic star-viewing distance, so the
   // head-pose approximation is visually indistinguishable.
+  //
+  // lookAt needs a WORLD point. camera.position is local to the camera's
+  // parent: identical to world on desktop, but in VR the camera sits inside
+  // the XROrigin, which moves and turns with the thumbsticks. Using the local
+  // value there aimed the billboards at the wrong point, so the halos showed
+  // as flat discs seen edge-on, sweeping around orbiting binary stars.
+  const camWorld = useMemo(() => new THREE.Vector3(), []);
   useFrame((state) => {
     if (meshRef.current) {
-      meshRef.current.lookAt(state.camera.position);
+      state.camera.getWorldPosition(camWorld);
+      meshRef.current.lookAt(camWorld);
     }
   });
 

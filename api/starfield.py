@@ -37,6 +37,10 @@ log = logging.getLogger(__name__)
 # is 1024 MB; 8K peaks around 1.3 GB live during compositing while 6K
 # lands at ~700-800 MB. The per-host LRU cache below amortizes the cold-
 # render cost so repeat visits stay snappy.
+#
+# Local users can override these without editing code: set STARFIELD_WIDTH
+# (and optionally STARFIELD_MAG_CUTOFF / STARFIELD_WEBP_QUALITY) in .env.
+# See settings_from_env() below and .env.example.
 DEFAULT_WIDTH = 6144
 DEFAULT_HEIGHT = 3072
 
@@ -885,6 +889,37 @@ def rasterize_skytexture(
 # edge, so every request re-rendered. q95 WebP is ~4.5 MB and encodes in ~1 s.
 WEBP_QUALITY = 95
 
+# WebP's format limit is 16383 px per side. Width must be even so the
+# equirectangular height (width / 2) is a whole number.
+MIN_WIDTH = 1024
+MAX_WIDTH = 16382
+
+
+def settings_from_env() -> tuple[int, int, float, int]:
+    """Read local rendering overrides: (width, height, mag_cutoff, quality).
+
+    Read per request rather than at import, because api/index.py calls
+    load_dotenv() after importing this module. Unset or empty variables
+    fall back to the defaults, which are what the public site uses. See
+    the "Starfield resolution" section of .env.example.
+    """
+    import os
+
+    def _get(name: str, default: str) -> str:
+        return os.environ.get(name, "").strip() or default
+
+    width = int(_get("STARFIELD_WIDTH", str(DEFAULT_WIDTH)))
+    if not MIN_WIDTH <= width <= MAX_WIDTH or width % 2:
+        raise ValueError(
+            f"STARFIELD_WIDTH={width} must be an even number from "
+            f"{MIN_WIDTH} to {MAX_WIDTH} (WebP's size limit)."
+        )
+    mag_cutoff = float(_get("STARFIELD_MAG_CUTOFF", str(DEFAULT_MAG_CUTOFF)))
+    quality = int(_get("STARFIELD_WEBP_QUALITY", str(WEBP_QUALITY)))
+    if not 1 <= quality <= 100:
+        raise ValueError(f"STARFIELD_WEBP_QUALITY={quality} must be 1 to 100.")
+    return width, width // 2, mag_cutoff, quality
+
 
 def render_webp(
     catalog: pd.DataFrame,
@@ -893,6 +928,7 @@ def render_webp(
     width: int = DEFAULT_WIDTH,
     height: int = DEFAULT_HEIGHT,
     mag_cutoff: float = DEFAULT_MAG_CUTOFF,
+    quality: int = WEBP_QUALITY,
 ) -> bytes:
     """Convenience wrapper: rasterize, encode as WebP, return bytes."""
     import io
@@ -904,7 +940,7 @@ def render_webp(
         mag_cutoff=mag_cutoff,
     )
     buf = io.BytesIO()
-    img.save(buf, format="WEBP", quality=WEBP_QUALITY)
+    img.save(buf, format="WEBP", quality=quality)
     return buf.getvalue()
 
 
@@ -914,8 +950,9 @@ def render_webp_cached(
     width: int = DEFAULT_WIDTH,
     height: int = DEFAULT_HEIGHT,
     mag_cutoff: float = DEFAULT_MAG_CUTOFF,
+    quality: int = WEBP_QUALITY,
 ) -> bytes:
-    """Per-host WebP cache. Keyed by (host_xyz_pc, width, height, mag_cutoff).
+    """Per-host WebP cache. Keyed by (host_xyz_pc, width, height, mag_cutoff, quality).
 
     Cold render runs several seconds (dominated by per-star ellipse
     drawing + LANCZOS upsample of the diffuse layer to full resolution);
@@ -933,4 +970,5 @@ def render_webp_cached(
         width=width,
         height=height,
         mag_cutoff=mag_cutoff,
+        quality=quality,
     )

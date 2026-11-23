@@ -17,8 +17,8 @@ nightly runs since 2026-05-04; FastAPI serving 22 endpoints with
 automatic Swagger docs; React + Three.js + WebXR frontend deployed at
 [exoplanetcitation.space](https://exoplanetcitation.space) with
 procedurally-rendered planet cards, an interactive 3D scene viewer with
-per-vantage starfield reprojection (4K through 16K rendering knob;
-default 6K), the multi-planet "this paper also announced…" affordance,
+per-vantage starfield reprojection (default 6K; local installs can
+raise it to 16K via `STARFIELD_WIDTH` in `.env`, see `.env.example`), the multi-planet "this paper also announced…" affordance,
 an imperial/metric units toggle, shareable URLs that round-trip camera
 state, and a `/feeds` index for personalized RSS subscriptions; Gaia DR3
 host-star enrichment complete for all 4,358 enrichable hosts; **citation

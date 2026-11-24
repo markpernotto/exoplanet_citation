@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Canvas, createPortal, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { Html, OrbitControls } from '@react-three/drei';
 import { Bloom, EffectComposer } from '@react-three/postprocessing';
 import { createXRStore, useXR, XR, XROrigin } from '@react-three/xr';
@@ -75,6 +75,9 @@ export default function ScenePage() {
   // debris disks become prominent. NOT a specific-instrument
   // simulation; the framing copy in the toggle title makes that clear.
   const [irMode, setIrMode] = useState(false);
+  // Orbit rings (focal + siblings). On by default; hiding them leaves just
+  // the bodies moving through space, which is striking in VR.
+  const [showOrbits, setShowOrbits] = useState(true);
 
   // Parse the URL hash once on initial mount. viewMode + orbital clock are
   // initialized from it (must happen before Canvas first renders so the
@@ -85,6 +88,13 @@ export default function ScenePage() {
     [],
   );
   const [viewMode, setViewMode] = useState<'system' | 'surface'>(initialHash.v ?? 'system');
+  // The Canvas camera options as of first render. They must stay constant:
+  // R3F builds a brand-new camera whenever the Canvas `camera` prop changes,
+  // and the Canvas no longer remounts on viewMode change (that killed VR
+  // sessions). CameraModeSwitch adjusts the one camera on mode change.
+  const initialCameraOptions = useRef<{
+    position: [number, number, number]; fov: number; near: number; far: number;
+  } | null>(null);
 
   // Shared ref written by SceneContents each frame with the focal planet's
   // animated world position. Read by CameraFollowFocal in surface mode so
@@ -220,6 +230,7 @@ export default function ScenePage() {
       hasCompanions={scene.binary_companions.length > 0}
       showStarLabels={showStarLabels} setShowStarLabels={setShowStarLabels}
       irMode={irMode} setIrMode={setIrMode}
+      showOrbits={showOrbits} setShowOrbits={setShowOrbits}
       showStellarReference={showStellarReference} setShowStellarReference={setShowStellarReference}
       hasStellarReference={hasStellarReference}
       showDebrisDiskAxis={showDebrisDiskAxis} setShowDebrisDiskAxis={setShowDebrisDiskAxis}
@@ -250,6 +261,7 @@ export default function ScenePage() {
         hasCompanions={scene.binary_companions.length > 0}
         showStarLabels={showStarLabels} setShowStarLabels={setShowStarLabels}
         irMode={irMode} setIrMode={setIrMode}
+        showOrbits={showOrbits} setShowOrbits={setShowOrbits}
       />
       {showCompanions && scene.binary_companions.length > 0 && (
         <CompanionHUDPanel
@@ -263,23 +275,24 @@ export default function ScenePage() {
           directionsRef={companionDirectionsRef}
         />
       )}
-      {/* Re-mount the Canvas on viewMode change so the camera + controls swap
-          cleanly. Slight perf hit on toggle, but no stale-state bugs. */}
+      {/* The Canvas stays mounted across viewMode changes. Remounting it
+          (the old approach) tore down the WebGL renderer, which ended any VR
+          session, so switching system <-> surface in the headset kicked the
+          user out. CameraModeSwitch now hands the one camera between modes. */}
       <Canvas
-        key={viewMode}
         style={{ position: 'fixed', inset: 0, background: '#000', zIndex: 0 }}
-        camera={
+        camera={initialCameraOptions.current ??= (
           viewMode === 'system'
-            ? { position: camPos, fov: 50, near: focalRadius * 0.01, far: farPlane }
+            ? { position: camPos, fov: SYSTEM_FOV, near: focalRadius * 0.01, far: farPlane }
             : {
                 // Surface: start at the focal planet's t=0 position. CameraFollowFocal
                 // updates this every frame as the planet orbits.
                 position: [orbsmax, surfaceOffset, 0],
-                fov: 75,
+                fov: SURFACE_FOV,
                 near: focalRadius * 0.01,
                 far: farPlane,
               }
-        }
+        )}
         gl={{
           logarithmicDepthBuffer: true,
           toneMapping: THREE.ACESFilmicToneMapping,
@@ -292,6 +305,9 @@ export default function ScenePage() {
         <XR store={xrStore}>
           <XRDepthFar />
           <VRAutoPlay setPaused={setPaused} />
+          <CameraModeSwitch viewMode={viewMode} systemCamPos={camPos} />
+          {/* HashWriter re-mounts per mode so that entering system view
+              re-applies the saved cam= vantage from the URL hash. */}
           <ambientLight intensity={0.04} />
           {viewMode === 'system' && (
             <OrbitControls
@@ -313,6 +329,7 @@ export default function ScenePage() {
               captured; the cam= field is only updated in system mode (where
               OrbitControls drives the camera). */}
           <HashWriter
+            key={viewMode}
             controlsRef={orbitControlsRef}
             viewMode={viewMode}
             clockRef={clockRef}
@@ -337,6 +354,7 @@ export default function ScenePage() {
                 companionDirectionsRef={companionDirectionsRef}
                 showStarLabels={showStarLabels}
                 irMode={irMode}
+                showOrbits={showOrbits}
               />
             ) : (
               <SceneContents
@@ -353,6 +371,7 @@ export default function ScenePage() {
                 companionDirectionsRef={companionDirectionsRef}
                 showStarLabels={showStarLabels}
                 irMode={irMode}
+                showOrbits={showOrbits}
               />
             )}
           </VRSceneScale>
@@ -2194,6 +2213,7 @@ function PlaybackControls({
   showCompanions, setShowCompanions, hasCompanions,
   showStarLabels, setShowStarLabels,
   irMode, setIrMode,
+  showOrbits, setShowOrbits,
 }: {
   paused: boolean; setPaused: (p: boolean) => void;
   speed: number; setSpeed: (s: number) => void;
@@ -2225,6 +2245,8 @@ function PlaybackControls({
       temperatures. Pedagogical mode, NOT a specific-instrument
       simulation — the toggle label and tooltip say "stylized". */
   irMode: boolean; setIrMode: (v: boolean) => void;
+  /** Orbit rings on/off. */
+  showOrbits: boolean; setShowOrbits: (v: boolean) => void;
 }) {
   const isSurface = viewMode === 'surface';
   const [collapsed, setCollapsed] = useState(false);
@@ -2317,6 +2339,25 @@ function PlaybackControls({
           guarantees at least one button is present). */}
       <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', marginTop: '0.55rem', flexWrap: 'wrap' }}>
         <span style={{ color: 'var(--fg-muted)' }}>display</span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={showOrbits}
+          aria-label={`Orbit lines, currently ${showOrbits ? 'on' : 'off'}`}
+          onClick={() => setShowOrbits(!showOrbits)}
+          title="Toggle the orbit lines (bodies keep moving either way)"
+          style={{
+            background: showOrbits ? 'var(--fg)' : 'transparent',
+            color: showOrbits ? '#0b0d12' : 'var(--fg-muted)',
+            border: '1px solid var(--border)',
+            padding: '0.15rem 0.5rem',
+            borderRadius: 3,
+            cursor: 'pointer',
+            fontSize: '0.75rem',
+          }}
+        >
+          orbits {showOrbits ? 'on' : 'off'}
+        </button>
         <button
           type="button"
           role="switch"
@@ -2612,6 +2653,7 @@ function VRRig({
   const headPos = useMemo(() => new THREE.Vector3(), []);
   const headQuat = useMemo(() => new THREE.Quaternion(), []);
   const moveDir = useMemo(() => new THREE.Vector3(), []);
+  const flight = useRef<VRFlight | null>(null);
   useFrame((state, delta) => {
     if (!inXR) return;
     const origin = originRef.current;
@@ -2624,6 +2666,53 @@ function VRRig({
       const t = s?.type === 'controller' ? s.gamepad['xr-standard-thumbstick'] : undefined;
       return { x: t?.xAxis ?? 0, y: t?.yAxis ?? 0 };
     };
+
+    // Point-and-fly (system view only; riding the planet ignores it).
+    const request = vrFlyRequest.current;
+    vrFlyRequest.current = null;
+    if (surfaceProps) {
+      flight.current = null;
+    } else if (request) {
+      headWorldPose(state, headPos);
+      request.getWorldPosition(_flyBodyPos);
+      const approachDir = headPos.clone().sub(_flyBodyPos);
+      const dist = approachDir.length();
+      if (dist < 1e-6) approachDir.set(0, 0, 1); else approachDir.divideScalar(dist);
+      flight.current = {
+        target: request,
+        approachDir,
+        standoff: Math.max(worldBoundingRadius(request) * VR_FLY_STANDOFF_RADII, VR_FLY_MIN_STANDOFF_M),
+        startHead: headPos.clone(),
+        t: 0,
+        duration: THREE.MathUtils.clamp(0.8 + dist * 0.15, 0.8, 2.5),
+      };
+    }
+    // Any stick input hands control back to the user (cancels the flight
+    // or the follow-along after arrival).
+    if (flight.current) {
+      const l = stick('left');
+      const r = stick('right');
+      if (Math.hypot(l.x, l.y) > VR_MOVE_DEADZONE || Math.abs(r.x) > VR_TURN_DEADZONE || Math.abs(r.y) > VR_TURN_DEADZONE) {
+        flight.current = null;
+      }
+    }
+    if (flight.current) {
+      const f = flight.current;
+      if (!f.target.parent) {
+        flight.current = null; // body unmounted (e.g. system changed)
+      } else {
+        // Glide the head from where it started to the standoff point beside
+        // the body, recomputed each frame since the body is orbiting. After
+        // arrival (t = 1) keep matching the body, i.e. follow it along.
+        f.t = Math.min(1, f.t + delta / f.duration);
+        f.target.getWorldPosition(_flyBodyPos);
+        const arrival = _flyBodyPos.addScaledVector(f.approachDir, f.standoff);
+        const desired = f.startHead.clone().lerp(arrival, easeInOutCubic(f.t));
+        headWorldPose(state, headPos);
+        origin.position.add(desired.sub(headPos));
+        return; // no stick handling while flying/following
+      }
+    }
 
     // Move (left stick). Stick y is negative when pushed forward, and the
     // head looks down its local -Z, so (x, 0, y) maps straight into head space.
@@ -2689,6 +2778,44 @@ function VRRig({
   return <XROrigin ref={originRef} position={initialPos}>{children}</XROrigin>;
 }
 
+// ── VR point-and-fly ──────────────────────────────────────────────────
+// In VR, pointing at a planet or star and pulling the trigger glides the
+// user to a viewing spot beside it. Body hit meshes call requestVRFly from
+// their onClick; VRRig picks the request up on its next frame. Module-level
+// (like xrStore) so bodies deep in SceneContents don't need a prop chain.
+// Returns true when it handled the click (i.e. we're in VR), so callers can
+// skip their desktop behavior (a sibling's click-to-jump would otherwise end
+// the VR session by navigating away).
+const vrFlyRequest: { current: THREE.Object3D | null } = { current: null };
+function requestVRFly(e: ThreeEvent<MouseEvent>): boolean {
+  if (!xrStore.getState().session) return false;
+  e.stopPropagation();
+  vrFlyRequest.current = e.eventObject;
+  return true;
+}
+
+type VRFlight = {
+  target: THREE.Object3D;
+  approachDir: THREE.Vector3; // from body toward where the user ends up
+  standoff: number;           // meters from body center at arrival
+  startHead: THREE.Vector3;
+  t: number;                  // 0..1 progress; stays 1 while following
+  duration: number;           // seconds
+};
+const VR_FLY_STANDOFF_RADII = 4;   // arrive this many body radii away...
+const VR_FLY_MIN_STANDOFF_M = 0.3; // ...but never closer than this
+const _flyBodyPos = new THREE.Vector3();
+const _flyScale = new THREE.Vector3();
+function worldBoundingRadius(obj: THREE.Object3D): number {
+  const mesh = obj as THREE.Mesh;
+  const geom = mesh.geometry;
+  if (!geom) return 0;
+  if (!geom.boundingSphere) geom.computeBoundingSphere();
+  obj.getWorldScale(_flyScale);
+  return (geom.boundingSphere?.radius ?? 0) * Math.max(_flyScale.x, _flyScale.y, _flyScale.z);
+}
+const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+
 // Right-stick turn tuning. ~86°/sec at full push; 0.15 dead zone so a
 // resting thumb doesn't creep the view.
 const VR_TURN_SPEED_RAD_PER_SEC = 1.5;
@@ -2729,6 +2856,7 @@ type VRMenuProps = {
   hasCompanions: boolean;
   showStarLabels: boolean; setShowStarLabels: (v: boolean) => void;
   irMode: boolean; setIrMode: (v: boolean) => void;
+  showOrbits: boolean; setShowOrbits: (v: boolean) => void;
   showStellarReference: boolean; setShowStellarReference: (v: boolean) => void;
   hasStellarReference: boolean;
   showDebrisDiskAxis: boolean; setShowDebrisDiskAxis: (v: boolean) => void;
@@ -2895,6 +3023,7 @@ function VRMenu(props: VRMenuProps) {
     plName, paused, setPaused, speed, setSpeed, viewMode, setViewMode,
     showRuler, setShowRuler, showCompanions, setShowCompanions, hasCompanions,
     showStarLabels, setShowStarLabels, irMode, setIrMode,
+    showOrbits, setShowOrbits,
     showStellarReference, setShowStellarReference, hasStellarReference,
     showDebrisDiskAxis, setShowDebrisDiskAxis, alignToDiskAxis, setAlignToDiskAxis,
     hasInclinedDebrisDisk,
@@ -2902,6 +3031,11 @@ function VRMenu(props: VRMenuProps) {
   const [open, setOpen] = useState(false);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [fontsReady, setFontsReady] = useState(0);
+  // The panel is a 3D object in the scene, so if it were left open when the
+  // session ends it would keep drawing over the flat page in the headset
+  // browser. Close it whenever VR ends, and only ever draw it in VR.
+  const inXR = useXR((s) => s.session != null);
+  useEffect(() => { if (!inXR) setOpen(false); }, [inXR]);
   const groupRef = useRef<THREE.Group>(null);
   const needsPlacement = useRef(false);
   const yWasPressed = useRef(false);
@@ -2935,21 +3069,17 @@ function VRMenu(props: VRMenuProps) {
     yWasPressed.current = !!pressed;
   });
 
-  const exitThenSwitch = (mode: 'system' | 'surface') => {
-    if (mode === viewMode) return;
-    // Switching view mode remounts the whole Canvas, which would kill the
-    // XR session mid-frame. End the session cleanly first; the user lands
-    // on the desktop view in the new mode and can re-enter VR.
-    const session = xrStore.getState().session;
-    const go = () => setViewMode(mode);
-    if (session) session.end().then(go).catch(go); else go();
+  // Switching modes happens in place: the Canvas stays mounted, so the VR
+  // session survives and VRRig starts or stops riding the planet.
+  const switchMode = (mode: 'system' | 'surface') => {
+    if (mode !== viewMode) setViewMode(mode);
   };
 
   const items: VRMenuItem[] = [
     { kind: 'heading', text: plName },
     { kind: 'buttons', buttons: [
-      { id: 'v-system', label: 'system view', active: viewMode === 'system', onPress: () => exitThenSwitch('system') },
-      { id: 'v-surface', label: 'from surface', active: viewMode === 'surface', onPress: () => exitThenSwitch('surface') },
+      { id: 'v-system', label: 'system view', active: viewMode === 'system', onPress: () => switchMode('system') },
+      { id: 'v-surface', label: 'from surface', active: viewMode === 'surface', onPress: () => switchMode('surface') },
     ] },
     { kind: 'heading', text: 'playback' },
     { kind: 'buttons', buttons: [
@@ -2960,6 +3090,7 @@ function VRMenu(props: VRMenuProps) {
     ] },
     { kind: 'heading', text: 'display' },
     { kind: 'buttons', buttons: [
+      { id: 'orbits', label: 'orbits', active: showOrbits, onPress: () => setShowOrbits(!showOrbits) },
       { id: 'ruler', label: 'ruler', active: showRuler, onPress: () => setShowRuler(!showRuler) },
       ...(hasCompanions ? [
         { id: 'companions', label: 'companions', active: showCompanions, onPress: () => setShowCompanions(!showCompanions) },
@@ -3100,8 +3231,8 @@ function VRMenu(props: VRMenuProps) {
 
   const worldH = VR_MENU_WORLD_W * (height / VR_MENU_W);
   return (
-    <group ref={groupRef} visible={open}>
-      {open && (
+    <group ref={groupRef} visible={open && inXR}>
+      {open && inXR && (
         <mesh
           renderOrder={1000}
           onPointerMove={(e) => { e.stopPropagation(); setHoveredId(hitAt(e.uv)?.id ?? null); }}
@@ -3196,6 +3327,43 @@ function EnterVRButton() {
 // with the sun's apparent direction in your sky changing as you go around.
 // Sibling planets continue their orbits — visible at their true angular
 // positions in your sky from this vantage.
+
+const SYSTEM_FOV = 50;
+const SURFACE_FOV = 75;
+
+// Hands the single Canvas camera between system and surface view when the
+// mode changes (the Canvas no longer remounts; see ScenePage). Desktop only:
+// in VR the headset owns the camera, and VRRig takes over or releases the
+// ride-the-planet tracking from its surfaceProps.
+//   -> system:  default vantage + system FOV. The re-mounted HashWriter then
+//               restores the saved cam= vantage from the hash, if there is
+//               one, and OrbitControls re-aims at its target.
+//   -> surface: surface FOV. CameraFollowFocal + FirstPersonLook set the
+//               position and orientation every frame from here on.
+function CameraModeSwitch({
+  viewMode, systemCamPos,
+}: {
+  viewMode: 'system' | 'surface';
+  systemCamPos: [number, number, number];
+}) {
+  const camera = useThree((s) => s.camera);
+  const gl = useThree((s) => s.gl);
+  const lastMode = useRef(viewMode);
+  useLayoutEffect(() => {
+    if (lastMode.current === viewMode) return; // first render: Canvas set it up
+    lastMode.current = viewMode;
+    if (gl.xr.isPresenting) return;
+    if (!(camera instanceof THREE.PerspectiveCamera)) return;
+    if (viewMode === 'system') {
+      camera.position.set(...systemCamPos);
+      camera.fov = SYSTEM_FOV;
+    } else {
+      camera.fov = SURFACE_FOV;
+    }
+    camera.updateProjectionMatrix();
+  }, [viewMode, camera, gl, systemCamPos]);
+  return null;
+}
 
 // Update the camera position to track the focal planet each frame. The
 // caller passes a Vector3 ref that SceneContents writes to; we read from
@@ -3330,6 +3498,7 @@ function SceneContents({
   companionDirectionsRef,
   showStarLabels = false,
   irMode = false,
+  showOrbits = true,
 }: {
   scene: SceneResponse;
   paused: boolean;
@@ -3376,12 +3545,18 @@ function SceneContents({
       disk shaders switch palettes — cool dim, hot blaze, debris disks
       prominent, M-dwarfs gain relative brightness over G/F stars. */
   irMode?: boolean;
+  /** Draw the focal + sibling orbit rings. */
+  showOrbits?: boolean;
 }) {
   const navigate = useNavigate();
   const location = useLocation();
   const themeParam = new URLSearchParams(location.search).get('theme');
   const themeQuery = themeParam ? `?theme=${themeParam}` : '';
   const [hovered, setHovered] = useState<string | null>(null);
+  // VR companion pointers need scene-AU -> world conversion; this empty
+  // group at the scene origin carries the VR scale-up transform.
+  const sceneAnchorRef = useRef<THREE.Group>(null);
+  const inXR = useXR((st) => st.session != null);
 
   const { sun_color_hex } = scene.scene_hints;
   const { planet, siblings } = scene;
@@ -3688,7 +3863,7 @@ function SceneContents({
           measured mutual inclination (from tiltMap). Visible standouts:
           ups And d (30° from c), 55 Cnc e (17° from b), Kepler-419 c
           (9° from b). Planets without measured geometry stay coplanar. */}
-      <OrbitRing
+      {showOrbits && <OrbitRing
         orbsmax={focalOrbsmax}
         eccen={planet.pl_orbeccen ?? 0}
         color="#7ad6ff"
@@ -3696,7 +3871,7 @@ function SceneContents({
         inc={focalRenderTilt.inc}
         omega={focalRenderTilt.omega}
         argPeri={argPeriRad(planet.pl_orblper)}
-      />
+      />}
 
       {/* In-scene AU ruler. Two-endpoint interactive measurement tool
           living in the orbital reference plane (XZ). User drags either
@@ -3774,7 +3949,7 @@ function SceneContents({
         align={alignToDiskAxis}
         debrisDisks={debrisDisks}
       />
-      {siblings
+      {showOrbits && siblings
         .filter((s) => s.pl_name !== planet.pl_name && s.pl_orbsmax != null)
         .map((s) => {
           const t = tiltMap.get(s.pl_name) ?? { inc: 0, omega: 0 };
@@ -3816,7 +3991,7 @@ function SceneContents({
               effectiveTempK={focalEffectiveTeff(scene.derived_measurements, planet.pl_name)}
               irMode={irMode}
             />
-            {hovered === planet.pl_name && <PlanetLabel name={planet.pl_name} subtitle="(focal)" />}
+            {hovered === planet.pl_name && <PlanetLabel name={planet.pl_name} subtitle="(focal)" vrSubtitle="(focal) · trigger: fly here" />}
           </>
         )}
         {/* Circumplanetary disk — sibling of PlanetBody (not nested inside
@@ -3910,7 +4085,7 @@ function SceneContents({
               {siblingCpd && (
                 <CircumplanetaryDiskRing planetRadius={siblingRadius} irMode={irMode} />
               )}
-              {hovered === s.pl_name && <PlanetLabel name={s.pl_name} subtitle="click to jump" />}
+              {hovered === s.pl_name && <PlanetLabel name={s.pl_name} subtitle="click to jump" vrSubtitle="trigger: fly here" />}
             </group>
           );
         })}
@@ -3940,6 +4115,16 @@ function SceneContents({
           screen space and write the direction angle + in-view flag
           into a shared ref. The fixed-position HUD panel (outside the
           Canvas, in ScenePage) reads from the same ref. */}
+      {/* VR counterpart of the companion HUD: edge-of-view pointers. */}
+      <group ref={sceneAnchorRef} />
+      {showCompanions && inXR && filledCompanions.length > 0 && (
+        <VRCompanionPointers
+          companions={filledCompanions}
+          systemDistancePc={scene.host_star?.distance_gspphot_pc ?? scene.planet.sy_dist ?? scene.planet.distance_manual_pc ?? null}
+          hostname={planet.hostname}
+          anchorRef={sceneAnchorRef}
+        />
+      )}
       {showCompanions && companionDirectionsRef && (
         <CompanionHUDTracker
           companions={filledCompanions}
@@ -4230,6 +4415,9 @@ function StarNameLabel({
   accentColor: string;
   yOffsetAU: number;
 }) {
+  // In VR the DOM pill doesn't exist; use the in-scene name tag instead.
+  const inXR = useXR((st) => st.session != null);
+  if (inXR) return <VRHoverLabel name={`◆ ${name}`} yOffset={yOffsetAU} />;
   return (
     <Html
       position={[0, yOffsetAU, 0]}
@@ -4364,7 +4552,10 @@ function CompanionStar({
         }}
       >
         <sphereGeometry args={[Math.max(radiusAU * 4, 0.2), 16, 16]} />
-        <meshBasicMaterial visible={false} />
+        {/* Drawn-but-empty instead of visible={false}: the VR controller
+            ray skips invisible meshes, so hover labels never fired in the
+            headset (same fix as PlanetBody's hit mesh). */}
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
       {hoveredKey === labelName && (
         <PlanetLabel name={labelName} subtitle={subtitle} yOffset={radiusAU * 1.6} />
@@ -4687,7 +4878,8 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spot, haloIntens
         <mesh material={depthOnlyMaterial} renderOrder={-100}>
           <sphereGeometry args={[radius, 64, 64]} />
         </mesh>
-        <mesh material={material} renderOrder={10}>
+        {/* onClick: in VR, point-and-fly to this star (no-op on desktop). */}
+        <mesh material={material} renderOrder={10} onClick={(e) => { requestVRFly(e); }}>
           <sphereGeometry args={[radius, 64, 64]} />
         </mesh>
       </group>
@@ -5720,7 +5912,7 @@ function PlanetBody({
       <mesh
         onPointerOver={(e) => { e.stopPropagation(); if (name && onHover) onHover(name); document.body.style.cursor = onClick ? 'pointer' : 'default'; }}
         onPointerOut={(e) => { e.stopPropagation(); if (onHover) onHover(null); document.body.style.cursor = 'default'; }}
-        onClick={(e) => { if (onClick) { e.stopPropagation(); onClick(); } }}
+        onClick={(e) => { if (requestVRFly(e)) return; if (onClick) { e.stopPropagation(); onClick(); } }}
       >
         <sphereGeometry args={[hitRadius, 8, 8]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
@@ -6643,7 +6835,16 @@ function atmosphereTintFromMolecules(
   return undefined;
 }
 
-function PlanetLabel({ name, subtitle, yOffset = 0.012 }: { name: string; subtitle?: string; yOffset?: number }) {
+function PlanetLabel({ name, subtitle, vrSubtitle, yOffset = 0.012 }: {
+  name: string; subtitle?: string;
+  /** Hint shown instead of `subtitle` in VR (e.g. trigger-to-fly). */
+  vrSubtitle?: string;
+  yOffset?: number;
+}) {
+  // drei <Html> is a DOM overlay and doesn't exist inside the headset, so in
+  // VR the label is drawn into the scene instead.
+  const inXR = useXR((st) => st.session != null);
+  if (inXR) return <VRHoverLabel name={name} subtitle={vrSubtitle ?? subtitle} yOffset={yOffset} />;
   return (
     <Html position={[0, yOffset, 0]} center distanceFactor={undefined} style={{ pointerEvents: 'none' }}>
       <div style={{
@@ -6661,5 +6862,199 @@ function PlanetLabel({ name, subtitle, yOffset = 0.012 }: { name: string; subtit
         {subtitle && <span style={{ marginLeft: '0.4rem', color: 'var(--fg-muted)', fontWeight: 400, fontSize: '0.72rem' }}>{subtitle}</span>}
       </div>
     </Html>
+  );
+}
+
+// In-scene hover label for VR: a canvas-texture plane (same primitive and
+// theme as the VR menu) that faces the head and keeps a constant apparent
+// size, so a planet's name is readable whether it's near or across the
+// system. Drawn on top of everything so the body can't hide it.
+const VR_LABEL_ANGULAR_HEIGHT = 0.035; // label height ≈ 2° of view
+const _labelHead = new THREE.Vector3();
+const _labelPos = new THREE.Vector3();
+const _labelParentScale = new THREE.Vector3();
+// Themed name-tag texture shared by the VR hover labels and the companion
+// pointers. aspect = width / height of the drawn tag.
+function makeVRLabelTexture(name: string, subtitle?: string): { texture: THREE.CanvasTexture; aspect: number } {
+    const theme = readVRMenuTheme();
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d')!;
+    const font = (px: number, w: number) => `${w} ${Math.round(px * theme.fontScale)}px ${theme.font}`;
+    ctx.font = font(44, 600);
+    const nameW = ctx.measureText(name).width;
+    ctx.font = font(30, 400);
+    const subW = subtitle ? ctx.measureText(subtitle).width : 0;
+    const H = subtitle ? 128 : 84;
+    canvas.width = Math.ceil(Math.max(nameW, subW) + 48);
+    canvas.height = H;
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = theme.bg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = theme.doubleBorder ? theme.fg : theme.border;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(1.5, 1.5, canvas.width - 3, canvas.height - 3);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    if (theme.glow) { ctx.shadowColor = theme.fg; ctx.shadowBlur = 12; }
+    ctx.font = font(44, 600);
+    ctx.fillStyle = theme.fg;
+    ctx.fillText(name, canvas.width / 2, subtitle ? 44 : H / 2 + 2);
+    if (subtitle) {
+      ctx.font = font(30, 400);
+      ctx.fillStyle = theme.muted;
+      ctx.fillText(subtitle, canvas.width / 2, 96);
+    }
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return { texture: tex, aspect: canvas.width / canvas.height };
+}
+
+function VRHoverLabel({ name, subtitle, yOffset }: { name: string; subtitle?: string; yOffset: number }) {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const { texture, aspect } = useMemo(() => makeVRLabelTexture(name, subtitle), [name, subtitle]);
+  useEffect(() => () => texture.dispose(), [texture]);
+
+  useFrame((state) => {
+    const mesh = meshRef.current;
+    if (!mesh || !mesh.parent) return;
+    headWorldPose(state, _labelHead);
+    mesh.getWorldPosition(_labelPos);
+    mesh.lookAt(_labelHead);
+    // Constant apparent size: world height proportional to distance, then
+    // divided by the parent's world scale (the VR scene scale-up).
+    const worldH = _labelPos.distanceTo(_labelHead) * VR_LABEL_ANGULAR_HEIGHT;
+    mesh.parent.getWorldScale(_labelParentScale);
+    mesh.scale.setScalar(worldH / Math.max(_labelParentScale.x, 1e-9));
+  });
+
+  return (
+    <mesh ref={meshRef} position={[0, yOffset, 0]} renderOrder={999}>
+      <planeGeometry args={[aspect, 1]} />
+      <meshBasicMaterial map={texture} transparent toneMapped={false} depthTest={false} />
+    </mesh>
+  );
+}
+
+// ── VR companion pointers ─────────────────────────────────────────────
+// The desktop companion HUD is a DOM panel, which doesn't exist in the
+// headset. In VR, each companion star that's outside the user's view gets
+// a small tag near the edge of vision (name + separation) with an arrow
+// pointing the way to turn. Once the star itself is in view the tag hides
+// and the star's own label takes over. Positions come from
+// companionScenePos, the same helper the visible stars and the desktop HUD
+// use, so all three always agree.
+//
+// The tags are head-relative, so they're portaled into the unscaled scene
+// root and positioned in world meters each frame.
+const VR_POINTER_HIDE_DEG = 32;   // companion within this of gaze: in view
+const VR_POINTER_PLACE_DEG = 24;  // tag sits this far off gaze, toward it
+const VR_POINTER_DIST_M = 1.0;    // tag distance from the head
+const VR_POINTER_TAG_H_M = 0.035; // tag height
+const _ptrHead = new THREE.Vector3();
+const _ptrQuat = new THREE.Quaternion();
+const _ptrInv = new THREE.Quaternion();
+const _ptrDir = new THREE.Vector3();
+const _ptrAxis = new THREE.Vector3();
+const _ptrFwd = new THREE.Vector3(0, 0, -1);
+
+function VRCompanionPointers({
+  companions, systemDistancePc, hostname, anchorRef,
+}: {
+  companions: BinaryCompanion[];
+  systemDistancePc: number | null;
+  hostname: string;
+  anchorRef: React.RefObject<THREE.Group>;
+}) {
+  const rootScene = useThree((st) => st.scene);
+  return createPortal(
+    <>
+      {companions.map((c) => {
+        const placement = companionScenePos(c, systemDistancePc);
+        if (!placement) return null;
+        return (
+          <VRCompanionPointer
+            key={c.component_designation}
+            label={companionFullName(hostname, c.component_designation)}
+            sub={`${formatAU(placement.sepAU)} AU`}
+            scenePos={placement.position}
+            anchorRef={anchorRef}
+          />
+        );
+      })}
+    </>,
+    rootScene,
+  );
+}
+
+function VRCompanionPointer({
+  label, sub, scenePos, anchorRef,
+}: {
+  label: string;
+  sub: string;
+  scenePos: [number, number, number];
+  anchorRef: React.RefObject<THREE.Group>;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+  const arrowRef = useRef<THREE.Mesh>(null);
+  const { texture, aspect } = useMemo(() => makeVRLabelTexture(label, sub), [label, sub]);
+  useEffect(() => () => texture.dispose(), [texture]);
+  const arrowTexture = useMemo(() => {
+    const theme = readVRMenuTheme();
+    const canvas = document.createElement('canvas');
+    canvas.width = 64; canvas.height = 64;
+    const ctx = canvas.getContext('2d')!;
+    if (theme.glow) { ctx.shadowColor = theme.fg; ctx.shadowBlur = 8; }
+    ctx.fillStyle = theme.fg;
+    ctx.beginPath(); // triangle pointing +X
+    ctx.moveTo(56, 32); ctx.lineTo(12, 10); ctx.lineTo(12, 54); ctx.closePath();
+    ctx.fill();
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }, []);
+  useEffect(() => () => arrowTexture.dispose(), [arrowTexture]);
+
+  useFrame((state) => {
+    const group = groupRef.current;
+    const anchor = anchorRef.current;
+    if (!group || !anchor) return;
+    headWorldPose(state, _ptrHead, _ptrQuat);
+    // Companion direction in head space (x right, y up, -z forward).
+    _ptrDir.set(...scenePos);
+    anchor.localToWorld(_ptrDir);
+    _ptrDir.sub(_ptrHead).applyQuaternion(_ptrInv.copy(_ptrQuat).invert()).normalize();
+    const offDeg = THREE.MathUtils.radToDeg(_ptrDir.angleTo(_ptrFwd));
+    if (offDeg < VR_POINTER_HIDE_DEG) { group.visible = false; return; }
+    group.visible = true;
+    // Tag direction: tilt the gaze VR_POINTER_PLACE_DEG toward the star.
+    _ptrAxis.crossVectors(_ptrFwd, _ptrDir);
+    if (_ptrAxis.lengthSq() < 1e-8) _ptrAxis.set(0, 1, 0); // directly behind
+    _ptrAxis.normalize();
+    const tagDir = _ptrFwd.clone().applyAxisAngle(_ptrAxis, THREE.MathUtils.degToRad(VR_POINTER_PLACE_DEG));
+    group.position.copy(tagDir.applyQuaternion(_ptrQuat)).multiplyScalar(VR_POINTER_DIST_M).add(_ptrHead);
+    group.quaternion.copy(_ptrQuat); // faces the user, upright in their view
+    // Arrow sits on the tag's outer edge, pointing toward the star.
+    let roll = Math.atan2(_ptrDir.y, _ptrDir.x);
+    if (Math.hypot(_ptrDir.x, _ptrDir.y) < 1e-4) roll = 0; // dead behind: point right
+    const arrow = arrowRef.current;
+    if (arrow) {
+      const r = VR_POINTER_TAG_H_M * Math.max(aspect, 1) * 0.5 + 0.02;
+      arrow.position.set(Math.cos(roll) * r, Math.sin(roll) * r, 0);
+      arrow.rotation.set(0, 0, roll);
+    }
+  });
+
+  return (
+    <group ref={groupRef} visible={false}>
+      <mesh renderOrder={998} scale={VR_POINTER_TAG_H_M}>
+        <planeGeometry args={[aspect, 1]} />
+        <meshBasicMaterial map={texture} transparent toneMapped={false} depthTest={false} />
+      </mesh>
+      <mesh ref={arrowRef} renderOrder={998} scale={0.025}>
+        <planeGeometry args={[1, 1]} />
+        <meshBasicMaterial map={arrowTexture} transparent toneMapped={false} depthTest={false} />
+      </mesh>
+    </group>
   );
 }

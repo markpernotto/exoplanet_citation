@@ -4871,6 +4871,7 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spot, haloIntens
       uColor:         { value: renderColor },
       uTime:          { value: 0 },
       uHdr:           { value: renderHdr },
+      uExposure:      { value: 1 },
       uLogDepthBufFC: { value: 0 },
       // Starspot uniforms, updated by a useEffect below. A dark patch fixed in
       // object space; the mesh's group rotation moves it across the visible
@@ -4911,6 +4912,7 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spot, haloIntens
       uniform vec3 uColor;
       uniform float uTime;
       uniform float uHdr;
+      uniform float uExposure;
       uniform float uLogDepthBufFC;
       uniform vec3 uSpotDir;
       uniform float uSpotIntensity;
@@ -4971,21 +4973,24 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spot, haloIntens
                                        spotCos);
         surf *= mix(1.0, 0.50, spotFalloff * uSpotIntensity);
 
-        // Limb darkening. Floor at 0.25 — the disc still reads as a 3-D
-        // sphere (1.0 at center → 0.25 at silhouette, a 4× falloff that
-        // gives clear center-to-edge shading) and the silhouette is now
-        // dim enough that when the additive corona kicks in at the edge,
-        // the transition is gradual rather than a hard brightness step.
-        // Linear (no pow) keeps the falloff gentle across the whole disc.
+        // Limb darkening, linear law with the Sun's visible-band coefficient
+        // (u ≈ 0.6: the edge is ~40% of the center). The old exaggerated
+        // floor of 0.25 left the limb darker than the glare just outside it,
+        // which drew a dark ring around every star.
         float mu = max(0.0, dot(vNormal, vViewDir));
-        float limb = mix(0.25, 1.0, mu);
+        float limb = mix(0.4, 1.0, mu);
 
         // HDR multiplier is per-star (computed JS-side from teff). Cool
         // stars use a smaller boost so ACES doesn't desaturate their reds
         // toward yellow; hot stars use a much larger boost so they read as
         // blindingly bright. Pure ACES is famous for desaturating in the
         // highlights — the prior comment claiming otherwise was wrong.
-        gl_FragColor = vec4(uColor * surf * limb * uHdr, 1.0);
+        //
+        // uExposure is the viewing exposure (see starExposure): high when the
+        // star is small in view, so it saturates like a real star seen by
+        // eye or camera; it drops as the star fills the view, the way an
+        // eye or camera adapts, revealing granulation and starspots.
+        gl_FragColor = vec4(uColor * surf * limb * uHdr * uExposure, 1.0);
       }
     `,
     transparent: false,
@@ -5015,8 +5020,20 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spot, haloIntens
   // when a rotation period is known; otherwise the granulation drift alone
   // animates the surface, as before.
   const spinGroup = useRef<THREE.Group>(null);
+  // Up close, expose so the star's brightest color channel sits just under
+  // saturation. A fixed value clipped cool stars' red channel, which flattened
+  // the disc and hid starspot contrast.
+  const nearExposure = 0.85 / Math.max(1e-3, renderHdr * Math.max(renderColor.r, renderColor.g, renderColor.b));
+  // Shared with the two corona layers so the glare follows the same exposure.
+  const exposureRef = useRef({ disc: STAR_EXPOSURE_FAR, glare: 1 });
   useFrame((state) => {
     material.uniforms.uTime.value = state.clock.getElapsedTime();
+    if (spinGroup.current) {
+      const e = starExposure(state, spinGroup.current, radius, nearExposure);
+      exposureRef.current.disc = e.disc;
+      exposureRef.current.glare = e.glare;
+      material.uniforms.uExposure.value = irMode ? 1 : e.disc;
+    }
     const xrCamera = state.gl.xr.getCamera();
     const xrFar = (xrCamera.isArrayCamera ? xrCamera.cameras[0]?.far : undefined) ?? xrCamera.far;
     const activeFar = state.gl.xr.isPresenting ? xrFar : state.camera.far;
@@ -5095,7 +5112,7 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spot, haloIntens
             eclipse photo shows (corona extending past the moon).
           Both are scaled by haloIntensity (data-driven from the star's
           apparent flux at the planet's orbit, st_lum + pl_orbsmax). */}
-      <StellarCorona radius={radius} color={renderColor} hdrScale={haloIntensity} sizeMult={2.5} peakAlpha={1.0} />
+      <StellarCorona radius={radius} color={renderColor} hdrScale={haloIntensity} sizeMult={2.5} peakAlpha={1.0} exposureRef={exposureRef} />
       {/* Outer: overlaps the inner (default startUv = disc edge) so the two
           layers' alpha profiles add into a single continuous gradient
           rather than meeting at a discontinuity. This is also closer to
@@ -5104,9 +5121,45 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spot, haloIntens
           plus a faint long tail, not two concentric rings. peakAlpha 0.25
           keeps the outer layer subtle enough not to over-brighten the
           inner halo, while still extending visibly out to 6× sun radius. */}
-      <StellarCorona radius={radius} color={renderColor} hdrScale={haloIntensity} sizeMult={6.0} peakAlpha={0.25} />
+      <StellarCorona radius={radius} color={renderColor} hdrScale={haloIntensity} sizeMult={6.0} peakAlpha={0.25} exposureRef={exposureRef} />
     </>
   );
+}
+
+// ── star viewing exposure ────────────────────────────────────────────────
+// Exposure isn't a measurement; it's how the "camera" sees the star. A real
+// star seen by eye or camera saturates to white with glare spilling over its
+// rim; the crisp disc with visible granulation and starspots only appears
+// through a heavy filter. We do both, by how big the star is in view: small
+// (system view) = saturated with full glare; filling the view = exposure
+// drops like an adapting eye, so surface detail (data-driven starspots from
+// the measured rotation period) becomes visible. Angular radius thresholds
+// are in degrees so desktop and VR behave the same.
+const STAR_EXPOSURE_FAR = 3.0;   // × uHdr when the star is small in view
+const STAR_EXPOSURE_NEAR_DEG = 6;  // angular radius where adaptation starts
+const STAR_EXPOSURE_FULL_DEG = 22; // ...and where it's complete
+const _expStar = new THREE.Vector3();
+const _expHead = new THREE.Vector3();
+const _expScale = new THREE.Vector3();
+function starExposure(
+  state: { camera: THREE.Camera; gl: THREE.WebGLRenderer },
+  star: THREE.Object3D,
+  radius: number,
+  /** Disc exposure when the star fills the view (per star, see Photosphere). */
+  nearExposure: number,
+): { disc: number; glare: number } {
+  headWorldPose(state, _expHead);
+  star.getWorldPosition(_expStar);
+  star.getWorldScale(_expScale);
+  const worldR = radius * Math.max(_expScale.x, _expScale.y, _expScale.z);
+  const d = Math.max(_expStar.distanceTo(_expHead), worldR * 1.0001);
+  const angDeg = THREE.MathUtils.radToDeg(Math.asin(Math.min(1, worldR / d)));
+  const t = THREE.MathUtils.smoothstep(angDeg, STAR_EXPOSURE_NEAR_DEG, STAR_EXPOSURE_FULL_DEG);
+  return {
+    disc: THREE.MathUtils.lerp(STAR_EXPOSURE_FAR, nearExposure, t),
+    // Glare fades with adaptation too, but keeps a soft rim up close.
+    glare: THREE.MathUtils.lerp(1.0, 0.35, t),
+  };
 }
 
 // ── geometric corona / star halo ─────────────────────────────────────────
@@ -5134,8 +5187,11 @@ function StellarCorona({
   sizeMult = 2.5,
   peakAlpha = 1.0,
   startUv,
+  exposureRef,
 }: {
   radius: number; color: THREE.Color; hdrScale: number;
+  /** Live viewing exposure from the parent Photosphere (glare scale). */
+  exposureRef?: React.MutableRefObject<{ disc: number; glare: number }>;
   /** Billboard size as a multiple of the photosphere radius. */
   sizeMult?: number;
   /** Multiplier on the halo's peak alpha. */
@@ -5157,6 +5213,7 @@ function StellarCorona({
       uHdr:        { value: hdrScale },
       uDiscEdgeUv: { value: discEdgeUv },
       uPeakAlpha:  { value: peakAlpha },
+      uGlare:      { value: 1 },
     },
     vertexShader: `
       varying vec2 vUv;
@@ -5170,6 +5227,7 @@ function StellarCorona({
       uniform float uHdr;
       uniform float uDiscEdgeUv;
       uniform float uPeakAlpha;
+      uniform float uGlare;
       varying vec2  vUv;
 
       void main() {
@@ -5184,12 +5242,17 @@ function StellarCorona({
         // is set by uHdr (data-driven from apparent flux) and uPeakAlpha
         // (per-instance — 1.0 for the bright inner corona, 0.10-0.15 for
         // an outer wide dim layer that paints a long soft tail).
-        float alpha = (1.0 - smoothstep(uDiscEdgeUv, 1.0, r)) * uPeakAlpha;
+        // Glare also spills INWARD over the rim (from 80% of the disc
+        // radius), as a real bright source's does: the edge blooms instead
+        // of showing a razor-sharp circle. The billboard sits at the star's
+        // near surface so this inner part isn't hidden by the photosphere.
+        float inner = smoothstep(uDiscEdgeUv * 0.8, uDiscEdgeUv, r);
+        float alpha = inner * (1.0 - smoothstep(uDiscEdgeUv, 1.0, r)) * uPeakAlpha;
 
         // Additive: bright fragments add light to whatever is behind them.
         // uHdr mirrors the photosphere's HDR multiplier so cool stars get a
         // rich deep-red halo and hot stars get a blinding white one.
-        gl_FragColor = vec4(uColor * uHdr * alpha, alpha);
+        gl_FragColor = vec4(uColor * uHdr * uGlare * alpha, alpha);
       }
     `,
     blending:    THREE.AdditiveBlending,
@@ -5221,11 +5284,36 @@ function StellarCorona({
   // value there aimed the billboards at the wrong point, so the halos showed
   // as flat discs seen edge-on, sweeping around orbiting binary stars.
   const camWorld = useMemo(() => new THREE.Vector3(), []);
+  const camLocal = useMemo(() => new THREE.Vector3(), []);
   useFrame((state) => {
-    if (meshRef.current) {
-      headWorldPose(state, camWorld);
-      meshRef.current.lookAt(camWorld);
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    headWorldPose(state, camWorld);
+    // Sit on the star's near surface (toward the viewer) so the inward
+    // glare over the rim draws in front of the photosphere, while planets
+    // passing in front of the star still occlude it.
+    if (mesh.parent) {
+      camLocal.copy(camWorld);
+      mesh.parent.worldToLocal(camLocal);
+      const d = camLocal.length();
+      if (d > radius * 1.05) {
+        mesh.position.copy(camLocal).multiplyScalar((radius * 0.98) / d);
+        // Up close, the visible edge (limb) projects onto this near-surface
+        // plane smaller than the radius: the limb circle sits deeper, at
+        // d - R²/d along the view axis, with radius R·sqrt(1 - R²/d²).
+        // Scale the glare's edge to match, or a dark gap opens around it.
+        const planeDist = d - radius * 0.98;
+        const limbDist = d - (radius * radius) / d;
+        const limbR = radius * Math.sqrt(Math.max(0, 1 - (radius * radius) / (d * d)));
+        const ratio = (limbR * planeDist) / (limbDist * radius);
+        material.uniforms.uDiscEdgeUv.value = discEdgeUv * ratio;
+      } else {
+        mesh.position.set(0, 0, 0);
+        material.uniforms.uDiscEdgeUv.value = discEdgeUv;
+      }
     }
+    mesh.lookAt(camWorld);
+    if (exposureRef) material.uniforms.uGlare.value = exposureRef.current.glare;
   });
 
   return (

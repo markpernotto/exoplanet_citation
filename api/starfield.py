@@ -895,8 +895,8 @@ MIN_WIDTH = 1024
 MAX_WIDTH = 16382
 
 
-def settings_from_env() -> tuple[int, int, float, int]:
-    """Read local rendering overrides: (width, height, mag_cutoff, quality).
+def settings_from_env() -> tuple[int, int, float, int, bool]:
+    """Read local rendering overrides: (width, height, mag_cutoff, quality, lossless).
 
     Read per request rather than at import, because api/index.py calls
     load_dotenv() after importing this module. Unset or empty variables
@@ -918,7 +918,13 @@ def settings_from_env() -> tuple[int, int, float, int]:
     quality = int(_get("STARFIELD_WEBP_QUALITY", str(WEBP_QUALITY)))
     if not 1 <= quality <= 100:
         raise ValueError(f"STARFIELD_WEBP_QUALITY={quality} must be 1 to 100.")
-    return width, width // 2, mag_cutoff, quality
+    lossless_raw = _get("STARFIELD_WEBP_LOSSLESS", "0").lower()
+    if lossless_raw not in ("0", "1", "true", "false", "yes", "no"):
+        raise ValueError(
+            f"STARFIELD_WEBP_LOSSLESS={lossless_raw} must be 1/true/yes or 0/false/no."
+        )
+    lossless = lossless_raw in ("1", "true", "yes")
+    return width, width // 2, mag_cutoff, quality, lossless
 
 
 def render_webp(
@@ -929,8 +935,15 @@ def render_webp(
     height: int = DEFAULT_HEIGHT,
     mag_cutoff: float = DEFAULT_MAG_CUTOFF,
     quality: int = WEBP_QUALITY,
+    lossless: bool = False,
 ) -> bytes:
-    """Convenience wrapper: rasterize, encode as WebP, return bytes."""
+    """Convenience wrapper: rasterize, encode as WebP, return bytes.
+
+    lossless=True keeps every faint star pixel exact (no compression
+    smearing), at several times the file size. Still a WebP, so the URL,
+    content type and caching are unchanged. In lossless mode Pillow treats
+    quality as compression effort rather than fidelity.
+    """
     import io
     img = rasterize_skytexture(
         catalog=catalog,
@@ -940,7 +953,7 @@ def render_webp(
         mag_cutoff=mag_cutoff,
     )
     buf = io.BytesIO()
-    img.save(buf, format="WEBP", quality=quality)
+    img.save(buf, format="WEBP", quality=quality, lossless=lossless)
     return buf.getvalue()
 
 
@@ -951,8 +964,9 @@ def render_webp_cached(
     height: int = DEFAULT_HEIGHT,
     mag_cutoff: float = DEFAULT_MAG_CUTOFF,
     quality: int = WEBP_QUALITY,
+    lossless: bool = False,
 ) -> bytes:
-    """Per-host WebP cache. Keyed by (host_xyz_pc, width, height, mag_cutoff, quality).
+    """Per-host WebP cache. Keyed by (host_xyz_pc, width, height, mag_cutoff, quality, lossless).
 
     Cold render runs several seconds (dominated by per-star ellipse
     drawing + LANCZOS upsample of the diffuse layer to full resolution);
@@ -971,4 +985,5 @@ def render_webp_cached(
         height=height,
         mag_cutoff=mag_cutoff,
         quality=quality,
+        lossless=lossless,
     )

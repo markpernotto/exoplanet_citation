@@ -377,9 +377,16 @@ def test_settings_from_env_defaults(monkeypatch):
         WEBP_QUALITY,
         settings_from_env,
     )
-    for name in ("STARFIELD_WIDTH", "STARFIELD_MAG_CUTOFF", "STARFIELD_WEBP_QUALITY"):
+    for name in (
+        "STARFIELD_WIDTH",
+        "STARFIELD_MAG_CUTOFF",
+        "STARFIELD_WEBP_QUALITY",
+        "STARFIELD_WEBP_LOSSLESS",
+    ):
         monkeypatch.setenv(name, "")  # blank, as in .env.example
-    assert settings_from_env() == (DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_MAG_CUTOFF, WEBP_QUALITY)
+    assert settings_from_env() == (
+        DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_MAG_CUTOFF, WEBP_QUALITY, False,
+    )
 
 
 def test_settings_from_env_overrides(monkeypatch):
@@ -387,7 +394,8 @@ def test_settings_from_env_overrides(monkeypatch):
     monkeypatch.setenv("STARFIELD_WIDTH", "16382")
     monkeypatch.setenv("STARFIELD_MAG_CUTOFF", "16")
     monkeypatch.setenv("STARFIELD_WEBP_QUALITY", "90")
-    assert settings_from_env() == (16382, 8191, 16.0, 90)
+    monkeypatch.setenv("STARFIELD_WEBP_LOSSLESS", "true")
+    assert settings_from_env() == (16382, 8191, 16.0, 90, True)
 
 
 @pytest.mark.parametrize("width", ["16384", "1023", "6145"])
@@ -396,3 +404,35 @@ def test_settings_from_env_rejects_bad_width(monkeypatch, width):
     monkeypatch.setenv("STARFIELD_WIDTH", width)
     with pytest.raises(ValueError, match="STARFIELD_WIDTH"):
         settings_from_env()
+
+
+def test_settings_from_env_rejects_bad_lossless(monkeypatch):
+    from api.starfield import settings_from_env
+    monkeypatch.setenv("STARFIELD_WEBP_LOSSLESS", "maybe")
+    with pytest.raises(ValueError, match="STARFIELD_WEBP_LOSSLESS"):
+        settings_from_env()
+
+
+def test_render_webp_lossless_roundtrips_exactly():
+    import io
+
+    from PIL import Image
+
+    from api.starfield import rasterize_skytexture, render_webp
+    np.random.seed(1)
+    n = 200
+    catalog = pd.DataFrame({
+        "x_pc": np.random.uniform(-50, 50, n).astype(np.float32),
+        "y_pc": np.random.uniform(-50, 50, n).astype(np.float32),
+        "z_pc": np.random.uniform(-50, 50, n).astype(np.float32),
+        "abs_g_mag": np.full(n, 4.0, dtype=np.float32),
+        "bp_rp": np.full(n, 0.8, dtype=np.float32),
+    })
+    kw = dict(host_xyz_pc=(0.0, 0.0, 0.0), width=256, height=128, mag_cutoff=14.0)
+    np.random.seed(2)
+    data = render_webp(catalog, lossless=True, **kw)
+    assert data[:4] == b"RIFF" and data[8:12] == b"WEBP"
+    np.random.seed(2)
+    expected = np.array(rasterize_skytexture(catalog=catalog, **kw).convert("RGB"))
+    decoded = np.array(Image.open(io.BytesIO(data)).convert("RGB"))
+    assert np.array_equal(decoded, expected)

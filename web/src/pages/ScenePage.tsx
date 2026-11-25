@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Canvas, createPortal, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { Html, OrbitControls } from '@react-three/drei';
@@ -23,6 +23,7 @@ const xrStore = createXRStore({
 export default function ScenePage() {
   const { plName = '' } = useParams<{ plName: string }>();
   const location = useLocation();
+  const navigate = useNavigate();
   const themeParam = new URLSearchParams(location.search).get('theme');
   const themeQuery = themeParam ? `?theme=${themeParam}` : '';
 
@@ -113,16 +114,25 @@ export default function ScenePage() {
   const clockRef = useRef<number>(initialHash.t ?? 0);
 
   useEffect(() => {
-    setScene(null);
+    // In VR, switching focus to a sibling planet keeps the current scene on
+    // screen until the new one arrives. Clearing it would unmount the Canvas
+    // and end the headset session; the sibling is in the same system, so
+    // the old scene is a seamless stand-in. Playback state carries over too.
+    const inVR = xrStore.getState().session != null;
+    if (!inVR) {
+      setScene(null);
+      setPaused(true);
+      setSpeed(1);
+    }
     setPaper(null);
     setError(null);
-    setPaused(true);
-    setSpeed(1);
+    let cancelled = false;
     api.planetScene(plName)
-      .then(setScene)
-      .catch((e: Error) => setError(e.message));
+      .then((s) => { if (!cancelled) setScene(s); })
+      .catch((e: Error) => { if (!cancelled) setError(e.message); });
     // Paper fetch is best-effort — many planets don't have ADS data, that's fine
-    api.planetPaper(plName).then(setPaper).catch(() => {});
+    api.planetPaper(plName).then((p) => { if (!cancelled) setPaper(p); }).catch(() => {});
+    return () => { cancelled = true; };
   }, [plName]);
 
   if (error) {
@@ -217,11 +227,38 @@ export default function ScenePage() {
   // hooks) to satisfy React's rules-of-hooks. It's used here to point the
   // surface-view camera tracker at the sun, which always lives at origin.
 
+  // Every planet in the system, innermost first, for the VR menu's planet
+  // list. Button labels drop the shared host prefix ("TRAPPIST-1 e" -> "e").
+  const systemPlanets = [scene.planet, ...scene.siblings]
+    .slice()
+    .sort((a, b) => (a.pl_orbsmax ?? Infinity) - (b.pl_orbsmax ?? Infinity))
+    .map((p) => {
+      const host = scene.planet.hostname;
+      const short = p.pl_name.startsWith(host) ? p.pl_name.slice(host.length).trim() : '';
+      return { name: p.pl_name, label: short || p.pl_name };
+    });
+  // VR menu planet pick. The current focal planet: fly to it. Another
+  // planet: make it the focus in place (VR session survives, see the scene
+  // loading effect), then fly to it once the new scene is up. While riding
+  // (surface view) the switch alone moves the rider onto the new planet.
+  const selectVRPlanet = (name: string) => {
+    if (name === scene.planet.pl_name) {
+      if (viewMode === 'system' && vrFocalAnchor.current) vrFlyRequest.current = vrFocalAnchor.current;
+      return;
+    }
+    vrFlyToFocalOnSwitch.current = viewMode === 'system';
+    vrRefocusPending.current = false;
+    navigate(`/planets/${encodeURIComponent(name)}/scene${themeQuery}`, { replace: true });
+  };
+
   // In-headset counterpart of PlaybackControls (press Y in VR). Same state,
   // same gating, so the two panels stay in step.
   const vrMenu = (
     <VRMenu
       plName={scene.planet.pl_name}
+      hostname={scene.planet.hostname}
+      systemPlanets={systemPlanets}
+      onSelectPlanet={selectVRPlanet}
       paused={paused} setPaused={setPaused}
       speed={speed} setSpeed={setSpeed}
       viewMode={viewMode} setViewMode={setViewMode}
@@ -2655,7 +2692,10 @@ function VRRig({
   const moveDir = useMemo(() => new THREE.Vector3(), []);
   const flight = useRef<VRFlight | null>(null);
   useFrame((state, delta) => {
-    if (!inXR) return;
+    if (!inXR) {
+      if (flight.current) { flight.current = null; setVRFollowName(null); }
+      return;
+    }
     const origin = originRef.current;
     if (!origin) return;
     const { inputSourceStates } = xrStore.getState();
@@ -2671,14 +2711,16 @@ function VRRig({
     const request = vrFlyRequest.current;
     vrFlyRequest.current = null;
     if (surfaceProps) {
-      flight.current = null;
+      if (flight.current) { flight.current = null; setVRFollowName(null); }
     } else if (request) {
       headWorldPose(state, headPos);
       request.getWorldPosition(_flyBodyPos);
       const approachDir = headPos.clone().sub(_flyBodyPos);
       const dist = approachDir.length();
       if (dist < 1e-6) approachDir.set(0, 0, 1); else approachDir.divideScalar(dist);
+      setVRFollowName((request.userData?.plName as string | undefined) ?? null);
       flight.current = {
+        lastBodyPos: _flyBodyPos.clone(),
         target: request,
         approachDir,
         standoff: Math.max(worldBoundingRadius(request) * VR_FLY_STANDOFF_RADII, VR_FLY_MIN_STANDOFF_M),
@@ -2694,18 +2736,44 @@ function VRRig({
       const r = stick('right');
       if (Math.hypot(l.x, l.y) > VR_MOVE_DEADZONE || Math.abs(r.x) > VR_TURN_DEADZONE || Math.abs(r.y) > VR_TURN_DEADZONE) {
         flight.current = null;
+        setVRFollowName(null);
       }
+    }
+    if (flight.current && !flight.current.target.parent) {
+      // The followed body unmounted. After a focus switch, that's the old
+      // sibling: hand off to the focal planet (same spot, same instant,
+      // thanks to the system clock) keeping the user's current offset.
+      const anchor = vrFocalAnchor.current;
+      const prev = flight.current;
+      if (vrRefocusPending.current && anchor?.parent) {
+        headWorldPose(state, headPos);
+        const dir = headPos.clone().sub(prev.lastBodyPos);
+        const standoff = dir.length();
+        if (standoff < 1e-6) dir.set(0, 0, 1); else dir.divideScalar(standoff);
+        flight.current = {
+          lastBodyPos: prev.lastBodyPos.clone(),
+          target: anchor,
+          approachDir: dir,
+          standoff,
+          startHead: headPos.clone(),
+          t: 1,
+          duration: 1,
+        };
+      } else {
+        flight.current = null; // body unmounted (e.g. system changed)
+      }
+      vrRefocusPending.current = false;
+      setVRFollowName(null);
     }
     if (flight.current) {
       const f = flight.current;
-      if (!f.target.parent) {
-        flight.current = null; // body unmounted (e.g. system changed)
-      } else {
+      {
         // Glide the head from where it started to the standoff point beside
         // the body, recomputed each frame since the body is orbiting. After
         // arrival (t = 1) keep matching the body, i.e. follow it along.
         f.t = Math.min(1, f.t + delta / f.duration);
         f.target.getWorldPosition(_flyBodyPos);
+        f.lastBodyPos.copy(_flyBodyPos);
         const arrival = _flyBodyPos.addScaledVector(f.approachDir, f.standoff);
         const desired = f.startHead.clone().lerp(arrival, easeInOutCubic(f.t));
         headWorldPose(state, headPos);
@@ -2794,7 +2862,43 @@ function requestVRFly(e: ThreeEvent<MouseEvent>): boolean {
   return true;
 }
 
+// VR focus switch. vrRefocusPending is set when the user makes a sibling the
+// focus; when the followed sibling body unmounts (the new scene arrived),
+// VRRig hands the follow-along to vrFocalAnchor, SceneContents' focal group.
+const vrRefocusPending = { current: false };
+// Set by the VR menu's planet list: once the new focal scene is up, fly the
+// user to it (SceneContents' refocus layout effect issues the request).
+const vrFlyToFocalOnSwitch = { current: false };
+const vrFocalAnchor: { current: THREE.Object3D | null } = { current: null };
+
+// Name of the planet the VR user is currently flying to / riding alongside,
+// as a tiny external store so labels can re-render when it changes.
+const vrFollow = { name: null as string | null, listeners: new Set<() => void>() };
+function setVRFollowName(name: string | null) {
+  if (vrFollow.name === name) return;
+  vrFollow.name = name;
+  vrFollow.listeners.forEach((l) => l());
+}
+function subscribeVRFollow(cb: () => void) {
+  vrFollow.listeners.add(cb);
+  return () => { vrFollow.listeners.delete(cb); };
+}
+function useVRFollowName(): string | null {
+  return useSyncExternalStore(subscribeVRFollow, () => vrFollow.name);
+}
+
+// Orbit timing helpers shared by SceneContents' system clock.
+function orbitPeriodDays(orbper: number | null, orbsmax: number | null): number {
+  return orbper ?? Math.pow(orbsmax ?? 1, 1.5) * 365.25;
+}
+function planetPhase0(name: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < name.length; i++) h = Math.imul(h ^ name.charCodeAt(i), 16777619);
+  return ((h >>> 0) % 360) * Math.PI / 180;
+}
+
 type VRFlight = {
+  lastBodyPos: THREE.Vector3; // body's world position last frame (refocus hand-off)
   target: THREE.Object3D;
   approachDir: THREE.Vector3; // from body toward where the user ends up
   standoff: number;           // meters from body center at arrival
@@ -2809,7 +2913,11 @@ const _flyScale = new THREE.Vector3();
 function worldBoundingRadius(obj: THREE.Object3D): number {
   const mesh = obj as THREE.Mesh;
   const geom = mesh.geometry;
-  if (!geom) return 0;
+  if (!geom) {
+    // A group (e.g. the focal planet's group, from the VR planet list):
+    // size it by everything inside.
+    return new THREE.Box3().setFromObject(obj).getBoundingSphere(new THREE.Sphere()).radius || 0;
+  }
   if (!geom.boundingSphere) geom.computeBoundingSphere();
   obj.getWorldScale(_flyScale);
   return (geom.boundingSphere?.radius ?? 0) * Math.max(_flyScale.x, _flyScale.y, _flyScale.z);
@@ -2848,6 +2956,10 @@ const VR_MOVE_DEADZONE = 0.08;
 
 type VRMenuProps = {
   plName: string;
+  hostname: string;
+  /** All planets in the system (focal included), innermost first. */
+  systemPlanets: { name: string; label: string }[];
+  onSelectPlanet: (name: string) => void;
   paused: boolean; setPaused: (p: boolean) => void;
   speed: number; setSpeed: (s: number) => void;
   viewMode: 'system' | 'surface'; setViewMode: (v: 'system' | 'surface') => void;
@@ -3020,7 +3132,8 @@ function drawVRMenu(
 
 function VRMenu(props: VRMenuProps) {
   const {
-    plName, paused, setPaused, speed, setSpeed, viewMode, setViewMode,
+    plName, hostname, systemPlanets, onSelectPlanet,
+    paused, setPaused, speed, setSpeed, viewMode, setViewMode,
     showRuler, setShowRuler, showCompanions, setShowCompanions, hasCompanions,
     showStarLabels, setShowStarLabels, irMode, setIrMode,
     showOrbits, setShowOrbits,
@@ -3081,6 +3194,18 @@ function VRMenu(props: VRMenuProps) {
       { id: 'v-system', label: 'system view', active: viewMode === 'system', onPress: () => switchMode('system') },
       { id: 'v-surface', label: 'from surface', active: viewMode === 'surface', onPress: () => switchMode('surface') },
     ] },
+    // Planet list: the highlighted one is the focus. Picking another makes
+    // it the focus and flies you there (or, while riding, moves you onto it).
+    // The menu closes so the flight is visible.
+    ...(systemPlanets.length > 1 ? [
+      { kind: 'heading' as const, text: `planets of ${hostname}` },
+      { kind: 'buttons' as const, buttons: systemPlanets.map((p) => ({
+        id: `planet-${p.name}`,
+        label: p.label,
+        active: p.name === plName,
+        onPress: () => { onSelectPlanet(p.name); setOpen(false); },
+      })) },
+    ] : []),
     { kind: 'heading', text: 'playback' },
     { kind: 'buttons', buttons: [
       { id: 'play', label: paused ? 'play' : 'pause', active: !paused, onPress: () => setPaused(!paused) },
@@ -3557,21 +3682,35 @@ function SceneContents({
   // group at the scene origin carries the VR scale-up transform.
   const sceneAnchorRef = useRef<THREE.Group>(null);
   const inXR = useXR((st) => st.session != null);
+  // Which planet the VR user has flown to and is riding alongside, if any.
+  // Triggering that same planet again makes it the focus.
+  const vrFollowName = useVRFollowName();
 
   const { sun_color_hex } = scene.scene_hints;
   const { planet, siblings } = scene;
+  // Prefixed so the host's hover key can't collide with a planet or companion name.
+  const hostHoverKey = `host:${planet.hostname}`;
+  const hostSubtitle = ['host star', planet.st_spectype].filter(Boolean).join(' · ');
 
-  function jumpTo(plName: string) {
+  function jumpTo(plName: string, opts: { keepVR?: boolean } = {}) {
     // If we're inside an XR session, end it gracefully before navigating.
     // Otherwise the route change unmounts the Canvas mid-frame and the
     // active WebXR session crashes the headset. The user is dropped back
     // to flat-screen view; they can re-enter VR on the new planet's page.
+    //
+    // keepVR: a sibling in the same system becoming the focus. ScenePage
+    // keeps the current scene mounted while the new one loads, so the
+    // session survives, and VRRig hands its follow-along over to the new
+    // focal planet once the old sibling body unmounts.
     const session = xrStore.getState().session;
     const go = () => navigate(
       `/planets/${encodeURIComponent(plName)}/scene${themeQuery}`,
       { replace: true },
     );
-    if (session) {
+    if (session && opts.keepVR) {
+      vrRefocusPending.current = true;
+      go();
+    } else if (session) {
       session.end().then(go).catch(go);
     } else {
       go();
@@ -3744,7 +3883,7 @@ function SceneContents({
   // Siblings derive from Kepler's 3rd law (T² ∝ a³) so inner planets visibly
   // outpace outer ones — same physics as the real system, just sped up.
   const FOCAL_SECS_PER_ORBIT = 60;
-  const focalPeriod = planet.pl_orbper ?? Math.pow(focalOrbsmax, 1.5) * 365.25;
+  const focalPeriod = orbitPeriodDays(planet.pl_orbper, focalOrbsmax);
 
   // Mean anomaly (M) = uniformly-advancing angle proxy for time. The real
   // ellipse position is computed from M by solving Kepler's equation for the
@@ -3752,14 +3891,48 @@ function SceneContents({
   // makes the planet trace its actual orbital path AND respects Kepler's 2nd
   // law (faster near periapsis, slower near apoapsis) — visible especially
   // for HD 80606b (e=0.93) and other high-eccentricity worlds.
-  function meanAnomaly(orbper: number | null, hashSeed: string): number {
-    const periodDays = orbper ?? Math.pow(focalOrbsmax, 1.5) * 365.25;
-    const ratio = focalPeriod / periodDays;
-    let h = 2166136261;
-    for (let i = 0; i < hashSeed.length; i++) h = Math.imul(h ^ hashSeed.charCodeAt(i), 16777619);
-    const phase0 = ((h >>> 0) % 360) * Math.PI / 180;
-    return phase0 + (clock.current / FOCAL_SECS_PER_ORBIT) * 2 * Math.PI * ratio;
+  //
+  // All planets share one system clock: each has a fixed starting phase
+  // (hashed from its name) and advances at 2π/P. The focal planet's phase
+  // is folded into the clock offset so it still starts at M = 0 (where the
+  // default camera looks). Because the configuration doesn't depend on
+  // which planet is focal, switching focus in VR re-expresses the same
+  // instant in the new focal planet's terms and nothing jumps
+  // (see the refocus layout effect below).
+  const focalPhase0 = planetPhase0(planet.pl_name);
+  function meanAnomaly(orbper: number | null, orbsmax: number, name: string): number {
+    const periodDays = orbitPeriodDays(orbper, orbsmax);
+    const focalM = (clock.current / FOCAL_SECS_PER_ORBIT) * 2 * Math.PI;
+    return planetPhase0(name) + (focalM - focalPhase0) * (focalPeriod / periodDays);
   }
+
+  // Focus switched in place (VR sibling refocus): convert the clock so the
+  // system's state is unchanged. System "time" A = (M_focal - g_focal) * P_focal
+  // is invariant; solve M_new = g_new + A / P_new for the new clock value.
+  // Layout effect so the conversion lands before the next frame renders.
+  const prevFocal = useRef({ name: planet.pl_name, phase0: focalPhase0, period: focalPeriod });
+  useLayoutEffect(() => {
+    const prev = prevFocal.current;
+    if (prev.name !== planet.pl_name) {
+      const k = (2 * Math.PI) / FOCAL_SECS_PER_ORBIT;
+      const A = (clock.current * k - prev.phase0) * prev.period;
+      clock.current = (A / focalPeriod + focalPhase0) / k;
+      if (vrFlyToFocalOnSwitch.current && focalGroup.current) {
+        vrFlyRequest.current = focalGroup.current;
+        vrRefocusPending.current = false;
+      }
+      vrFlyToFocalOnSwitch.current = false;
+    }
+    prevFocal.current = { name: planet.pl_name, phase0: focalPhase0, period: focalPeriod };
+  }, [planet.pl_name, focalPhase0, focalPeriod, clock]);
+
+  // VR follow hand-off target after a refocus.
+  useEffect(() => {
+    vrFocalAnchor.current = focalGroup.current;
+    return () => {
+      if (vrFocalAnchor.current === focalGroup.current) vrFocalAnchor.current = null;
+    };
+  });
 
   useFrame((_, delta) => {
     if (!paused) clock.current += delta * speed;
@@ -3782,7 +3955,7 @@ function SceneContents({
     siblingRefs.current.forEach((group, plName) => {
       const s = siblings.find((x) => x.pl_name === plName);
       if (!s || s.pl_orbsmax == null) return;
-      const M = meanAnomaly(s.pl_orbper, s.pl_name);
+      const M = meanAnomaly(s.pl_orbper, s.pl_orbsmax, s.pl_name);
       const [x0_raw, , z0_raw] = keplerPosition(s.pl_orbsmax, s.pl_orbeccen ?? 0, M);
       const [x0, z0] = rotateInPlane(x0_raw, z0_raw, argPeriRad(s.pl_orblper));
       const tilt = tiltMap.get(plName) ?? { inc: 0, omega: 0 };
@@ -3815,8 +3988,18 @@ function SceneContents({
             hostname={planet.hostname}
             irMode={irMode}
           />
-        : <Photosphere radius={sunRadius} color={sun_color_hex} teff={planet.st_teff} rotationPeriodDays={stellarRotationDays} spot={stellarSpot} haloIntensity={haloIntensity} oblateness={stellarOblateness ?? 0} irMode={irMode} />
+        : <Photosphere radius={sunRadius} color={sun_color_hex} teff={planet.st_teff} rotationPeriodDays={stellarRotationDays} spot={stellarSpot} haloIntensity={haloIntensity} oblateness={stellarOblateness ?? 0} irMode={irMode} hoverKey={hostHoverKey} onHover={setHovered} />
       }
+      {/* Host-star hover label (single star). Hidden while the persistent
+          star label is on, to avoid stacking the same name twice. */}
+      {planet.cb_flag !== 1 && hovered === hostHoverKey && !showStarLabels && (
+        <PlanetLabel
+          name={planet.hostname}
+          subtitle={hostSubtitle}
+          vrSubtitle={`${hostSubtitle} · trigger: fly here`}
+          yOffset={sunRadius * 1.6}
+        />
+      )}
       {/* Host-star label (single Photosphere case). Sits well above the
           star body so it doesn't cover the disc. Suppressed in the
           binary case since each inner star gets its own label inside
@@ -4074,6 +4257,7 @@ function SceneContents({
                 name={s.pl_name}
                 onHover={setHovered}
                 onClick={() => jumpTo(s.pl_name)}
+                onVRFocus={() => jumpTo(s.pl_name, { keepVR: true })}
                 effectiveTempK={siblingTeff}
                 rotationOmegaRad={siblingSpinOmega}
                 atmosphereTint={siblingTint}
@@ -4085,7 +4269,13 @@ function SceneContents({
               {siblingCpd && (
                 <CircumplanetaryDiskRing planetRadius={siblingRadius} irMode={irMode} />
               )}
-              {hovered === s.pl_name && <PlanetLabel name={s.pl_name} subtitle="click to jump" vrSubtitle="trigger: fly here" />}
+              {hovered === s.pl_name && (
+                <PlanetLabel
+                  name={s.pl_name}
+                  subtitle="click to jump"
+                  vrSubtitle={vrFollowName === s.pl_name ? 'trigger: make this the focus' : 'trigger: fly here'}
+                />
+              )}
             </group>
           );
         })}
@@ -4606,7 +4796,9 @@ function spectralTypeToColor(spectype: string | null): string {
 // atmospheric path) and subtle granulation noise. Result: a soft, alive
 // edge rather than a hard sharp circle.
 
-function Photosphere({ radius, color, teff, rotationPeriodDays, spot, haloIntensity = 0.4, oblateness = 0, irMode = false }: { radius: number; color: string; teff: number | null; rotationPeriodDays?: number | null; spot?: StarSpotProps | null; haloIntensity?: number; oblateness?: number; irMode?: boolean }) {
+function Photosphere({ radius, color, teff, rotationPeriodDays, spot, haloIntensity = 0.4, oblateness = 0, irMode = false, hoverKey, onHover }: { radius: number; color: string; teff: number | null; rotationPeriodDays?: number | null; spot?: StarSpotProps | null; haloIntensity?: number; oblateness?: number; irMode?: boolean;
+  /** When set, hovering the disc reports this key via onHover (host-star label). */
+  hoverKey?: string; onHover?: (key: string | null) => void }) {
   // Opaque shader — must write depth properly so orbit lines and planets
   // behind the sun get occluded. The "soft edge" is achieved by the corona
   // (drawn additively over and around the photosphere edge), not by making
@@ -4879,7 +5071,13 @@ function Photosphere({ radius, color, teff, rotationPeriodDays, spot, haloIntens
           <sphereGeometry args={[radius, 64, 64]} />
         </mesh>
         {/* onClick: in VR, point-and-fly to this star (no-op on desktop). */}
-        <mesh material={material} renderOrder={10} onClick={(e) => { requestVRFly(e); }}>
+        <mesh
+          material={material}
+          renderOrder={10}
+          onClick={(e) => { requestVRFly(e); }}
+          onPointerOver={hoverKey && onHover ? (e) => { e.stopPropagation(); onHover(hoverKey); } : undefined}
+          onPointerOut={hoverKey && onHover ? (e) => { e.stopPropagation(); onHover(null); } : undefined}
+        >
           <sphereGeometry args={[radius, 64, 64]} />
         </mesh>
       </group>
@@ -5315,6 +5513,12 @@ function formatAU(v: number): string {
 //   - Locked handle: cyan-green (#7fffd6) — "attached"
 //   - Unlocked / freehand: amber (#ffd76e)
 //   - Currently dragging: bright yellow (#fff080)
+const _rulerHead = new THREE.Vector3();
+const _rulerPos = new THREE.Vector3();
+const _rulerScale = new THREE.Vector3();
+const _rulerInv = new THREE.Matrix4();
+const _rulerRay = new THREE.Ray();
+
 function SystemRuler({
   maxOrbit,
   onDragChange,
@@ -5363,6 +5567,43 @@ function SystemRuler({
   const lastLabelUpdate = useRef(0);
 
   const { camera, gl } = useThree();
+  const inXR = useXR((s) => s.session != null);
+  // The drag plane is the ruler's own local XZ plane. In VR the ruler sits
+  // inside VRSceneScale, so controller rays (world meters) are converted
+  // into this group's space before intersecting.
+  const groupRef = useRef<THREE.Group>(null);
+
+  // VR drag: the controller ray captures the handle on pointer-down, so
+  // every later pointer-move lands on that handle with a fresh world ray,
+  // even when the ray swings off it. The ray is intersected with the
+  // orbital plane, same as the desktop mouse path below.
+  const onXRDragMove = (side: 'A' | 'B', e: ThreeEvent<PointerEvent>) => {
+    if (dragging !== side || !gl.xr.isPresenting || !groupRef.current) return;
+    e.stopPropagation();
+    _rulerInv.copy(groupRef.current.matrixWorld).invert();
+    _rulerRay.copy(e.ray).applyMatrix4(_rulerInv);
+    const d = _rulerRay.direction, o = _rulerRay.origin;
+    if (Math.abs(d.y) < 1e-9) return;
+    const t = -o.y / d.y;
+    if (t < 0) return;
+    const p: [number, number, number] = [o.x + t * d.x, 0, o.z + t * d.z];
+    if (side === 'A') aRef.current = p;
+    else bRef.current = p;
+  };
+  const onXRDragEnd = (e: ThreeEvent<PointerEvent>) => {
+    if (!gl.xr.isPresenting) return;
+    (e.target as unknown as THREE.Object3D).releasePointerCapture?.(e.pointerId);
+    setDragging(null);
+  };
+  const onHandleDown = (side: 'A' | 'B', e: ThreeEvent<PointerEvent>) => {
+    e.stopPropagation();
+    if (gl.xr.isPresenting) {
+      (e.target as unknown as THREE.Object3D).setPointerCapture?.(e.pointerId);
+    }
+    if (side === 'A') setLockedA(false);
+    else setLockedB(false);
+    setDragging(side);
+  };
 
   // While a drag is in progress, listen for pointer moves + up directly on
   // the canvas. Bypasses R3F's mesh-routed event system so cursor moves
@@ -5370,7 +5611,7 @@ function SystemRuler({
   // drag — and so pointer-up always fires and clears the drag state
   // (which the camera-disable depends on).
   useEffect(() => {
-    if (!dragging) return;
+    if (!dragging || gl.xr.isPresenting) return;
     const canvas = gl.domElement;
     const raycaster = new THREE.Raycaster();
     const ndc = new THREE.Vector2();
@@ -5425,7 +5666,19 @@ function SystemRuler({
   // tracks tilted/obliquity orbits like WASP-107 b. Freehand drags are
   // still Y=0-constrained (the drag raycast hits the orbital plane), so
   // a dragged endpoint snaps back to the reference plane.
-  useFrame(() => {
+  useFrame((state) => {
+    // Handles and spine keep a constant apparent size. Distances are
+    // measured in world space from the real eye (headset or camera), then
+    // divided by the parent's world scale so the VR scene scale-up doesn't
+    // inflate them. On desktop the scale is 1 and this matches the old
+    // camera-distance sizing.
+    headWorldPose(state, _rulerHead);
+    const parent = groupRef.current;
+    if (parent) parent.getWorldScale(_rulerScale);
+    const parentScale = parent ? Math.max(_rulerScale.x, 1e-9) : 1;
+    const apparent = (m: THREE.Object3D) =>
+      m.getWorldPosition(_rulerPos).distanceTo(_rulerHead) / parentScale;
+
     // Lock tracking — full 3D for the planet so we follow inclined orbits.
     if (lockedA) aRef.current = [0, 0, 0];
     if (lockedB && focalPosRef?.current) {
@@ -5443,13 +5696,11 @@ function SystemRuler({
     // Handle positions + screen-space scale
     if (meshARef.current) {
       meshARef.current.position.set(ax, ay, az);
-      const dist = camera.position.distanceTo(meshARef.current.position);
-      meshARef.current.scale.setScalar(dist * HANDLE_SCREEN_FRAC);
+      meshARef.current.scale.setScalar(apparent(meshARef.current) * HANDLE_SCREEN_FRAC);
     }
     if (meshBRef.current) {
       meshBRef.current.position.set(bx, by, bz);
-      const dist = camera.position.distanceTo(meshBRef.current.position);
-      meshBRef.current.scale.setScalar(dist * HANDLE_SCREEN_FRAC);
+      meshBRef.current.scale.setScalar(apparent(meshBRef.current) * HANDLE_SCREEN_FRAC);
     }
 
     // Spine: midpoint, length, orientation in full 3D
@@ -5464,8 +5715,7 @@ function SystemRuler({
       );
       // Scale: x/z control radius (screen-space), y controls length
       // (true AU distance).
-      const dist = camera.position.distanceTo(spineRef.current.position);
-      const radiusScale = dist * HANDLE_SCREEN_FRAC * SPINE_THICKNESS_FRAC;
+      const radiusScale = apparent(spineRef.current) * HANDLE_SCREEN_FRAC * SPINE_THICKNESS_FRAC;
       spineRef.current.scale.set(radiusScale, length, radiusScale);
       spineRef.current.visible = true;
     } else if (spineRef.current) {
@@ -5483,7 +5733,7 @@ function SystemRuler({
   });
 
   return (
-    <group>
+    <group ref={groupRef}>
       {/* Spine: cylinder with unit radius + unit length, scaled per-frame
           via the spineRef in useFrame above. */}
       <mesh ref={spineRef}>
@@ -5504,11 +5754,10 @@ function SystemRuler({
           drag. */}
       <mesh
         ref={meshARef}
-        onPointerDown={(e) => {
-          e.stopPropagation();
-          setLockedA(false);
-          setDragging('A');
-        }}
+        onPointerDown={(e) => onHandleDown('A', e)}
+        onPointerMove={(e) => onXRDragMove('A', e)}
+        onPointerUp={onXRDragEnd}
+        onClick={(e) => e.stopPropagation()}
       >
         <sphereGeometry args={[1, 16, 12]} />
         <meshStandardMaterial
@@ -5522,11 +5771,10 @@ function SystemRuler({
       {/* Endpoint B handle. Identical to A. */}
       <mesh
         ref={meshBRef}
-        onPointerDown={(e) => {
-          e.stopPropagation();
-          setLockedB(false);
-          setDragging('B');
-        }}
+        onPointerDown={(e) => onHandleDown('B', e)}
+        onPointerMove={(e) => onXRDragMove('B', e)}
+        onPointerUp={onXRDragEnd}
+        onClick={(e) => e.stopPropagation()}
       >
         <sphereGeometry args={[1, 16, 12]} />
         <meshStandardMaterial
@@ -5537,9 +5785,15 @@ function SystemRuler({
         />
       </mesh>
 
-      {/* Live distance label, HTML-overlaid in 3D space. Stays a constant
-          CSS pixel size regardless of zoom. Position + text update at the
-          throttled rate set inside useFrame. */}
+      {/* Live distance label. Desktop: HTML overlay at a constant CSS
+          pixel size. VR: HTML overlays don't exist in the headset, so a
+          themed billboard tag (same as planet labels) takes its place.
+          Position + text update at the throttled rate set in useFrame. */}
+      {inXR ? (
+        <group position={labelInfo.pos}>
+          <VRHoverLabel name={labelInfo.text} yOffset={0} />
+        </group>
+      ) : (
       <Html
         position={labelInfo.pos}
         center
@@ -5558,6 +5812,7 @@ function SystemRuler({
       >
         {labelInfo.text}
       </Html>
+      )}
     </group>
   );
 }
@@ -5793,6 +6048,7 @@ function PlanetBody({
   name,
   onHover,
   onClick,
+  onVRFocus,
   atmosphereTint,
   rotationOmegaRad,
   phaseCurve,
@@ -5819,6 +6075,9 @@ function PlanetBody({
   name?: string;
   onHover?: (n: string | null) => void;
   onClick?: () => void;
+  /** VR: called when the user triggers this planet while already riding
+      alongside it (makes it the focal planet without leaving VR). */
+  onVRFocus?: () => void;
   /** When provided, overrides the default atmospheric haze color for gas
       giants. Driven by curated molecule detections — methane → blue,
       water → pale blue, CO2 → tan, etc. Only meaningful for the focal planet
@@ -5912,7 +6171,18 @@ function PlanetBody({
       <mesh
         onPointerOver={(e) => { e.stopPropagation(); if (name && onHover) onHover(name); document.body.style.cursor = onClick ? 'pointer' : 'default'; }}
         onPointerOut={(e) => { e.stopPropagation(); if (onHover) onHover(null); document.body.style.cursor = 'default'; }}
-        onClick={(e) => { if (requestVRFly(e)) return; if (onClick) { e.stopPropagation(); onClick(); } }}
+        onClick={(e) => {
+          // VR: triggering the planet you've already flown to makes it the
+          // focus; otherwise trigger flies you there.
+          if (onVRFocus && name && xrStore.getState().session && vrFollow.name === name) {
+            e.stopPropagation();
+            onVRFocus();
+            return;
+          }
+          if (requestVRFly(e)) return;
+          if (onClick) { e.stopPropagation(); onClick(); }
+        }}
+        userData={{ plName: name }}
       >
         <sphereGeometry args={[hitRadius, 8, 8]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
